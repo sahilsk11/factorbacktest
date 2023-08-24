@@ -18,7 +18,7 @@ interface BacktestRequest {
   numSymbols?: number;
 }
 
-interface Trade {
+export interface Trade {
   action: string;
   quantity: number;
   symbol: string;
