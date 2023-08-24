@@ -29,7 +29,6 @@ export default function BenchmarkManager({
         if (enumerateDates(minDate, maxDate).length < 60) {
           granularity = "daily"
         }
-        console.log(minDate, maxDate)
         const response = await fetch(
           'http://localhost:3009/benchmark',
           {

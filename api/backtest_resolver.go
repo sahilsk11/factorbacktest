@@ -139,7 +139,5 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		BacktestSamples: samples,
 	}
 
-	fmt.Println(responseJson)
-
 	c.JSON(200, responseJson)
 }

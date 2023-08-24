@@ -1,3 +1,5 @@
+import { Dispatch } from 'react';
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -15,7 +17,7 @@ import {
   BubbleDataPoint,
 } from 'chart.js';
 
-import { Line, getDatasetAtEvent, getElementAtEvent, getElementsAtEvent } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 
 
 import {
@@ -48,17 +50,20 @@ ChartJS.register(
 export default function BacktestChart({
   benchmarkData,
   factorData,
+  updateInspectFactorDataIndex,
+  updateInspectFactorDataDate
 }: {
   benchmarkData: BenchmarkData[];
   factorData: FactorData[];
+  updateInspectFactorDataIndex: Dispatch<React.SetStateAction<number | null>>;
+  updateInspectFactorDataDate: Dispatch<React.SetStateAction<string | null>>;
 }) {
   const datasets: ChartDataset<"line", (number | null)[]>[] = [];
 
   let { min: minDate, max: maxDate } = minMaxDates(factorData);
-  console.log(minDate, maxDate)
 
   minDate = minDate === "" ? "2020-01-01" : minDate;
-  maxDate = maxDate === "" ? "2022-01-01": maxDate;
+  maxDate = maxDate === "" ? "2022-01-01" : maxDate;
 
   const labels = enumerateDates(minDate, maxDate);
 
@@ -97,22 +102,21 @@ export default function BacktestChart({
         enabled: true
       }
     },
-    // onClick: (e, elements) => {
-    //   console.log(elements[0].index, elements[0].datasetIndex, elements[0].element);
-    // },
+    onClick: (_, elements) => {
+      elements.forEach(e => {
+        if (e.datasetIndex >= benchmarkData.length) {
+          const factorIndex = e.datasetIndex - benchmarkData.length;
+          const date = labels[e.index];
+          updateInspectFactorDataIndex(factorIndex);
+          updateInspectFactorDataDate(date);
+        }
+      })
+    },
   };
 
   return <Line
-    // ref={chartRef}
     options={options}
     data={data}
     updateMode='resize'
-  // onClick={(event) => {
-  //   // let x = getElementAtEvent(chartRef.current, event)[0]
-  //   // let index = (x.index - 1) / 30
-  //   // console.log(datasetInfo[x.datasetIndex])
-  //   // let y = datasetInfo[x.datasetIndex].backtestedData?[index].date
-
-  // }}
   />
 }
