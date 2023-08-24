@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { FactorData, Portfolio } from "./App";
+import { FactorData } from "./App";
+
+interface FactorOptions {
+  expression: string;
+  intensity: number;
+  name: string;
+}
 
 interface BacktestRequest {
-  factorOptions: {
-    expression: string;
-    intensity: number;
-    name: string;
-  };
+  factorOptions: FactorOptions;
   backtestStart: string;
   backtestEnd: string;
   samplingIntervalUnit: string;
@@ -16,15 +18,28 @@ interface BacktestRequest {
   numSymbols?: number;
 }
 
-interface BacktestSample {
+interface Trade {
+  action: string;
+  quantity: number;
+  symbol: string;
+  price: number;
+}
+
+interface AssetWeights {
+  [symbol: string]: number;
+}
+
+export interface BacktestSnapshot {
   valuePercentChange: number;
   value: number;
   date: string;
+  assetWeights: AssetWeights;
+  trades: Trade[];
 }
 
 interface BacktestResponse {
   factorName: string;
-  backtestSamples: Record<string, BacktestSample>;
+  backtestSnapshots: Record<string, BacktestSnapshot>;
 }
 
 export default function FactorForm({
@@ -80,17 +95,17 @@ export default function FactorForm({
         setNames([...names, factorOptions.name])
         const fd: FactorData = {
           name: data.factorOptions.name,
-          data: {}, // TODO - fix
+          data: result.backtestSnapshots, 
           expression: data.factorOptions.expression
         } as FactorData;
-        Object.keys(result.backtestSamples).forEach(date => {
-          const value = result.backtestSamples[date];
-          fd.data[date] = {
-            totalValue: value.value,
-            percentChange: value.valuePercentChange,
-            date,
-          } as Portfolio
-        })
+        // Object.keys(result.backtestSnapshots).forEach(date => {
+        //   const value = result.backtestSnapshots[date];
+        //   fd.data[date] = {
+        //     totalValue: value.value,
+        //     percentChange: value.valuePercentChange,
+        //     date,
+        //   } as Portfolio
+        // })
         appendFactorData(fd)
       } else {
         console.error("Error submitting data:", response.status);

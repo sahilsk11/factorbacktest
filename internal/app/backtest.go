@@ -109,6 +109,7 @@ type BacktestSample struct {
 	EndPortfolio   domain.Portfolio
 	TotalValue     float64
 	ProposedTrades []domain.ProposedTrade
+	AssetWeights   map[string]float64
 }
 
 type FactorOptions struct {
@@ -218,6 +219,7 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 			EndPortfolio:   *computeTargetPortfolioResponse.TargetPortfolio,
 			ProposedTrades: trades,
 			TotalValue:     computeTargetPortfolioResponse.TotalValue,
+			AssetWeights:   computeTargetPortfolioResponse.AssetWeights,
 		})
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 		currentTime = currentTime.Add(in.SamplingInterval)

@@ -1,10 +1,3 @@
-import {
-  BacktestSample,
-  BacktestResponse,
-  BenchmarkData,
-  DatasetInfo
-} from './models';
-
 import { FactorData } from './App';
 
 export function enumerateDates(startDateStr: string, endDateStr: string) {
@@ -28,27 +21,6 @@ export function formatDate(date: Date) {
   const day = date.getDate().toString().padStart(2, '0');
 
   return `${year}-${month}-${day}`;
-}
-
-export function findMinMaxDates(data: BenchmarkData[]): { minDate: string | null; maxDate: string | null } {
-  let minDate: string | null = null;
-  let maxDate: string | null = null;
-
-  for (const d of data) {
-
-    for (const date in d.data) {
-      if (Object.prototype.hasOwnProperty.call(d.data, date)) {
-        if (!minDate || date < minDate) {
-          minDate = date;
-        }
-        if (!maxDate || date > maxDate) {
-          maxDate = date;
-        }
-      }
-    }
-  }
-
-  return { minDate, maxDate };
 }
 
 export const minMaxDates = (factorData:FactorData[]): {min: string; max:string} => {
