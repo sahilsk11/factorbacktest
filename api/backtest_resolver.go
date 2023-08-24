@@ -79,15 +79,18 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		samplingInterval *= 30
 	}
 
-	startPortfolio := domain.Portfolio{
-		Cash:      requestBody.StartCash,
-		Positions: domain.PositionsFromQuantity(requestBody.AnchorPortfolioQuantities),
-	}
-
 	assetSelectionMode, err := internal.NewAssetSelectionMode(requestBody.AssetSelectionMode)
 	if err != nil {
 		returnErrorJson(fmt.Errorf("could not parse asset selection mode: %w", err), c)
 		return
+	}
+
+	startPortfolio := domain.Portfolio{
+		Cash: requestBody.StartCash,
+	}
+	startPortfolio.Cash = 100000
+	if *assetSelectionMode == internal.AssetSelectionMode_AnchorPortfolio {
+		startPortfolio.Positions = domain.PositionsFromQuantity(requestBody.AnchorPortfolioQuantities)
 	}
 
 	backtestInput := app.BacktestInput{
@@ -135,6 +138,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		FactorName:      backtestInput.FactorOptions.Name,
 		BacktestSamples: samples,
 	}
+
+	fmt.Println(responseJson)
 
 	c.JSON(200, responseJson)
 }

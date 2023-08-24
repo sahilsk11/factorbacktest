@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FactorData } from "./App";
+import { FactorData, Portfolio } from "./App";
 
 interface BacktestRequest {
   factorOptions: {
@@ -27,7 +27,6 @@ interface BacktestResponse {
   backtestSamples: Record<string, BacktestSample>;
 }
 
-
 export default function FactorForm({
   takenNames,
   appendFactorData
@@ -41,7 +40,7 @@ export default function FactorForm({
     name: "test"
   });
   const [backtestStart, setBacktestStart] = useState("2020-01-02");
-  const [backtestEnd, setBacktestEnd] = useState("2022-01-01");
+  const [backtestEnd, setBacktestEnd] = useState("2020-02-01");
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
   const [startPortfolio, setStartPortfolio] = useState(`{
       "AAPL": 10,
@@ -79,11 +78,20 @@ export default function FactorForm({
       if (response.ok) {
         const result: BacktestResponse = await response.json()
         setNames([...names, factorOptions.name])
-        appendFactorData({
+        const fd: FactorData = {
           name: data.factorOptions.name,
           data: {}, // TODO - fix
           expression: data.factorOptions.expression
-        } as FactorData)
+        } as FactorData;
+        Object.keys(result.backtestSamples).forEach(date => {
+          const value = result.backtestSamples[date];
+          fd.data[date] = {
+            totalValue: value.value,
+            percentChange: value.valuePercentChange,
+            date,
+          } as Portfolio
+        })
+        appendFactorData(fd)
       } else {
         console.error("Error submitting data:", response.status);
       }

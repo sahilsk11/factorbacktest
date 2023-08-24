@@ -22,6 +22,7 @@ import {
   enumerateDates,
   formatDate,
   findMinMaxDates,
+  minMaxDates,
 } from "./util";
 
 import {
@@ -53,14 +54,8 @@ export default function BacktestChart({
 }) {
   const datasets: ChartDataset<"line", (number | null)[]>[] = [];
 
-  let maxDate = factorData.reduce((maxDate: string, currentList: FactorData) => {
-    const key = Object.keys(currentList.data).sort().slice(-1)[0];
-    return key > maxDate ? key : maxDate;
-  }, "");
-  let minDate = factorData.reduce((minDate: string, currentList: FactorData) => {
-    const key = Object.keys(currentList.data).sort()[0];
-    return minDate === "" || key < minDate ? key : minDate;
-  }, "");
+  let { min: minDate, max: maxDate } = minMaxDates(factorData);
+  console.log(minDate, maxDate)
 
   minDate = minDate === "" ? "2020-01-01" : minDate;
   maxDate = maxDate === "" ? "2022-01-01": maxDate;

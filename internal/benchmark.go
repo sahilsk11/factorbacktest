@@ -5,14 +5,12 @@ import (
 	"alpha/internal/repository"
 	"database/sql"
 	"fmt"
+	"sort"
 	"time"
 )
 
 type BenchmarkHandler struct {
 	PriceRepository repository.AdjustedPriceRepository
-}
-
-type price struct {
 }
 
 func (h BenchmarkHandler) GetIntraPeriodChange(
@@ -22,6 +20,7 @@ func (h BenchmarkHandler) GetIntraPeriodChange(
 	end time.Time,
 	granularity time.Duration,
 ) (map[time.Time]float64, error) {
+	fmt.Println(start, end)
 	prices, err := h.PriceRepository.List(
 		tx,
 		symbol,
@@ -34,7 +33,7 @@ func (h BenchmarkHandler) GetIntraPeriodChange(
 	if len(prices) == 0 {
 		return nil, fmt.Errorf("no prices found for symbol %s between %v and %v", symbol, start, end)
 	}
-
+	fmt.Println(len(prices))
 	return intraPeriodChangeIterator(prices, start, end, granularity), nil
 }
 
@@ -47,6 +46,12 @@ func intraPeriodChangeIterator(
 ) map[time.Time]float64 {
 	layout := "2006-01-02"
 
+	sort.Slice(prices, func(i2, j int) bool {
+		return prices[i2].Date.Before(prices[j].Date)
+	})
+	Pprint(prices)
+	fmt.Println(len(prices))
+
 	i := 1
 	// TODO - handle if len(prices) == 0
 	// or value out of range
@@ -55,14 +60,19 @@ func intraPeriodChangeIterator(
 	}
 	nextTarget := prices[0].Date.Add(granularity)
 	for i < len(prices) && DateLte(prices[i].Date, end) {
-		if prices[i].Date.Format(layout) == nextTarget.Format(layout) ||
-			i+1 < len(prices) && prices[i+1].Date.Unix() > nextTarget.Unix() {
+		for nextTarget.Format(layout) < prices[i].Date.Format(layout) {
+			nextTarget = nextTarget.Add(24 * time.Hour)
+		}
+		if prices[i].Date.Format(layout) == nextTarget.Format(layout) {
+			// || i+1 < len(prices) && prices[i+1].Date.Unix() > nextTarget.Unix()
+			// fmt.Println(nextTarget)
 			out[nextTarget] = 100 * (prices[i].Price - prices[0].Price) / prices[0].Price
 			nextTarget = nextTarget.Add(granularity)
-
+			fmt.Println(nextTarget)
 		}
 		i++
 	}
+	fmt.Println(out)
 
 	return out
 }

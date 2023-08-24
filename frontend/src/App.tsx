@@ -9,7 +9,7 @@ import BenchmarkManager from './BenchmarkSelector';
 
 import { minMaxDates } from './util';
 
-interface Portfolio {
+export interface Portfolio {
   totalValue: number,
   percentChange: number,
   holdingsWeight: Record<string, number>,
@@ -40,7 +40,8 @@ const App = () => {
     takenNames.push(bd.symbol)
   })
   const { min: minFactorDate, max: maxFactorDate } = minMaxDates(factorData);
-
+  console.log(factorData)
+  console.log(minFactorDate, maxFactorDate)
   return <>
     <div className="centered-container">
       <div className="container">
