@@ -47,7 +47,7 @@ export default function FactorForm({
     "MSFT": 15,
     "GOOGL": 8
     }`);
-  const [cash, setCash] = useState(0);
+  const [cash, setCash] = useState(10_000);
   const [assetSelectionMode, setAssetSelectionMode] = useState("NUM_SYMBOLS");
   const [numSymbols, setNumSymbols] = useState(10);
   const [names, setNames] = useState<string[]>([...takenNames]);
@@ -190,6 +190,14 @@ export default function FactorForm({
             style={{ height: "100px" }}
           />
         </div> : null}
+        <div>
+          <label>Cash:</label>
+          <input
+            type="number"
+            value={cash}
+            onChange={(e) => setCash(parseFloat(e.target.value))}
+          />
+        </div>
         {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
           <label>Intensity:</label>
           <input
@@ -200,14 +208,7 @@ export default function FactorForm({
             }
           />
         </div> : null}
-        {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
-          <label>Cash:</label>
-          <input
-            type="number"
-            value={cash}
-            onChange={(e) => setCash(parseFloat(e.target.value))}
-          />
-        </div> : null}
+        
         <button disabled={!sendEnabled} type="submit">Submit</button>
       </form>
     </div>
