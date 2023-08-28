@@ -234,7 +234,6 @@ func calculateWeightsViaNumTickers(
 ) (map[string]float64, error) {
 	topScores := topNScores(factorScoresBySymbol, numTickers)
 	numTickers = len(topScores)
-
 	if numTickers == 1 {
 		for symbol := range topScores {
 			return map[string]float64{
@@ -242,7 +241,6 @@ func calculateWeightsViaNumTickers(
 			}, nil
 		}
 	}
-
 	originalWeights := map[string]float64{}
 	for symbol := range topScores {
 		originalWeights[symbol] = 1.0 / float64(numTickers)
@@ -250,7 +248,7 @@ func calculateWeightsViaNumTickers(
 
 	return calculateWeightsRelativeToAnchor(
 		originalWeights,
-		factorScoresBySymbol,
+		topScores,
 		0.999,
 	)
 }

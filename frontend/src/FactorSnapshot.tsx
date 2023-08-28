@@ -1,6 +1,6 @@
 import { FactorData } from "./App";
 import { Trade } from "./Form";
-import { Pie } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -30,14 +30,14 @@ export default function InspectFactorData({
     <p>Factor Expression: {fdDetails.expression}</p>
     <p>Portfolio Value: {fdData.value.toFixed(2)} ({fdData.valuePercentChange.toFixed(2)}%)</p>
     <div className="container">
-    <div className="column" style={{ "flexGrow": 1 }}>
+      <div className="column" style={{ "flexGrow": 1 }}>
         <Table trades={fdData.trades} />
       </div>
       <div className="column" style={{ "flexGrow": 3 }}>
         <h5>Asset Allocation Breakdown</h5>
         <AssetBreakdown assetWeights={fdData.assetWeights} />
       </div>
-      
+
     </div>
 
   </div>
@@ -83,26 +83,10 @@ const AssetBreakdown = ({
       {
         label: '% Allocation',
         data: keys.map(k => assetWeights[k] * 100),
-        // backgroundColor: [
-        //   'rgba(255, 99, 132, 0.2)',
-        //   'rgba(54, 162, 235, 0.2)',
-        //   'rgba(255, 206, 86, 0.2)',
-        //   'rgba(75, 192, 192, 0.2)',
-        //   'rgba(153, 102, 255, 0.2)',
-        //   'rgba(255, 159, 64, 0.2)',
-        // ],
-        // borderColor: [
-        //   'rgba(255, 99, 132, 1)',
-        //   'rgba(54, 162, 235, 1)',
-        //   'rgba(255, 206, 86, 1)',
-        //   'rgba(75, 192, 192, 1)',
-        //   'rgba(153, 102, 255, 1)',
-        //   'rgba(255, 159, 64, 1)',
-        // ],
         borderWidth: 1,
       },
     ],
   };
 
-  return <Pie data={data} />;
+  return <Doughnut data={data} />;
 }
