@@ -68,13 +68,44 @@ func (h FactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol s
 }
 
 func (h FactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
-	return 0, nil
+	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
+	if err != nil {
+		return 0, err
+	}
+
+	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
+	if err != nil {
+		return 0, err
+	}
+
+	return *out.SharesOutstandingBasic * price, nil
 }
 
 func (h FactorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
-	return 0, nil
+	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
+	if err != nil {
+		return 0, err
+	}
+
+	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
+	if err != nil {
+		return 0, err
+	}
+
+	return price / *out.EpsBasic, nil
+
 }
 
 func (h FactorMetricsHandler) PbRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+	// price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	// out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
+	// if err != nil {
+	// 	return 0, err
+	// }
+
 	return 0, nil
 }

@@ -22,7 +22,14 @@ type AdjustedPriceRepositoryHandler struct{}
 func (h AdjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.AdjustedPrice) error {
 	query := AdjustedPrice.
 		INSERT(AdjustedPrice.MutableColumns).
-		MODELS(adjPrices)
+		MODELS(adjPrices).
+		ON_CONFLICT(
+			AdjustedPrice.Symbol, AdjustedPrice.Date,
+		).DO_UPDATE(
+		SET(
+			AdjustedPrice.Price.SET(AdjustedPrice.EXCLUDED.Price),
+		),
+	)
 
 	_, err := query.Exec(tx)
 	if err != nil {

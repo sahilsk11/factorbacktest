@@ -16,7 +16,7 @@ func IngestPrices(
 	symbol string,
 	adjPricesRepository repository.AdjustedPriceRepository,
 ) error {
-	start := time.Date(2010, 1, 0, 0, 0, 0, 0, time.UTC)
+	start := time.Date(2023, 7, 0, 0, 0, 0, 0, time.UTC)
 	now := time.Now()
 	params := &chart.Params{
 		Start:    datetime.New(&start),
@@ -43,6 +43,39 @@ func IngestPrices(
 	err := adjPricesRepository.Add(tx, models)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func UpdateUniversePrices(
+	tx *sql.Tx,
+	universeRepository repository.UniverseRepository,
+	adjPricesRepository repository.AdjustedPriceRepository,
+) error {
+	assets, err := universeRepository.List(tx)
+	if err != nil {
+		return err
+	}
+	if len(assets) == 0 {
+		return fmt.Errorf("no assets found in universe")
+	}
+
+	errors := []error{}
+
+	for _, a := range assets {
+		err = IngestPrices(tx, a.Symbol, adjPricesRepository)
+		if err != nil {
+			err = fmt.Errorf("failed to ingest historical prices for %s: %w", a.Symbol, err)
+			fmt.Println(err)
+			errors = append(errors, err)
+		} else {
+			fmt.Println("added", a.Symbol)
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to update %d/%d universe prices. first err: %w", len(errors), len(assets), errors[0])
 	}
 
 	return nil
