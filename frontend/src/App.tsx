@@ -38,9 +38,10 @@ const App = () => {
   const { min: minFactorDate, max: maxFactorDate } = minMaxDates(factorData);
 
   return <>
+
     <div className="centered-container">
       <div className="container">
-        <div className="column" style={{ "flexGrow": 2 }}>
+        <div className="column" style={{ "flexGrow": 2, marginRight: "20px" }}>
           <FactorForm
             // set this to the benchmark names that are already in used
             takenNames={takenNames}

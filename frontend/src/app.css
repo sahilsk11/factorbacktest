@@ -1,10 +1,11 @@
 .container {
   display: flex;
-  justify-content: space-evenly;
-  width: 90%;
+  justify-content: space-between;
+  width: 95%;
   display: 0px auto;
   align-items: flex-start;
   min-height: 600px;
+  max-width: 2000px;
 }
 
 .centered-container {
