@@ -56,16 +56,16 @@ export default function FactorForm({
       currentDate
 ) `,
     intensity: 0.75,
-    name: "test"
+    name: "7_day_rolling_price_momentum"
   });
   const [backtestStart, setBacktestStart] = useState("2020-01-02");
   const [backtestEnd, setBacktestEnd] = useState("2020-02-01");
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
   const [startPortfolio, setStartPortfolio] = useState(`{
       "AAPL": 10,
-    "MSFT": 15,
-    "GOOGL": 8
-    }`);
+      "MSFT": 15,
+      "GOOGL": 8
+}`);
   const [cash, setCash] = useState(10_000);
   const [assetSelectionMode, setAssetSelectionMode] = useState("NUM_SYMBOLS");
   const [numSymbols, setNumSymbols] = useState(10);
@@ -143,7 +143,7 @@ export default function FactorForm({
       <form onSubmit={handleSubmit}>
         <div className='form-element'>
           <label>Factor Name</label>
-          <input required
+          <input style={{width: "250px"}} required
             id="factor-name"
             type="text"
             value={factorOptions.name}

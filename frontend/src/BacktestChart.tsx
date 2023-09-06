@@ -81,20 +81,24 @@ export default function BacktestChart({
     labels: labels,
     datasets,
   };
-  const options: ChartOptions = {
+  const options: ChartOptions<"line"> = {
     responsive: true,
     plugins: {
       legend: {
         position: 'top',
+        labels: {
+          color: "black"
+        }
       },
       title: {
-        display: true,
+        display: false,
         text: 'Backtested Performance',
       },
       colors: {
         forceOverride: true,
         enabled: true
       }
+      
     },
     onClick: (_, elements) => {
       elements.forEach(e => {
@@ -106,6 +110,21 @@ export default function BacktestChart({
         }
       })
     },
+    scales: {
+      x: {
+        title: {
+          display: false,
+          text: 'Month', // X-axis label
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Return Since Inception (%)', // Y-axis label
+          color: "black"
+        },
+      },
+    }
   };
 
   return <Line
