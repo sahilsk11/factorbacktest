@@ -7,7 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -31,19 +30,17 @@ type backtestRequest struct {
 	NumSymbols                *int               `json:"numSymbols"`
 }
 
-type Trade struct {
-	Action   string  `json:"action"`
-	Quantity float64 `json:"quantity"`
-	Symbol   string  `json:"symbol"`
-	Price    float64 `json:"price"`
+type backtestSnapshot struct {
+	ValuePercentChange float64                         `json:"valuePercentChange"`
+	Value              float64                         `json:"value"`
+	Date               string                          `json:"date"`
+	AssetMetrics       map[string]snapshotAssetMetrics `json:"assetMetrics"`
 }
 
-type backtestSnapshot struct {
-	ValuePercentChange float64            `json:"valuePercentChange"`
-	Value              float64            `json:"value"`
-	Date               string             `json:"date"`
-	AssetWeights       map[string]float64 `json:"assetWeights"`
-	Trades             []Trade            `json:"trades"`
+type snapshotAssetMetrics struct {
+	AssetWeight                  float64  `json:"assetWeight"`
+	FactorScore                  float64  `json:"factorScore"`
+	PriceChangeTilNextResampling *float64 `json:"priceChangeTilNextResampling"`
 }
 
 type backtestResponse struct {
@@ -127,23 +124,37 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	snapshots := map[string]backtestSnapshot{
-		result[0].Date.Format("2006-01-02"): {
-			ValuePercentChange: 0,
-			Value:              result[0].TotalValue,
-			Date:               result[0].Date.Format("2006-01-02"),
-			AssetWeights:       result[0].AssetWeights,
-			Trades:             proposedTradesToApiTrades(result[0].ProposedTrades),
-		},
-	}
+	snapshots := map[string]backtestSnapshot{}
 
-	for _, r := range result[1:] {
+	for i, r := range result {
+		pc := 0.0
+		if i != 0 {
+			pc = 100 * (r.TotalValue - result[0].TotalValue) / result[0].TotalValue
+		}
+		priceChangeTilNextResampling := map[string]float64{}
+
+		if i < len(result)-1 {
+			nextResamplingDate := result[i+1].Date
+			for symbol := range r.AssetWeights {
+				startPrice, err := h.BacktestHandler.PriceRepository.Get(tx, symbol, r.Date)
+				if err != nil {
+					returnErrorJson(fmt.Errorf("failed to get price: %w", err), c)
+					return
+				}
+				endPrice, err := h.BacktestHandler.PriceRepository.Get(tx, symbol, nextResamplingDate)
+				if err != nil {
+					returnErrorJson(fmt.Errorf("failed to get price: %w", err), c)
+					return
+				}
+				priceChangeTilNextResampling[symbol] = 100 * (endPrice - startPrice) / startPrice
+			}
+		}
+
 		snapshots[r.Date.Format("2006-01-02")] = backtestSnapshot{
-			ValuePercentChange: 100 * (r.TotalValue - result[0].TotalValue) / result[0].TotalValue,
+			ValuePercentChange: pc,
 			Value:              r.TotalValue,
 			Date:               r.Date.Format("2006-01-02"),
-			AssetWeights:       r.AssetWeights,
-			Trades:             proposedTradesToApiTrades(r.ProposedTrades),
+			AssetMetrics:       joinAssetMetrics(r.AssetWeights, r.FactorScores, priceChangeTilNextResampling),
 		}
 	}
 
@@ -155,19 +166,36 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	c.JSON(200, responseJson)
 }
 
-func proposedTradesToApiTrades(trades []domain.ProposedTrade) []Trade {
-	out := make([]Trade, len(trades))
-	for i, t := range trades {
-		action := "BUY"
-		if t.Quantity < 0 {
-			action = "SELL"
+func joinAssetMetrics(
+	weights map[string]float64,
+	factorScores map[string]float64,
+	priceChangeTilNextResampling map[string]float64,
+) map[string]snapshotAssetMetrics {
+	assetMetrics := map[string]*snapshotAssetMetrics{}
+	for k, v := range weights {
+		if _, ok := assetMetrics[k]; !ok {
+			assetMetrics[k] = &snapshotAssetMetrics{}
 		}
-		out[i] = Trade{
-			Action:   action,
-			Quantity: math.Abs(t.Quantity),
-			Symbol:   t.Symbol,
-			Price:    t.ExpectedPrice,
-		}
+		assetMetrics[k].AssetWeight = v
 	}
+	for k, v := range factorScores {
+		if _, ok := assetMetrics[k]; !ok {
+			assetMetrics[k] = &snapshotAssetMetrics{}
+		}
+		assetMetrics[k].FactorScore = v
+	}
+	for k, v := range priceChangeTilNextResampling {
+		if _, ok := assetMetrics[k]; !ok {
+			assetMetrics[k] = &snapshotAssetMetrics{}
+		}
+		x := v // lol pointer math
+		assetMetrics[k].PriceChangeTilNextResampling = &x
+	}
+
+	out := map[string]snapshotAssetMetrics{}
+	for k := range assetMetrics {
+		out[k] = *assetMetrics[k]
+	}
+
 	return out
 }

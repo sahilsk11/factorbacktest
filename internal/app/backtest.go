@@ -29,6 +29,7 @@ type ComputeTargetPortfolioInput struct {
 type ComputeTargetPortfolioResponse struct {
 	TargetPortfolio *domain.Portfolio
 	AssetWeights    map[string]float64
+	FactorScores    map[string]float64
 	TotalValue      float64
 }
 
@@ -97,10 +98,16 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 		}
 	}
 
+	selectedAssetFactorScores := map[string]float64{}
+	for _, asset := range targetPortfolio.Positions {
+		selectedAssetFactorScores[asset.Symbol] = factorScoreBySymbol[asset.Symbol]
+	}
+
 	return &ComputeTargetPortfolioResponse{
 		TargetPortfolio: targetPortfolio,
 		AssetWeights:    newWeights,
 		TotalValue:      in.PortfolioValue,
+		FactorScores:    selectedAssetFactorScores,
 	}, nil
 }
 
@@ -109,7 +116,14 @@ type BacktestSample struct {
 	EndPortfolio   domain.Portfolio
 	TotalValue     float64
 	ProposedTrades []domain.ProposedTrade
-	AssetWeights   map[string]float64
+	// might be less memory to join these in one map, but
+	// it's also cleaner to have these seperated so i don't
+	// need to define another struct for this, and because
+	// these can be computed seperately without needing
+	// to join them back together
+	AssetWeights                 map[string]float64
+	FactorScores                 map[string]float64
+	PriceChangeTilNextResampling map[string]float64
 }
 
 type FactorOptions struct {
@@ -220,6 +234,7 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 			ProposedTrades: trades,
 			TotalValue:     computeTargetPortfolioResponse.TotalValue,
 			AssetWeights:   computeTargetPortfolioResponse.AssetWeights,
+			FactorScores:   computeTargetPortfolioResponse.FactorScores,
 		})
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 		currentTime = currentTime.Add(in.SamplingInterval)

@@ -21,7 +21,6 @@
   max-width: 200px;
   display: block;
   margin: 0px auto;
-  margin-left: 30px;
 
 }
 
@@ -29,7 +28,7 @@
 .table td {
   border: 1px solid #e0e0e0;
   padding: 8px;
-  text-align: left;
+  text-align: center;
 }
 
 .table th {

@@ -17,6 +17,8 @@ export interface FactorData {
   data: Record<string, BacktestSnapshot>,
 }
 
+export const endpoint = "localhost:3000";
+
 export interface BenchmarkData {
   symbol: string,
   data: Record<string, number>
@@ -79,7 +81,7 @@ const App = () => {
         </div>
       </div>
     </div>
-
+    <div style={{height: "100px"}}></div>
   </>
 }
 

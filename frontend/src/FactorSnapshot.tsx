@@ -1,5 +1,5 @@
 import { FactorData } from "./App";
-import { Trade } from "./Form";
+import { BacktestSnapshot } from "./Form";
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -24,19 +24,29 @@ export default function InspectFactorData({
   if (fdIndex === null || fdDate === null || factorData.length === 0) {
     return null;
   }
+
   const fdDetails = factorData[fdIndex];
   const fdData = fdDetails.data[fdDate];
+  // TODO - make this a one-liner
+  const snapshotToAssetWeight = (snapshot: BacktestSnapshot): Record<string, number> => {
+    let out:Record<string, number> = {}
+    Object.keys(snapshot.assetMetrics).forEach(symbol => {
+      out[symbol] = snapshot.assetMetrics[symbol].assetWeight
+    })
+    return out;
+  };
+
   return <div className="tile fs-container">
     <div style={{ margin: "0px auto", display: "block" }}>
       <h3 style={{ marginBottom: "0px", marginTop: "0px" }}>Factor Snapshot</h3>
       <i><p className="subtext">What did "{fdDetails.name}" look like on {fdDate}?</p></i>
-      <div className="container" style={{ marginTop: "30px", width: "100%", minHeight: "none" }}>
-        <div className="column" style={{ "flexGrow": 3, maxWidth: "600px" }}>
-          <AssetAllocationTable trades={fdData.trades} />
+      <div className="container" style={{ marginTop: "30px",  width: "100%", minHeight: "0px", alignItems: "center" }}>
+        <div className="column" style={{ "flexGrow": 5, maxWidth: "600px" }}>
+          <AssetAllocationTable snapshot={fdData} />
         </div>
-        <div className="column" style={{ "flexGrow": 1 }}>
+        <div className="column" style={{ "flexGrow": 2 }}>
           <div className="chart-container">
-            <AssetBreakdown assetWeights={fdData.assetWeights} />
+            <AssetBreakdown assetWeights={snapshotToAssetWeight(fdData)} />
             <h5 style={{ textAlign: "center" }}>Asset Allocation Breakdown</h5>
 
           </div>
@@ -47,7 +57,8 @@ export default function InspectFactorData({
   </div>
 }
 
-const AssetAllocationTable = ({ trades }: { trades: Trade[] }) => {
+const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
+  const sortedSymbols = Object.keys(snapshot.assetMetrics).sort((a, b) => snapshot.assetMetrics[b].assetWeight - snapshot.assetMetrics[a].assetWeight);
   return (
     <table className="table">
       <thead>
@@ -60,55 +71,12 @@ const AssetAllocationTable = ({ trades }: { trades: Trade[] }) => {
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td>AAPL</td>
-          <td>45.2</td>
-          <td>40%</td>
-          <td>10%</td>
-        </tr>
-        <tr>
-          <td>AAPL</td>
-          <td>45.2</td>
-          <td>40%</td>
-          <td>10%</td>
-        </tr>
-        <tr>
-          <td>AAPL</td>
-          <td>45.2</td>
-          <td>40%</td>
-          <td>10%</td>
-        </tr>
-        <tr>
-          <td>AAPL</td>
-          <td>45.2</td>
-          <td>40%</td>
-          <td>10%</td>
-        </tr>
-      </tbody>
-    </table>
-  );
-};
-
-const TradesTable = ({ trades }: { trades: Trade[] }) => {
-  return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>Action</th>
-          <th>Quantity</th>
-          <th>Symbol</th>
-          <th>Price</th>
-        </tr>
-      </thead>
-      <tbody>
-        {trades.map((trade, index) => (
-          <tr key={index} className={trade.action === 'BUY' ? 'buy' : 'sell'}>
-            <td>{trade.action}</td>
-            <td>{trade.quantity}</td>
-            <td>{trade.symbol}</td>
-            <td>{trade.price}</td>
-          </tr>
-        ))}
+        {sortedSymbols.map(symbol => <tr>
+          <td>{symbol}</td>
+          <td>{snapshot.assetMetrics[symbol].factorScore.toFixed(2)}</td>
+          <td>{(100*snapshot.assetMetrics[symbol].assetWeight).toFixed(2)}%</td>
+          <td>{snapshot.assetMetrics[symbol].priceChangeTilNextResampling?.toFixed(2)}%</td>
+        </tr>)}
       </tbody>
     </table>
   );

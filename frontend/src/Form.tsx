@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FactorData } from "./App";
+import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
 
@@ -27,16 +27,17 @@ export interface Trade {
   price: number;
 }
 
-interface AssetWeights {
-  [symbol: string]: number;
-}
-
 export interface BacktestSnapshot {
   valuePercentChange: number;
   value: number;
   date: string;
-  assetWeights: AssetWeights;
-  trades: Trade[];
+  assetMetrics: Record<string, SnapshotAssetMetrics>;
+}
+
+export interface SnapshotAssetMetrics {
+  assetWeight: number;
+  factorScore: number;
+  priceChangeTilNextResampling?: number | null;
 }
 
 interface BacktestResponse {
@@ -71,7 +72,6 @@ export default function FactorForm({
   const [assetSelectionMode, setAssetSelectionMode] = useState("NUM_SYMBOLS");
   const [numSymbols, setNumSymbols] = useState(10);
   const [names, setNames] = useState<string[]>([...takenNames]);
-  const [sendEnabled, setSendEnabled] = useState(true);
 
   let found = false;
   names.forEach(n => {
@@ -103,7 +103,7 @@ export default function FactorForm({
     };
 
     try {
-      const response = await fetch("http://localhost:3009/backtest", {
+      const response = await fetch(endpoint+"/backtest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
