@@ -26,7 +26,7 @@ export default function BenchmarkManager({
         let start = minDate === "" ? "2018-01-01" : minDate;
         let end = maxDate === "" ? "2023-01-01" : maxDate;
         let granularity = "monthly";
-        if (enumerateDates(minDate, maxDate).length < 60) {
+        if (enumerateDates(start, end).length < 60) {
           granularity = "daily"
         }
         const response = await fetch(
