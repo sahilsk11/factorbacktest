@@ -5,9 +5,11 @@ import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
-  Legend
+  Legend,
+  ChartOptions
 } from 'chart.js';
-import "./app.css"
+import "./app.css";
+import "./factor-snapshot.css";
 
 
 export default function InspectFactorData({
@@ -24,26 +26,70 @@ export default function InspectFactorData({
   }
   const fdDetails = factorData[fdIndex];
   const fdData = fdDetails.data[fdDate];
-  return <div>
-    <h2>{"Factor: " + fdDetails.name}</h2>
-    <h4>{fdDate}</h4>
-    <p>Factor Expression: {fdDetails.expression}</p>
-    <p>Portfolio Value: {fdData.value.toFixed(2)} ({fdData.valuePercentChange.toFixed(2)}%)</p>
-    <div className="container">
-      <div className="column" style={{ "flexGrow": 1 }}>
-        <Table trades={fdData.trades} />
-      </div>
-      <div className="column" style={{ "flexGrow": 3 }}>
-        <h5>Asset Allocation Breakdown</h5>
-        <AssetBreakdown assetWeights={fdData.assetWeights} />
-      </div>
+  return <div className="tile fs-container">
+    <div style={{ margin: "0px auto", display: "block" }}>
+      <h3 style={{ marginBottom: "0px", marginTop: "0px" }}>Factor Snapshot</h3>
+      <i><p className="subtext">What did "{fdDetails.name}" look like on {fdDate}?</p></i>
+      <div className="container" style={{ marginTop: "30px", width: "100%", minHeight: "none" }}>
+        <div className="column" style={{ "flexGrow": 3, maxWidth: "600px" }}>
+          <AssetAllocationTable trades={fdData.trades} />
+        </div>
+        <div className="column" style={{ "flexGrow": 1 }}>
+          <div className="chart-container">
+            <AssetBreakdown assetWeights={fdData.assetWeights} />
+            <h5 style={{ textAlign: "center" }}>Asset Allocation Breakdown</h5>
 
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
 }
 
-const Table = ({ trades }: { trades: Trade[] }) => {
+const AssetAllocationTable = ({ trades }: { trades: Trade[] }) => {
+  return (
+    <table className="table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Factor Score</th>
+          <th>Portfolio Allocation</th>
+          <th>Price Change til Next Resampling</th>
+
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AAPL</td>
+          <td>45.2</td>
+          <td>40%</td>
+          <td>10%</td>
+        </tr>
+        <tr>
+          <td>AAPL</td>
+          <td>45.2</td>
+          <td>40%</td>
+          <td>10%</td>
+        </tr>
+        <tr>
+          <td>AAPL</td>
+          <td>45.2</td>
+          <td>40%</td>
+          <td>10%</td>
+        </tr>
+        <tr>
+          <td>AAPL</td>
+          <td>45.2</td>
+          <td>40%</td>
+          <td>10%</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+};
+
+const TradesTable = ({ trades }: { trades: Trade[] }) => {
   return (
     <table className="table">
       <thead>
@@ -70,23 +116,43 @@ const Table = ({ trades }: { trades: Trade[] }) => {
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-
 const AssetBreakdown = ({
   assetWeights
 }: {
   assetWeights: Record<string, number>
 }) => {
-  const keys = Object.keys(assetWeights);
+  const assetData = Object.keys(assetWeights).map((key) => ({
+    asset: key,
+    allocation: assetWeights[key] * 100,
+  }));
+
+  // Sort the assetData array by allocation (percentage) in descending order
+  assetData.sort((a, b) => b.allocation - a.allocation);
+
+  // Extract the sorted keys and data values
+  const labels = assetData.map((item) => item.asset);
+  const dataValues = assetData.map((item) => item.allocation);
+
+  const options: ChartOptions<"doughnut"> = {
+    plugins: {
+      legend: {
+        display: false,
+        position: "right"
+      },
+    },
+  };
+
+
   const data = {
-    labels: keys,
+    labels,
     datasets: [
       {
         label: '% Allocation',
-        data: keys.map(k => assetWeights[k] * 100),
+        data: dataValues,
         borderWidth: 1,
       },
     ],
   };
 
-  return <Doughnut data={data} />;
+  return <Doughnut data={data} options={options} />;
 }
