@@ -182,7 +182,7 @@ export default function FactorForm({
         </div>
         
         <div className='form-element'>
-          <label>Sampling Interval</label>
+          <label>Rebalance Interval</label>
           <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
             <option value="daily">daily</option>
             <option value="weekly">weekly</option>
