@@ -20,6 +20,9 @@ func (m ApiHandler) StartApi(port int) error {
 	router := gin.Default()
 	router.Use(cors.Default())
 
+	router.GET("/", func(ctx *gin.Context) {
+		ctx.JSON(200, map[string]string{"message": "welcome to alpha"})
+	})
 	router.POST("/backtest", m.backtest)
 	router.POST("/benchmark", m.benchmark)
 
