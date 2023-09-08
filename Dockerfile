@@ -11,7 +11,7 @@ COPY . .
 RUN go get -d -v ./...
 
 # Build the Go application for x86_64 architecture
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags '-linkmode=external' go build -o ./bin/ ./cmd/api
+RUN GOARCH=amd64 GOOS=linux go build -o ./bin/ ./cmd/api
 
 # Expose a port if your application listens on a specific port
 EXPOSE 3009
