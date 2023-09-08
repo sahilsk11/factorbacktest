@@ -11,7 +11,7 @@ COPY . .
 RUN go get -d -v ./...
 
 # Build the Go application
-RUN go build -o ./bin/ ./cmd/api
+RUN GOARCH=amd64 GOOS=linux go build -o ./bin/ ./cmd/api
 
 
 # Expose a port if your application listens on a specific port

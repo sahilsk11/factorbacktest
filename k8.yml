@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: alpha-backend-container
-        image: 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest:latest:latest
+        image: 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest:latest
         ports:
         - containerPort: 3009
