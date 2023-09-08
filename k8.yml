@@ -15,5 +15,19 @@ spec:
       containers:
       - name: alpha-backend-container
         image: 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest:latest
+        imagePullPolicy: Always # Set this to Always or IfNotPresent
         ports:
         - containerPort: 3009
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alpha-backend-service
+spec:
+  selector:
+    app: alpha-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3009
+  type: LoadBalancer
