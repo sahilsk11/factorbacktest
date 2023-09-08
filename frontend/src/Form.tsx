@@ -72,6 +72,8 @@ export default function FactorForm({
   const [assetSelectionMode, setAssetSelectionMode] = useState("NUM_SYMBOLS");
   const [numSymbols, setNumSymbols] = useState(10);
   const [names, setNames] = useState<string[]>([...takenNames]);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   let found = false;
   names.forEach(n => {
@@ -89,7 +91,8 @@ export default function FactorForm({
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-
+    setErr(null);
+    setLoading(true);
 
     const data: BacktestRequest = {
       factorOptions,
@@ -103,16 +106,20 @@ export default function FactorForm({
     };
 
     try {
-      const response = await fetch(endpoint+"/backtest", {
+      const response = await fetch(endpoint + "/backtest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(data)
       });
-
+      setLoading(false);
       if (response.ok) {
         const result: BacktestResponse = await response.json()
+        if (Object.keys(result.backtestSnapshots).length == 0) {
+          setErr("No backtest results were calculated");
+          return;
+        }
         setNames([...names, factorOptions.name])
         const fd: FactorData = {
           name: data.factorOptions.name,
@@ -121,21 +128,16 @@ export default function FactorForm({
         } as FactorData;
         appendFactorData(fd)
       } else {
+        const j = await response.json()
+        setErr(j.error)
         console.error("Error submitting data:", response.status);
       }
     } catch (error) {
-      alert(error)
+      setLoading(false)
+      setErr((error as Error).message)
       console.error("Error:", error);
     }
   };
-
-  // if (found && sendEnabled) {
-  //   setSendEnabled(false)
-  // } else if (!found && !sendEnabled) {
-  //   setSendEnabled(true)
-  // }
-
-
 
   return (
     <div className='tile'>
@@ -144,7 +146,7 @@ export default function FactorForm({
       <form onSubmit={handleSubmit}>
         <div className='form-element'>
           <label>Factor Name</label>
-          <input style={{width: "250px"}} required
+          <input style={{ width: "250px" }} required
             id="factor-name"
             type="text"
             value={factorOptions.name}
@@ -172,7 +174,7 @@ export default function FactorForm({
             value={backtestStart}
             onChange={(e) => setBacktestStart(e.target.value)}
           />
-          <p style={{display: "inline"}}> to </p>
+          <p style={{ display: "inline" }}> to </p>
           <input
             required
             type="date"
@@ -180,7 +182,7 @@ export default function FactorForm({
             onChange={(e) => setBacktestEnd(e.target.value)}
           />
         </div>
-        
+
         <div className='form-element'>
           <label>Rebalance Interval</label>
           <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
@@ -235,8 +237,19 @@ export default function FactorForm({
           />
         </div> : null}
 
-        <button className='backtest-btn ' type="submit">Run Backtest</button>
+        {loading ? <img style={{width: "40px", marginTop: "20px", marginLeft: "50px"}} src='loading.gif' /> : <button className='backtest-btn ' type="submit">Run Backtest</button> }
+
+        <Error message={err} />
       </form>
     </div>
   );
+}
+
+function Error({ message }: { message: string | null }) {
+  return message === null ? null : <>
+    <div className='error-container'>
+      <h4 style={{ marginBottom: "0px", marginTop: "0px" }}>That's an error.</h4>
+      <p>{message}</p>
+    </div>
+  </>
 }

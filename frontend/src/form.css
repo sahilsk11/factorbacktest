@@ -45,3 +45,15 @@ select {
   transform: translate(0px, -0.5px);
   cursor: pointer;
 }
+
+.error-container {
+  margin-top: 20px;
+  padding-left: 15px;
+  padding-right: 15px;
+  padding-top: 15px;
+  padding-bottom: 5px;
+  background-color: #ec6363;
+  display: block;
+  width: 80%;
+  border-radius: 7px;
+}
