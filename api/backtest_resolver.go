@@ -240,7 +240,7 @@ func saveUserStrategy(
 
 	// keep only selected fields bc we don't care about including
 	// factor name and cash in hash
-	si := strategyInput{
+	si := &strategyInput{
 		FactorExpression:          cleanedExpression,
 		BacktestStart:             requestBody.BacktestStart,
 		BacktestEnd:               requestBody.BacktestEnd,
@@ -259,8 +259,13 @@ func saveUserStrategy(
 	expressionHasher := sha256.New()
 	expressionHasher.Write([]byte(cleanedExpression))
 
+	// rewrite the saved JSON, including the ignored fields
 	si.FactorName = requestBody.FactorOptions.Name
 	si.StartCash = requestBody.StartCash
+	siBytes, err = json.Marshal(si)
+	if err != nil {
+		return err
+	}
 
 	err = usr.Add(db, model.UserStrategy{
 		StrategyInput:        string(siBytes),
