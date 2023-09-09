@@ -4,6 +4,7 @@ import (
 	"alpha/internal/db/models/postgres/public/model"
 	. "alpha/internal/db/models/postgres/public/table"
 	"fmt"
+	"time"
 
 	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ type UserStrategyRepositoryHandler struct{}
 
 func (h UniverseRepositoryHandler) Add(db qrm.Executable, us model.UserStrategy) error {
 	us.UserStrategyID = uuid.New()
+	us.CreatedAt = time.Now().UTC()
 	query := UserStrategy.
 		INSERT(UserStrategy.MutableColumns).
 		MODEL(us)

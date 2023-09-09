@@ -9,6 +9,7 @@ package model
 
 import (
 	"github.com/google/uuid"
+	"time"
 )
 
 type UserStrategy struct {
@@ -17,4 +18,5 @@ type UserStrategy struct {
 	StrategyInput        string
 	FactorExpressionHash string
 	StrategyInputHash    string
+	CreatedAt            time.Time
 }
