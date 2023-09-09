@@ -14,7 +14,6 @@ deploy-be:
 	docker push 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest:latest
 
 deploy-fe:
-	cd frontend;
-	npm run build;
-	aws s3 sync ./build s3://factorbacktest.net
-	aws s3 sync ./build s3://www.factorbacktest.net
+	cd frontend;npm run build;
+	aws s3 sync ./frontend/build s3://factorbacktest.net
+	aws s3 sync ./frontend/build s3://www.factorbacktest.net
