@@ -3,6 +3,7 @@ package api
 import (
 	"alpha/internal"
 	"alpha/internal/app"
+	"alpha/internal/repository"
 	"database/sql"
 	"fmt"
 
@@ -11,9 +12,10 @@ import (
 )
 
 type ApiHandler struct {
-	Db               *sql.DB
-	BacktestHandler  app.BacktestHandler
-	BenchmarkHandler internal.BenchmarkHandler
+	Db                     *sql.DB
+	BacktestHandler        app.BacktestHandler
+	BenchmarkHandler       internal.BenchmarkHandler
+	UserStrategyRepository repository.UserStrategyRepository
 }
 
 func (m ApiHandler) StartApi(port int) error {
