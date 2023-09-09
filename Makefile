@@ -18,6 +18,7 @@ deploy-fe:
 	cd frontend;npm run build;
 	aws s3 sync ./frontend/build s3://factorbacktest.net
 	aws s3 sync ./frontend/build s3://www.factorbacktest.net
+	rm -rf ./frontend/build;
 
 deploy:
 	make deploy-be;

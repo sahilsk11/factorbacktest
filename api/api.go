@@ -16,6 +16,7 @@ type ApiHandler struct {
 	BacktestHandler        app.BacktestHandler
 	BenchmarkHandler       internal.BenchmarkHandler
 	UserStrategyRepository repository.UserStrategyRepository
+	ContactRepository      repository.ContactRepository
 }
 
 func (m ApiHandler) StartApi(port int) error {
@@ -27,6 +28,7 @@ func (m ApiHandler) StartApi(port int) error {
 	})
 	router.POST("/backtest", m.backtest)
 	router.POST("/benchmark", m.benchmark)
+	router.POST("/contact", m.contact)
 
 	return router.Run(fmt.Sprintf(":%d", port))
 }
@@ -34,6 +36,13 @@ func (m ApiHandler) StartApi(port int) error {
 func returnErrorJson(err error, c *gin.Context) {
 	fmt.Println(err.Error())
 	c.AbortWithStatusJSON(500, gin.H{
+		"error": err.Error(),
+	})
+}
+
+func returnErrorJsonCode(err error, c *gin.Context, code int) {
+	fmt.Println(err.Error())
+	c.AbortWithStatusJSON(code, gin.H{
 		"error": err.Error(),
 	})
 }

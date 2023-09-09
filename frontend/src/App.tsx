@@ -7,6 +7,7 @@ import BenchmarkManager from './BenchmarkSelector';
 import { BacktestSnapshot } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
+import { Modal } from './Modals';
 
 
 export interface FactorData {
@@ -29,6 +30,9 @@ const App = () => {
   const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
   const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(true);
+  const [showContactModal, setShowContactModal] = useState(true);
+
 
   useEffect(() => {
     setUserID(getOrCreateUserID());
@@ -53,7 +57,7 @@ const App = () => {
   }, [factorData])
 
   return <>
-    <Nav />
+    <Nav setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className="centered-container">
       <div className="container">
         <div className="column" style={{ "flexGrow": 2, marginRight: "20px" }}>
@@ -87,6 +91,7 @@ const App = () => {
       </div>
     </div>
     <div style={{ height: "100px" }}></div>
+    <Modal userID={userID} show={showContactModal} close={() => {setShowContactModal(false)}} />
   </>
 }
 
@@ -131,16 +136,20 @@ function getOrCreateUserID(): string {
   return newUserID;
 }
 
-function Nav({ }) {
+function Nav({ setShowHelpModal, setShowContactModal }: {
+   setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
+   setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
+
+   }) {
   return <>
     <div className='nav'>
       <h4 className='nav-title'>factorbacktest.net</h4>
       <div className='nav-element-container'>
         <div className='nav-element-wrapper'>
-          <p className='nav-element-text'>Contact</p>
+          <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>
         </div>
         <div className='nav-element-wrapper'>
-          <p className='nav-element-text'>How it Works</p>
+          <p onClick={() => setShowHelpModal(true)}  className='nav-element-text'>How it Works</p>
         </div>
       </div>
     </div>

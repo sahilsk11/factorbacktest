@@ -39,6 +39,7 @@ func main() {
 			UniverseRepository: repository.UniverseRepositoryHandler{},
 		},
 		UserStrategyRepository: repository.UniverseRepositoryHandler{},
+		ContactRepository:      repository.ContactRepositoryHandler{},
 		Db:                     dbConn,
 	}
 	err = apiHandler.StartApi(3009)
