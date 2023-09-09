@@ -4,10 +4,13 @@ import "./form.css";
 import "./app.css";
 import { BacktestRequest, BacktestResponse } from './models';
 
+
 export default function FactorForm({
+  userID,
   takenNames,
   appendFactorData
 }: {
+  userID: string,
   takenNames: string[];
   appendFactorData: (newFactorData: FactorData) => void;
 }) {
@@ -33,10 +36,6 @@ export default function FactorForm({
   const [names, setNames] = useState<string[]>([...takenNames]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const queryString = window.location.search;
-  const urlParams = new URLSearchParams(queryString);
-  const userID = urlParams.get('userID') || urlParams.get('id');
 
   let found = false;
   names.forEach(n => {
@@ -80,7 +79,7 @@ export default function FactorForm({
       setLoading(false);
       if (response.ok) {
         const result: BacktestResponse = await response.json()
-        if (Object.keys(result.backtestSnapshots).length == 0) {
+        if (Object.keys(result.backtestSnapshots).length === 0) {
           setErr("No backtest results were calculated");
           return;
         }
