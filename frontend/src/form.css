@@ -57,3 +57,16 @@ select {
   width: 80%;
   border-radius: 7px;
 }
+
+.label-subtext {
+  margin: 0px;
+  font-size: 11px;
+  color: rgb(100, 100, 100);
+  margin-top: 1px;
+  margin-bottom: 2px;
+  width: fit-content;
+}
+
+.label-subtext:hover {
+  cursor: pointer;
+}

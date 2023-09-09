@@ -53,7 +53,7 @@ const App = () => {
   }, [factorData])
 
   return <>
-
+    <Nav />
     <div className="centered-container">
       <div className="container">
         <div className="column" style={{ "flexGrow": 2, marginRight: "20px" }}>
@@ -129,4 +129,20 @@ function getOrCreateUserID(): string {
   setCookie("userID", newUserID);
 
   return newUserID;
+}
+
+function Nav({ }) {
+  return <>
+    <div className='nav'>
+      <h4 className='nav-title'>factorbacktest.net</h4>
+      <div className='nav-element-container'>
+        <div className='nav-element-wrapper'>
+          <p className='nav-element-text'>Contact</p>
+        </div>
+        <div className='nav-element-wrapper'>
+          <p className='nav-element-text'>How it Works</p>
+        </div>
+      </div>
+    </div>
+  </>
 }
