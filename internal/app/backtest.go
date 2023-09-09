@@ -4,8 +4,10 @@ import (
 	"alpha/internal"
 	"alpha/internal/domain"
 	"alpha/internal/repository"
+	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -13,6 +15,8 @@ type BacktestHandler struct {
 	PriceRepository      repository.AdjustedPriceRepository
 	FactorMetricsHandler internal.FactorMetricCalculations
 	UniverseRepository   repository.UniverseRepository
+
+	Db *sql.DB
 }
 
 type workInput struct {
@@ -21,27 +25,80 @@ type workInput struct {
 	FactorExpression string
 }
 
-func (h BacktestHandler) CalculateFactorScores(tx *sql.Tx, in []workInput) (map[string]map[string]float64, error) {
-	out := map[string]map[string]float64{}
-	for _, x := range in {
-		fmt.Println("starting", x.Symbol, x.Date)
-		result, err := internal.EvaluateFactorExpression(
-			tx,
-			x.FactorExpression,
-			x.Symbol,
-			h.FactorMetricsHandler,
-			x.Date,
-		)
+func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInput) (map[time.Time]map[string]float64, error) {
+	numGoroutines := 10
+
+	type result struct {
+		Date             time.Time
+		Symbol           string
+		ExpressionResult *internal.ExpressionResult
+		Err              error
+	}
+
+	inputCh := make(chan workInput, len(in))
+	resultCh := make(chan result, len(in))
+
+	var wg sync.WaitGroup
+	for _, f := range in {
+		wg.Add(1)
+		inputCh <- f
+	}
+	close(inputCh)
+
+	for i := 0; i < numGoroutines; i++ {
+		tx, err := h.Db.Begin()
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("finished", x.Symbol, x.Date)
-		dateStr := x.Date.Format("2006-01-02")
-		if _, ok := out[dateStr]; !ok {
-			out[dateStr] = map[string]float64{}
-		}
-		out[dateStr][x.Symbol] = result.Value
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case input, ok := <-inputCh:
+					if !ok {
+						return
+					}
+					res, err := internal.EvaluateFactorExpression(
+						tx,
+						input.FactorExpression,
+						input.Symbol,
+						h.FactorMetricsHandler,
+						input.Date,
+					)
+					resultCh <- result{
+						ExpressionResult: res,
+						Symbol:           input.Symbol,
+						Date:             input.Date,
+						Err:              err,
+					}
+					wg.Done()
+				}
+			}
+		}()
 	}
+
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	results := []result{}
+	for res := range resultCh {
+		if res.Err != nil {
+			return nil, res.Err
+		}
+		results = append(results, res)
+	}
+
+	out := map[time.Time]map[string]float64{}
+	for _, res := range results {
+		if _, ok := out[res.Date]; !ok {
+			out[res.Date] = map[string]float64{}
+		}
+		out[res.Date][res.Symbol] = res.ExpressionResult.Value
+	}
+
 	return out, nil
 }
 
@@ -159,7 +216,7 @@ type BacktestInput struct {
 	AssetOptions              internal.AssetSelectionOptions
 }
 
-func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
+func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]BacktestSample, error) {
 	universe, err := h.UniverseRepository.List(in.RoTx)
 	if err != nil {
 		return nil, err
@@ -169,25 +226,14 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
-	backtestStartPriceMap := map[string]float64{}
-
-	for _, symbol := range universeSymbols {
-		price, err := h.PriceRepository.Get(in.RoTx, symbol, in.BacktestStart)
-		if err != nil {
-			return nil, err
-		}
-		backtestStartPriceMap[symbol] = price
-	}
-
-	allTradingDays, err := h.PriceRepository.ListTradingDays(in.RoTx, in.BacktestStart, in.BacktestEnd)
+	backtestStartPriceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, in.BacktestStart)
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate trading days: %w", err)
+		return nil, err
 	}
-	tradingDays := []time.Time{}
-	currentTime := allTradingDays[0]
-	for currentTime.Unix() <= in.BacktestEnd.Unix() {
-		tradingDays = append(tradingDays, currentTime)
-		currentTime = currentTime.Add(in.SamplingInterval)
+
+	tradingDays, err := h.calculateRelevantTradingDays(in.RoTx, in.BacktestStart, in.BacktestEnd, in.SamplingInterval)
+	if err != nil {
+		return nil, err
 	}
 
 	inputs := []workInput{}
@@ -201,12 +247,13 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 		}
 	}
 
-	factorScoresByDay, err := h.CalculateFactorScores(in.RoTx, inputs)
+	x := time.Now()
+	factorScoresByDay, err := h.CalculateFactorScores(ctx, inputs)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("done")
+	fmt.Println("scores calculated in", time.Since(x).Seconds())
 
 	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.RoTx, in.BacktestStart, in.AnchorPortfolioQuantities, backtestStartPriceMap)
 	if err != nil {
@@ -224,6 +271,7 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 
 	currentPortfolio := *in.StartPortfolio.DeepCopy()
 	out := []BacktestSample{}
+
 	for _, t := range tradingDays {
 		// should work on weekends too
 
@@ -231,14 +279,9 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 		// of assets so much that it kinda makes sense to
 		// just get everything and let everyone figure it out
 		// this is also premature optimization
-		priceMap := map[string]float64{}
-
-		for _, symbol := range universeSymbols {
-			price, err := h.PriceRepository.Get(in.RoTx, symbol, t)
-			if err != nil {
-				return nil, err
-			}
-			priceMap[symbol] = price
+		priceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, t)
+		if err != nil {
+			return nil, err
 		}
 
 		currentPortfolioValue, err := currentPortfolio.TotalValue(priceMap)
@@ -250,12 +293,13 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 			RoTx:            in.RoTx,
 			Date:            t,
 			FactorIntensity: in.FactorOptions.Intensity,
-			FactorScores:    factorScoresByDay[t.Format("2006-01-02")],
+			FactorScores:    factorScoresByDay[t],
 			AssetOptions:    in.AssetOptions,
 			PortfolioValue:  currentPortfolioValue,
 			PriceMap:        priceMap,
 			UniverseSymbols: universeSymbols,
 		})
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to compute target portfolio in backtest on %v: %w", t, err)
 		}
@@ -340,4 +384,32 @@ func (h BacktestHandler) calculateAnchorPortfolioWeights(
 	}
 
 	return anchorPortfolioWeights, nil
+}
+
+func (h BacktestHandler) calculateRelevantTradingDays(
+	tx *sql.Tx,
+	start, end time.Time,
+	interval time.Duration,
+) ([]time.Time, error) {
+	allTradingDays, err := h.PriceRepository.ListTradingDays(tx, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate trading days: %w", err)
+	}
+	allTradingDaysSet := map[time.Time]bool{}
+	for _, t := range allTradingDays {
+		allTradingDaysSet[t] = true
+	}
+
+	tradingDays := []time.Time{}
+	currentTime := allTradingDays[0]
+	for currentTime.Unix() <= end.Unix() {
+		if _, ok := allTradingDaysSet[currentTime]; ok {
+			tradingDays = append(tradingDays, currentTime)
+			currentTime = currentTime.Add(interval)
+		} else {
+			currentTime = currentTime.Add(time.Hour * 24)
+		}
+	}
+
+	return tradingDays, nil
 }
