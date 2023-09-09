@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
-
 import './app.css'
-
 import BacktestChart from './BacktestChart';
-
-import FactorForm, { BacktestSnapshot } from "./Form";
-import BenchmarkManager from './BenchmarkSelector';
-
-import { minMaxDates } from './util';
+import FactorForm from "./Form";
 import InspectFactorData from './FactorSnapshot';
+import BenchmarkManager from './BenchmarkSelector';
+import { BacktestSnapshot } from "./models";
+import { minMaxDates } from './util';
+
 
 export interface FactorData {
   name: string,
@@ -81,7 +79,7 @@ const App = () => {
         </div>
       </div>
     </div>
-    <div style={{height: "100px"}}></div>
+    <div style={{ height: "100px" }}></div>
   </>
 }
 

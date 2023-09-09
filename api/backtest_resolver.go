@@ -18,6 +18,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-jet/jet/v2/qrm"
+	"github.com/google/uuid"
 )
 
 type backtestRequest struct {
@@ -35,6 +36,7 @@ type backtestRequest struct {
 
 	AnchorPortfolioQuantities map[string]float64 `json:"anchorPortfolio"`
 	NumSymbols                *int               `json:"numSymbols"`
+	UserID                    *string            `json:"userID"`
 }
 
 type backtestSnapshot struct {
@@ -57,6 +59,7 @@ type backtestResponse struct {
 
 func (h ApiHandler) backtest(c *gin.Context) {
 	ctx := context.Background()
+
 	tx, err := h.Db.BeginTx(
 		ctx,
 		&sql.TxOptions{
@@ -267,13 +270,20 @@ func saveUserStrategy(
 		return err
 	}
 
-	err = usr.Add(db, model.UserStrategy{
+	in := model.UserStrategy{
 		StrategyInput:        string(siBytes),
 		StrategyInputHash:    hex.EncodeToString(siHasher.Sum(nil)),
 		FactorExpressionHash: hex.EncodeToString(expressionHasher.Sum(nil)),
-	})
+	}
 
-	fmt.Println("strat written")
+	if requestBody.UserID != nil {
+		parsedUserID, err := uuid.Parse(*requestBody.UserID)
+		if err == nil {
+			in.UserID = &parsedUserID
+		}
+	}
+
+	err = usr.Add(db, in)
 
 	return err
 }
