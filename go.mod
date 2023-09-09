@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/go-jet/jet/v2 v2.10.1
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/lib/pq v1.10.8
 	github.com/montanaflynn/stats v0.7.1
 	github.com/shopspring/decimal v1.3.1 // indirect
