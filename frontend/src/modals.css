@@ -78,19 +78,19 @@ li {
 .help-text {
   text-align: left;
   color: rgb(72, 72, 72);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .demo-backtest-btn {
-  width: 70px;
-  height: 18px;
+  width: 090px;
+  height: 25px;
   background-color: rgb(48, 46, 55);
   border: none;
   border-radius: 5px;
-  font-size: 8px;
+  font-size: 11px;
   transition-duration: 0.3s;
   box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
   color: white;
   font-weight: bold;
-  margin-top: 5px;
+  margin-top: 10px;
 }
