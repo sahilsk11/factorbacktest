@@ -30,8 +30,8 @@ const App = () => {
   const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
   const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
-  const [showHelpModal, setShowHelpModal] = useState(true);
-  const [showContactModal, setShowContactModal] = useState(true);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
 
 
   useEffect(() => {
