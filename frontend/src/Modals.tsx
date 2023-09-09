@@ -7,7 +7,6 @@ export function HelpModal({ show, close }: {
   show: boolean;
   close: () => void;
 }) {
-  console.log(show)
   if (!show) return null;
 
   const handleOverlayClick = (e: any) => {
@@ -49,7 +48,6 @@ export function ContactModal({ userID, show, close }: {
   show: boolean;
   close: () => void;
 }) {
-  console.log(show)
   if (!show) return null;
 
   const handleOverlayClick = (e: any) => {

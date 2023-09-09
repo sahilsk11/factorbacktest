@@ -59,7 +59,6 @@ type backtestResponse struct {
 
 func (h ApiHandler) backtest(c *gin.Context) {
 	ctx := context.Background()
-
 	tx, err := h.Db.BeginTx(
 		ctx,
 		&sql.TxOptions{
@@ -139,7 +138,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		},
 	}
 
-	result, err := h.BacktestHandler.Backtest(backtestInput)
+	result, err := h.BacktestHandler.Backtest(ctx, backtestInput)
 	if err != nil {
 		returnErrorJson(fmt.Errorf("failed to run backtest: %w", err), c)
 		return
