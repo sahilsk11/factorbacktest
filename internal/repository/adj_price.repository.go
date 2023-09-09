@@ -15,6 +15,7 @@ type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
 	Get(*sql.Tx, string, time.Time) (float64, error)
 	List(tx *sql.Tx, symbol string, start, end time.Time) ([]domain.AssetPrice, error)
+	ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error)
 }
 
 type AdjustedPriceRepositoryHandler struct{}
@@ -90,6 +91,41 @@ func (h AdjustedPriceRepositoryHandler) List(tx *sql.Tx, symbol string, start, e
 			Date:   p.Date,
 			Price:  p.Price,
 		})
+	}
+
+	return out, nil
+}
+
+func (h AdjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error) {
+	minDate := DateT(start)
+	maxDate := DateT(end)
+	// use range so we can do t-3 for weekends or holidays
+	query := AdjustedPrice.
+		SELECT(AdjustedPrice.Date).
+		WHERE(
+			AND(
+				AdjustedPrice.Date.BETWEEN(minDate, maxDate),
+			),
+		).
+		GROUP_BY(AdjustedPrice.Date).
+		HAVING(COUNT(String("*")).GT(Int(10))).
+		ORDER_BY(AdjustedPrice.Date.ASC())
+
+	q, args := query.Sql()
+
+	rows, err := tx.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list trading days: %w", err)
+	}
+
+	out := []time.Time{}
+	for rows.Next() {
+		var d time.Time
+		err := rows.Scan(&d)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		out = append(out, d)
 	}
 
 	return out, nil

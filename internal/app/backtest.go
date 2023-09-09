@@ -15,15 +15,45 @@ type BacktestHandler struct {
 	UniverseRepository   repository.UniverseRepository
 }
 
-type ComputeTargetPortfolioInput struct {
-	RoTx             *sql.Tx
-	PriceMap         map[string]float64
+type workInput struct {
+	Symbol           string
 	Date             time.Time
-	PortfolioValue   float64
-	FactorIntensity  float64
 	FactorExpression string
-	UniverseSymbols  []string
-	AssetOptions     internal.AssetSelectionOptions
+}
+
+func (h BacktestHandler) CalculateFactorScores(tx *sql.Tx, in []workInput) (map[string]map[string]float64, error) {
+	out := map[string]map[string]float64{}
+	for _, x := range in {
+		fmt.Println("starting", x.Symbol, x.Date)
+		result, err := internal.EvaluateFactorExpression(
+			tx,
+			x.FactorExpression,
+			x.Symbol,
+			h.FactorMetricsHandler,
+			x.Date,
+		)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println("finished", x.Symbol, x.Date)
+		dateStr := x.Date.Format("2006-01-02")
+		if _, ok := out[dateStr]; !ok {
+			out[dateStr] = map[string]float64{}
+		}
+		out[dateStr][x.Symbol] = result.Value
+	}
+	return out, nil
+}
+
+type ComputeTargetPortfolioInput struct {
+	RoTx            *sql.Tx
+	PriceMap        map[string]float64
+	Date            time.Time
+	PortfolioValue  float64
+	FactorIntensity float64
+	UniverseSymbols []string
+	AssetOptions    internal.AssetSelectionOptions
+	FactorScores    map[string]float64
 }
 
 type ComputeTargetPortfolioResponse struct {
@@ -47,29 +77,14 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 		return nil, fmt.Errorf("cannot compute target portfolio with 0 asset universe")
 	}
 
-	factorScoreBySymbol := map[string]float64{}
-	for _, symbol := range symbols {
-		result, err := internal.EvaluateFactorExpression(
-			in.RoTx,
-			in.FactorExpression,
-			symbol,
-			h.FactorMetricsHandler,
-			in.Date,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to evaluate expression: %w", err)
-		}
-		factorScoreBySymbol[symbol] = result.Value
-	}
-
-	if len(factorScoreBySymbol) != len(symbols) {
-		return nil, fmt.Errorf("received %d symbols but calculated %d factor scores", len(symbols), len(factorScoreBySymbol))
+	if len(in.FactorScores) != len(symbols) {
+		return nil, fmt.Errorf("received %d symbols but calculated %d factor scores", len(symbols), len(in.FactorScores))
 	}
 
 	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
 		Tx:                    in.RoTx,
 		Date:                  in.Date,
-		FactorScoresBySymbol:  factorScoreBySymbol,
+		FactorScoresBySymbol:  in.FactorScores,
 		FactorIntensity:       in.FactorIntensity,
 		AssetSelectionOptions: in.AssetOptions,
 	}
@@ -100,7 +115,7 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 
 	selectedAssetFactorScores := map[string]float64{}
 	for _, asset := range targetPortfolio.Positions {
-		selectedAssetFactorScores[asset.Symbol] = factorScoreBySymbol[asset.Symbol]
+		selectedAssetFactorScores[asset.Symbol] = in.FactorScores[asset.Symbol]
 	}
 
 	return &ComputeTargetPortfolioResponse{
@@ -154,27 +169,53 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
-	priceMap := map[string]float64{}
+	backtestStartPriceMap := map[string]float64{}
 
 	for _, symbol := range universeSymbols {
 		price, err := h.PriceRepository.Get(in.RoTx, symbol, in.BacktestStart)
 		if err != nil {
 			return nil, err
 		}
-		priceMap[symbol] = price
+		backtestStartPriceMap[symbol] = price
 	}
 
-	anchorPortfolioWeights := map[string]float64{}
-	sum := 0.0
-	for symbol, quantity := range in.AnchorPortfolioQuantities {
-		sum += priceMap[symbol] * quantity
+	allTradingDays, err := h.PriceRepository.ListTradingDays(in.RoTx, in.BacktestStart, in.BacktestEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate trading days: %w", err)
 	}
-	for symbol, weight := range in.AnchorPortfolioQuantities {
-		anchorPortfolioWeights[symbol] = priceMap[symbol] * weight / sum
+	tradingDays := []time.Time{}
+	currentTime := allTradingDays[0]
+	for currentTime.Unix() <= in.BacktestEnd.Unix() {
+		tradingDays = append(tradingDays, currentTime)
+		currentTime = currentTime.Add(in.SamplingInterval)
 	}
+
+	inputs := []workInput{}
+	for _, tradingDay := range tradingDays {
+		for _, symbol := range universeSymbols {
+			inputs = append(inputs, workInput{
+				Symbol:           symbol,
+				Date:             tradingDay,
+				FactorExpression: in.FactorOptions.Expression,
+			})
+		}
+	}
+
+	factorScoresByDay, err := h.CalculateFactorScores(in.RoTx, inputs)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("done")
+
+	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.RoTx, in.BacktestStart, in.AnchorPortfolioQuantities, backtestStartPriceMap)
+	if err != nil {
+		return nil, err
+	}
+
 	in.AssetOptions.AnchorPortfolioWeights = anchorPortfolioWeights
 
-	startValue, err := in.StartPortfolio.TotalValue(priceMap)
+	startValue, err := in.StartPortfolio.TotalValue(backtestStartPriceMap)
 	if err != nil {
 		return nil, err
 	} else if startValue == 0 {
@@ -182,9 +223,8 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 	}
 
 	currentPortfolio := *in.StartPortfolio.DeepCopy()
-	currentTime := in.BacktestStart
 	out := []BacktestSample{}
-	for currentTime.Unix() <= in.BacktestEnd.Unix() {
+	for _, t := range tradingDays {
 		// should work on weekends too
 
 		// kinda pre-optimizing, but we use current price
@@ -194,7 +234,7 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 		priceMap := map[string]float64{}
 
 		for _, symbol := range universeSymbols {
-			price, err := h.PriceRepository.Get(in.RoTx, symbol, currentTime)
+			price, err := h.PriceRepository.Get(in.RoTx, symbol, t)
 			if err != nil {
 				return nil, err
 			}
@@ -203,21 +243,21 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 
 		currentPortfolioValue, err := currentPortfolio.TotalValue(priceMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to calculate portfolio value on %v: %w", currentTime, err)
+			return nil, fmt.Errorf("failed to calculate portfolio value on %v: %w", t, err)
 		}
 
 		computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
-			RoTx:             in.RoTx,
-			Date:             currentTime,
-			FactorIntensity:  in.FactorOptions.Intensity,
-			FactorExpression: in.FactorOptions.Expression,
-			AssetOptions:     in.AssetOptions,
-			PortfolioValue:   currentPortfolioValue,
-			PriceMap:         priceMap,
-			UniverseSymbols:  universeSymbols,
+			RoTx:            in.RoTx,
+			Date:            t,
+			FactorIntensity: in.FactorOptions.Intensity,
+			FactorScores:    factorScoresByDay[t.Format("2006-01-02")],
+			AssetOptions:    in.AssetOptions,
+			PortfolioValue:  currentPortfolioValue,
+			PriceMap:        priceMap,
+			UniverseSymbols: universeSymbols,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to compute target portfolio in backtest on %v: %w", currentTime, err)
+			return nil, fmt.Errorf("failed to compute target portfolio in backtest on %v: %w", t, err)
 		}
 		trades, err := h.transitionToTarget(
 			currentPortfolio,
@@ -229,7 +269,7 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 		}
 
 		out = append(out, BacktestSample{
-			Date:           currentTime,
+			Date:           t,
 			EndPortfolio:   *computeTargetPortfolioResponse.TargetPortfolio,
 			ProposedTrades: trades,
 			TotalValue:     computeTargetPortfolioResponse.TotalValue,
@@ -237,7 +277,6 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 			FactorScores:   computeTargetPortfolioResponse.FactorScores,
 		})
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
-		currentTime = currentTime.Add(in.SamplingInterval)
 	}
 
 	return out, nil
@@ -283,4 +322,22 @@ func (h BacktestHandler) transitionToTarget(
 	}
 
 	return trades, nil
+}
+
+func (h BacktestHandler) calculateAnchorPortfolioWeights(
+	tx *sql.Tx,
+	backtestStart time.Time,
+	anchorPortfolioQuantities map[string]float64,
+	priceMap map[string]float64,
+) (map[string]float64, error) {
+	anchorPortfolioWeights := map[string]float64{}
+	sum := 0.0
+	for symbol, quantity := range anchorPortfolioQuantities {
+		sum += priceMap[symbol] * quantity
+	}
+	for symbol, weight := range anchorPortfolioQuantities {
+		anchorPortfolioWeights[symbol] = priceMap[symbol] * weight / sum
+	}
+
+	return anchorPortfolioWeights, nil
 }
