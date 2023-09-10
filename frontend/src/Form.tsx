@@ -128,7 +128,11 @@ export default function FactorForm({
           />
         </div>
         <div className='form-element'>
-          <FactorExpressionInput factorExpression={factorExpression} setFactorExpression={setFactorExpression} />
+          <FactorExpressionInput
+            factorExpression={factorExpression}
+            setFactorExpression={setFactorExpression}
+            setFactorName={setFactorName}
+          />
         </div>
 
         <div className='form-element'>
@@ -232,28 +236,52 @@ function Error({ message }: { message: string | null }) {
   </>
 }
 
-function FactorExpressionInput({ factorExpression, setFactorExpression }: {
+function FactorExpressionInput({ factorExpression, setFactorExpression, setFactorName }: {
   factorExpression: string;
   setFactorExpression: Dispatch<SetStateAction<string>>;
+  setFactorName: Dispatch<SetStateAction<string>>;
 }) {
   const [gptInput, setGptInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedFactor, setSelectedFactor] = useState("momentum");
 
-  const presetMap: Record<string, string> = {
-    "gpt": "",
-    "momentum": `pricePercentChange(
+  interface selectedFactorDetails {
+    expression: string;
+    factorName: string;
+  }
+
+  const presetMap: Record<string, selectedFactorDetails> = {
+    "gpt": {
+      expression: "",
+      factorName: ""
+    },
+    "momentum": {
+      expression: `pricePercentChange(
   nDaysAgo(7),
   currentDate
 ) `,
-    "value": "1/pbRatio(currentDate)",
-    "volatility": "1/stdev(nYearsAgo(1), currentDate)",
-    "size": "1/marketCap(currentDate)"
+      factorName: "7_day_momentum"
+    },
+    "value": {
+      expression: "1/pbRatio(currentDate)",
+      factorName: "undervalued"
+    },
+    "volatility": {
+      expression: "1/stdev(nYearsAgo(1), currentDate)",
+      factorName: "low_volatility"
+    },
+    "size": {
+      expression: "1/marketCap(currentDate)",
+      factorName: "small_cap"
+    },
   }
 
   useEffect(() => {
-    setFactorExpression(presetMap[selectedFactor])
+    setFactorExpression(presetMap[selectedFactor].expression)
+    if (selectedFactor !== "gpt") {
+      setFactorName(presetMap[selectedFactor].factorName)
+    }
   }, [selectedFactor])
 
 
@@ -274,6 +302,7 @@ function FactorExpressionInput({ factorExpression, setFactorExpression }: {
         const result = await response.json()
         if (result.error.length == 0) {
           setFactorExpression(result.factorExpression)
+          setFactorName(result.factorName)
         } else {
           setErr(result.error + " - " + result.reason);
         }
@@ -296,7 +325,7 @@ function FactorExpressionInput({ factorExpression, setFactorExpression }: {
 
       <select
         onChange={(e) => setSelectedFactor(e.target.value)}
-        style={{fontSize: "13px"}}
+        style={{ fontSize: "13px" }}
       >
         <option value="momentum">Momentum (price trending up)</option>
         <option value="value">Value (undervalued relative to price)</option>
