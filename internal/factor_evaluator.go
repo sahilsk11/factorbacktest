@@ -15,6 +15,7 @@ func constructFunctionMap(
 	symbol string,
 	h FactorMetricCalculations,
 	debug FormulaDebugger,
+	currentDate time.Time,
 ) map[string]goval.ExpressionFunction {
 	return map[string]goval.ExpressionFunction{
 		// we could break this up
@@ -22,6 +23,9 @@ func constructFunctionMap(
 		// helper functions
 		"addDate": func(args ...interface{}) (interface{}, error) {
 			// addDate(date, years, months, days)
+			if len(args) < 4 {
+				return 0, fmt.Errorf("addDate needs needed 4 args, got %d", len(args))
+			}
 			date, err := time.Parse(dateLayout, args[0].(string))
 			if err != nil {
 				return 0, err
@@ -34,9 +38,41 @@ func constructFunctionMap(
 			return date.Format(dateLayout), nil
 		},
 
+		"nDaysAgo": func(args ...interface{}) (interface{}, error) {
+			if len(args) < 1 {
+				return 0, fmt.Errorf("nDaysAgo needs needed 1 arg, got %d", len(args))
+			}
+			n := args[0].(int)
+			d := currentDate.AddDate(0, 0, -n)
+
+			return d.Format(dateLayout), nil
+		},
+		"nMonthsAgo": func(args ...interface{}) (interface{}, error) {
+			if len(args) < 1 {
+				return 0, fmt.Errorf("nMonthsAgo needs needed 1 arg, got %d", len(args))
+			}
+			n := args[0].(int)
+			d := currentDate.AddDate(0, -n, 0)
+
+			return d.Format(dateLayout), nil
+		},
+		"nYearsAgo": func(args ...interface{}) (interface{}, error) {
+			if len(args) < 1 {
+				return 0, fmt.Errorf("nYearsAgo needs needed 1 arg, got %d", len(args))
+			}
+			n := args[0].(int)
+			d := currentDate.AddDate(-n, 0, 0)
+
+			return d.Format(dateLayout), nil
+		},
+
 		// metric functions
+
+		// price(date strDate)
 		"price": func(args ...interface{}) (interface{}, error) {
-			// price(date strDate)
+			if len(args) < 1 {
+				return 0, fmt.Errorf("price needs needed 1 arg, got %d", len(args))
+			}
 			date, err := time.Parse(dateLayout, args[0].(string))
 			if err != nil {
 				return 0, err
@@ -50,8 +86,12 @@ func constructFunctionMap(
 
 			return p, nil
 		},
+
+		// pricePercentChange(start, end strDate)
 		"pricePercentChange": func(args ...interface{}) (interface{}, error) {
-			// pricePercentChange(start, end strDate)
+			if len(args) < 2 {
+				return 0, fmt.Errorf("pricePercentChange needs needed 2 args, got %d", len(args))
+			}
 			start, err := time.Parse(dateLayout, args[0].(string))
 			if err != nil {
 				return 0, err
@@ -70,8 +110,13 @@ func constructFunctionMap(
 
 			return p, nil
 		},
+
+		// stdev(start, end strDate)
 		"stdev": func(args ...interface{}) (interface{}, error) {
-			// stdev(start, end strDate)
+			if len(args) < 2 {
+				return 0, fmt.Errorf("stdev needs needed 2 args, got %d", len(args))
+			}
+
 			start, err := time.Parse(dateLayout, args[0].(string))
 			if err != nil {
 				return 0, err
@@ -90,6 +135,10 @@ func constructFunctionMap(
 			return p, nil
 		},
 		"marketCap": func(args ...interface{}) (interface{}, error) {
+			if len(args) < 1 {
+				return 0, fmt.Errorf("marketCap needs needed 1 arg, got %d", len(args))
+			}
+
 			date, err := time.Parse(dateLayout, args[0].(string))
 			if err != nil {
 				return 0, err
@@ -98,6 +147,10 @@ func constructFunctionMap(
 			return h.MarketCap(tx, symbol, date)
 		},
 		"pbRatio": func(args ...interface{}) (interface{}, error) {
+			if len(args) < 1 {
+				return 0, fmt.Errorf("pbRatio needs needed 1 arg, got %d", len(args))
+			}
+
 			date, err := time.Parse(dateLayout, args[0].(string))
 			if err != nil {
 				return 0, err
@@ -106,6 +159,10 @@ func constructFunctionMap(
 			return h.PbRatio(tx, symbol, date)
 		},
 		"peRatio": func(args ...interface{}) (interface{}, error) {
+			if len(args) < 1 {
+				return 0, fmt.Errorf("peRatio needs needed 1 arg, got %d", len(args))
+			}
+
 			date, err := time.Parse(dateLayout, args[0].(string))
 			if err != nil {
 				return 0, err
@@ -134,7 +191,7 @@ func EvaluateFactorExpression(
 	}
 
 	debug := FormulaDebugger{}
-	functions := constructFunctionMap(tx, symbol, factorMetricsHandler, debug)
+	functions := constructFunctionMap(tx, symbol, factorMetricsHandler, debug, date)
 	result, err := eval.Evaluate(expression, variables, functions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate factor expression: %w", err)

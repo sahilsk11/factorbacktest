@@ -278,9 +278,9 @@ func gpt() {
 		log.Fatal(err)
 	}
 
-	resp, err := gptRepository.ConstructFactorEquation(ctx, "high quality stocks")
+	resp, err := gptRepository.ConstructFactorEquation(ctx, "undervalued stocks using pb ratio")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(resp)
+	internal.Pprint(resp)
 }
