@@ -38,7 +38,7 @@ func NewTx() (*sql.Tx, error) {
 
 func main() {
 	// internal.IngestPrices()
-	updateUniversePrices()
+	gpt()
 }
 
 func backtest(tx *sql.Tx) {
@@ -265,4 +265,22 @@ func ingestFundamentals(symbol string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func gpt() {
+	ctx := context.Background()
+	secrets, err := internal.LoadSecrets()
+	if err != nil {
+		log.Fatal(err)
+	}
+	gptRepository, err := repository.NewGptRepository(secrets.ChatGPTApiKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resp, err := gptRepository.ConstructFactorEquation(ctx, "high quality stocks")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(resp)
 }

@@ -17,6 +17,7 @@ type ApiHandler struct {
 	BenchmarkHandler       internal.BenchmarkHandler
 	UserStrategyRepository repository.UserStrategyRepository
 	ContactRepository      repository.ContactRepository
+	GptRepository          repository.GptRepository
 }
 
 func (m ApiHandler) StartApi(port int) error {
@@ -29,6 +30,7 @@ func (m ApiHandler) StartApi(port int) error {
 	router.POST("/backtest", m.backtest)
 	router.POST("/benchmark", m.benchmark)
 	router.POST("/contact", m.contact)
+	router.POST("/constructFactorEquation", m.constructFactorEquation)
 
 	return router.Run(fmt.Sprintf(":%d", port))
 }
