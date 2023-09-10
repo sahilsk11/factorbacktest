@@ -6,31 +6,26 @@ import (
 	"alpha/internal/app"
 	"alpha/internal/repository"
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/lib/pq"
 )
 
-func New() (*sql.DB, error) {
-	// connStr := "user=postgres password=dVucP6jSZqx7yyPOsz1v host=alpha.cuutadkicrvi.us-east-2.rds.amazonaws.com port=5432 dbname=postgres"
-
-	connStr := "user=postgres password=postgres host=localhost port=5440 dbname=postgres sslmode=disable"
-	dbConn, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-
-	return dbConn, nil
-}
-
 func main() {
-	dbConn, err := New()
+	secrets, err := internal.LoadSecrets()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("failed to load secrets: %w", err))
 	}
+
+	dbConn, err := sql.Open("postgres", secrets.Db.ToConnectionStr())
+	if err != nil {
+		log.Fatal("failed to connect to db: %w", err)
+	}
+
 	defer dbConn.Close()
 
-	gptRepository, err := repository.NewGptRepository("")
+	gptRepository, err := repository.NewGptRepository(secrets.ChatGPTApiKey)
 	if err != nil {
 		log.Fatal(err)
 	}

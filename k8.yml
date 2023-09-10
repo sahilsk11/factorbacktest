@@ -18,6 +18,13 @@ spec:
         imagePullPolicy: Always # Set this to Always or IfNotPresent
         ports:
         - containerPort: 3009
+        volumeMounts:
+          - name: secrets-volume
+            mountPath: /secrets.json
+      volumes:
+      - name: secrets-volume
+        secret:
+          secretName: alpha-secrets  # kubectl create secret generic alpha-secrets --from-file=secrets.json
 ---
 apiVersion: v1
 kind: Service

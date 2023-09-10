@@ -1,4 +1,5 @@
 secrets.json
+secrets*.json
 postgres-data/
 .DS_Store
 node_modules/
