@@ -19,7 +19,7 @@ export function HelpModal({ show, close }: {
     <div id="help-modal" className="modal" onClick={handleOverlayClick}>
       <div className="modal-content help-modal">
         <span onClick={() => close()} className="close" id="closeModalBtn">&times;</span>
-        <h2 style={{ marginBottom: "40px" }}>Welcome!</h2>
+        <h2 className="modal-title">Welcome!</h2>
         <div className="help-text-container">
           <ul>
             <li>
@@ -36,8 +36,9 @@ export function HelpModal({ show, close }: {
               <p className="help-text">To view this message again, hit "User Guide" on the top left.</p>
             </li>
           </ul>
-
         </div>
+
+        <button onClick={() => close()} className="mobile-close-btn">close</button>
       </div>
     </div>
   );
@@ -111,7 +112,7 @@ function ContactForm({ userID }: {
           id="replyEmail"
           name="replyEmail"
           value={replyEmail ? replyEmail : ""}
-          style={{ width: "300px" }}
+          className="contact-form-email-input"
           onChange={(e) => {
             setSubmitted(false);
             setError(null);
@@ -122,7 +123,7 @@ function ContactForm({ userID }: {
       <div>
         <label htmlFor="content">Message</label>
         <textarea
-          style={{ width: "400px", height: "100px" }}
+          className="contact-form-message-input"
           id="content"
           name="content"
           value={content}
