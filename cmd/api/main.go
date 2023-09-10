@@ -29,6 +29,12 @@ func main() {
 		log.Fatal(err)
 	}
 	defer dbConn.Close()
+
+	gptRepository, err := repository.NewGptRepository("")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	apiHandler := api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: repository.NewAdjustedPriceRepository(),
@@ -45,7 +51,9 @@ func main() {
 		UserStrategyRepository: repository.UniverseRepositoryHandler{},
 		ContactRepository:      repository.ContactRepositoryHandler{},
 		Db:                     dbConn,
+		GptRepository:          gptRepository,
 	}
+
 	err = apiHandler.StartApi(3009)
 	if err != nil {
 		log.Fatal(err)
