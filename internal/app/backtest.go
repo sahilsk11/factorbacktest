@@ -226,6 +226,21 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	for _, u := range universe {
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
+	universeSymbols = []string{"AAPL",
+		"V",
+		"XOM",
+		"UNH",
+		"META",
+		"MSFT",
+		"AVGO",
+		"LLY",
+		"NVDA",
+		"TSLA",
+		"PG",
+		"GOOGL",
+		"JPM",
+		"JNJ",
+		"AMZN"}
 
 	backtestStartPriceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, in.BacktestStart)
 	if err != nil {

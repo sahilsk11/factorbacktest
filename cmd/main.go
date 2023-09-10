@@ -17,7 +17,6 @@ import (
 )
 
 func New() (*sql.DB, error) {
-
 	secrets, err := internal.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
@@ -191,16 +190,12 @@ func updateUniversePrices() {
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to create tx: %w", err))
 	}
-	err = internal.IngestPrices(
+
+	err = internal.UpdateUniversePrices(
 		tx,
-		"SPY",
+		repository.UniverseRepositoryHandler{},
 		repository.NewAdjustedPriceRepository(),
 	)
-	// err = internal.UpdateUniversePrices(
-	// 	tx,
-	// 	repository.UniverseRepositoryHandler{},
-	// 	repository.NewAdjustedPriceRepository(),
-	// )
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -287,4 +282,35 @@ func gpt() {
 		log.Fatal(err)
 	}
 	internal.Pprint(resp)
+
+}
+
+func updateUniverseFundamentals() {
+	db, err := New()
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to create tx: %w", err))
+	}
+
+	secrets, err := internal.LoadSecrets()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	djClient := datajockey.Client{
+		HttpClient: http.DefaultClient,
+		ApiKey:     secrets.DataJockeyApiKey,
+	}
+	afRepository := repository.AssetFundamentalsRepositoryHandler{}
+
+	ur := repository.UniverseRepositoryHandler{}
+
+	err = internal.IngestUniverseFundamentals(
+		db,
+		djClient,
+		afRepository,
+		ur,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
