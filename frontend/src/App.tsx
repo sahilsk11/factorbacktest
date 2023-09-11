@@ -73,6 +73,7 @@ const App = () => {
             }}
           />
           <BenchmarkManager
+            userID={userID}
             minDate={minFactorDate}
             maxDate={maxFactorDate}
             updateBenchmarkData={updateBenchmarkData}
@@ -141,10 +142,10 @@ function getOrCreateUserID(): string {
 }
 
 function Nav({ setShowHelpModal, setShowContactModal }: {
-   setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
-   setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
 
-   }) {
+}) {
   return <>
     <div className='nav'>
       <h4 className='nav-title'>factorbacktest.net</h4>
@@ -153,7 +154,7 @@ function Nav({ setShowHelpModal, setShowContactModal }: {
           <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>
         </div>
         <div className='nav-element-wrapper'>
-          <p onClick={() => setShowHelpModal(true)}  className='nav-element-text'>User Guide</p>
+          <p onClick={() => setShowHelpModal(true)} className='nav-element-text'>User Guide</p>
         </div>
       </div>
     </div>

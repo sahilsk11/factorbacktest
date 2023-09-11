@@ -50,6 +50,7 @@ func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInp
 		if err != nil {
 			return nil, err
 		}
+		defer tx.Rollback()
 		go func() {
 			for {
 				select {
