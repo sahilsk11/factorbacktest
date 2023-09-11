@@ -129,6 +129,7 @@ export default function FactorForm({
         </div>
         <div className='form-element'>
           <FactorExpressionInput
+            userID={userID}
             factorExpression={factorExpression}
             setFactorExpression={setFactorExpression}
             setFactorName={setFactorName}
@@ -236,7 +237,8 @@ function Error({ message }: { message: string | null }) {
   </>
 }
 
-function FactorExpressionInput({ factorExpression, setFactorExpression, setFactorName }: {
+function FactorExpressionInput({ userID, factorExpression, setFactorExpression, setFactorName }: {
+  userID: string;
   factorExpression: string;
   setFactorExpression: Dispatch<SetStateAction<string>>;
   setFactorName: Dispatch<SetStateAction<string>>;
@@ -284,8 +286,6 @@ function FactorExpressionInput({ factorExpression, setFactorExpression, setFacto
     }
   }, [selectedFactor])
 
-
-
   const autofillEquation = async (e: any) => {
     e.preventDefault();
     setLoading(true);
@@ -295,7 +295,7 @@ function FactorExpressionInput({ factorExpression, setFactorExpression, setFacto
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ input: gptInput })
+        body: JSON.stringify({ input: gptInput, userID })
       });
       setLoading(false);
       if (response.ok) {
