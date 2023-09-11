@@ -350,7 +350,10 @@ function FactorExpressionInput({ factorExpression, setFactorExpression, setFacto
         </div>
       </> : null}
 
-      <p style={{ marginTop: "5px" }} className='label-subtext'>Or enter equation manually.</p>
+      {selectedFactor === "gpt" && gptInput.length > 0 ?
+        <p style={{ marginTop: "5px", maxWidth: "300px" }} className='label-subtext'>ChatGPT may determine incorrect equations. Be sure to double check and modify if necessary.</p>
+        :
+        <p style={{ marginTop: "5px" }} className='label-subtext'>Or enter equation manually.</p>}
       <textarea required
         style={{ height: "80px", width: "250px", fontSize: "13px" }}
         value={factorExpression}
