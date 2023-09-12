@@ -104,15 +104,25 @@ func (h FactorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time)
 }
 
 func (h FactorMetricsHandler) PbRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
-	// price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
-	// if err != nil {
-	// 	return 0, err
-	// }
+	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
+	if err != nil {
+		return 0, err
+	}
 
-	// out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
-	// if err != nil {
-	// 	return 0, err
-	// }
+	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
+	if err != nil {
+		return 0, err
+	}
 
-	return 0, nil
+	if out.TotalAssets == nil {
+		return 0, fmt.Errorf("missing total assets")
+	}
+	if out.TotalLiabilities == nil {
+		return 0, fmt.Errorf("missing total liabilities")
+	}
+	if out.SharesOutstandingBasic == nil {
+		return 0, fmt.Errorf("missing shares outstanding")
+	}
+
+	return price / ((*out.TotalAssets - *out.TotalLiabilities) / *out.SharesOutstandingBasic), nil
 }

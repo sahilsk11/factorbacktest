@@ -3,6 +3,7 @@ package internal
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/maja42/goval"
@@ -200,6 +201,10 @@ func EvaluateFactorExpression(
 	r, ok := result.(float64)
 	if !ok {
 		return nil, fmt.Errorf("failed to convert to float")
+	} else if math.IsNaN(r) {
+		return nil, fmt.Errorf("calculated NaN as expression result")
+	} else if math.IsInf(r, 0) {
+		return nil, fmt.Errorf("calculated infinity as expression result")
 	}
 
 	return &ExpressionResult{
