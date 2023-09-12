@@ -461,7 +461,6 @@ func invertDjResponse(asset string, in datajockey.Fields) ([]model.AssetFundamen
 		now := time.Now()
 		out = append(out, model.AssetFundamental{
 			Symbol:                              asset,
-			Granularity:                         model.AssetFundamentalGranularity_Quarterly,
 			StartDate:                           start,
 			EndDate:                             end,
 			CreatedAt:                           &now,

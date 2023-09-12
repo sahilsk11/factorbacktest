@@ -17,9 +17,8 @@ type assetFundamentalTable struct {
 	postgres.Table
 
 	//Columns
-	ID                                  postgres.ColumnInteger
+	AfID                                postgres.ColumnString
 	Symbol                              postgres.ColumnString
-	Granularity                         postgres.ColumnString
 	StartDate                           postgres.ColumnDate
 	EndDate                             postgres.ColumnDate
 	CreatedAt                           postgres.ColumnTimestampz
@@ -93,9 +92,8 @@ func newAssetFundamentalTable(schemaName, tableName, alias string) *AssetFundame
 
 func newAssetFundamentalTableImpl(schemaName, tableName, alias string) assetFundamentalTable {
 	var (
-		IDColumn                                  = postgres.IntegerColumn("id")
+		AfIDColumn                                = postgres.StringColumn("af_id")
 		SymbolColumn                              = postgres.StringColumn("symbol")
-		GranularityColumn                         = postgres.StringColumn("granularity")
 		StartDateColumn                           = postgres.DateColumn("start_date")
 		EndDateColumn                             = postgres.DateColumn("end_date")
 		CreatedAtColumn                           = postgres.TimestampzColumn("created_at")
@@ -139,17 +137,16 @@ func newAssetFundamentalTableImpl(schemaName, tableName, alias string) assetFund
 		TotalLongTermLiabilitiesColumn            = postgres.FloatColumn("total_long_term_liabilities")
 		GoodwillColumn                            = postgres.FloatColumn("goodwill")
 		IntangibleAssetsExcludingGoodwillColumn   = postgres.FloatColumn("intangible_assets_excluding_goodwill")
-		allColumns                                = postgres.ColumnList{IDColumn, SymbolColumn, GranularityColumn, StartDateColumn, EndDateColumn, CreatedAtColumn, RevenueColumn, CostOfRevenueColumn, GrossProfitColumn, OperatingIncomeColumn, TotalAssetsColumn, TotalCurrentAssetsColumn, PrepaidExpensesColumn, PropertyPlantAndEquipmentNetColumn, RetainedEarningsColumn, OtherAssetsNoncurrentColumn, TotalNonCurrentAssetsColumn, TotalLiabilitiesColumn, ShareholderEquityColumn, NetIncomeColumn, SharesOutstandingDilutedColumn, SharesOutstandingBasicColumn, EpsDilutedColumn, EpsBasicColumn, OperatingCashFlowColumn, InvestingCashFlowColumn, FinancingCashFlowColumn, NetCashFlowColumn, ResearchDevelopmentExpenseColumn, SellingGeneralAdministrativeExpenseColumn, OperatingExpensesColumn, NonOperatingIncomeColumn, PreTaxIncomeColumn, IncomeTaxColumn, DepreciationAmortizationColumn, StockBasedCompensationColumn, DividendsPaidColumn, CashOnHandColumn, CurrentNetReceivablesColumn, InventoryColumn, TotalCurrentLiabilitiesColumn, TotalNonCurrentLiabilitiesColumn, LongTermDebtColumn, TotalLongTermLiabilitiesColumn, GoodwillColumn, IntangibleAssetsExcludingGoodwillColumn}
-		mutableColumns                            = postgres.ColumnList{SymbolColumn, GranularityColumn, StartDateColumn, EndDateColumn, CreatedAtColumn, RevenueColumn, CostOfRevenueColumn, GrossProfitColumn, OperatingIncomeColumn, TotalAssetsColumn, TotalCurrentAssetsColumn, PrepaidExpensesColumn, PropertyPlantAndEquipmentNetColumn, RetainedEarningsColumn, OtherAssetsNoncurrentColumn, TotalNonCurrentAssetsColumn, TotalLiabilitiesColumn, ShareholderEquityColumn, NetIncomeColumn, SharesOutstandingDilutedColumn, SharesOutstandingBasicColumn, EpsDilutedColumn, EpsBasicColumn, OperatingCashFlowColumn, InvestingCashFlowColumn, FinancingCashFlowColumn, NetCashFlowColumn, ResearchDevelopmentExpenseColumn, SellingGeneralAdministrativeExpenseColumn, OperatingExpensesColumn, NonOperatingIncomeColumn, PreTaxIncomeColumn, IncomeTaxColumn, DepreciationAmortizationColumn, StockBasedCompensationColumn, DividendsPaidColumn, CashOnHandColumn, CurrentNetReceivablesColumn, InventoryColumn, TotalCurrentLiabilitiesColumn, TotalNonCurrentLiabilitiesColumn, LongTermDebtColumn, TotalLongTermLiabilitiesColumn, GoodwillColumn, IntangibleAssetsExcludingGoodwillColumn}
+		allColumns                                = postgres.ColumnList{AfIDColumn, SymbolColumn, StartDateColumn, EndDateColumn, CreatedAtColumn, RevenueColumn, CostOfRevenueColumn, GrossProfitColumn, OperatingIncomeColumn, TotalAssetsColumn, TotalCurrentAssetsColumn, PrepaidExpensesColumn, PropertyPlantAndEquipmentNetColumn, RetainedEarningsColumn, OtherAssetsNoncurrentColumn, TotalNonCurrentAssetsColumn, TotalLiabilitiesColumn, ShareholderEquityColumn, NetIncomeColumn, SharesOutstandingDilutedColumn, SharesOutstandingBasicColumn, EpsDilutedColumn, EpsBasicColumn, OperatingCashFlowColumn, InvestingCashFlowColumn, FinancingCashFlowColumn, NetCashFlowColumn, ResearchDevelopmentExpenseColumn, SellingGeneralAdministrativeExpenseColumn, OperatingExpensesColumn, NonOperatingIncomeColumn, PreTaxIncomeColumn, IncomeTaxColumn, DepreciationAmortizationColumn, StockBasedCompensationColumn, DividendsPaidColumn, CashOnHandColumn, CurrentNetReceivablesColumn, InventoryColumn, TotalCurrentLiabilitiesColumn, TotalNonCurrentLiabilitiesColumn, LongTermDebtColumn, TotalLongTermLiabilitiesColumn, GoodwillColumn, IntangibleAssetsExcludingGoodwillColumn}
+		mutableColumns                            = postgres.ColumnList{SymbolColumn, StartDateColumn, EndDateColumn, CreatedAtColumn, RevenueColumn, CostOfRevenueColumn, GrossProfitColumn, OperatingIncomeColumn, TotalAssetsColumn, TotalCurrentAssetsColumn, PrepaidExpensesColumn, PropertyPlantAndEquipmentNetColumn, RetainedEarningsColumn, OtherAssetsNoncurrentColumn, TotalNonCurrentAssetsColumn, TotalLiabilitiesColumn, ShareholderEquityColumn, NetIncomeColumn, SharesOutstandingDilutedColumn, SharesOutstandingBasicColumn, EpsDilutedColumn, EpsBasicColumn, OperatingCashFlowColumn, InvestingCashFlowColumn, FinancingCashFlowColumn, NetCashFlowColumn, ResearchDevelopmentExpenseColumn, SellingGeneralAdministrativeExpenseColumn, OperatingExpensesColumn, NonOperatingIncomeColumn, PreTaxIncomeColumn, IncomeTaxColumn, DepreciationAmortizationColumn, StockBasedCompensationColumn, DividendsPaidColumn, CashOnHandColumn, CurrentNetReceivablesColumn, InventoryColumn, TotalCurrentLiabilitiesColumn, TotalNonCurrentLiabilitiesColumn, LongTermDebtColumn, TotalLongTermLiabilitiesColumn, GoodwillColumn, IntangibleAssetsExcludingGoodwillColumn}
 	)
 
 	return assetFundamentalTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:                                  IDColumn,
+		AfID:                                AfIDColumn,
 		Symbol:                              SymbolColumn,
-		Granularity:                         GranularityColumn,
 		StartDate:                           StartDateColumn,
 		EndDate:                             EndDateColumn,
 		CreatedAt:                           CreatedAtColumn,

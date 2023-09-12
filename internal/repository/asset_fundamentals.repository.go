@@ -24,11 +24,13 @@ func (h AssetFundamentalsRepositoryHandler) Add(tx qrm.Executable, af []model.As
 	}
 	query := AssetFundamental.
 		INSERT(AssetFundamental.MutableColumns).
-		MODELS(af)
+		MODELS(af).
+		ON_CONFLICT(
+			AssetFundamental.Symbol, AssetFundamental.StartDate, AssetFundamental.EndDate,
+		).DO_NOTHING()
 
 	_, err := query.Exec(tx)
 	if err != nil {
-		fmt.Println(query.DebugSql())
 		return fmt.Errorf("failed to add asset fundamental to db: %w", err)
 	}
 

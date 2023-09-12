@@ -41,7 +41,9 @@ func NewTx() (*sql.Tx, error) {
 
 func main() {
 	// internal.IngestPrices()
-	gpt()
+	// gpt()
+	ingestUniverseFundamentals()
+	// ingestFundamentals("AAPL")
 }
 
 func backtest(tx *sql.Tx) {
@@ -285,7 +287,7 @@ func gpt() {
 
 }
 
-func updateUniverseFundamentals() {
+func ingestUniverseFundamentals() {
 	db, err := New()
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to create tx: %w", err))

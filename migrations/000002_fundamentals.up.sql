@@ -1,9 +1,6 @@
-create type asset_fundamental_granularity as enum('QUARTERLY', 'ANNUAL');
-
 CREATE TABLE asset_fundamental(
-  id serial primary key,
+  af_id uuid default uuid_generate_v4() primary key,
   symbol text not null,
-  granularity asset_fundamental_granularity not null,
   start_date date not null,
   end_date date not null,
   created_at timestamp with time zone,
@@ -46,5 +43,6 @@ CREATE TABLE asset_fundamental(
   long_term_debt decimal,
   total_long_term_liabilities decimal,
   goodwill decimal,
-  intangible_assets_excluding_goodwill decimal
+  intangible_assets_excluding_goodwill decimal,
+  unique(symbol, start_date, end_date)
 );

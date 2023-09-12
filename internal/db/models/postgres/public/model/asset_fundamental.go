@@ -8,13 +8,13 @@
 package model
 
 import (
+	"github.com/google/uuid"
 	"time"
 )
 
 type AssetFundamental struct {
-	ID                                  int32 `sql:"primary_key"`
+	AfID                                uuid.UUID `sql:"primary_key"`
 	Symbol                              string
-	Granularity                         AssetFundamentalGranularity
 	StartDate                           time.Time
 	EndDate                             time.Time
 	CreatedAt                           *time.Time
