@@ -79,7 +79,7 @@ func (h FactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Tim
 		return 0, err
 	}
 	if out.SharesOutstandingBasic == nil {
-		return 0, fmt.Errorf("%s does not have shares on %v", symbol, date)
+		return 0, fmt.Errorf("%s does not have # shares outstanding on %v", symbol, date)
 	}
 
 	return *out.SharesOutstandingBasic * price, nil
