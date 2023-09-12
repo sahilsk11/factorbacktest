@@ -7,20 +7,27 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-jet/jet/v2/postgres"
+	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 type AssetFundamentalsRepository interface {
-	Add(*sql.Tx, []model.AssetFundamental) error
+	Add(qrm.Executable, []model.AssetFundamental) error
 	Get(tx *sql.Tx, symbol string, date time.Time) (*model.AssetFundamental, error)
 }
 
 type AssetFundamentalsRepositoryHandler struct{}
 
-func (h AssetFundamentalsRepositoryHandler) Add(tx *sql.Tx, af []model.AssetFundamental) error {
+func (h AssetFundamentalsRepositoryHandler) Add(tx qrm.Executable, af []model.AssetFundamental) error {
+	if len(af) == 0 {
+		return fmt.Errorf("no models were provided to insert into asset_fundamental")
+	}
 	query := AssetFundamental.
 		INSERT(AssetFundamental.MutableColumns).
-		MODELS(af)
+		MODELS(af).
+		ON_CONFLICT(
+			AssetFundamental.Symbol, AssetFundamental.StartDate, AssetFundamental.EndDate,
+		).DO_NOTHING()
 
 	_, err := query.Exec(tx)
 	if err != nil {
@@ -31,9 +38,16 @@ func (h AssetFundamentalsRepositoryHandler) Add(tx *sql.Tx, af []model.AssetFund
 }
 
 func (h AssetFundamentalsRepositoryHandler) Get(tx *sql.Tx, symbol string, date time.Time) (*model.AssetFundamental, error) {
+	d := DateT(date)
 	query := AssetFundamental.
 		SELECT(AssetFundamental.AllColumns).
-		WHERE(AssetFundamental.Symbol.EQ(postgres.String(symbol)))
+		WHERE(
+			AND(
+				AssetFundamental.Symbol.EQ(String(symbol)),
+				AssetFundamental.StartDate.LT_EQ(d),
+				AssetFundamental.EndDate.GT_EQ(d),
+			),
+		)
 
 	out := &model.AssetFundamental{}
 	err := query.Query(tx, out)

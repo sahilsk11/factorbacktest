@@ -6,13 +6,45 @@ import (
 	"alpha/pkg/datajockey"
 	"database/sql"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/go-jet/jet/v2/qrm"
 )
 
+func IngestUniverseFundamentals(
+	db *sql.DB, // commit as we go for partial failures
+	djClient datajockey.Client,
+	afRepository repository.AssetFundamentalsRepository,
+	universeRepository repository.UniverseRepository,
+) error {
+	assets, err := universeRepository.List(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	errors := []error{}
+	for _, a := range assets {
+		err = IngestFundamentals(
+			db,
+			djClient,
+			a.Symbol,
+			afRepository,
+		)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("failed to add %s: %w", a.Symbol, err))
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to add %d asset data. errors: %v", len(errors), errors)
+	}
+
+	return nil
+}
+
 func IngestFundamentals(
-	tx *sql.Tx,
+	tx qrm.Executable,
 	djClient datajockey.Client,
 	symbol string,
 	afRepository repository.AssetFundamentalsRepository,
@@ -25,6 +57,7 @@ func IngestFundamentals(
 	if err != nil {
 		return err
 	}
+	fmt.Println(len(models))
 
 	err = afRepository.Add(tx, models)
 	if err != nil {
@@ -83,7 +116,7 @@ func mapQuarter(year, quarter int) (time.Time, time.Time) {
 		},
 		4: {
 			start: time.Date(year, 10, 1, 0, 0, 0, 0, time.UTC),
-			end:   time.Date(year, 12, 1, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 	}
 	x := quarterMap[quarter]
@@ -428,7 +461,6 @@ func invertDjResponse(asset string, in datajockey.Fields) ([]model.AssetFundamen
 		now := time.Now()
 		out = append(out, model.AssetFundamental{
 			Symbol:                              asset,
-			Granularity:                         model.AssetFundamentalGranularity_Quarterly,
 			StartDate:                           start,
 			EndDate:                             end,
 			CreatedAt:                           &now,

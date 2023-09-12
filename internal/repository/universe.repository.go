@@ -3,17 +3,18 @@ package repository
 import (
 	"alpha/internal/db/models/postgres/public/model"
 	. "alpha/internal/db/models/postgres/public/table"
-	"database/sql"
 	"fmt"
+
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 type UniverseRepository interface {
-	List(tx *sql.Tx) ([]model.Universe, error)
+	List(db qrm.Queryable) ([]model.Universe, error)
 }
 
 type UniverseRepositoryHandler struct{}
 
-func (h UniverseRepositoryHandler) List(tx *sql.Tx) ([]model.Universe, error) {
+func (h UniverseRepositoryHandler) List(tx qrm.Queryable) ([]model.Universe, error) {
 	query := Universe.SELECT(Universe.AllColumns)
 	result := []model.Universe{}
 	err := query.Query(tx, &result)
