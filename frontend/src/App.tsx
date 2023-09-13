@@ -96,7 +96,7 @@ const App = () => {
       </div>
     </div>
 
-    <StatsFooter />
+    <StatsFooter userID={userID}/>
     <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
     <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
