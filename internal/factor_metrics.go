@@ -10,6 +10,14 @@ import (
 	"github.com/montanaflynn/stats"
 )
 
+type FactorMetricsMissingDataError struct {
+	Err error
+}
+
+func (e FactorMetricsMissingDataError) Error() string {
+	return e.Err.Error()
+}
+
 type FactorMetricCalculations interface {
 	Price(tx *sql.Tx, symbol string, date time.Time) (float64, error)
 	PricePercentChange(tx *sql.Tx, symbol string, start, end time.Time) (float64, error)
@@ -71,7 +79,7 @@ func (h FactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol s
 func (h FactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
 	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
 	if err != nil {
-		return 0, err
+		return 0, FactorMetricsMissingDataError{err}
 	}
 
 	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
@@ -79,7 +87,7 @@ func (h FactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Tim
 		return 0, err
 	}
 	if out.SharesOutstandingBasic == nil {
-		return 0, fmt.Errorf("%s does not have # shares outstanding on %v", symbol, date)
+		return 0, FactorMetricsMissingDataError{fmt.Errorf("%s does not have # shares outstanding on %v", symbol, date)}
 	}
 
 	return *out.SharesOutstandingBasic * price, nil
@@ -93,10 +101,10 @@ func (h FactorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time)
 
 	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
 	if err != nil {
-		return 0, err
+		return 0, FactorMetricsMissingDataError{err}
 	}
 	if out.EpsBasic == nil {
-		return 0, fmt.Errorf("%s does not have eps on %v", symbol, date)
+		return 0, FactorMetricsMissingDataError{fmt.Errorf("%s does not have eps on %v", symbol, date)}
 	}
 
 	return price / *out.EpsBasic, nil
@@ -111,17 +119,17 @@ func (h FactorMetricsHandler) PbRatio(tx *sql.Tx, symbol string, date time.Time)
 
 	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
 	if err != nil {
-		return 0, err
+		return 0, FactorMetricsMissingDataError{err}
 	}
 
 	if out.TotalAssets == nil {
-		return 0, fmt.Errorf("missing total assets")
+		return 0, FactorMetricsMissingDataError{fmt.Errorf("missing total assets")}
 	}
 	if out.TotalLiabilities == nil {
-		return 0, fmt.Errorf("missing total liabilities")
+		return 0, FactorMetricsMissingDataError{fmt.Errorf("missing total liabilities")}
 	}
 	if out.SharesOutstandingBasic == nil {
-		return 0, fmt.Errorf("missing shares outstanding")
+		return 0, FactorMetricsMissingDataError{fmt.Errorf("missing shares outstanding")}
 	}
 
 	return price / ((*out.TotalAssets - *out.TotalLiabilities) / *out.SharesOutstandingBasic), nil

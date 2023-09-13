@@ -6,8 +6,8 @@ import (
 	"alpha/internal/repository"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 )
@@ -69,7 +69,7 @@ func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInp
 						input.Date,
 					)
 					if err != nil {
-						err = fmt.Errorf("failed to evalate expression for %s on %s: %w", input.Symbol, input.Date.Format("2006-01-02"), err)
+						err = fmt.Errorf("failed to compute factor score for %s on %s: %w", input.Symbol, input.Date.Format("2006-01-02"), err)
 					}
 					resultCh <- result{
 						ExpressionResult: res,
@@ -98,10 +98,9 @@ func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInp
 		if _, ok := out[res.Date]; !ok {
 			out[res.Date] = map[string]*float64{}
 		}
-		if res.Err != nil {
-			// TODO - figure out what to do with this
-			log.Println(res.Err)
-		} else {
+		if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
+			return nil, res.Err
+		} else if res.Err == nil {
 			out[res.Date][res.Symbol] = &res.ExpressionResult.Value
 		}
 	}
