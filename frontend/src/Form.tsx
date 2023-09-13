@@ -102,7 +102,7 @@ export default function FactorForm({
           setErr("No backtest results were calculated");
           return;
         }
-        // jumpToAnchorOnSmallScreen("backtest-results")
+        jumpToAnchorOnSmallScreen("backtest-chart")
         setNames([...names, factorName])
         const fd: FactorData = {
           name: data.factorOptions.name,
@@ -123,13 +123,13 @@ export default function FactorForm({
   };
 
   let rebalanceDuration = 1;
-  switch(samplingIntervalUnit) {
-    case "weekly": rebalanceDuration = 7;break;
-    case "monthly": rebalanceDuration = 30;break;
-    case "yearly": rebalanceDuration = 365;break;
+  switch (samplingIntervalUnit) {
+    case "weekly": rebalanceDuration = 7; break;
+    case "monthly": rebalanceDuration = 30; break;
+    case "yearly": rebalanceDuration = 365; break;
   }
 
-  const numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4/7 / rebalanceDuration;
+  const numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4 / 7 / rebalanceDuration;
 
   return (
     <div className='tile'>
@@ -185,7 +185,7 @@ export default function FactorForm({
             <option value="monthly">monthly</option>
             <option value="yearly">yearly</option>
           </select>
-          {numComputations > 10_000 ? <p style={{marginTop: "5px"}} className='label-subtext'>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations/10000)*10} seconds.</p> : null}
+          {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className='label-subtext'>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
         </div>
 
         <div style={{ display: "none" }}>
@@ -441,22 +441,22 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
   </>
 }
 
-// function jumpToAnchorOnSmallScreen(anchorId:string) {
-//   // Check if the screen width is less than 600 pixels
-//   if (window.innerWidth < 600) {
-//     // Get the element with the specified anchorId
-//     const anchorElement = document.getElementById(anchorId);
+function jumpToAnchorOnSmallScreen(anchorId:string) {
+  // Check if the screen width is less than 600 pixels
+  if (window.innerWidth < 600) {
+    // Get the element with the specified anchorId
+    const anchorElement = document.getElementById(anchorId);
 
-//     // Check if the element exists
-//     if (anchorElement) {
-//       // Calculate the position to scroll to
-//       const offset = anchorElement.getBoundingClientRect().top + window.scrollY;
+    // Check if the element exists
+    if (anchorElement) {
+      // Calculate the position to scroll to
+      const offset = anchorElement.getBoundingClientRect().top + window.scrollY;
 
-//       // Scroll to the element smoothly
-//       window.scrollTo({
-//         top: offset,
-//         behavior: 'smooth'
-//       });
-//     }
-//   }
-// }
+      // Scroll to the element smoothly
+      window.scrollTo({
+        top: offset,
+        behavior: 'smooth'
+      });
+    }
+  }
+}
