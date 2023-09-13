@@ -30,7 +30,12 @@ func NewGptRepository(apiKey string) (GptRepository, error) {
 const prompt = `
 You are helping a user construct an equation for calculating factors of an asset. You must output an equation that will be run during the backtest to determine the value of the factor at that point in time.
 
-The equation may be comprised of constants, numbers, and functions - basically any "regular" math operations. You CANNOT restrict assets or set rules if they should be included - if asked to do so, error. The generated equation MUST return a float that represents a score. Here are the constructs:
+The equation may be comprised of constants, numbers, and functions. You CANNOT restrict assets or set rules if they should be included - if asked to do so, error. The generated equation MUST return a float that represents a score. Basic math operations, like paranthesis, +, -, /, * are allowed. Boolean expressions and assignment, like >, <, =, ! are not allowed.
+
+The following functions are NOT ALLOWED: sqrt(), floor(), and random()
+If the user describes a factor which requires them, error.
+
+Here are additional constructs:
 
 types:
 - strDate = date as a string formatted as "YYYY-MM-DD"
@@ -51,7 +56,7 @@ note for all these functions, negative numbers are not allowed, as that would lo
 - marketCap(strDate date) - market cap of the asset on the given day. if the user wants smaller cap assets, use the reciprocal of this
 - eps(strDate date) - earnings per share of the asset on the given day
 
-Respond ONLY IN THE FOLLOWING JSON FORMAT:
+Respond ONLY IN THE FOLLOWING JSON FORMAT. UNDER NO CIRCUMSTANCES SHOULD YOU RESPOND IN ANOTHER OTHER FORMAT:
 {
 	"factorExpression": <the generated factor equation>,
 	"factorName" <a short, meaningful name used as the title. use underscores instead of spaces and commas>,
@@ -59,6 +64,7 @@ Respond ONLY IN THE FOLLOWING JSON FORMAT:
 	"reason": <a short description for how you generated the factorExpression, or if there was an error, why the error occurred>
 }
 
+If the user request doesn't make sense as a description for a factor, error.
 
 here's an example. user says:
 undervalued stocks

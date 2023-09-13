@@ -314,9 +314,12 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
     }
   }, [selectedFactor])
 
+  const gptInputElement = document.getElementById("gpt-input");
+
   const autofillEquation = async (e: any) => {
     e.preventDefault();
     setLoading(true);
+    setFactorExpression("");
     try {
       const response = await fetch(endpoint + "/constructFactorEquation", {
         method: "POST",
@@ -345,6 +348,16 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
       console.error("Error:", error);
     }
   }
+
+  if (err) {
+    (gptInputElement as HTMLInputElement)?.setCustomValidity(err);
+    (gptInputElement as HTMLInputElement).reportValidity();
+  }
+
+  useEffect(() => {
+    setErr(null);
+    (gptInputElement as HTMLInputElement)?.setCustomValidity("");
+  }, [gptInput])
 
   return <>
     <div>
@@ -386,11 +399,13 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
         <p style={{ marginTop: "5px" }} className='label-subtext'>Uses ChatGPT API to convert factor description to equation.</p>
         <div className='gpt-input-wrapper'>
           <textarea
+            id="gpt-input"
             style={{
               width: "250px",
               height: "33px",
               fontSize: "13px"
             }}
+            required={true}
             placeholder='small cap, undervalued, and price going up'
             value={gptInput}
             onChange={(e) => setGptInput(e.target.value)}
