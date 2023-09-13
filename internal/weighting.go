@@ -108,7 +108,7 @@ func (aso AssetSelectionOptions) Valid() error {
 type CalculateTargetAssetWeightsInput struct {
 	Tx                    *sql.Tx
 	Date                  time.Time
-	FactorScoresBySymbol  map[string]float64
+	FactorScoresBySymbol  map[string]*float64
 	FactorIntensity       float64
 	AssetSelectionOptions AssetSelectionOptions
 }
@@ -137,9 +137,16 @@ func CalculateTargetAssetWeights(in CalculateTargetAssetWeightsInput) (map[strin
 			in.FactorScoresBySymbol,
 		)
 	case AssetSelectionMode_AnchorPortfolio:
+		newScoreMap := map[string]float64{}
+		for k, v := range in.FactorScoresBySymbol {
+			if v == nil {
+				return nil, fmt.Errorf("nil score for %s", k)
+			}
+			newScoreMap[k] = *v
+		}
 		newWeights, err = calculateWeightsRelativeToAnchor(
 			in.AssetSelectionOptions.AnchorPortfolioWeights,
-			in.FactorScoresBySymbol,
+			newScoreMap,
 			in.FactorIntensity,
 		)
 	case AssetSelectionMode_TopQuartile:
@@ -230,9 +237,12 @@ func calculateWeightsRelativeToAnchor(
 
 func calculateWeightsViaNumTickers(
 	numTickers int,
-	factorScoresBySymbol map[string]float64,
+	factorScoresBySymbol map[string]*float64,
 ) (map[string]float64, error) {
 	topScores := topNScores(factorScoresBySymbol, numTickers)
+	if len(topScores) != numTickers {
+		return nil, fmt.Errorf("target portfolio should have %d assets but calculated scores for %d assets", numTickers, len(topScores))
+	}
 	numTickers = len(topScores)
 	if numTickers == 1 {
 		for symbol := range topScores {
@@ -253,17 +263,19 @@ func calculateWeightsViaNumTickers(
 	)
 }
 
-func topNScores(factorScoresBySymbol map[string]float64, n int) map[string]float64 {
+func topNScores(factorScoresBySymbol map[string]*float64, n int) map[string]float64 {
 	var keyValuePairs []struct {
 		Key   string
 		Value float64
 	}
 
 	for key, value := range factorScoresBySymbol {
-		keyValuePairs = append(keyValuePairs, struct {
-			Key   string
-			Value float64
-		}{key, value})
+		if value != nil {
+			keyValuePairs = append(keyValuePairs, struct {
+				Key   string
+				Value float64
+			}{key, *value})
+		}
 	}
 
 	sort.Slice(keyValuePairs, func(i, j int) bool {
