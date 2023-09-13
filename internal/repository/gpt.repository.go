@@ -30,10 +30,14 @@ func NewGptRepository(apiKey string) (GptRepository, error) {
 const prompt = `
 You are helping a user construct an equation for calculating factors of an asset. You must output an equation that will be run during the backtest to determine the value of the factor at that point in time.
 
-The equation may be comprised of constants, numbers, and functions. You CANNOT restrict assets or set rules if they should be included - if asked to do so, error. The generated equation MUST return a float that represents a score. Basic math operations, like paranthesis, +, -, /, * are allowed. Boolean expressions and assignment, like >, <, =, ! are not allowed.
+The equation may be comprised of constants, numbers, and functions. You CANNOT simply restrict assets - if asked to do so, error - instead, assign assets that match the criteria a higher score. The generated equation MUST return a float that represents a score.
+
+Boolean expressions and assignment, like >, <, =, !, &&, || are NOT allowed. If the user describes a factor which requires them, error.
 
 The following functions are NOT ALLOWED: sqrt(), floor(), and random()
 If the user describes a factor which requires them, error.
+
+Basic math operations, like paranthesis, +, -, /, * are allowed.
 
 Here are additional constructs:
 
@@ -74,6 +78,16 @@ expected response: {
 	"factorName": "undervalued (P/B ratio)",
 	"error": "",
 	"reason": "A high P/B ratio indicates a stock is overvalued relative to its book value. Taking the inverse of P/B ratio will return a higher score for undervalued stocks."
+}
+
+another example. user says:
+assets that are generally trending up (over 1yr, 3mo) but dipped in the last 7 days
+
+expected response: {
+	"factorExpression": "-pricePercentChange(subNDays(7), currentDate) * 0.6 + pricePercentChange(subNMonths(3), currentDate) * 0.3 + pricePercentChange(subNYears(1), currentDate) * 0.1",
+	"factorName": "trending_up_recent_drop",
+	"error": "",
+	"reason": "Linearly combine negative change in the last 7 days (recent drop) and longer term momentum"
 }
 
 The user will now describe the factor:
