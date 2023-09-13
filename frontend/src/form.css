@@ -67,10 +67,6 @@ select {
   width: fit-content;
 }
 
-.label-subtext:hover {
-  cursor: pointer;
-}
-
 @media only screen and (max-width: 600px) {
   .backtest-btn {
     width: 140px;
