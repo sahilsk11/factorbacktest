@@ -95,6 +95,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		samplingInterval *= 7
 	} else if strings.EqualFold(requestBody.SamplingIntervalUnit, "monthly") {
 		samplingInterval *= 30
+	} else if strings.EqualFold(requestBody.SamplingIntervalUnit, "yearly") {
+		samplingInterval *= 365
 	}
 
 	assetSelectionMode, err := internal.NewAssetSelectionMode(requestBody.AssetSelectionMode)
