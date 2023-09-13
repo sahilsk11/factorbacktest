@@ -95,7 +95,7 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
       <tbody>
         {sortedSymbols.map(symbol => <tr>
           <td>{symbol}</td>
-          <td>{snapshot.assetMetrics[symbol].factorScore.toFixed(2)}</td>
+          <td>{snapshot.assetMetrics[symbol].factorScore < 1e-2 ? snapshot.assetMetrics[symbol].factorScore.toExponential(2) : snapshot.assetMetrics[symbol].factorScore.toFixed(2)}</td>
           <td>{(100 * snapshot.assetMetrics[symbol].assetWeight).toFixed(2)}%</td>
           <td>{snapshot.assetMetrics[symbol].priceChangeTilNextResampling?.toFixed(2)}%</td>
         </tr>)}
