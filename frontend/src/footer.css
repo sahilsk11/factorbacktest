@@ -1,0 +1,25 @@
+.footer {
+  width: 100%;
+  min-height: 100px;
+  background-color: rgb(29, 28, 33);
+  position: relative;
+  margin-top: 50px;
+}
+
+.footer-text-wrapper {
+  margin-left: calc(2.5% + 30px);
+  padding-top: 25px;
+  padding-bottom: 25px;
+}
+
+ul {
+  padding: 0px;
+}
+
+.footer-stat {
+  color: rgb(235, 235, 235);
+  font-weight: 500;
+  list-style-type: none;
+  padding-bottom: 10px;
+  font-size: 13px;
+}

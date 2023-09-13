@@ -8,6 +8,7 @@ import { BacktestSnapshot } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
 import { ContactModal, HelpModal } from './Modals';
+import StatsFooter from './Footer';
 
 
 export interface FactorData {
@@ -94,7 +95,8 @@ const App = () => {
         </div>
       </div>
     </div>
-    <div style={{ height: "30px" }}></div>
+
+    <StatsFooter />
     <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
     <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
