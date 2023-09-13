@@ -3,9 +3,9 @@ import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
 import { BacktestRequest, BacktestResponse, FactorOptions } from './models';
-import { AiOutlineQuestionCircle } from 'react-icons/ai';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
+import { enumerateDates } from './util';
 
 
 export default function FactorForm({
@@ -102,6 +102,7 @@ export default function FactorForm({
           setErr("No backtest results were calculated");
           return;
         }
+        jumpToAnchorOnSmallScreen("backtest-results")
         setNames([...names, factorName])
         const fd: FactorData = {
           name: data.factorOptions.name,
@@ -120,6 +121,15 @@ export default function FactorForm({
       console.error("Error:", error);
     }
   };
+
+  let rebalanceDuration = 1;
+  switch(samplingIntervalUnit) {
+    case "weekly": rebalanceDuration = 7;break;
+    case "monthly": rebalanceDuration = 30;break;
+    case "yearly": rebalanceDuration = 365;break;
+  }
+
+  const numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4/7 / rebalanceDuration;
 
   return (
     <div className='tile'>
@@ -175,6 +185,7 @@ export default function FactorForm({
             <option value="monthly">monthly</option>
             <option value="yearly">yearly</option>
           </select>
+          {numComputations > 10_000 ? <p style={{marginTop: "5px"}} className='label-subtext'>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations/10000)*10} seconds.</p> : null}
         </div>
 
         <div style={{ display: "none" }}>
@@ -383,7 +394,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
       </label>
 
       <ReactTooltip style={{ fontSize: "12px", maxWidth: "220px" }} id="my-tfooltip" />
-      <p className='label-subtext' style={{ maxWidth: "380px" }}>Select predefined factors or create your own.</p>
+      <p className='label-subtext'>Select predefined factors or create your own.</p>
 
       <select
         onChange={(e) => setSelectedFactor(e.target.value)}
@@ -428,4 +439,24 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
       />
     </div>
   </>
+}
+
+function jumpToAnchorOnSmallScreen(anchorId:string) {
+  // Check if the screen width is less than 600 pixels
+  if (window.innerWidth < 600) {
+    // Get the element with the specified anchorId
+    const anchorElement = document.getElementById(anchorId);
+
+    // Check if the element exists
+    if (anchorElement) {
+      // Calculate the position to scroll to
+      const offset = anchorElement.getBoundingClientRect().top + window.scrollY;
+
+      // Scroll to the element smoothly
+      window.scrollTo({
+        top: offset,
+        behavior: 'smooth'
+      });
+    }
+  }
 }

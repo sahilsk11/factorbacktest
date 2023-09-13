@@ -1,0 +1,9 @@
+.backtest-chart-wrapper {
+  height: 50vh;
+}
+
+@media only screen and (max-width: 600px) {
+  .backtest-chart-wrapper {
+    height: 40vh;
+  }
+}
