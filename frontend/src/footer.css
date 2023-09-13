@@ -8,12 +8,13 @@
 
 .footer-text-wrapper {
   margin-left: calc(2.5% + 30px);
-  padding-top: 25px;
+  padding-top: 30px;
   padding-bottom: 25px;
 }
 
 ul {
   padding: 0px;
+  margin: 0px;
 }
 
 .footer-stat {
