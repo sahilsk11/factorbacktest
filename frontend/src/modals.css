@@ -26,10 +26,11 @@
 }
 
 .help-modal {
-  margin-top: 5%;
+  margin-top: 2%;
   max-width: 700px;
   width: 80%;
   max-height: 90%;
+  margin-bottom: 50px;
 }
 
 .close {
