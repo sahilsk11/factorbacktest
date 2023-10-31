@@ -32,7 +32,6 @@ type DbSecrets struct {
 func (t DbSecrets) ToConnectionStr() string {
 	x := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s",
 		t.Host, t.Port, t.User, t.Password, t.Database)
-
 	if !t.EnableSsl {
 		x += " sslmode=disable"
 	}

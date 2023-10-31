@@ -16,7 +16,7 @@ func IngestPrices(
 	symbol string,
 	adjPricesRepository repository.AdjustedPriceRepository,
 ) error {
-	start := time.Date(2018, 1, 0, 0, 0, 0, 0, time.UTC)
+	start := time.Date(2000, 1, 0, 0, 0, 0, 0, time.UTC)
 	now := time.Now()
 	params := &chart.Params{
 		Start:    datetime.New(&start),

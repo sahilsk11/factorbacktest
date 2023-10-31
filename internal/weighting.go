@@ -251,6 +251,7 @@ func calculateWeightsViaNumTickers(
 			}, nil
 		}
 	}
+	// assign equal weighting to all assets to start
 	originalWeights := map[string]float64{}
 	for symbol := range topScores {
 		originalWeights[symbol] = 1.0 / float64(numTickers)
