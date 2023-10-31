@@ -26,7 +26,7 @@ type workInput struct {
 	FactorExpression string
 }
 
-func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInput) (map[time.Time]map[string]*float64, error) {
+func (h BacktestHandler) calculateFactorScores(ctx context.Context, in []workInput) (map[time.Time]map[string]*float64, error) {
 	numGoroutines := 10
 
 	type result struct {
@@ -126,6 +126,8 @@ type ComputeTargetPortfolioResponse struct {
 	TotalValue      float64
 }
 
+// Computes what the portfolio should hold on a given day, given the
+// strategy (equation and universe) and value of current holdings
 func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
 	symbols := []string{}
 	if in.AssetOptions.Mode == internal.AssetSelectionMode_AnchorPortfolio {
@@ -250,7 +252,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	}
 
 	x := time.Now()
-	factorScoresByDay, err := h.CalculateFactorScores(ctx, inputs)
+	factorScoresByDay, err := h.calculateFactorScores(ctx, inputs)
 	if err != nil {
 		return nil, err
 	}
