@@ -1,7 +1,7 @@
 package api
 
 import (
-	"alpha/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/db/models/postgres/public/model"
 	"fmt"
 
 	"github.com/gin-gonic/gin"

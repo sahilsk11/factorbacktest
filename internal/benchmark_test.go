@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"alpha/internal/domain"
+	"factorbacktest/internal/domain"
 	"testing"
 	"time"
 

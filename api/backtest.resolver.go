@@ -1,16 +1,16 @@
 package api
 
 import (
-	"alpha/internal"
-	"alpha/internal/app"
-	"alpha/internal/db/models/postgres/public/model"
-	"alpha/internal/domain"
-	"alpha/internal/repository"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"factorbacktest/internal"
+	"factorbacktest/internal/app"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/domain"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"regexp"
 	"strings"

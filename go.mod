@@ -1,4 +1,4 @@
-module alpha
+module factorbacktest
 
 go 1.20
 

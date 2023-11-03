@@ -1,12 +1,12 @@
 package app
 
 import (
-	"alpha/internal"
-	"alpha/internal/domain"
-	"alpha/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
+	"factorbacktest/internal"
+	"factorbacktest/internal/domain"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"sync"
 	"time"

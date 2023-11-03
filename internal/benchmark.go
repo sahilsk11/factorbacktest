@@ -1,9 +1,9 @@
 package internal
 
 import (
-	"alpha/internal/domain"
-	"alpha/internal/repository"
 	"database/sql"
+	"factorbacktest/internal/domain"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"sort"
 	"time"

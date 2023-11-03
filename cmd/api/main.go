@@ -1,11 +1,11 @@
 package main
 
 import (
-	"alpha/api"
-	"alpha/internal"
-	"alpha/internal/app"
-	"alpha/internal/repository"
 	"database/sql"
+	"factorbacktest/api"
+	"factorbacktest/internal"
+	"factorbacktest/internal/app"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"log"
 
