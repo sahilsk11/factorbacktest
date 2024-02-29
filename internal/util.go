@@ -41,7 +41,7 @@ func (t DbSecrets) ToConnectionStr() string {
 func LoadSecrets() (*Secrets, error) {
 	secretsFile := "secrets.json"
 	if os.Getenv("ALPHA_ENV") == "dev" {
-		secretsFile = "secrets-dev.json"
+		// secretsFile = "secrets-dev.json"
 	}
 	f, err := os.ReadFile(secretsFile)
 	if err != nil {
