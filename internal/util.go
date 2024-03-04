@@ -39,9 +39,9 @@ func (t DbSecrets) ToConnectionStr() string {
 }
 
 func LoadSecrets() (*Secrets, error) {
-	secretsFile := "secrets.json"
+	secretsFile := "/go/src/app/secrets.json"
 	if os.Getenv("ALPHA_ENV") == "dev" {
-		// secretsFile = "secrets-dev.json"
+		secretsFile = "secrets.json"
 	}
 	f, err := os.ReadFile(secretsFile)
 	if err != nil {
