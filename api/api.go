@@ -39,7 +39,7 @@ func strPtr(s string) *string {
 	return &s
 }
 
-func (m ApiHandler) StartApi(port int) error {
+func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 	router := gin.Default()
 
 	router.Use(blockBots)
@@ -62,6 +62,11 @@ func (m ApiHandler) StartApi(port int) error {
 		ctx.JSON(200, result)
 	})
 
+	return router
+}
+
+func (m ApiHandler) StartApi(port int) error {
+	router := m.InitializeRouterEngine()
 	return router.Run(fmt.Sprintf(":%d", port))
 }
 

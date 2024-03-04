@@ -18,7 +18,7 @@ export interface FactorData {
   data: Record<string, BacktestSnapshot>,
 }
 
-export const endpoint = (process.env.NODE_ENV === 'production') ? "https://api.factorbacktest.net" : "http://localhost:3009";
+export const endpoint = (process.env.NODE_ENV === 'production') ? "https://tgwmxgtk07.execute-api.us-east-1.amazonaws.com/prod" : "http://localhost:3009";
 
 export interface BenchmarkData {
   symbol: string,
