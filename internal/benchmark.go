@@ -32,13 +32,12 @@ func (h BenchmarkHandler) GetIntraPeriodChange(
 	if len(prices) == 0 {
 		return nil, fmt.Errorf("no prices found for symbol %s between %v and %v", symbol, start, end)
 	}
-	return intraPeriodChangeIterator(prices, start, end, granularity), nil
+	return intraPeriodChangeIterator(prices, end, granularity), nil
 }
 
 // okay doofenshmirtz
 func intraPeriodChangeIterator(
 	prices []domain.AssetPrice,
-	start,
 	end time.Time,
 	granularity time.Duration,
 ) map[time.Time]float64 {
