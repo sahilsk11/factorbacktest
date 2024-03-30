@@ -28,8 +28,7 @@ func interestRateMonthsFromApi(in string) (int, error) {
 }
 
 type InterestRateMap struct {
-	SortedKeys []int
-	Rates      map[int]float64
+	Rates map[int]float64
 }
 
 func (im InterestRateMap) GetRate(monthsOut int) float64 {
@@ -38,16 +37,25 @@ func (im InterestRateMap) GetRate(monthsOut int) float64 {
 		return v
 	}
 
+	keys := []int{}
+	for k := range im.Rates {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
 	// figure out closest values and interpolate
-	if monthsOut < im.SortedKeys[0] {
-		return im.Rates[im.SortedKeys[0]]
+	if monthsOut < keys[0] {
+		return im.Rates[keys[0]]
 	}
-	if monthsOut > im.SortedKeys[len(im.SortedKeys)-1] {
-		return im.Rates[im.SortedKeys[len(im.SortedKeys)-1]]
+	if monthsOut > keys[len(keys)-1] {
+		return im.Rates[keys[len(keys)-1]]
 	}
-	for i := 0; i < len(im.SortedKeys)-1; i++ {
-		key1 := im.SortedKeys[i]
-		key2 := im.SortedKeys[i+1]
+
+	for i := 0; i < len(keys)-1; i++ {
+		key1 := keys[i]
+		key2 := keys[i+1]
 		if monthsOut > key1 && monthsOut < key2 {
 			return (im.Rates[key1] + im.Rates[key2]) / 2
 		}
@@ -117,7 +125,6 @@ func GetYieldCurve(date time.Time) (*InterestRateMap, error) {
 	}
 
 	out := map[int]float64{}
-	monthKeys := []int{}
 
 	for _, response := range responseBody {
 		for k, v := range response {
@@ -128,7 +135,6 @@ func GetYieldCurve(date time.Time) (*InterestRateMap, error) {
 					if err != nil {
 						return nil, err
 					}
-					monthKeys = append(monthKeys, months)
 					if v != nil {
 						out[months] = v.(float64) / 100
 					}
@@ -137,12 +143,7 @@ func GetYieldCurve(date time.Time) (*InterestRateMap, error) {
 		}
 	}
 
-	sort.Slice(monthKeys, func(i, j int) bool {
-		return monthKeys[i] < monthKeys[j]
-	})
-
 	return &InterestRateMap{
-		Rates:      out,
-		SortedKeys: monthKeys,
+		Rates: out,
 	}, nil
 }
