@@ -1,7 +1,8 @@
 package internal
 
 import (
-	interestrate "factorbacktest/pkg/interest_rate"
+	"factorbacktest/internal/domain"
+	treasury_client "factorbacktest/pkg/treasury"
 	"sort"
 	"time"
 
@@ -28,7 +29,7 @@ func NewBond(amount float64, creationDate time.Time, durationMonths int, rate fl
 	}
 }
 
-func (b Bond) currentValue(t time.Time, interestRates interestrate.InterestRateMap) float64 {
+func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) float64 {
 	if t.After(b.Expiration) {
 		return b.ParValue
 	}
@@ -58,7 +59,7 @@ func ConstructBondPortfolio(
 	targetDurationMonths []int,
 	amountInvested float64,
 ) (*BondPortfolio, error) {
-	interestRates, err := interestrate.GetYieldCurve(startDate)
+	interestRates, err := treasury_client.GetInterestRatesOnDay(startDate)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func ConstructBondPortfolio(
 	}, nil
 }
 
-func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates interestrate.InterestRateMap) error {
+func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.InterestRateMap) error {
 	outBonds := []Bond{}
 
 	for _, bond := range bp.Bonds {
@@ -131,7 +132,7 @@ func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 }
 
 func (bp *BondPortfolio) Refresh(t time.Time) error {
-	interestRates, err := interestrate.GetYieldCurve(t)
+	interestRates, err := treasury_client.GetInterestRatesOnDay(t)
 	if err != nil {
 		return err
 	}
@@ -141,4 +142,75 @@ func (bp *BondPortfolio) Refresh(t time.Time) error {
 		return err
 	}
 	return nil
+}
+
+/*
+want a stream of coupon payments
+that i can stack in a bar chart, something like
+[
+	{
+		day
+		payments: [{
+			id,
+			amount
+		}]
+	}
+]
+
+then for performance
+
+[
+	{
+		day
+		totalReturnFromInception
+		bonds: [{
+			id
+			returns: [{
+				date,
+				value // make sure this starts from prev ret of chain
+			}]
+		}]
+	}
+]
+
+
+*/
+
+type CouponPayment struct {
+	BondPayments map[uuid.UUID]float64
+	DateReceived time.Time
+	TotalAmount  float64
+}
+
+type BondPortfolioReturn struct {
+	Date        time.Time
+	TotalReturn float64
+	BondReturns map[uuid.UUID]float64
+}
+
+type BacktestBondPortfolioResult struct {
+	CouponPayments []CouponPayment
+	Returns        []BondPortfolioReturn
+}
+
+func BacktestBondPortfolio(
+	durations []int,
+	startingAmount float64,
+	start time.Time,
+	end time.Time,
+) (interface{}, error) {
+	current := start
+	bp, err := ConstructBondPortfolio(start, durations, startingAmount)
+	if err != nil {
+		return nil, err
+	}
+
+	for current.Before(end) {
+		bp.Refresh(current)
+		// calculate new value of bond portfolio
+		// track total change from inception?
+		current = current.AddDate(0, 0, 1)
+	}
+
+	return nil, nil
 }
