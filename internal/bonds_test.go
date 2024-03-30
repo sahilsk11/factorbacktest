@@ -137,7 +137,7 @@ func TestBondPortfolio_RefreshCouponPayments(t *testing.T) {
 		}
 
 		firstRefresh := start.AddDate(0, 1, 1)
-		bondPortfolio.RefreshCouponPayments(firstRefresh)
+		bondPortfolio.refreshCouponPayments(firstRefresh)
 
 		require.InDelta(t, 8.75, bondPortfolio.Cash, 0.0001)
 
@@ -186,7 +186,7 @@ func TestBondPortfolio_RefreshBondHoldings(t *testing.T) {
 		}
 
 		firstRefresh := start.AddDate(0, 1, 1)
-		bondPortfolio.RefreshBondHoldings(firstRefresh, interestrate.InterestRateMap{
+		bondPortfolio.refreshBondHoldings(firstRefresh, interestrate.InterestRateMap{
 			Rates: map[int]float64{
 				2: 0.05,
 			},

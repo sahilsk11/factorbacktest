@@ -79,7 +79,7 @@ func ConstructBondPortfolio(
 	}, nil
 }
 
-func (bp *BondPortfolio) RefreshBondHoldings(t time.Time, interestRates interestrate.InterestRateMap) error {
+func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates interestrate.InterestRateMap) error {
 	outBonds := []Bond{}
 
 	for _, bond := range bp.Bonds {
@@ -102,7 +102,7 @@ func (bp *BondPortfolio) RefreshBondHoldings(t time.Time, interestRates interest
 	return nil
 }
 
-func (bp *BondPortfolio) RefreshCouponPayments(t time.Time) {
+func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 	for _, bond := range bp.Bonds {
 		paymentAmount := bond.ParValue * bond.AnnualCouponRate / 12
 		if _, ok := bp.CouponPayments[bond.ID]; !ok {
@@ -135,8 +135,8 @@ func (bp *BondPortfolio) Refresh(t time.Time) error {
 	if err != nil {
 		return err
 	}
-	bp.RefreshCouponPayments(t)
-	err = bp.RefreshBondHoldings(t, *interestRates)
+	bp.refreshCouponPayments(t)
+	err = bp.refreshBondHoldings(t, *interestRates)
 	if err != nil {
 		return err
 	}
