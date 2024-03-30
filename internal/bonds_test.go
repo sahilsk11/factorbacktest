@@ -190,7 +190,7 @@ func TestBondPortfolio_RefreshBondHoldings(t *testing.T) {
 			Rates: map[int]float64{
 				2: 0.05,
 			},
-		})
+		}, time.Now())
 
 		require.Equal(
 			t,
