@@ -176,21 +176,21 @@ then for performance
 
 */
 
-type CouponPayment struct {
-	BondPayments map[uuid.UUID]float64
-	DateReceived time.Time
-	TotalAmount  float64
+type CouponPaymentOnDate struct {
+	BondPayments map[uuid.UUID]float64 `json:"bondPayments"`
+	DateReceived time.Time             `json:"dateReceived"`
+	TotalAmount  float64               `json:"totalAmount"`
 }
 
 type BondPortfolioReturn struct {
-	Date        time.Time
-	TotalReturn float64
-	BondReturns map[uuid.UUID]float64
+	Date        time.Time             `json:"date"`
+	TotalReturn float64               `json:"totalReturn"`
+	BondReturns map[uuid.UUID]float64 `json:"bondReturns"`
 }
 
 type BacktestBondPortfolioResult struct {
-	CouponPayments []CouponPayment
-	Returns        []BondPortfolioReturn
+	CouponPayments []CouponPaymentOnDate `json:"couponPayments"`
+	Returns        []BondPortfolioReturn `json:"returns"`
 }
 
 func BacktestBondPortfolio(
@@ -198,19 +198,62 @@ func BacktestBondPortfolio(
 	startingAmount float64,
 	start time.Time,
 	end time.Time,
-) (interface{}, error) {
+) (*BacktestBondPortfolioResult, error) {
 	current := start
 	bp, err := ConstructBondPortfolio(start, durations, startingAmount)
 	if err != nil {
 		return nil, err
 	}
+	out := BacktestBondPortfolioResult{
+		CouponPayments: []CouponPaymentOnDate{},
+		Returns:        []BondPortfolioReturn{},
+	}
 
 	for current.Before(end) {
 		bp.Refresh(current)
+
 		// calculate new value of bond portfolio
 		// track total change from inception?
 		current = current.AddDate(0, 0, 1)
 	}
 
-	return nil, nil
+	couponPayments, err := groupCouponPaymentsByDate(bp.CouponPayments)
+	if err != nil {
+		return nil, err
+	}
+	out.CouponPayments = couponPayments
+
+	return &out, nil
+}
+
+func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]CouponPaymentOnDate, error) {
+	paymentsOnDate := map[string]map[uuid.UUID]float64{}
+	for bondID, payments := range couponPayments {
+		for _, payment := range payments {
+			dateStr := payment.Date.Format(time.DateOnly)
+			if _, ok := paymentsOnDate[dateStr]; !ok {
+				paymentsOnDate[dateStr] = map[uuid.UUID]float64{}
+			}
+			paymentsOnDate[dateStr][bondID] = payment.Amount
+		}
+	}
+	out := []CouponPaymentOnDate{}
+	for dateStr, bondPayments := range paymentsOnDate {
+		date, err := time.Parse(time.DateOnly, dateStr)
+		if err != nil {
+			return nil, err
+		}
+		totalAmount := 0.0
+		for _, payment := range bondPayments {
+			totalAmount += payment
+		}
+
+		out = append(out, CouponPaymentOnDate{
+			BondPayments: bondPayments,
+			DateReceived: date,
+			TotalAmount:  totalAmount,
+		})
+	}
+
+	return out, nil
 }
