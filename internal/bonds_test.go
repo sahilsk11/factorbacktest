@@ -1,7 +1,7 @@
 package internal
 
 import (
-	interestrate "factorbacktest/pkg/interest_rate"
+	"factorbacktest/internal/domain"
 	"math"
 	"testing"
 	"time"
@@ -19,7 +19,7 @@ func TestBond_currentValue(t *testing.T) {
 			AnnualCouponRate: 0.05,
 			ParValue:         100,
 		}
-		interestRatesMap := interestrate.InterestRateMap{
+		interestRatesMap := domain.InterestRateMap{
 			Rates: map[int]float64{
 				1: 0.05,
 			},
@@ -36,7 +36,7 @@ func TestBond_currentValue(t *testing.T) {
 			AnnualCouponRate: 0.05,
 			ParValue:         100,
 		}
-		interestRatesMap := interestrate.InterestRateMap{
+		interestRatesMap := domain.InterestRateMap{
 			Rates: map[int]float64{
 				1: 0.03,
 			},
@@ -53,7 +53,7 @@ func TestBond_currentValue(t *testing.T) {
 			AnnualCouponRate: 0.05,
 			ParValue:         100,
 		}
-		interestRatesMap := interestrate.InterestRateMap{
+		interestRatesMap := domain.InterestRateMap{
 			Rates: map[int]float64{
 				1: 0.1,
 			},
@@ -186,7 +186,7 @@ func TestBondPortfolio_RefreshBondHoldings(t *testing.T) {
 		}
 
 		firstRefresh := start.AddDate(0, 1, 1)
-		bondPortfolio.refreshBondHoldings(firstRefresh, interestrate.InterestRateMap{
+		bondPortfolio.refreshBondHoldings(firstRefresh, domain.InterestRateMap{
 			Rates: map[int]float64{
 				2: 0.05,
 			},

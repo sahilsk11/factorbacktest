@@ -1,6 +1,7 @@
-package interestrate
+package treasury_client
 
 import (
+	"factorbacktest/internal/domain"
 	"math"
 	"testing"
 	"time"
@@ -9,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetYieldCurve(t *testing.T) {
+func TestGetInterestRatesOnDay(t *testing.T) {
 	t.Run("random date", func(t *testing.T) {
-		response, err := GetYieldCurve(time.Date(
+		response, err := GetInterestRatesOnDay(time.Date(
 			2020, 1, 1, 0, 0, 0, 0, time.UTC,
 		))
 		require.NoError(t, err)
@@ -35,7 +36,7 @@ func TestGetYieldCurve(t *testing.T) {
 			t,
 			"",
 			cmp.Diff(
-				&InterestRateMap{
+				&domain.InterestRateMap{
 					Rates: expected,
 				},
 				response,
