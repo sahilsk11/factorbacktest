@@ -6,7 +6,6 @@ package mock_repository
 
 import (
 	sql "database/sql"
-	model "factorbacktest/internal/db/models/postgres/public/model"
 	domain "factorbacktest/internal/domain"
 	reflect "reflect"
 	time "time"
@@ -38,45 +37,30 @@ func (m *MockInterestRateRepository) EXPECT() *MockInterestRateRepositoryMockRec
 }
 
 // Add mocks base method.
-func (m_2 *MockInterestRateRepository) Add(m model.InterestRate, tx *sql.Tx) error {
+func (m_2 *MockInterestRateRepository) Add(m domain.InterestRateMap, date time.Time, tx *sql.Tx) error {
 	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "Add", m, tx)
+	ret := m_2.ctrl.Call(m_2, "Add", m, date, tx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockInterestRateRepositoryMockRecorder) Add(m, tx interface{}) *gomock.Call {
+func (mr *MockInterestRateRepositoryMockRecorder) Add(m, date, tx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockInterestRateRepository)(nil).Add), m, tx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockInterestRateRepository)(nil).Add), m, date, tx)
 }
 
-// GetInterestRatesOnDates mocks base method.
-func (m *MockInterestRateRepository) GetInterestRatesOnDates(arg0 []time.Time) ([]domain.InterestRateMap, error) {
+// GetRatesOnDate mocks base method.
+func (m *MockInterestRateRepository) GetRatesOnDate(date time.Time, tx *sql.Tx) (*domain.InterestRateMap, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInterestRatesOnDates", arg0)
-	ret0, _ := ret[0].([]domain.InterestRateMap)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetInterestRatesOnDates indicates an expected call of GetInterestRatesOnDates.
-func (mr *MockInterestRateRepositoryMockRecorder) GetInterestRatesOnDates(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterestRatesOnDates", reflect.TypeOf((*MockInterestRateRepository)(nil).GetInterestRatesOnDates), arg0)
-}
-
-// GetRatesOnDay mocks base method.
-func (m *MockInterestRateRepository) GetRatesOnDay(arg0 time.Time) (*domain.InterestRateMap, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRatesOnDay", arg0)
+	ret := m.ctrl.Call(m, "GetRatesOnDate", date, tx)
 	ret0, _ := ret[0].(*domain.InterestRateMap)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRatesOnDay indicates an expected call of GetRatesOnDay.
-func (mr *MockInterestRateRepositoryMockRecorder) GetRatesOnDay(arg0 interface{}) *gomock.Call {
+// GetRatesOnDate indicates an expected call of GetRatesOnDate.
+func (mr *MockInterestRateRepositoryMockRecorder) GetRatesOnDate(date, tx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRatesOnDay", reflect.TypeOf((*MockInterestRateRepository)(nil).GetRatesOnDay), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRatesOnDate", reflect.TypeOf((*MockInterestRateRepository)(nil).GetRatesOnDate), date, tx)
 }

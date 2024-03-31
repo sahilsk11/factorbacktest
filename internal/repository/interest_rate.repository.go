@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"errors"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
@@ -13,13 +12,15 @@ import (
 )
 
 type InterestRateRepository interface {
-	GetRatesOnDay(time.Time) (*domain.InterestRateMap, error)
-	GetInterestRatesOnDates([]time.Time) ([]domain.InterestRateMap, error)
-
-	Add(m model.InterestRate, tx *sql.Tx) error
+	GetRatesOnDate(date time.Time, tx *sql.Tx) (*domain.InterestRateMap, error)
+	Add(m domain.InterestRateMap, date time.Time, tx *sql.Tx) error
 }
 
 type interestRateRepository struct{}
+
+func NewInterestRateRepository() InterestRateRepository {
+	return interestRateRepository{}
+}
 
 func (r interestRateRepository) GetRatesOnDate(date time.Time, tx *sql.Tx) (*domain.InterestRateMap, error) {
 	query := table.InterestRate.SELECT(table.InterestRate.AllColumns).
@@ -29,7 +30,11 @@ func (r interestRateRepository) GetRatesOnDate(date time.Time, tx *sql.Tx) (*dom
 
 	out := []model.InterestRate{}
 	err := query.Query(tx, &out)
-	if errors.Is(err, sql.ErrNoRows) {
+	if err != nil {
+		return nil, err
+	}
+
+	if len(out) == 0 {
 		m, err := treasury_client.GetInterestRatesOnDay(date)
 		if err != nil {
 			return nil, err
@@ -41,8 +46,6 @@ func (r interestRateRepository) GetRatesOnDate(date time.Time, tx *sql.Tx) (*dom
 		}
 
 		return m, nil
-	} else if err != nil {
-		return nil, err
 	}
 
 	m := domain.InterestRateMap{

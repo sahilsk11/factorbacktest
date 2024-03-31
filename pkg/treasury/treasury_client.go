@@ -33,10 +33,8 @@ func getBytes(date time.Time) ([]byte, error) {
 	tStr := date.Format(time.DateOnly)
 
 	if out, ok := cache[tStr]; ok {
-		fmt.Println("cache hit")
 		return out, nil
 	}
-	fmt.Println("cache miss", tStr)
 
 	client := http.DefaultClient
 	url := fmt.Sprintf("https://www.ustreasuryyieldcurve.com/api/v1/yield_curve_snapshot?date=%s&offset=0", tStr)
@@ -60,14 +58,13 @@ func getBytes(date time.Time) ([]byte, error) {
 		return nil, fmt.Errorf("failed with status code %d: %s", response.StatusCode, string(responseBytes))
 	}
 
-	fmt.Println("cache write", tStr)
 	cache[tStr] = responseBytes
 
 	return responseBytes, nil
 }
 
 func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
-	fmt.Println("hit hwree")
+	fmt.Println("bad!")
 	keys := []string{
 		"yield_1m",
 		"yield_2m",

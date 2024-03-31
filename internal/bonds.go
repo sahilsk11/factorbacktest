@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"database/sql"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"sort"
@@ -63,11 +64,12 @@ type BondPortfolio struct {
 }
 
 func (b BondService) ConstructBondPortfolio(
+	tx *sql.Tx,
 	startDate time.Time,
 	targetDurationMonths []int,
 	amountInvested float64,
 ) (*BondPortfolio, error) {
-	interestRates, err := b.InterestRateRepository.GetRatesOnDay(startDate)
+	interestRates, err := b.InterestRateRepository.GetRatesOnDate(startDate, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +217,7 @@ type ValueOnDay struct {
 }
 
 func (b BondService) BacktestBondPortfolio(
+	tx *sql.Tx,
 	durations []int,
 	startingAmount float64,
 	start time.Time,
@@ -223,7 +226,7 @@ func (b BondService) BacktestBondPortfolio(
 	granularityDays := 1
 
 	current := start
-	bp, err := b.ConstructBondPortfolio(start, durations, startingAmount)
+	bp, err := b.ConstructBondPortfolio(tx, start, durations, startingAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +246,7 @@ func (b BondService) BacktestBondPortfolio(
 	current = current.AddDate(0, 0, granularityDays)
 
 	for current.Before(end) {
-		interestRates, err := b.InterestRateRepository.GetRatesOnDay(current)
+		interestRates, err := b.InterestRateRepository.GetRatesOnDate(current, tx)
 		if err != nil {
 			return nil, err
 		}

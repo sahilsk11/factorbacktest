@@ -75,11 +75,12 @@ func TestConstructBondPortfolio(t *testing.T) {
 			InterestRateRepository: interestRateRepository,
 		}
 
-		interestRateRepository.EXPECT().GetRatesOnDay(gomock.Any()).Return(
+		interestRateRepository.EXPECT().GetRatesOnDate(gomock.Any(), nil).Return(
 			&domain.InterestRateMap{}, nil,
 		)
 
 		portfolio, err := bs.ConstructBondPortfolio(
+			nil,
 			time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 			[]int{},
 			100_000,
@@ -110,7 +111,7 @@ func TestConstructBondPortfolio(t *testing.T) {
 
 		start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
-		interestRateRepository.EXPECT().GetRatesOnDay(start).Return(
+		interestRateRepository.EXPECT().GetRatesOnDate(start, nil).Return(
 			&domain.InterestRateMap{
 				Rates: map[int]float64{
 					1: 0.0148,
@@ -121,6 +122,7 @@ func TestConstructBondPortfolio(t *testing.T) {
 		)
 
 		portfolio, err := bs.ConstructBondPortfolio(
+			nil,
 			start,
 			[]int{1, 2, 3},
 			600_000,
