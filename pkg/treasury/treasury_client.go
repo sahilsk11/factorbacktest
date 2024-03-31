@@ -27,6 +27,7 @@ func interestRateMonthsFromApi(in string) (int, error) {
 	return months, nil
 }
 
+// lazy, in-memory cache for API requests
 var cache map[string][]byte = map[string][]byte{}
 
 func getBytes(date time.Time) ([]byte, error) {
@@ -64,7 +65,6 @@ func getBytes(date time.Time) ([]byte, error) {
 }
 
 func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
-	fmt.Println("bad!")
 	keys := []string{
 		"yield_1m",
 		"yield_2m",
