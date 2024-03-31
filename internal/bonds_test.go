@@ -153,11 +153,11 @@ func TestConstructBondPortfolio(t *testing.T) {
 }
 
 func TestBondPortfolio_RefreshCouponPayments(t *testing.T) {
-	t.Run("refresh coupons", func(t *testing.T) {
+	t.Run("check in several months later", func(t *testing.T) {
 		start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
-		bond1 := NewBond(100, start, 1, 0.05)
-		bond2 := NewBond(1000, start, 1, 0.1)
+		bond1 := NewBond(100, start, 10, 0.05)
+		bond2 := NewBond(1000, start, 10, 0.1)
 		bondPortfolio := &BondPortfolio{
 			Bonds: []Bond{
 				bond1,
@@ -166,7 +166,7 @@ func TestBondPortfolio_RefreshCouponPayments(t *testing.T) {
 			CouponPayments: map[uuid.UUID][]Payment{},
 		}
 
-		firstRefresh := start.AddDate(0, 1, 1)
+		firstRefresh := start.AddDate(0, 3, 15)
 		bondPortfolio.refreshCouponPayments(firstRefresh)
 
 		// temporarily removing payments from cash
@@ -179,13 +179,29 @@ func TestBondPortfolio_RefreshCouponPayments(t *testing.T) {
 				map[uuid.UUID][]Payment{
 					bond1.ID: {
 						{
-							Date:   firstRefresh,
+							Date:   start.AddDate(0, 1, 0),
+							Amount: 0.4166,
+						},
+						{
+							Date:   start.AddDate(0, 2, 0),
+							Amount: 0.4166,
+						},
+						{
+							Date:   start.AddDate(0, 3, 0),
 							Amount: 0.4166,
 						},
 					},
 					bond2.ID: {
 						{
-							Date:   firstRefresh,
+							Date:   start.AddDate(0, 1, 0),
+							Amount: 8.3333,
+						},
+						{
+							Date:   start.AddDate(0, 2, 0),
+							Amount: 8.3333,
+						},
+						{
+							Date:   start.AddDate(0, 3, 0),
 							Amount: 8.3333,
 						},
 					},
@@ -229,7 +245,7 @@ func TestBondPortfolio_RefreshBondHoldings(t *testing.T) {
 			cmp.Diff(
 				[]Bond{
 					bond2,
-					NewBond(200, firstRefresh, 2, 0.05),
+					NewBond(200, bond1.Expiration, 2, 0.05),
 				},
 				bondPortfolio.Bonds,
 				floatCompare,
