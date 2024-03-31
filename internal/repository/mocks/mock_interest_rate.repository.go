@@ -64,3 +64,18 @@ func (mr *MockInterestRateRepositoryMockRecorder) GetRatesOnDate(date, tx interf
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRatesOnDate", reflect.TypeOf((*MockInterestRateRepository)(nil).GetRatesOnDate), date, tx)
 }
+
+// GetRatesOnDates mocks base method.
+func (m *MockInterestRateRepository) GetRatesOnDates(dates []time.Time, tx *sql.Tx) (map[string]domain.InterestRateMap, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRatesOnDates", dates, tx)
+	ret0, _ := ret[0].(map[string]domain.InterestRateMap)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRatesOnDates indicates an expected call of GetRatesOnDates.
+func (mr *MockInterestRateRepositoryMockRecorder) GetRatesOnDates(dates, tx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRatesOnDates", reflect.TypeOf((*MockInterestRateRepository)(nil).GetRatesOnDates), dates, tx)
+}
