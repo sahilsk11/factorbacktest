@@ -194,12 +194,12 @@ type CouponPaymentOnDate struct {
 	TotalAmount float64 `json:"totalAmount"`
 }
 
-type BondPortfolioValue struct {
+type BondPortfolioReturn struct {
 	Date    time.Time `json:"date"`
 	DateStr string    `json:"dateString"`
 
-	TotalValue float64               `json:"totalValue"`
-	BondValues map[uuid.UUID]float64 `json:"bondValues"`
+	ReturnSinceInception float64               `json:"returnSinceInception"`
+	BondReturns          map[uuid.UUID]float64 `json:"bondReturns"`
 }
 
 type InterestRatesOnDate struct {
@@ -216,7 +216,7 @@ type Metrics struct {
 
 type BacktestBondPortfolioResult struct {
 	CouponPayments  []CouponPaymentOnDate `json:"couponPayments"`
-	PortfolioValues []BondPortfolioValue  `json:"portfolioValues"`
+	PortfolioReturn []BondPortfolioReturn `json:"portfolioReturn"`
 	InterestRates   []InterestRatesOnDate `json:"interestRates"`
 	Metrics         Metrics               `json:"metrics"`
 }
@@ -238,17 +238,17 @@ func (b BondService) BacktestBondPortfolio(
 
 	// initialize total value and bond values
 
-	portfolioValues := []BondPortfolioValue{
-		{
-			Date:       start,
-			DateStr:    start.Format(time.DateOnly),
-			TotalValue: startingAmount,
-			BondValues: map[uuid.UUID]float64{},
-		},
-	}
-	for _, bond := range bp.Bonds {
-		portfolioValues[0].BondValues[bond.ID] = bond.ParValue
-	}
+	portfolioReturns := []BondPortfolioReturn{}
+	// {
+	// 		Date:       start,
+	// 		DateStr:    start.Format(time.DateOnly),
+	// 		ReturnSinceInception: 0,
+	// 		BondValues: map[uuid.UUID]float64{},
+	// 	},
+	// }
+	// for _, bond := range bp.Bonds {
+	// 	portfolioValues[0].BondValues[bond.ID] = bond.ParValue
+	// }
 	interestRatesOnDate := []InterestRatesOnDate{}
 
 	dates := []time.Time{}
@@ -284,13 +284,21 @@ func (b BondService) BacktestBondPortfolio(
 		bp.Refresh(date, end, interestRates)
 
 		totalValueOnDay, bondValuesOnDay := bp.calculateValue(date, interestRates)
+		bondReturns := map[uuid.UUID]float64{}
+		for _, bond := range bp.Bonds {
+			startAmount := bond.ParValue
+			currentValue := bondValuesOnDay[bond.ID]
+			bondReturns[bond.ID] = (currentValue - startAmount) / startAmount
+		}
 
-		portfolioValues = append(portfolioValues, BondPortfolioValue{
-			Date:       date,
-			DateStr:    date.Format(time.DateOnly),
-			TotalValue: totalValueOnDay,
-			BondValues: bondValuesOnDay,
-		})
+		Return := BondPortfolioReturn{
+			Date:                 date,
+			DateStr:              date.Format(time.DateOnly),
+			ReturnSinceInception: (totalValueOnDay - startingAmount) / startingAmount,
+			BondReturns:          bondValuesOnDay,
+		}
+
+		portfolioReturns = append(portfolioReturns, Return)
 	}
 
 	couponPayments, err := groupCouponPaymentsByDate(bp.CouponPayments)
@@ -298,14 +306,14 @@ func (b BondService) BacktestBondPortfolio(
 		return nil, err
 	}
 
-	metrics, err := computeMetrics(bp.Bonds, bp.CouponPayments, portfolioValues)
+	metrics, err := computeMetrics(bp.Bonds, bp.CouponPayments, portfolioReturns)
 	if err != nil {
 		return nil, err
 	}
 
 	return &BacktestBondPortfolioResult{
 		CouponPayments:  couponPayments,
-		PortfolioValues: portfolioValues,
+		PortfolioReturn: portfolioReturns,
 		InterestRates:   interestRatesOnDate,
 		Metrics:         *metrics,
 	}, nil
@@ -348,7 +356,7 @@ func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]Coupon
 	return out, nil
 }
 
-func computeMetrics(bonds []Bond, couponPayments map[uuid.UUID][]Payment, portfolioValues []BondPortfolioValue) (*Metrics, error) {
+func computeMetrics(bonds []Bond, couponPayments map[uuid.UUID][]Payment, portfolioValues []BondPortfolioReturn) (*Metrics, error) {
 	// average coupon
 	totalCouponPayment := 0.0
 	totalBondParValues := 0.0
