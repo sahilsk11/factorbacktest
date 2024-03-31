@@ -260,7 +260,7 @@ export default function FactorForm({
           />
         </div> : null}
 
-        {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className='backtest-btn ' type="submit">Run Backtest</button>}
+        {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className='backtest-btn' type="submit">Run Backtest</button>}
 
         <Error message={err} />
       </form>

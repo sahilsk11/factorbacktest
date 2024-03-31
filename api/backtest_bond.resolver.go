@@ -14,7 +14,7 @@ import (
 func durationKeyToMonthlyDurations(durationKey int) []int {
 	return map[int][]int{
 		0: {1, 2, 3},
-		1: {3, 6, 9},
+		// 1: {3, 6, 9},
 		2: {12, 24, 36},
 		3: {36, 60, 84},
 		4: {120, 240, 360},

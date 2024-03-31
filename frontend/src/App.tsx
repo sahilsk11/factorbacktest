@@ -80,12 +80,12 @@ const App = () => {
           />
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
-            <BacktestChart
-              benchmarkData={benchmarkData}
-              factorData={factorData}
-              updateInspectFactorDataIndex={updateInspectFactorDataIndex}
-              updateInspectFactorDataDate={updateInspectFactorDataDate}
-            />
+          <BacktestChart
+            benchmarkData={benchmarkData}
+            factorData={factorData}
+            updateInspectFactorDataIndex={updateInspectFactorDataIndex}
+            updateInspectFactorDataDate={updateInspectFactorDataDate}
+          />
           <InspectFactorData
             fdIndex={inspectFactorDataIndex}
             fdDate={inspectFactorDataDate}
@@ -95,7 +95,7 @@ const App = () => {
       </div>
     </div>
 
-    <StatsFooter userID={userID}/>
+    <StatsFooter userID={userID} />
     <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
     <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
@@ -104,7 +104,7 @@ const App = () => {
 export default App;
 
 
-function getCookie(cookieName: string) {
+export function getCookie(cookieName: string) {
   const name = cookieName + "=";
   const decodedCookie = decodeURIComponent(document.cookie);
   const cookieArray = decodedCookie.split(';');
@@ -128,7 +128,7 @@ function setCookie(cookieName: string, cookieValue: string) {
   document.cookie = cookieName + "=" + cookieValue + "; " + expires;
 }
 
-function getOrCreateUserID(): string {
+export function getOrCreateUserID(): string {
   const cookieUserID = getCookie("userID")
   if (cookieUserID !== null) {
     return cookieUserID;
@@ -142,7 +142,7 @@ function getOrCreateUserID(): string {
   return newUserID;
 }
 
-function Nav({ setShowHelpModal, setShowContactModal }: {
+export function Nav({ setShowHelpModal, setShowContactModal }: {
   setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
 
