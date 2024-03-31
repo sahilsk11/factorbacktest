@@ -268,7 +268,7 @@ export default function FactorForm({
   );
 }
 
-function Error({ message }: { message: string | null }) {
+export function Error({ message }: { message: string | null }) {
   return message === null ? null : <>
     <div className='error-container'>
       <h4 style={{ marginBottom: "0px", marginTop: "0px" }}>That's an error.</h4>
