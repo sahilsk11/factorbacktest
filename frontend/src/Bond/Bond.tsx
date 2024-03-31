@@ -16,7 +16,6 @@ import {
   BarElement,
 } from 'chart.js';
 import { Dispatch, SetStateAction, useState } from 'react';
-import { v4 as uuid } from 'uuid';
 
 import { Bar, Line } from 'react-chartjs-2';
 import { endpoint } from '../App';
@@ -50,8 +49,8 @@ function BondBuilderForm(
   }
 ) {
   const [backtestStart, setBacktestStart] = useState("2020-01-01");
-  const [backtestEnd, setBacktestEnd] = useState("2021-01-01");
-  const [startCash, setStartCash] = useState(100000);
+  const [backtestEnd, setBacktestEnd] = useState("2024-01-01");
+  const [startCash, setStartCash] = useState(1000000);
   const [selectedDuration, updateSelectedDuration] = useState(0);
 
 
@@ -86,7 +85,7 @@ function BondBuilderForm(
       <label>Bond Ladder Durations</label>
       <select value={selectedDuration} onChange={e => updateSelectedDuration(parseInt(e.target.value))}>
         <option value={0}>1M, 2M, 3M</option>
-        <option value={1}>3M, 6M, 1Y</option>
+        {/* <option value={1}>3M, 6M, 1Y</option> */}
         <option value={2}>1Y, 2Y, 3Y</option>
         <option value={3}>3Y, 5Y, 7Y</option>
         <option value={4}>10Y, 20Y, 30Y</option>
