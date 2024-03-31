@@ -56,6 +56,7 @@ interface BacktestBondPortfolioResult {
   portfolioReturn: BondPortfolioReturn[];
   interestRates: InterestRatesOnDate[];
   metrics: Metrics;
+  bondStreams: string[][];
 }
 
 interface InterestRatesOnDate {
@@ -212,7 +213,10 @@ export function BondBuilder() {
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
           <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
-          <BondPortfolioPerformanceChart portfolioReturns={bondBacktestData?.portfolioReturn} />
+          <BondPortfolioPerformanceChart
+            portfolioReturns={bondBacktestData?.portfolioReturn}
+            bondStreams={bondBacktestData?.bondStreams}
+          />
           <InterestRateChart interestRates={bondBacktestData?.interestRates} />
         </div>
       </div>
@@ -234,9 +238,9 @@ function ResultsOverview({
   return <>
     <div className='tile' style={{ marginTop: "10px" }}>
       <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
-      <p className='subtext'>Average Coupon: {(metrics.averageCoupon*100).toFixed(2)}%</p>
-      <p className='subtext'>Standard Deviation: {(metrics.stdev*100).toFixed(2)}%</p>
-      <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown*100).toFixed(2)}%</p>
+      <p className='subtext'>Average Coupon: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
+      <p className='subtext'>Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
+      <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown * 100).toFixed(2)}%</p>
       <p className='subtext'>Effective Duration: 4Y</p>
       <p className='subtext'>Yield to Worst: -4%</p>
     </div>
@@ -293,19 +297,56 @@ function CouponPaymentChart({
   </>
 }
 
+function getBondStreamIndex(id: string, streams: string[][]): number {
+  for (let i = 0; i < streams.length; i++) {
+    const stream = streams[i];
+    for (let j = 0; j < stream.length; j++) {
+      const idx = stream[j];
+      if (id === idx) {
+        return i;
+      }
+    }
+  }
+  return -1
+}
+
 function BondPortfolioPerformanceChart({
-  portfolioReturns
+  portfolioReturns,
+  bondStreams
 }: {
-  portfolioReturns: BondPortfolioReturn[] | undefined
+  portfolioReturns: BondPortfolioReturn[] | undefined,
+  bondStreams: string[][] | undefined
 }) {
-  if (!portfolioReturns) {
+  if (!portfolioReturns || !bondStreams) {
     return null;
   }
 
   const datasets: ChartDataset<"line", (number | null)[]>[] = [{
-    label: "total",
+    label: "Aggregate Portfolio",
     data: portfolioReturns.map(e => 100 * e.returnSinceInception),
   }];
+
+  let streamData: number[][] = [];
+  bondStreams.forEach(_ => {
+    streamData.push([]);
+  })
+  console.log(streamData);
+  portfolioReturns.forEach(dataOnDay => {
+    const bondReturns = dataOnDay.bondReturns;
+    Object.keys(bondReturns).forEach(id => {
+      const streamIndex = getBondStreamIndex(id, bondStreams);
+      streamData[streamIndex].push(100 * bondReturns[id])
+    })
+  });
+
+  streamData.forEach((stream, i) => {
+    const names = ['A', 'B', 'C']
+    const newDataset: ChartDataset<"line", (number | null)[]> = {
+      label: "Bond Set " + names[i],
+      data: stream
+    }
+    datasets.push(newDataset);
+  })
   const options: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
