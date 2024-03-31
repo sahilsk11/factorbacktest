@@ -185,10 +185,11 @@ func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time, interestRat
 }
 
 type CouponPaymentOnDate struct {
-	BondPayments map[uuid.UUID]float64 `json:"bondPayments"`
-	DateReceived time.Time             `json:"date"`
-	DateStr      string                `json:"dateString"`
-	TotalAmount  float64               `json:"totalAmount"`
+	BondPayments      map[uuid.UUID]float64 `json:"bondPayments"`
+	DateReceived      time.Time             `json:"date"`
+	AverageCouponRate float64               `json:"averageCoupon"`
+	DateStr           string                `json:"dateString"`
+	TotalAmount       float64               `json:"totalAmount"`
 }
 
 type BondPortfolioValue struct {
@@ -284,7 +285,7 @@ func (b BondService) BacktestBondPortfolio(
 		})
 	}
 
-	couponPayments, err := groupCouponPaymentsByDate(bp.CouponPayments)
+	couponPayments, err := groupCouponPaymentsByDate(bp.Bonds, bp.CouponPayments)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +297,7 @@ func (b BondService) BacktestBondPortfolio(
 	}, nil
 }
 
-func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]CouponPaymentOnDate, error) {
+func groupCouponPaymentsByDate(bonds []Bond, couponPayments map[uuid.UUID][]Payment) ([]CouponPaymentOnDate, error) {
 	paymentsOnDate := map[string]map[uuid.UUID]float64{}
 	for bondID, payments := range couponPayments {
 		for _, payment := range payments {
@@ -317,12 +318,17 @@ func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]Coupon
 		for _, payment := range bondPayments {
 			totalAmount += payment
 		}
+		totalBondParValue := 0.0
+		for _, bond := range bonds {
+			totalBondParValue += bond.ParValue
+		}
 
 		out = append(out, CouponPaymentOnDate{
-			BondPayments: bondPayments,
-			DateReceived: date,
-			DateStr:      dateStr,
-			TotalAmount:  totalAmount,
+			BondPayments:      bondPayments,
+			DateReceived:      date,
+			DateStr:           dateStr,
+			TotalAmount:       totalAmount,
+			AverageCouponRate: totalAmount / totalBondParValue,
 		})
 	}
 

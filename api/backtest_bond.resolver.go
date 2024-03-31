@@ -63,6 +63,23 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 		return
 	}
 
+	if backtestStartDate.Before(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		returnErrorJson(fmt.Errorf("invalid start date %s - must be after 2000-01-01", requestBody.BacktestStart), c)
+		return
+	}
+	if backtestEndDate.Before(backtestStartDate) {
+		returnErrorJson(fmt.Errorf("invalid end date %s - must be after backtest start", requestBody.BacktestEnd), c)
+		return
+	}
+	if backtestEndDate.After(time.Now().UTC()) {
+		returnErrorJson(fmt.Errorf("invalid end date %s - must be before today", requestBody.BacktestEnd), c)
+		return
+	}
+	if backtestStartDate.After(backtestEndDate) {
+		returnErrorJson(fmt.Errorf("invalid backtest start date %s - must be before end date", requestBody.BacktestStart), c)
+		return
+	}
+
 	bs := internal.BondService{
 		InterestRateRepository: repository.NewInterestRateRepository(),
 	}
