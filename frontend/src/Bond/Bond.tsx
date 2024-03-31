@@ -39,6 +39,12 @@ interface BondPortfolioValue {
   bondValues: { [key: string]: number };
 }
 
+interface Metrics {
+  stdev: number;
+  averageCoupon: number;
+  maxDrawdown: number;
+}
+
 interface CouponPaymentOnDate {
   bondPayments: { [key: string]: number };
   dateString: string;
@@ -49,6 +55,7 @@ interface BacktestBondPortfolioResult {
   couponPayments: CouponPaymentOnDate[];
   portfolioValues: BondPortfolioValue[];
   interestRates: InterestRatesOnDate[];
+  metrics: Metrics;
 }
 
 interface InterestRatesOnDate {
@@ -77,7 +84,7 @@ function BondBuilderForm(
 
   const submit = async () => {
     setLoading(true);
-
+    setErr(null);
     try {
       const response = await fetch(endpoint + "/backtestBondPortfolio", {
         method: "POST",
@@ -201,7 +208,7 @@ export function BondBuilder() {
       <div className='container'>
         <div className="column form-wrapper">
           <BondBuilderForm updateBondBacktestData={updateBondBacktestData} />
-          <ResultsOverview backtestData={bondBacktestData} />
+          <ResultsOverview metrics={bondBacktestData?.metrics} />
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
           <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
@@ -217,17 +224,19 @@ export function BondBuilder() {
 }
 
 function ResultsOverview({
-  backtestData
+  metrics
 }: {
-  backtestData: BacktestBondPortfolioResult | null
+  metrics: Metrics | undefined
 }) {
-  if (!backtestData) {
+  if (!metrics) {
     return null;
   }
   return <>
     <div className='tile' style={{ marginTop: "10px" }}>
       <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
-      <p className='subtext'>Average Coupon: 4%</p>
+      <p className='subtext'>Average Coupon: {(metrics.averageCoupon*100).toFixed(2)}%</p>
+      <p className='subtext'>Standard Deviation: {(metrics.stdev*100).toFixed(2)}%</p>
+      <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown*100).toFixed(2)}%</p>
       <p className='subtext'>Effective Duration: 4Y</p>
       <p className='subtext'>Yield to Worst: -4%</p>
     </div>
@@ -295,7 +304,7 @@ function BondPortfolioPerformanceChart({
 
   const datasets: ChartDataset<"line", (number | null)[]>[] = [{
     label: "total",
-    data: portfolioValues.map(e => 100 * e.totalValue),
+    data: portfolioValues.map(e => e.totalValue),
   }];
   const options: ChartOptions<"line"> = {
     responsive: true,
