@@ -33,10 +33,10 @@ ChartJS.register(
   LineElement,
 );
 
-interface BondPortfolioValue {
+interface BondPortfolioReturn {
   dateString: string;
-  totalValue: number;
-  bondValues: { [key: string]: number };
+  returnSinceInception: number;
+  bondReturns: { [key: string]: number };
 }
 
 interface Metrics {
@@ -53,7 +53,7 @@ interface CouponPaymentOnDate {
 
 interface BacktestBondPortfolioResult {
   couponPayments: CouponPaymentOnDate[];
-  portfolioValues: BondPortfolioValue[];
+  portfolioReturn: BondPortfolioReturn[];
   interestRates: InterestRatesOnDate[];
   metrics: Metrics;
 }
@@ -212,7 +212,7 @@ export function BondBuilder() {
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
           <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
-          <BondPortfolioPerformanceChart portfolioValues={bondBacktestData?.portfolioValues} />
+          <BondPortfolioPerformanceChart portfolioReturns={bondBacktestData?.portfolioReturn} />
           <InterestRateChart interestRates={bondBacktestData?.interestRates} />
         </div>
       </div>
@@ -294,17 +294,17 @@ function CouponPaymentChart({
 }
 
 function BondPortfolioPerformanceChart({
-  portfolioValues
+  portfolioReturns
 }: {
-  portfolioValues: BondPortfolioValue[] | undefined
+  portfolioReturns: BondPortfolioReturn[] | undefined
 }) {
-  if (!portfolioValues) {
+  if (!portfolioReturns) {
     return null;
   }
 
   const datasets: ChartDataset<"line", (number | null)[]>[] = [{
     label: "total",
-    data: portfolioValues.map(e => e.totalValue),
+    data: portfolioReturns.map(e => 100 * e.returnSinceInception),
   }];
   const options: ChartOptions<"line"> = {
     responsive: true,
@@ -313,13 +313,13 @@ function BondPortfolioPerformanceChart({
       y: {
         title: {
           display: true,
-          text: 'Portfolio Value ($)', // Y-axis label
+          text: 'Change since Inception (%)', // Y-axis label
         },
       },
     }
   }
   const data: ChartData<"line", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
-    labels: portfolioValues.map(e => e.dateString),
+    labels: portfolioReturns.map(e => e.dateString),
     datasets,
   };
 
