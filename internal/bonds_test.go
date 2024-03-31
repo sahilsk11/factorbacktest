@@ -2,10 +2,12 @@ package internal
 
 import (
 	"factorbacktest/internal/domain"
+	mock_repository "factorbacktest/internal/repository/mocks"
 	"math"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
@@ -67,7 +69,17 @@ func TestBond_currentValue(t *testing.T) {
 
 func TestConstructBondPortfolio(t *testing.T) {
 	t.Run("no bonds purchased", func(t *testing.T) {
-		portfolio, err := ConstructBondPortfolio(
+		ctrl := gomock.NewController(t)
+		interestRateRepository := mock_repository.NewMockInterestRateRepository(ctrl)
+		bs := BondService{
+			InterestRateRepository: interestRateRepository,
+		}
+
+		interestRateRepository.EXPECT().GetRatesOnDay(gomock.Any()).Return(
+			&domain.InterestRateMap{}, nil,
+		)
+
+		portfolio, err := bs.ConstructBondPortfolio(
 			time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 			[]int{},
 			100_000,
@@ -90,9 +102,25 @@ func TestConstructBondPortfolio(t *testing.T) {
 	})
 
 	t.Run("1mo bond spread", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		interestRateRepository := mock_repository.NewMockInterestRateRepository(ctrl)
+		bs := BondService{
+			InterestRateRepository: interestRateRepository,
+		}
+
 		start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
-		portfolio, err := ConstructBondPortfolio(
+		interestRateRepository.EXPECT().GetRatesOnDay(start).Return(
+			&domain.InterestRateMap{
+				Rates: map[int]float64{
+					1: 0.0148,
+					2: 0.0151,
+					3: 0.0155,
+				},
+			}, nil,
+		)
+
+		portfolio, err := bs.ConstructBondPortfolio(
 			start,
 			[]int{1, 2, 3},
 			600_000,
@@ -139,7 +167,8 @@ func TestBondPortfolio_RefreshCouponPayments(t *testing.T) {
 		firstRefresh := start.AddDate(0, 1, 1)
 		bondPortfolio.refreshCouponPayments(firstRefresh)
 
-		require.InDelta(t, 8.75, bondPortfolio.Cash, 0.0001)
+		// temporarily removing payments from cash
+		require.InDelta(t, 0, bondPortfolio.Cash, 0.0001)
 
 		require.Equal(
 			t,
