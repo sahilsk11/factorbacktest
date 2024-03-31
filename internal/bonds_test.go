@@ -268,17 +268,17 @@ func Test_computeMetrics(t *testing.T) {
 		payments := map[uuid.UUID][]Payment{
 			bond.ID: {
 				{
-					Amount: 5 / 12,
+					Amount: 5.0 / 12,
 				},
 			},
 			bond1.ID: {
 				{
-					Amount: 10 / 12,
+					Amount: 10.0 / 12,
 				},
 			},
 			bond2.ID: {
 				{
-					Amount: 20 / 12,
+					Amount: 20.0 / 12,
 				},
 			},
 		}
@@ -286,5 +286,65 @@ func Test_computeMetrics(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, 0.0875, metrics.AverageCoupon)
+	})
+
+	t.Run("compute stdev", func(t *testing.T) {
+		portfolioValues := []BondPortfolioValue{
+			{
+				Date:       time.Time{},
+				DateStr:    "",
+				TotalValue: 100,
+				BondValues: map[uuid.UUID]float64{},
+			},
+			{
+				Date:       time.Time{},
+				DateStr:    "",
+				TotalValue: 105,
+				BondValues: map[uuid.UUID]float64{},
+			},
+			{
+				Date:       time.Time{},
+				DateStr:    "",
+				TotalValue: 130,
+				BondValues: map[uuid.UUID]float64{},
+			},
+		}
+		metrics, err := computeMetrics(nil, nil, portfolioValues)
+		require.NoError(t, err)
+
+		require.InDelta(t, 2.11136, metrics.Stdev, 1e-4)
+	})
+
+	t.Run("compute max drawdown", func(t *testing.T) {
+		portfolioValues := []BondPortfolioValue{
+			{
+				Date:       time.Time{},
+				DateStr:    "",
+				TotalValue: 100,
+				BondValues: map[uuid.UUID]float64{},
+			},
+			{
+				Date:       time.Time{},
+				DateStr:    "",
+				TotalValue: 105,
+				BondValues: map[uuid.UUID]float64{},
+			},
+			{
+				Date:       time.Time{},
+				DateStr:    "",
+				TotalValue: 130,
+				BondValues: map[uuid.UUID]float64{},
+			},
+			{
+				Date:       time.Time{},
+				DateStr:    "",
+				TotalValue: 110,
+				BondValues: map[uuid.UUID]float64{},
+			},
+		}
+		metrics, err := computeMetrics(nil, nil, portfolioValues)
+		require.NoError(t, err)
+
+		require.InDelta(t, -0.15384615, metrics.MaximumDrawdown, 1e-4)
 	})
 }

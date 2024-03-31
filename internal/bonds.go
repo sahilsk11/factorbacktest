@@ -363,30 +363,38 @@ func computeMetrics(bonds []Bond, couponPayments map[uuid.UUID][]Payment, portfo
 		}
 	}
 
-	// standard deviation
-	prevValue := portfolioValues[0].TotalValue
-	returns := []float64{}
-	for i := 1; i < len(portfolioValues); i++ {
-		todayValue := portfolioValues[i].TotalValue
-		returns = append(returns, (todayValue-prevValue)/prevValue)
-		prevValue = todayValue
-	}
-	stdev, err := stats.StandardDeviationSample(returns)
-	if err != nil {
-		return nil, err
-	}
-	magicNumber := math.Sqrt(252)
-	stdev *= magicNumber
-	top := portfolioValues[0].TotalValue
+	stdev := 0.0
 	maxDrawdown := 0.0
-	for i := 1; i < len(portfolioValues); i++ {
-		todayValue := portfolioValues[i].TotalValue
-		if todayValue > top {
-			top = todayValue
+	var err error
+
+	if len(portfolioValues) > 2 {
+		// standard deviation
+		prevValue := portfolioValues[0].TotalValue
+		returns := []float64{}
+		for i := 1; i < len(portfolioValues); i++ {
+
+			todayValue := portfolioValues[i].TotalValue
+			returns = append(returns, (todayValue-prevValue)/prevValue)
+			prevValue = todayValue
 		}
-		drawdown := (todayValue - top) / top
-		if drawdown < maxDrawdown {
-			maxDrawdown = drawdown
+
+		stdev, err = stats.StandardDeviationSample(returns)
+		if err != nil {
+			return nil, err
+		}
+		magicNumber := math.Sqrt(252)
+		stdev *= magicNumber
+
+		top := portfolioValues[0].TotalValue
+		for i := 1; i < len(portfolioValues); i++ {
+			todayValue := portfolioValues[i].TotalValue
+			if todayValue > top {
+				top = todayValue
+			}
+			drawdown := (todayValue - top) / top
+			if drawdown < maxDrawdown {
+				maxDrawdown = drawdown
+			}
 		}
 	}
 
