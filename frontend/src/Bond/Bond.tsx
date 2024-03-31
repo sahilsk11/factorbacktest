@@ -19,6 +19,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import "../form.css";
 import "../app.css";
 import "../backtest-chart.css"
+import "./bond.css"
 
 
 import { Bar, Line } from 'react-chartjs-2';
@@ -31,21 +32,28 @@ ChartJS.register(
   LineElement,
 );
 
-interface BondPortfolioReturn {
-  date: string;
-  totalReturn: number;
-  bondReturns: { [key: string]: number };
+interface BondPortfolioValue {
+  dateString: string;
+  totalValue: number;
+  bondValues: { [key: string]: number };
 }
 
 interface CouponPaymentOnDate {
   bondPayments: { [key: string]: number };
-  dateReceived: string;
+  dateString: string;
   totalAmount: number;
 }
 
 interface BacktestBondPortfolioResult {
   couponPayments: CouponPaymentOnDate[];
-  returns: BondPortfolioReturn[];
+  portfolioValues: BondPortfolioValue[];
+  interestRates: InterestRatesOnDate[];
+}
+
+interface InterestRatesOnDate {
+  date: Date;
+  dateString: string;
+  rates: { [key: number]: number };
 }
 
 function BondBuilderForm(
@@ -175,7 +183,8 @@ export function BondBuilder() {
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
           <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
-          <BondPortfolioPerformanceChart returns={bondBacktestData?.returns} />
+          <BondPortfolioPerformanceChart portfolioValues={bondBacktestData?.portfolioValues} />
+          <InterestRateChart interestRates={bondBacktestData?.interestRates} />
         </div>
       </div>
     </div>
@@ -214,7 +223,7 @@ function CouponPaymentChart({
   }
 
   const data: ChartData<"bar", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
-    labels: couponPayments.map(e => e.dateReceived),
+    labels: couponPayments.map(e => e.dateString),
     datasets: [{
       label: "coupon payment",
       data: couponPayments.map(e => e.totalAmount)
@@ -254,17 +263,17 @@ function CouponPaymentChart({
 }
 
 function BondPortfolioPerformanceChart({
-  returns
+  portfolioValues
 }: {
-  returns: BondPortfolioReturn[] | undefined
+  portfolioValues: BondPortfolioValue[] | undefined
 }) {
-  if (!returns) {
+  if (!portfolioValues) {
     return null;
   }
 
   const datasets: ChartDataset<"line", (number | null)[]>[] = [{
     label: "total",
-    data: returns.map(e => 100 * e.totalReturn),
+    data: portfolioValues.map(e => 100 * e.totalValue),
   }];
   const options: ChartOptions<"line"> = {
     responsive: true,
@@ -273,13 +282,81 @@ function BondPortfolioPerformanceChart({
       y: {
         title: {
           display: true,
-          text: 'Portfolio Growth since Inception (%)', // Y-axis label
+          text: 'Portfolio Value ($)', // Y-axis label
         },
       },
     }
   }
   const data: ChartData<"line", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
-    labels: returns.map(e => e.date),
+    labels: portfolioValues.map(e => e.dateString),
+    datasets,
+  };
+
+  return <>
+    <div className='backtest-chart-wrapper'>
+      <Line
+        options={options}
+        data={data}
+        updateMode='resize'
+
+        style={{
+          width: "100%",
+          height: "100%"
+        }}
+      />
+    </div>
+  </>
+}
+
+function InterestRateChart({ interestRates }: {
+  interestRates: InterestRatesOnDate[] | undefined
+}) {
+
+  if (!interestRates) {
+    return null;
+  }
+
+  const rates: Record<number, number[]> = {
+    // [duration]: rates
+  };
+  interestRates.forEach(entry => {
+    for (const key in entry.rates) {
+      const duration = parseInt(key);
+      if (!rates.hasOwnProperty(duration)) {
+        rates[duration] = []
+      }
+      const rate = 100 * entry.rates[duration];
+      rates[duration].push(rate);
+    }
+  })
+
+  const datasets: ChartDataset<"line", (number | null)[]>[] = Object.keys(rates).map(key => {
+    const duration = parseInt(key);
+    let formattedDuration = duration;
+    let unit = "M"
+    if (duration >= 12) {
+      formattedDuration /= 12;
+      unit = "Y"
+    }
+    return {
+      label: formattedDuration.toString() + unit + " rate",
+      data: rates[duration],
+    }
+  })
+  const options: ChartOptions<"line"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        title: {
+          display: true,
+          text: 'Interest Rates (%)', // Y-axis label
+        },
+      },
+    }
+  }
+  const data: ChartData<"line", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
+    labels: interestRates.map(e => e.dateString),
     datasets,
   };
 

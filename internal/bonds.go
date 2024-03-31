@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+	"fmt"
 	"sort"
 	"time"
 
@@ -34,7 +35,6 @@ type BondService struct {
 	InterestRateRepository repository.InterestRateRepository
 }
 
-// TODO - fix this jank function
 func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) float64 {
 	hoursTillExpiration := b.Expiration.Sub(t).Hours()
 	monthsTillExpiration := int(hoursTillExpiration/730 + 0.005)
@@ -184,46 +184,31 @@ func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time, interestRat
 	return nil
 }
 
-/*
-
-then for performance
-
-[
-	{
-		day
-		totalReturnFromInception
-		bonds: [{
-			id
-			returns: [{
-				date,
-				value // make sure this starts from prev ret of chain
-			}]
-		}]
-	}
-]
-
-*/
-
 type CouponPaymentOnDate struct {
 	BondPayments map[uuid.UUID]float64 `json:"bondPayments"`
-	DateReceived time.Time             `json:"dateReceived"`
+	DateReceived time.Time             `json:"date"`
+	DateStr      string                `json:"dateString"`
 	TotalAmount  float64               `json:"totalAmount"`
 }
 
-type BondPortfolioReturn struct {
-	Date        time.Time             `json:"date"`
-	TotalReturn float64               `json:"totalReturn"`
-	BondReturns map[uuid.UUID]float64 `json:"bondReturns"`
+type BondPortfolioValue struct {
+	Date    time.Time `json:"date"`
+	DateStr string    `json:"dateString"`
+
+	TotalValue float64               `json:"totalValue"`
+	BondValues map[uuid.UUID]float64 `json:"bondValues"`
+}
+
+type InterestRatesOnDate struct {
+	Date           time.Time       `json:"date"`
+	DateStr        string          `json:"dateString"`
+	RateByDuration map[int]float64 `json:"rates"`
 }
 
 type BacktestBondPortfolioResult struct {
-	CouponPayments []CouponPaymentOnDate `json:"couponPayments"`
-	Returns        []BondPortfolioReturn `json:"returns"`
-}
-
-type ValueOnDay struct {
-	Value float64
-	Date  time.Time
+	CouponPayments  []CouponPaymentOnDate `json:"couponPayments"`
+	PortfolioValues []BondPortfolioValue  `json:"portfolioValues"`
+	InterestRates   []InterestRatesOnDate `json:"interestRates"`
 }
 
 func (b BondService) BacktestBondPortfolio(
@@ -243,52 +228,60 @@ func (b BondService) BacktestBondPortfolio(
 
 	// initialize total value and bond values
 
-	bondValues := map[uuid.UUID][]ValueOnDay{}
-	for _, bond := range bp.Bonds {
-		bondValues[bond.ID] = []ValueOnDay{{
-			Date:  start,
-			Value: bond.ParValue,
-		}}
+	portfolioValues := []BondPortfolioValue{
+		{
+			Date:       start,
+			DateStr:    start.Format(time.DateOnly),
+			TotalValue: startingAmount,
+			BondValues: map[uuid.UUID]float64{},
+		},
 	}
-
-	returns := []BondPortfolioReturn{}
+	for _, bond := range bp.Bonds {
+		portfolioValues[0].BondValues[bond.ID] = bond.ParValue
+	}
+	interestRatesOnDate := []InterestRatesOnDate{}
 
 	current = current.AddDate(0, 0, granularityDays)
 
+	dates := []time.Time{}
+	for !current.After(end) {
+		dates = append(dates, current)
+		current = current.AddDate(0, 0, granularityDays)
+	}
+	interestRatesForBacktest, err := b.InterestRateRepository.GetRatesOnDates(dates, tx)
+	if err != nil {
+		return nil, err
+	}
+
 	// current method likely misses last day
 	// because granularity overshoots
-	for !current.After(end) {
-		interestRates, err := b.InterestRateRepository.GetRatesOnDate(current, tx)
-		if err != nil {
-			return nil, err
+	for _, date := range dates {
+		dateStr := date.Format(time.DateOnly)
+		interestRates, ok := interestRatesForBacktest[dateStr]
+		if !ok {
+			return nil, fmt.Errorf("missing %s from interest rates", dateStr)
 		}
 
-		// before dumping the current bonds, i'd like to show
-		// that their return goes back to 0. in other words, when we
-		// dump a bond, somehow add one more entry to the date. maybe we can
-		// do this afterwards?
-		// like, for each bond return stream, add a 1 at the end
-		bp.Refresh(current, end, *interestRates)
-
-		totalValueOnDay, bondValuesOnDay := bp.calculateValue(current, *interestRates)
-		// I don't know if this is always true
-		// TODO - cleanup
-		bondReturns := map[uuid.UUID]float64{}
-		for id, value := range bondValuesOnDay {
-			for _, bond := range bp.Bonds {
-				if bond.ID == id {
-					bondReturns[id] = (value - bond.ParValue) / bond.ParValue
-				}
-			}
+		rateByDuration := map[int]float64{}
+		for _, duration := range durations {
+			rateByDuration[duration] = interestRates.GetRate(duration)
 		}
-
-		returns = append(returns, BondPortfolioReturn{
-			Date:        current,
-			TotalReturn: (totalValueOnDay - startingAmount) / startingAmount,
-			BondReturns: bondReturns,
+		interestRatesOnDate = append(interestRatesOnDate, InterestRatesOnDate{
+			Date:           date,
+			DateStr:        date.Format(time.DateOnly),
+			RateByDuration: rateByDuration,
 		})
 
-		current = current.AddDate(0, 0, granularityDays)
+		bp.Refresh(date, end, interestRates)
+
+		totalValueOnDay, bondValuesOnDay := bp.calculateValue(date, interestRates)
+
+		portfolioValues = append(portfolioValues, BondPortfolioValue{
+			Date:       date,
+			DateStr:    date.Format(time.DateOnly),
+			TotalValue: totalValueOnDay,
+			BondValues: bondValuesOnDay,
+		})
 	}
 
 	couponPayments, err := groupCouponPaymentsByDate(bp.CouponPayments)
@@ -297,8 +290,9 @@ func (b BondService) BacktestBondPortfolio(
 	}
 
 	return &BacktestBondPortfolioResult{
-		CouponPayments: couponPayments,
-		Returns:        returns,
+		CouponPayments:  couponPayments,
+		PortfolioValues: portfolioValues,
+		InterestRates:   interestRatesOnDate,
 	}, nil
 }
 
@@ -327,6 +321,7 @@ func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]Coupon
 		out = append(out, CouponPaymentOnDate{
 			BondPayments: bondPayments,
 			DateReceived: date,
+			DateStr:      dateStr,
 			TotalAmount:  totalAmount,
 		})
 	}
