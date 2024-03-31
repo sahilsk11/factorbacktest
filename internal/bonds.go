@@ -43,12 +43,10 @@ func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) fl
 	}
 
 	marketRate := interestRates.GetRate(monthsTillExpiration)
+	remainingPayoutForMarket := b.ParValue * float64(monthsTillExpiration) / 12 * marketRate
+	remainingPayoutForCurrent := b.ParValue * float64(monthsTillExpiration) / 12 * b.AnnualCouponRate
 
-	// totally wrong, but somewhat accounts for bond price dropping
-	// if marketRate
-	out := b.ParValue * (1 + (b.AnnualCouponRate-marketRate)*2/float64(monthsTillExpiration))
-
-	return out
+	return b.ParValue - (remainingPayoutForMarket - remainingPayoutForCurrent)
 }
 
 type Payment struct {
@@ -91,9 +89,7 @@ func (b BondService) ConstructBondPortfolio(
 }
 
 func (bp BondPortfolio) calculateValue(t time.Time, interestRates domain.InterestRateMap) (float64, map[uuid.UUID]float64) {
-	// temporarily not including cash, since we only care
-	// about bond values
-	total := 0.0
+	total := bp.Cash
 	bondValues := map[uuid.UUID]float64{}
 	for _, bond := range bp.Bonds {
 		value := bond.currentValue(t, interestRates)
@@ -103,7 +99,7 @@ func (bp BondPortfolio) calculateValue(t time.Time, interestRates domain.Interes
 	return total, bondValues
 }
 
-func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates domain.InterestRateMap, backtestEnd time.Time) error {
+func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates domain.InterestRateMap) error {
 	outBonds := []Bond{}
 
 	for _, bond := range bp.Bonds {
@@ -121,13 +117,17 @@ func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates doma
 			// like should we buy smaller duration?
 			// TODO - consider cycling this bond if it happens to expire before today
 			// which could happen with long duration
-			expiration := newBondInceptionDate.AddDate(0, duration, 0)
-			if !expiration.After(backtestEnd) {
-				rate := interestRates.GetRate(duration)
-				outBonds = append(outBonds, NewBond(value, bond.Expiration, duration, rate))
-			} else {
-				bp.Cash += value
-			}
+			// expiration := newBondInceptionDate.AddDate(0, duration, 0)
+
+			// removed logic to only reinvest if expires
+			// before backtest end
+
+			// if !expiration.After(backtestEnd) {
+			rate := interestRates.GetRate(duration)
+			outBonds = append(outBonds, NewBond(value, newBondInceptionDate, duration, rate))
+			// } else {
+			// 	bp.Cash += value
+			// }
 		}
 	}
 	sort.Slice(outBonds, func(i, j int) bool {
@@ -177,7 +177,7 @@ func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 
 func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time, interestRates domain.InterestRateMap) error {
 	bp.refreshCouponPayments(t)
-	err := bp.refreshBondHoldings(t, interestRates, backtestEnd)
+	err := bp.refreshBondHoldings(t, interestRates)
 	if err != nil {
 		return err
 	}
