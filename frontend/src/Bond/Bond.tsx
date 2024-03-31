@@ -145,7 +145,7 @@ function BondBuilderForm(
           <button type="submit" className='backtest-btn' onClick={e => {
             e.preventDefault();
             submit();
-          }} style={{ fontSize: "13px", width: "110px", height: "33px" }}>Run Backtest</button>
+          }} style={{ fontSize: "13px", width: "110px", height: "35px" }}>Run Backtest</button>
         }
       </form>
     </div>
@@ -171,7 +171,7 @@ export function BondBuilder() {
       <div className='container'>
         <div className="column form-wrapper">
           <BondBuilderForm updateBondBacktestData={updateBondBacktestData} />
-          <ResultsOverview />
+          <ResultsOverview backtestData={bondBacktestData} />
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
           <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
@@ -186,8 +186,13 @@ export function BondBuilder() {
 }
 
 function ResultsOverview({
-
+  backtestData
+}: {
+  backtestData: BacktestBondPortfolioResult | null
 }) {
+  if (!backtestData) {
+    return null;
+  }
   return <>
     <div className='tile' style={{ marginTop: "10px" }}>
       <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
