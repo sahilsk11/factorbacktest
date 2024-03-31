@@ -1,8 +1,9 @@
 package internal
 
 import (
+	"database/sql"
 	"factorbacktest/internal/domain"
-	treasury_client "factorbacktest/pkg/treasury"
+	"factorbacktest/internal/repository"
 	"sort"
 	"time"
 
@@ -27,6 +28,10 @@ func NewBond(amount float64, creationDate time.Time, durationMonths int, rate fl
 		AnnualCouponRate: rate,
 		ParValue:         amount,
 	}
+}
+
+type BondService struct {
+	InterestRateRepository repository.InterestRateRepository
 }
 
 // TODO - fix this jank function
@@ -58,12 +63,13 @@ type BondPortfolio struct {
 	CouponPayments       map[uuid.UUID][]Payment
 }
 
-func ConstructBondPortfolio(
+func (b BondService) ConstructBondPortfolio(
+	tx *sql.Tx,
 	startDate time.Time,
 	targetDurationMonths []int,
 	amountInvested float64,
 ) (*BondPortfolio, error) {
-	interestRates, err := treasury_client.GetInterestRatesOnDay(startDate)
+	interestRates, err := b.InterestRateRepository.GetRatesOnDate(startDate, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +91,9 @@ func ConstructBondPortfolio(
 }
 
 func (bp BondPortfolio) calculateValue(t time.Time, interestRates domain.InterestRateMap) (float64, map[uuid.UUID]float64) {
-	total := bp.Cash
+	// temporarily not including cash, since we only care
+	// about bond values
+	total := 0.0
 	bondValues := map[uuid.UUID]float64{}
 	for _, bond := range bp.Bonds {
 		value := bond.currentValue(t, interestRates)
@@ -152,7 +160,7 @@ func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 				Date:   t,
 				Amount: paymentAmount,
 			})
-			bp.Cash += paymentAmount
+			// bp.Cash += paymentAmount
 		}
 	}
 }
@@ -208,7 +216,8 @@ type ValueOnDay struct {
 	Date  time.Time
 }
 
-func BacktestBondPortfolio(
+func (b BondService) BacktestBondPortfolio(
+	tx *sql.Tx,
 	durations []int,
 	startingAmount float64,
 	start time.Time,
@@ -217,7 +226,7 @@ func BacktestBondPortfolio(
 	granularityDays := 1
 
 	current := start
-	bp, err := ConstructBondPortfolio(start, durations, startingAmount)
+	bp, err := b.ConstructBondPortfolio(tx, start, durations, startingAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +246,7 @@ func BacktestBondPortfolio(
 	current = current.AddDate(0, 0, granularityDays)
 
 	for current.Before(end) {
-		interestRates, err := treasury_client.GetInterestRatesOnDay(current)
+		interestRates, err := b.InterestRateRepository.GetRatesOnDate(current, tx)
 		if err != nil {
 			return nil, err
 		}

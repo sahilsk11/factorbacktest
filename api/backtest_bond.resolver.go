@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"factorbacktest/internal"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"time"
 
@@ -30,7 +31,7 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 		ctx,
 		&sql.TxOptions{
 			Isolation: sql.LevelReadCommitted,
-			ReadOnly:  true,
+			ReadOnly:  false,
 		},
 	)
 	if err != nil {
@@ -57,12 +58,23 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 		return
 	}
 
-	result, err := internal.BacktestBondPortfolio(
+	bs := internal.BondService{
+		InterestRateRepository: repository.NewInterestRateRepository(),
+	}
+
+	result, err := bs.BacktestBondPortfolio(
+		tx,
 		requestBody.Durations,
 		requestBody.StartCash,
 		backtestStartDate,
 		backtestEndDate,
 	)
+	if err != nil {
+		returnErrorJson(fmt.Errorf("failed to run backtest: %w", err), c)
+		return
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		returnErrorJson(fmt.Errorf("failed to run backtest: %w", err), c)
 		return

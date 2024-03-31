@@ -27,26 +27,17 @@ func interestRateMonthsFromApi(in string) (int, error) {
 	return months, nil
 }
 
-func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
-	client := http.DefaultClient
+// lazy, in-memory cache for API requests
+var cache map[string][]byte = map[string][]byte{}
 
-	keys := []string{
-		"yield_1m",
-		"yield_2m",
-		"yield_3m",
-		"yield_4m",
-		"yield_6m",
-		"yield_1y",
-		"yield_2y",
-		"yield_3y",
-		"yield_5y",
-		"yield_7y",
-		"yield_10y",
-		"yield_20y",
-		"yield_30y",
+func getBytes(date time.Time) ([]byte, error) {
+	tStr := date.Format(time.DateOnly)
+
+	if out, ok := cache[tStr]; ok {
+		return out, nil
 	}
 
-	tStr := date.Format(time.DateOnly)
+	client := http.DefaultClient
 	url := fmt.Sprintf("https://www.ustreasuryyieldcurve.com/api/v1/yield_curve_snapshot?date=%s&offset=0", tStr)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -66,6 +57,33 @@ func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
 
 	if response.StatusCode != 200 {
 		return nil, fmt.Errorf("failed with status code %d: %s", response.StatusCode, string(responseBytes))
+	}
+
+	cache[tStr] = responseBytes
+
+	return responseBytes, nil
+}
+
+func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
+	keys := []string{
+		"yield_1m",
+		"yield_2m",
+		"yield_3m",
+		"yield_4m",
+		"yield_6m",
+		"yield_1y",
+		"yield_2y",
+		"yield_3y",
+		"yield_5y",
+		"yield_7y",
+		"yield_10y",
+		"yield_20y",
+		"yield_30y",
+	}
+
+	responseBytes, err := getBytes(date)
+	if err != nil {
+		return nil, err
 	}
 
 	responseBody := []map[string]interface{}{}
