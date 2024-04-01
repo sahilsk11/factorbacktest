@@ -64,7 +64,7 @@ func getBytes(date time.Time) ([]byte, error) {
 	return responseBytes, nil
 }
 
-func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
+func GetInterestRatesOnDay(date time.Time) (domain.InterestRateMap, error) {
 	keys := []string{
 		"yield_1m",
 		"yield_2m",
@@ -83,17 +83,18 @@ func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
 
 	responseBytes, err := getBytes(date)
 	if err != nil {
-		return nil, err
+		return domain.InterestRateMap{}, err
 	}
 
 	responseBody := []map[string]interface{}{}
 
 	err = json.Unmarshal(responseBytes, &responseBody)
 	if err != nil {
-		return nil, err
+		return domain.InterestRateMap{}, err
 	}
 
 	out := map[int]float64{}
+	oneNonNil := false
 
 	for _, response := range responseBody {
 		for k, v := range response {
@@ -102,17 +103,22 @@ func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
 					// TODO - if field is null, interpolate between values
 					months, err := interestRateMonthsFromApi(k)
 					if err != nil {
-						return nil, err
+						return domain.InterestRateMap{}, err
 					}
 					if v != nil {
+						oneNonNil = true
 						out[months] = v.(float64) / 100
 					}
 				}
 			}
 		}
 	}
+	if !oneNonNil {
+		// if the values are all nil, go backwards until you get a hit
+		return GetInterestRatesOnDay(date.AddDate(0, -1, 0))
+	}
 
-	return &domain.InterestRateMap{
+	return domain.InterestRateMap{
 		Rates: out,
 	}, nil
 }

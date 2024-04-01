@@ -44,7 +44,10 @@ func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) fl
 		return b.ParValue
 	}
 
-	marketRate := interestRates.GetRate(monthsTillExpiration)
+	marketRate, err := interestRates.GetRate(monthsTillExpiration)
+	if err != nil {
+		panic(fmt.Sprintf("no rate on %v", t))
+	}
 	remainingPayoutForMarket := b.ParValue * float64(monthsTillExpiration) / 12 * marketRate
 	remainingPayoutForCurrent := b.ParValue * float64(monthsTillExpiration) / 12 * b.AnnualCouponRate
 
@@ -88,7 +91,11 @@ func (b BondService) ConstructBondPortfolio(
 	streams := make([]map[uuid.UUID]struct{}, len(targetDurationMonths))
 	for i, duration := range targetDurationMonths {
 		amount := amountInvested / float64(len(targetDurationMonths))
-		rate := interestRates.GetRate(duration)
+		rate, err := interestRates.GetRate(duration)
+		if err != nil {
+			return nil, fmt.Errorf("failed to ger rate on date %v: %w", startDate, err)
+		}
+
 		bond := NewBond(amount, startDate, duration, rate)
 		bonds = append(bonds, bond)
 		streams[i] = map[uuid.UUID]struct{}{
@@ -134,7 +141,11 @@ func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates doma
 			// TODO - consider cycling this bond if it happens to expire before today
 			// which could happen with long duration
 
-			rate := interestRates.GetRate(duration)
+			rate, err := interestRates.GetRate(duration)
+			if err != nil {
+				return fmt.Errorf("failed to get rate on %v: %w", today, err)
+			}
+
 			newBond := NewBond(value, newBondInceptionDate, duration, rate)
 			bp.BondStreams[streamID][newBond.ID] = struct{}{}
 			outBonds = append(outBonds, newBond)
@@ -257,7 +268,7 @@ func (b BondService) BacktestBondPortfolio(
 	}
 	interestRatesForBacktest, err := b.InterestRateRepository.GetRatesOnDates(dates, tx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get interest rates: %w", err)
 	}
 
 	// current method likely misses last day
@@ -272,7 +283,10 @@ func (b BondService) BacktestBondPortfolio(
 		// populate historic interest rates
 		rateByDuration := map[int]float64{}
 		for _, duration := range durations {
-			rateByDuration[duration] = interestRates.GetRate(duration)
+			rateByDuration[duration], err = interestRates.GetRate(duration)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get rate for %s: %w", dateStr, err)
+			}
 		}
 		interestRatesOnDate = append(interestRatesOnDate, InterestRatesOnDate{
 			Date:           date,

@@ -70,10 +70,10 @@ function BondBuilderForm(
     updateBondBacktestData: Dispatch<SetStateAction<BacktestBondPortfolioResult | null>>
   }
 ) {
-  const [backtestStart, setBacktestStart] = useState("2020-01-01");
+  const [backtestStart, setBacktestStart] = useState("2018-01-01");
   const [backtestEnd, setBacktestEnd] = useState("2024-01-01");
   const [startCash, setStartCash] = useState(1000000);
-  const [selectedDuration, updateSelectedDuration] = useState(0);
+  const [selectedDuration, updateSelectedDuration] = useState(2);
   const [err, setErr] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -167,13 +167,13 @@ function BondBuilderForm(
           />
         </div>
 
-        <div className='form-element'>
+        {/* <div className='form-element'>
           <label>Bond ETF Benchmark</label>
           <select>
             <option>BND</option>
             <option>SHY</option>
           </select>
-        </div>
+        </div> */}
 
         {loading ?
           <img style={{ width: "40px", marginTop: "20px", marginLeft: "30px" }} src='loading.gif' />
@@ -181,7 +181,7 @@ function BondBuilderForm(
           <button type="submit" className='backtest-btn' onClick={e => {
             e.preventDefault();
             submit();
-          }} style={{ fontSize: "13px", width: "110px", height: "35px" }}>Run Backtest</button>
+          }} style={{ fontSize: "13px", width: "120px", height: "35px" }}>Run Backtest</button>
         }
 
         <Error message={err} />
@@ -198,7 +198,7 @@ export function BondBuilder() {
 
   useEffect(() => {
     if (getCookie("userID") === null) {
-      setShowHelpModal(true);
+      // setShowHelpModal(true);
     }
     setUserID(getOrCreateUserID());
   }, []);
@@ -241,8 +241,7 @@ function ResultsOverview({
       <p className='subtext'>Average Coupon: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
       <p className='subtext'>Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
       <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown * 100).toFixed(2)}%</p>
-      <p className='subtext'>Effective Duration: 4Y</p>
-      <p className='subtext'>Yield to Worst: -4%</p>
+      <p className='subtext'>Effective Duration: _ Y</p>
     </div>
   </>
 }
