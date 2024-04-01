@@ -96,7 +96,7 @@ function BondBuilderForm(
     updateBondBacktestData: Dispatch<SetStateAction<BacktestBondPortfolioResult | null>>
   }
 ) {
-  const [backtestStart, setBacktestStart] = useState("2018-01");
+  const [backtestStart, setBacktestStart] = useState("2020-01");
   const [backtestEnd, setBacktestEnd] = useState("2024-01");
   const [startCash, setStartCash] = useState(1000000);
   const [selectedDuration, updateSelectedDuration] = useState(2);
@@ -346,7 +346,10 @@ function CouponPaymentChart({
   }
 
   return <>
+    <h4 className='chart-title'>Coupon Payments</h4>
+    <p className='chart-description'>Every month, bonds issue payments to holders. The coupon rate is based on interest rates when the bond was purchased, not necessarily the current market rates.</p>
     <div className='backtest-chart-wrapper'>
+
       <Bar
         data={data}
         options={options}
@@ -357,7 +360,7 @@ function CouponPaymentChart({
         }} />
 
     </div>
-    <hr style={{ border: "0.5px solid #d6d6d6", width: "90%" }} />
+    <hr className="chart-seperator" />
   </>
 }
 
@@ -426,7 +429,7 @@ function BondPortfolioPerformanceChart({
       y: {
         title: {
           display: true,
-          text: 'Change since Inception (%)', // Y-axis label
+          text: 'Market Value Fluctuation (%)', // Y-axis label
         },
       },
     }
@@ -437,7 +440,14 @@ function BondPortfolioPerformanceChart({
   };
 
   return <>
+    <h4 className='chart-title'>Market Value Fluctuation</h4>
+    <p className='chart-description'>If a bond needs to be liquidated at any time, it will be sold at market price. The market price may be higher or lower than the initial purchase price, depending on current interest rates.
+      <br />
+      <br />
+      Bonds will regress back to the purchase (par) price as they near maturity. This means bonds with longer durations are subject to more volatility than those with shorter durations.
+    </p>
     <div className='backtest-chart-wrapper'>
+
       <Line
         options={options}
         data={data}
@@ -449,7 +459,7 @@ function BondPortfolioPerformanceChart({
         }}
       />
     </div>
-    <hr style={{ border: "0.5px solid #d6d6d6", width: "90%" }} />
+    <hr className="chart-seperator" />
   </>
 }
 
@@ -509,7 +519,10 @@ function InterestRateChart({ interestRates }: {
   };
 
   return <>
+    <h4 className='chart-title'>Interest Rates</h4>
+    <p className='chart-description'>Our simplified bond market assumes US T-bills are the only securities available. Interest rates sourced from <a style={{color:"black"}} href="https://www.ustreasuryyieldcurve.com/" target='_blank'>here</a>.</p>
     <div className='backtest-chart-wrapper'>
+
       <Line
         options={options}
         data={data}
@@ -555,7 +568,7 @@ function BondLadderChart({ bondLadder }: {
         suggestedMax: 1,
         title: {
           display: true,
-          text: `Time until Expiration (${bondLadder[0].unit}s)`, // Y-axis label
+          text: `Remaining Bond Duration (${bondLadder[0].unit}s)`, // Y-axis label
         },
       },
     }
@@ -566,7 +579,11 @@ function BondLadderChart({ bondLadder }: {
   };
 
   return <>
+    <h4 className='chart-title'>Bond Ladder</h4>
+    <p className='chart-description'>Three bonds are initially purchased based on the given starting duration (such as 1Y, 2Y, 3Y). When a bond matures, a new bond is purchased to replace it at the current market interest rates. Each bond and the subsequent bonds that replace them are referenced here as a "bond set." At any given time, a bond set will only hold one active bond.</p>
     <div className='backtest-chart-wrapper'>
+
+
       <Line
         options={options}
         data={data}
@@ -578,6 +595,6 @@ function BondLadderChart({ bondLadder }: {
         }}
       />
     </div>
-    <hr style={{ border: "0.5px solid #d6d6d6", width: "90%" }} />
+    <hr className="chart-seperator" />
   </>
 }
