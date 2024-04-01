@@ -27,6 +27,24 @@ import { Nav, endpoint, getCookie, getOrCreateUserID } from '../App';
 import { ContactModal, HelpModal } from '../Modals';
 import { Error } from '../Form';
 
+const colors: Record<string, { borderColor: string, backgroundColor: string }> = {
+  "C": {
+    borderColor: '#206D69',
+    backgroundColor: '#206D69',
+  },
+  "B": {
+    borderColor: '#B38754',
+    backgroundColor: '#B38754',
+  },
+  "A": {
+    borderColor: '#1E1E1C',
+    backgroundColor: '#1E1E1C',
+  },
+  "total": {
+    borderColor: 'rgb(75, 192, 192)',
+    backgroundColor: 'rgb(75, 192, 192)',
+  },
+}
 
 ChartJS.register(
   BarElement,
@@ -78,8 +96,8 @@ function BondBuilderForm(
     updateBondBacktestData: Dispatch<SetStateAction<BacktestBondPortfolioResult | null>>
   }
 ) {
-  const [backtestStart, setBacktestStart] = useState("2018-01-01");
-  const [backtestEnd, setBacktestEnd] = useState("2024-01-01");
+  const [backtestStart, setBacktestStart] = useState("2018-01");
+  const [backtestEnd, setBacktestEnd] = useState("2024-01");
   const [startCash, setStartCash] = useState(1000000);
   const [selectedDuration, updateSelectedDuration] = useState(2);
   const [err, setErr] = useState<string | null>(null);
@@ -126,7 +144,7 @@ function BondBuilderForm(
   const minDate = "2000-01-01";
 
   return <>
-    <div className='tile'>
+    <div className='tile'  >
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Bond Ladder</h2>
       <p className='subtext'>Pick your ladder durations and customize backtest parameters.</p>
 
@@ -160,8 +178,9 @@ function BondBuilderForm(
             min={minDate}
             max={backtestEnd > maxDate ? maxDate : backtestEnd}
             required
-            type="date"
+            type="month"
             value={backtestStart}
+            style={{ maxWidth: "130px" }}
             onChange={(e) => setBacktestStart(e.target.value)}
           />
           <p style={{ display: "inline" }}> to </p>
@@ -169,8 +188,9 @@ function BondBuilderForm(
             max={maxDate}
             min={minDate}
             required
-            type="date"
+            type="month"
             value={backtestEnd}
+            style={{ maxWidth: "130px" }}
             onChange={(e) => setBacktestEnd(e.target.value)}
           />
         </div>
@@ -220,7 +240,10 @@ export function BondBuilder() {
           <ResultsOverview metrics={bondBacktestData?.metrics} />
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
-          <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
+          <CouponPaymentChart
+            couponPayments={bondBacktestData?.couponPayments}
+            bondStreams={bondBacktestData?.bondStreams}
+          />
           <BondLadderChart bondLadder={bondBacktestData?.bondLadder} />
           <BondPortfolioPerformanceChart
             portfolioReturns={bondBacktestData?.portfolioReturn}
@@ -250,27 +273,54 @@ function ResultsOverview({
       <p className='subtext'>Average Coupon: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
       <p className='subtext'>Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
       <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown * 100).toFixed(2)}%</p>
-      <p className='subtext'>Effective Duration: _ Y</p>
     </div>
   </>
 }
 
-
 function CouponPaymentChart({
   couponPayments,
+  bondStreams,
 }: {
   couponPayments: CouponPaymentOnDate[] | undefined
+  bondStreams: string[][] | undefined
 }) {
-  if (!couponPayments) {
+  if (!couponPayments || !bondStreams) {
     return null;
   }
 
+  let streamData: number[][] = bondStreams.map(_ => []);
+  couponPayments.forEach(paymentOnDate => {
+    Object.keys(paymentOnDate.bondPayments).forEach(id => {
+      const streamIndex = getBondStreamIndex(id, bondStreams)
+      streamData[streamIndex].push(paymentOnDate.bondPayments[id])
+    })
+  })
+
+  const datasets: ChartDataset<"bar", (number | null)[]>[] = [];
+
+  const names = ['A', 'B', 'C']
+  streamData.forEach((stream, i) => {
+    datasets.push({
+      label: "Bond Set " + names[i],
+      data: stream,
+      borderColor: colors[names[i]].borderColor,
+      backgroundColor: colors[names[i]].backgroundColor,
+    })
+  })
+
+  // datasets.push(
+  //   {
+  //     label: "Total",
+  //     data: couponPayments.map(e => e.totalAmount),
+  //     borderColor: colors["total"].borderColor,
+  //     backgroundColor: colors["total"].backgroundColor,
+  //   }
+  // )
+
+
   const data: ChartData<"bar", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
     labels: couponPayments.map(e => e.dateString),
-    datasets: [{
-      label: "coupon payment",
-      data: couponPayments.map(e => e.totalAmount)
-    }],
+    datasets,
   };
 
   const options: ChartOptions<"bar"> = {
@@ -278,7 +328,7 @@ function CouponPaymentChart({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false
+        display: true
       }
     },
     scales: {
@@ -287,6 +337,10 @@ function CouponPaymentChart({
           display: true,
           text: 'Coupon Payment ($)', // Y-axis label
         },
+        stacked: true
+      },
+      x: {
+        stacked: true
       },
     }
   }
@@ -350,13 +404,17 @@ function BondPortfolioPerformanceChart({
     const names = ['A', 'B', 'C']
     const newDataset: ChartDataset<"line", (number | null)[]> = {
       label: "Bond Set " + names[i],
-      data: stream
+      data: stream,
+      borderColor: colors[names[i]].borderColor,
+      backgroundColor: colors[names[i]].backgroundColor,
     }
     datasets.push(newDataset);
   })
   datasets.push({
     label: "Aggregate Portfolio",
     data: portfolioReturns.map(e => 100 * e.returnSinceInception),
+    borderColor: colors["total"].borderColor,
+    backgroundColor: colors["total"].backgroundColor,
   })
   const options: ChartOptions<"line"> = {
     responsive: true,
@@ -417,7 +475,8 @@ function InterestRateChart({ interestRates }: {
     }
   })
 
-  const datasets: ChartDataset<"line", (number | null)[]>[] = Object.keys(rates).map(key => {
+  const names = ["A", "B", "C"]
+  const datasets: ChartDataset<"line", (number | null)[]>[] = Object.keys(rates).map((key, i) => {
     const duration = parseInt(key);
     let formattedDuration = duration;
     let unit = "M"
@@ -428,6 +487,8 @@ function InterestRateChart({ interestRates }: {
     return {
       label: formattedDuration.toString() + unit + " rate",
       data: rates[duration],
+      borderColor: colors[names[i]].borderColor,
+      backgroundColor: colors[names[i]].backgroundColor,
     }
   })
   const options: ChartOptions<"line"> = {
@@ -483,6 +544,8 @@ function BondLadderChart({ bondLadder }: {
   const datasets: ChartDataset<"line", (number | null)[]>[] = streams.map((stream, i) => ({
     label: "Bond Set " + names[i],
     data: stream,
+    borderColor: colors[names[i]].borderColor,
+    backgroundColor: colors[names[i]].backgroundColor,
   }))
   const options: ChartOptions<"line"> = {
     responsive: true,

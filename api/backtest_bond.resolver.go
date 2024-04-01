@@ -52,12 +52,12 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 		return
 	}
 
-	backtestStartDate, err := time.Parse("2006-01-02", requestBody.BacktestStart)
+	backtestStartDate, err := time.Parse("2006-01", requestBody.BacktestStart)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
 	}
-	backtestEndDate, err := time.Parse("2006-01-02", requestBody.BacktestEnd)
+	backtestEndDate, err := time.Parse("2006-01", requestBody.BacktestEnd)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
