@@ -27,7 +27,8 @@ func TestBond_currentValue(t *testing.T) {
 			},
 		}
 
-		value := bond.currentValue(time.Now(), interestRatesMap)
+		value, err := bond.currentValue(time.Now(), interestRatesMap)
+		require.NoError(t, err)
 
 		require.Equal(t, float64(100), value)
 	})
@@ -44,7 +45,8 @@ func TestBond_currentValue(t *testing.T) {
 			},
 		}
 
-		value := bond.currentValue(time.Now(), interestRatesMap)
+		value, err := bond.currentValue(time.Now(), interestRatesMap)
+		require.NoError(t, err)
 
 		require.Equal(t, float64(104), value)
 	})
@@ -61,7 +63,8 @@ func TestBond_currentValue(t *testing.T) {
 			},
 		}
 
-		value := bond.currentValue(time.Now(), interestRatesMap)
+		value, err := bond.currentValue(time.Now(), interestRatesMap)
+		require.NoError(t, err)
 
 		require.Equal(t, float64(95), value)
 	})

@@ -61,6 +61,7 @@ interface Metrics {
   stdev: number;
   averageCoupon: number;
   maxDrawdown: number;
+  totalCoupon: number;
 }
 
 interface CouponPaymentOnDate {
@@ -232,7 +233,7 @@ export function BondBuilder() {
   }, []);
 
   return <>
-    <Nav setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <Nav showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className='centered-container' >
       <div className='container'>
         <div className="column form-wrapper">
@@ -267,10 +268,14 @@ function ResultsOverview({
   if (!metrics) {
     return null;
   }
+  function numberWithCommas(x:number) {
+    return Math.floor(x+0.05).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
   return <>
-    <div className='tile' style={{ marginTop: "10px" }}>
+    <div className='tile' style={{ marginTop: "10px", marginBottom: "20px" }}>
       <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
-      <p className='subtext'>Average Coupon: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
+      <p className='subtext'>Average Annual Coupon Rate: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
+      <p className='subtext'>Total Coupon Payments: ${numberWithCommas(metrics.totalCoupon)}</p>
       <p className='subtext'>Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
       <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown * 100).toFixed(2)}%</p>
     </div>
@@ -580,7 +585,7 @@ function BondLadderChart({ bondLadder }: {
 
   return <>
     <h4 className='chart-title'>Bond Ladder</h4>
-    <p className='chart-description'>Three bonds are initially purchased based on the given starting duration (such as 1Y, 2Y, 3Y). When a bond matures, a new bond is purchased to replace it at the current market interest rates. Each bond and the subsequent bonds that replace them are referenced here as a "bond set." At any given time, a bond set will only hold one active bond.</p>
+    <p className='chart-description'>Three bonds are initially purchased based on the given starting duration (such as 1Y, 2Y, 3Y). When a bond matures, a new bond is purchased to replace it at the current market interest rates. Each bond and the subsequent bonds that replace them are referenced here as a "bond set."</p>
     <div className='backtest-chart-wrapper'>
 
 

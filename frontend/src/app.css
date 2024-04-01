@@ -132,3 +132,18 @@
   right: calc(2.5% + 16px);
   height: 100%;
 }
+
+.bond-ad {
+  width: 100%;
+  height: 30px;
+  background-color: #206D69;
+  cursor: pointer;
+}
+
+
+.bond-ad-text {
+  text-align: center;
+  color: white;
+  padding-top: 4px;
+  margin-top: 0px;
+}

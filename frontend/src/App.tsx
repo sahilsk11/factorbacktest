@@ -60,7 +60,10 @@ const App = () => {
   }, [factorData])
 
   return <>
-    <Nav setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <div className='bond-ad' onClick={() => {window.location.href="/bonds"}}>
+    <p className='bond-ad-text'><b>Bond Ladder Backtesting is Live →</b></p>
+    </div>
+    <Nav showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className="centered-container">
       <div className="container">
         <div className="column form-wrapper">
@@ -142,7 +145,8 @@ export function getOrCreateUserID(): string {
   return newUserID;
 }
 
-export function Nav({ setShowHelpModal, setShowContactModal }: {
+export function Nav({ setShowHelpModal, setShowContactModal, showLinks }: {
+  showLinks: boolean;
   setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
 
@@ -150,14 +154,16 @@ export function Nav({ setShowHelpModal, setShowContactModal }: {
   return <>
     <div className='nav'>
       <h4 className='nav-title' onClick={() => window.location.href = "/"}>factorbacktest.net</h4>
-      <div className='nav-element-container'>
-        <div className='nav-element-wrapper'>
-          <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>
+      {showLinks ?
+        <div className='nav-element-container'>
+          <div className='nav-element-wrapper'>
+            <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>
+          </div>
+          <div className='nav-element-wrapper'>
+            <p onClick={() => setShowHelpModal(true)} className='nav-element-text'>User Guide</p>
+          </div>
         </div>
-        <div className='nav-element-wrapper'>
-          <p onClick={() => setShowHelpModal(true)} className='nav-element-text'>User Guide</p>
-        </div>
-      </div>
+        : null}
     </div>
   </>
 }
