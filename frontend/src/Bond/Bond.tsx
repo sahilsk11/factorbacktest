@@ -352,7 +352,7 @@ function CouponPaymentChart({
 
   return <>
     <h4 className='chart-title'>Coupon Payments</h4>
-    <p className='chart-description'>Every month, bonds issue payments to holders. The coupon rate is based on interest rates when the bond was purchased, not necessarily the current market rates.</p>
+    <p className='chart-description'>Every month, bonds issue payments to holders. The coupon rate is based on interest rates when the bond was purchased.</p>
     <div className='backtest-chart-wrapper'>
 
       <Bar
