@@ -47,7 +47,10 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, in []workInp
 	close(inputCh)
 
 	for i := 0; i < numGoroutines; i++ {
-		tx, err := h.Db.Begin()
+		tx, err := h.Db.BeginTx(ctx, &sql.TxOptions{
+			ReadOnly:  true,
+			Isolation: sql.LevelReadCommitted,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -221,6 +224,7 @@ type BacktestInput struct {
 }
 
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]BacktestSample, error) {
+	profile := internal.GetPerformanceProfile(ctx)
 	universe, err := h.UniverseRepository.List(in.RoTx)
 	if err != nil {
 		return nil, err
@@ -250,6 +254,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 			})
 		}
 	}
+	profile.Add("finished helper info")
 
 	x := time.Now()
 	factorScoresByDay, err := h.calculateFactorScores(ctx, inputs)
@@ -258,6 +263,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	}
 
 	fmt.Println("scores calculated in", time.Since(x).Seconds())
+	profile.Add("finished scores")
 
 	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.RoTx, in.BacktestStart, in.AnchorPortfolioQuantities, backtestStartPriceMap)
 	if err != nil {
@@ -275,6 +281,8 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 
 	currentPortfolio := *in.StartPortfolio.DeepCopy()
 	out := []BacktestSample{}
+
+	profile.Add("finished backtest setup")
 
 	for _, t := range tradingDays {
 		// should work on weekends too
@@ -329,6 +337,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		})
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 	}
+	profile.Add("finished daily calcs")
 
 	return out, nil
 }
