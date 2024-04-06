@@ -61,6 +61,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	performanceProfile := &internal.PerformanceProfile{}
 	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
 	performanceProfile.Add("initialized")
+	defer func() { performanceProfile.Print() }()
+
 	tx, err := h.Db.BeginTx(
 		ctx,
 		&sql.TxOptions{
@@ -193,8 +195,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 
 	performanceProfile.Add("finished formatting")
-
-	performanceProfile.Print()
 
 	c.JSON(200, responseJson)
 }
