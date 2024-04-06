@@ -22,7 +22,7 @@ func (h BenchmarkHandler) GetIntraPeriodChange(
 ) (map[time.Time]float64, error) {
 	prices, err := h.PriceRepository.List(
 		tx,
-		symbol,
+		[]string{symbol},
 		start,
 		end,
 	)
