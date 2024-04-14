@@ -4,14 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"factorbacktest/internal"
-	"factorbacktest/internal/app"
-	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/pkg/datajockey"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -45,138 +42,6 @@ func main() {
 	// ingestUniverseFundamentals()
 	// ingestFundamentals("AAPL")
 	updateUniversePrices()
-}
-
-func backtest(tx *sql.Tx) {
-
-	exp := `
-	(
-		(
-			pricePercentChange(
-				addDate(currentDate, 0, 0, -7),
-				currentDate
-			) * 0.5 +
-			pricePercentChange(
-				addDate(currentDate, 0, -1, 0),
-				currentDate
-			) * 0.3 +
-			pricePercentChange(
-				addDate(currentDate, 0, -6, 0),
-				currentDate
-			) * 0.2
-		) / 3
-	) / stdev(addDate(currentDate, -5, 0, 0),currentDate)
-	
-	`
-	u := repository.UniverseRepositoryHandler{}
-	assets, err := u.List(tx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	startPortfolio := domain.Portfolio{
-		Positions: map[string]*domain.Position{},
-	}
-	for _, a := range assets[:20] {
-		startPortfolio.Positions[a.Symbol] = &domain.Position{
-			Symbol:   a.Symbol,
-			Quantity: 100,
-		}
-	}
-
-	factorMetricsHandler := internal.FactorMetricsHandler{
-		AdjustedPriceRepository:     repository.NewAdjustedPriceRepository(),
-		AssetFundamentalsRepository: repository.AssetFundamentalsRepositoryHandler{},
-	}
-	h := app.BacktestHandler{
-		PriceRepository:      repository.NewAdjustedPriceRepository(),
-		FactorMetricsHandler: factorMetricsHandler,
-		UniverseRepository:   repository.UniverseRepositoryHandler{},
-	}
-	backtestInput := app.BacktestInput{
-		RoTx: tx,
-		FactorOptions: app.FactorOptions{
-			Expression: exp,
-			Intensity:  0.9,
-			Name:       "momentum",
-		},
-		BacktestStart:    time.Now().AddDate(-3, 0, 0),
-		BacktestEnd:      time.Now(),
-		SamplingInterval: time.Hour * 24 * 30,
-		StartPortfolio:   startPortfolio,
-	}
-	out, err := h.Backtest(context.Background(), backtestInput)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	internal.Pprint(out)
-}
-
-func exp(tx *sql.Tx) {
-	adjPricesRepo := repository.NewAdjustedPriceRepository()
-	metricsHandler := internal.FactorMetricsHandler{
-		AdjustedPriceRepository: adjPricesRepo,
-	}
-
-	exp := `
-	(
-		(
-			pricePercentChange(
-				addDate(currentDate, 0, 0, -7),
-				currentDate
-			) * 0.5 +
-			pricePercentChange(
-				addDate(currentDate, 0, -1, 0),
-				currentDate
-			) * 0.3 +
-			pricePercentChange(
-				addDate(currentDate, 0, -6, 0),
-				currentDate
-			) * 0.2
-		) / 3
-	) / stdev(addDate(currentDate, -5, 0, 0), currentDate)
-	
-	`
-
-	aapl, err := internal.EvaluateFactorExpression(
-		tx,
-		exp,
-		"AAPL",
-		metricsHandler,
-		time.Now(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	csco, err := internal.EvaluateFactorExpression(
-		tx,
-		exp,
-		"CSCO",
-		metricsHandler,
-		time.Now(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	nvda, err := internal.EvaluateFactorExpression(
-		tx,
-		exp,
-		"NVDA",
-		metricsHandler,
-		time.Now(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(aapl.Value, csco.Value, nvda.Value)
-
-	internal.Pprint(aapl.Reason)
-	internal.Pprint(csco.Reason)
-	internal.Pprint(nvda.Reason)
-
 }
 
 func Ingest(tx *sql.Tx, symbol string) {

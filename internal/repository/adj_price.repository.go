@@ -15,8 +15,14 @@ import (
 
 type PriceCache map[string]map[time.Time]float64
 
-func (h AdjustedPriceRepositoryHandler) GetFromCache(symbol string, date time.Time) *float64 {
-	pc := h.Cache
+type TradingDatesCache struct {
+	Start time.Time
+	End   time.Time
+	Days  map[string]struct{}
+}
+
+func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date time.Time) *float64 {
+	pc := h.PriceCache
 	h.ReadMutex.RLock()
 	if _, ok := pc[symbol]; ok {
 		if price, ok := pc[symbol][date]; ok {
@@ -28,8 +34,8 @@ func (h AdjustedPriceRepositoryHandler) GetFromCache(symbol string, date time.Ti
 	return nil
 }
 
-func (h AdjustedPriceRepositoryHandler) AddToCache(symbol string, date time.Time, price float64) {
-	pc := h.Cache
+func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time.Time, price float64) {
+	pc := h.PriceCache
 	h.ReadMutex.Lock()
 	if _, ok := pc[symbol]; !ok {
 		pc[symbol] = map[time.Time]float64{}
@@ -47,18 +53,19 @@ type AdjustedPriceRepository interface {
 }
 
 func NewAdjustedPriceRepository() AdjustedPriceRepository {
-	return &AdjustedPriceRepositoryHandler{
-		Cache:     make(PriceCache),
-		ReadMutex: &sync.RWMutex{},
+	return &adjustedPriceRepositoryHandler{
+		PriceCache: make(PriceCache),
+		ReadMutex:  &sync.RWMutex{},
 	}
 }
 
-type AdjustedPriceRepositoryHandler struct {
-	Cache     PriceCache
-	ReadMutex *sync.RWMutex
+type adjustedPriceRepositoryHandler struct {
+	PriceCache PriceCache
+	ReadMutex  *sync.RWMutex
+	days       []time.Time
 }
 
-func (h AdjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.AdjustedPrice) error {
+func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.AdjustedPrice) error {
 	query := AdjustedPrice.
 		INSERT(AdjustedPrice.MutableColumns).
 		MODELS(adjPrices).
@@ -78,8 +85,9 @@ func (h AdjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 	return nil
 }
 
-func (h AdjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
-	if pc := h.GetFromCache(symbol, date); pc != nil {
+func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+
+	if pc := h.GetFromPriceCache(symbol, date); pc != nil {
 		return *pc, nil
 	}
 
@@ -105,19 +113,19 @@ func (h AdjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time
 		return 0, fmt.Errorf("failed to query price for %s on %v: %w", symbol, date, err)
 	}
 
-	h.AddToCache(symbol, date, result.Price)
+	h.AddToPriceCache(symbol, date, result.Price)
 	return result.Price, nil
 }
 
 // assumes input date is a trading day
-func (h AdjustedPriceRepositoryHandler) GetMany(tx *sql.Tx, symbols []string, date time.Time) (map[string]float64, error) {
+func (h adjustedPriceRepositoryHandler) GetMany(tx *sql.Tx, symbols []string, date time.Time) (map[string]float64, error) {
 	cachedResults := map[string]float64{}
 	symbolSet := map[string]bool{}
 	postgresStr := []Expression{}
 
 	for _, s := range symbols {
 		if _, ok := symbolSet[s]; !ok {
-			cachedPrice := h.GetFromCache(s, date)
+			cachedPrice := h.GetFromPriceCache(s, date)
 			if cachedPrice == nil {
 				postgresStr = append(postgresStr, String(s))
 			} else {
@@ -158,7 +166,7 @@ func (h AdjustedPriceRepositoryHandler) GetMany(tx *sql.Tx, symbols []string, da
 	return out, nil
 }
 
-func (h AdjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error) {
 	minDate := DateT(start)
 	maxDate := DateT(end)
 	symbolsFilter := []Expression{}
@@ -189,13 +197,13 @@ func (h AdjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string,
 			Date:   p.Date,
 			Price:  p.Price,
 		})
-		h.AddToCache(p.Symbol, p.Date, p.Price)
+		h.AddToPriceCache(p.Symbol, p.Date, p.Price)
 	}
 
 	return out, nil
 }
 
-func (h AdjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error) {
+func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error) {
 	minDate := DateT(start)
 	maxDate := DateT(end)
 	// use range so we can do t-3 for weekends or holidays
@@ -227,5 +235,6 @@ func (h AdjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end t
 		out = append(out, d)
 	}
 
+	h.days = out
 	return out, nil
 }
