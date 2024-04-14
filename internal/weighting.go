@@ -189,6 +189,9 @@ func zScoreBySymbol(factorScoreBySymbol map[string]float64) (map[string]float64,
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate stdev: %w", err)
 	}
+	if stdev == 0 {
+		return nil, fmt.Errorf("0 stdev")
+	}
 
 	zScoreBySymbol := map[string]float64{}
 	for symbol, factorScore := range factorScoreBySymbol {
@@ -208,7 +211,9 @@ func calculateWeightsRelativeToAnchor(
 	factorIntensity float64,
 ) (map[string]float64, error) {
 	zScoreBySymbol, err := zScoreBySymbol(factorScoresBySymbol)
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), "0 stdev") {
+		return anchorPortfolioWeights, nil
+	} else if err != nil {
 		return nil, fmt.Errorf("failed to calculate z score for factor scores: %w", err)
 	}
 
