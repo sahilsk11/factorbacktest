@@ -160,7 +160,10 @@ func CalculateTargetAssetWeights(in CalculateTargetAssetWeightsInput) (map[strin
 
 	// validate new weights add to 100
 	sum := 0.0
-	for _, w := range newWeights {
+	for symbol, w := range newWeights {
+		if math.IsNaN(w) {
+			return nil, fmt.Errorf("invalid weight NaN for %s", symbol)
+		}
 		sum += w
 	}
 	if math.Abs(sum-1) > 0.0001 {

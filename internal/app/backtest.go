@@ -290,6 +290,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 
 	profile.Add("finished backtest setup")
 
+	const errThreshold = 0.75
+	backtestErrors := []error{}
+
 	for _, t := range tradingDays {
 		// should work on weekends too
 
@@ -321,6 +324,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 			// TODO figure out what to do here. should
 			// include something in the response that says
 			// we couldn't rebalance here
+			backtestErrors = append(backtestErrors, err)
 			continue
 			// return nil, fmt.Errorf("failed to compute target portfolio in backtest on %s: %w", t.Format("2006-01-02"), err)
 		}
@@ -344,6 +348,14 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 	}
 	profile.Add("finished daily calcs")
+
+	if float64(len(backtestErrors))/float64(len(tradingDays)) >= errThreshold {
+		numErrors := 3
+		if len(backtestErrors) < 3 {
+			numErrors = len(backtestErrors)
+		}
+		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
+	}
 
 	return out, nil
 }
