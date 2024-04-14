@@ -17,18 +17,15 @@ trading day, and use that price
 */
 
 type PriceService interface {
-	LoadCache(symbols []string, start time.Time, end time.Time) (*PriceCache, error)
+	LoadCache(tx *sql.Tx, symbols []string, start time.Time, end time.Time) (*PriceCache, error)
 }
 
 type priceServiceHandler struct {
-	Db                 *sql.DB
 	AdjPriceRepository repository.AdjustedPriceRepository
 }
 
-type priceCache map[string]map[time.Time]float64
-
 type PriceCache struct {
-	cache              priceCache
+	cache              map[string]map[time.Time]float64
 	tradingDays        []time.Time
 	Tx                 *sql.Tx
 	adjPriceRepository repository.AdjustedPriceRepository
@@ -40,6 +37,7 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	for i := 0; i < len(pr.tradingDays)-1; i++ {
 		if pr.tradingDays[i+1].After(date) {
 			closestTradingDay = pr.tradingDays[i]
+			break
 		}
 	}
 	// if the trading dates given do not include the given date, then just use original date
@@ -69,17 +67,11 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 
 func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository) PriceService {
 	return &priceServiceHandler{
-		Db:                 db,
 		AdjPriceRepository: adjPriceRepository,
 	}
 }
 
-func (h priceServiceHandler) LoadCache(symbols []string, start time.Time, end time.Time) (*PriceCache, error) {
-	tx, err := h.Db.Begin()
-	if err != nil {
-		return nil, err
-	}
-
+func (h priceServiceHandler) LoadCache(tx *sql.Tx, symbols []string, start time.Time, end time.Time) (*PriceCache, error) {
 	tradingDays, err := h.AdjPriceRepository.ListTradingDays(tx, start, end)
 	if err != nil {
 		return nil, err
@@ -90,7 +82,7 @@ func (h priceServiceHandler) LoadCache(symbols []string, start time.Time, end ti
 		return nil, err
 	}
 
-	cache := make(priceCache)
+	cache := make(map[string]map[time.Time]float64)
 	for _, p := range prices {
 		if _, ok := cache[p.Symbol]; !ok {
 			cache[p.Symbol] = make(map[time.Time]float64)
@@ -99,9 +91,8 @@ func (h priceServiceHandler) LoadCache(symbols []string, start time.Time, end ti
 	}
 
 	return &PriceCache{
-		cache:       cache,
-		tradingDays: tradingDays,
-		// Tx:                 tx,
+		cache:              cache,
+		tradingDays:        tradingDays,
 		adjPriceRepository: h.AdjPriceRepository,
 	}, nil
 }
