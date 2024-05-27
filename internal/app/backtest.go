@@ -238,44 +238,31 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
+	tx, err := h.Db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	err = h.PriceService.UpdatePricesIfNeeded(ctx, tx, universeSymbols)
+	if err != nil {
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
 	// get price on first day? consider removing
 	backtestStartPriceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, in.BacktestStart)
 	if err != nil {
 		return nil, err
 	}
 
+	// all trading days within the selected window that we need to run a calculation on
+	// this will only contain days that we actually have data for, so if data is old, it
+	// will not include recent days
 	tradingDays, err := h.calculateRelevantTradingDays(in.RoTx, in.BacktestStart, in.BacktestEnd, in.SamplingInterval)
 	if err != nil {
 		return nil, err
-	}
-
-	// if we have no days in the window, or the end date is after the last date in the window, get prices
-	// TODO - if user selects end date like 3/30 but it's a holiday, last trading day will be 3/29 but this
-	// gets triggered
-	shouldFetchPrices := false && (len(tradingDays) == 0 || in.BacktestEnd.After(tradingDays[len(tradingDays)-1]))
-	if shouldFetchPrices {
-		tx, err := h.Db.Begin()
-		if err != nil {
-			return nil, err
-		}
-
-		err = internal.UpdateUniversePrices(
-			tx,
-			repository.UniverseRepositoryHandler{},
-			repository.NewAdjustedPriceRepository(),
-		)
-		if err != nil {
-			return nil, err
-		}
-		err = internal.IngestPrices(tx, "SPY", repository.NewAdjustedPriceRepository())
-		if err != nil {
-			return nil, err
-		}
-		err = tx.Commit()
-		if err != nil {
-			return nil, err
-		}
-
 	}
 
 	inputs := []workInput{}

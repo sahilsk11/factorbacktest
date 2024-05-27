@@ -15,11 +15,15 @@ func IngestPrices(
 	tx *sql.Tx,
 	symbol string,
 	adjPricesRepository repository.AdjustedPriceRepository,
+	start *time.Time,
 ) error {
-	start := time.Date(2000, 1, 0, 0, 0, 0, 0, time.UTC)
+	s := time.Date(2000, 1, 0, 0, 0, 0, 0, time.UTC)
+	if start != nil {
+		s = *start
+	}
 	now := time.Now()
 	params := &chart.Params{
-		Start:    datetime.New(&start),
+		Start:    datetime.New(&s),
 		End:      datetime.New(&now),
 		Symbol:   symbol,
 		Interval: datetime.OneDay,
@@ -64,7 +68,7 @@ func UpdateUniversePrices(
 	errors := []error{}
 
 	for _, a := range assets {
-		err = IngestPrices(tx, a.Symbol, adjPricesRepository)
+		err = IngestPrices(tx, a.Symbol, adjPricesRepository, nil)
 		if err != nil {
 			err = fmt.Errorf("failed to ingest historical prices for %s: %w", a.Symbol, err)
 			fmt.Println(err)

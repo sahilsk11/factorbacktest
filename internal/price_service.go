@@ -1,8 +1,11 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+	"fmt"
 	"time"
 )
 
@@ -18,6 +21,7 @@ trading day, and use that price
 
 type PriceService interface {
 	LoadCache(tx *sql.Tx, symbols []string, start time.Time, end time.Time) (*PriceCache, error)
+	UpdatePricesIfNeeded(ctx context.Context, tx *sql.Tx, symbols []string) error
 }
 
 type priceServiceHandler struct {
@@ -95,4 +99,36 @@ func (h priceServiceHandler) LoadCache(tx *sql.Tx, symbols []string, start time.
 		tradingDays:        tradingDays,
 		adjPriceRepository: h.AdjPriceRepository,
 	}, nil
+}
+
+func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.Tx, symbols []string) error {
+	// need a better way of handling this too
+	symbols = append(symbols, "SPY")
+
+	latestPrices, err := h.AdjPriceRepository.LatestPrices(tx, symbols)
+	if err != nil {
+		return fmt.Errorf("failed to get latest prices: %w", err)
+	}
+
+	// somehow we need to figure out the real last trading day
+	actualLastTradingDay := time.Now().UTC().AddDate(0, 0, -4)
+	assetsToUpdate := []domain.AssetPrice{}
+	for _, price := range latestPrices {
+		if price.Date.Before(actualLastTradingDay) {
+			assetsToUpdate = append(assetsToUpdate, price)
+		}
+	}
+
+	// update prices
+
+	// i think this should use UpdateUniversePrices
+	// instead
+	for _, s := range assetsToUpdate {
+		err = IngestPrices(tx, s.Symbol, h.AdjPriceRepository, &s.Date)
+		if err != nil {
+			return fmt.Errorf("failed to ingest historical prices for %s: %w", s, err)
+		}
+	}
+
+	return nil
 }
