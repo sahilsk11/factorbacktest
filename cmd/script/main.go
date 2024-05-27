@@ -27,75 +27,17 @@ func New() (*sql.DB, error) {
 	return dbConn, nil
 }
 
-func NewTx() (*sql.Tx, error) {
-	dbConn, err := New()
-	if err != nil {
-		return nil, err
-	}
-
-	return dbConn.Begin()
-}
-
 func main() {
 	// internal.IngestPrices()
 	// gpt()
 	// ingestUniverseFundamentals()
 	// ingestFundamentals("AAPL")
-	updateUniversePrices()
+	// updateUniversePrices()
 }
 
 func Ingest(tx *sql.Tx, symbol string) {
-	ingestPrices(symbol)
 	ingestFundamentals(symbol)
 	err := tx.Commit()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func updateUniversePrices() {
-	tx, err := NewTx()
-	if err != nil {
-		log.Fatal(fmt.Errorf("failed to create tx: %w", err))
-	}
-
-	err = internal.UpdateUniversePrices(
-		tx,
-		repository.UniverseRepositoryHandler{},
-		repository.NewAdjustedPriceRepository(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = internal.IngestPrices(tx, "SPY", repository.NewAdjustedPriceRepository())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func ingestPrices(symbol string) {
-	dbConn, err := New()
-	if err != nil {
-		log.Fatal(err)
-	}
-	tx, err := dbConn.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	adjPricesRepository := repository.NewAdjustedPriceRepository()
-
-	err = internal.IngestPrices(tx, symbol, adjPricesRepository)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = tx.Commit()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,6 +53,7 @@ func ingestFundamentals(symbol string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer tx.Rollback()
 
 	secrets, err := internal.LoadSecrets()
 	if err != nil {

@@ -1,3 +1,6 @@
+mocks:
+	mockgen -source=internal/repository/adj_price.repository.go -destination=internal/repository/mocks/mock_adj_price.repository.go
+
 migration:
 	migrate create -ext sql -dir migrations/ -seq $(name)
 
