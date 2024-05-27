@@ -3,13 +3,13 @@ package repository
 import (
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
-	. "factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
 	"fmt"
 	"sync"
 	"time"
 
-	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
 )
 
@@ -51,6 +51,14 @@ type AdjustedPriceRepository interface {
 	List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error)
 	LatestPrices(tx *sql.Tx, symbols []string) ([]domain.AssetPrice, error)
+
+	// this is weird
+	ListFromSet(tx *sql.Tx, set []ListFromSetInput) ([]domain.AssetPrice, error)
+}
+
+type ListFromSetInput struct {
+	Symbol string
+	Date   time.Time
 }
 
 func NewAdjustedPriceRepository() AdjustedPriceRepository {
@@ -67,14 +75,14 @@ type adjustedPriceRepositoryHandler struct {
 }
 
 func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.AdjustedPrice) error {
-	query := AdjustedPrice.
-		INSERT(AdjustedPrice.MutableColumns).
+	query := table.AdjustedPrice.
+		INSERT(table.AdjustedPrice.MutableColumns).
 		MODELS(adjPrices).
 		ON_CONFLICT(
-			AdjustedPrice.Symbol, AdjustedPrice.Date,
+			table.AdjustedPrice.Symbol, table.AdjustedPrice.Date,
 		).DO_UPDATE(
-		SET(
-			AdjustedPrice.Price.SET(AdjustedPrice.EXCLUDED.Price),
+		postgres.SET(
+			table.AdjustedPrice.Price.SET(table.AdjustedPrice.EXCLUDED.Price),
 		),
 	)
 
@@ -87,25 +95,24 @@ func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 }
 
 func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
-
 	if pc := h.GetFromPriceCache(symbol, date); pc != nil {
 		return *pc, nil
 	}
 
-	// fmt.Println("cache miss", symbol, date)
+	fmt.Println("cache miss", symbol, date)
 
-	minDate := DateT(date.AddDate(0, 0, -3))
-	maxDate := DateT(date)
+	minDate := postgres.DateT(date.AddDate(0, 0, -3))
+	maxDate := postgres.DateT(date)
 	// use range so we can do t-3 for weekends or holidays
-	query := AdjustedPrice.
-		SELECT(AdjustedPrice.AllColumns).
+	query := table.AdjustedPrice.
+		SELECT(table.AdjustedPrice.AllColumns).
 		WHERE(
-			AND(
-				AdjustedPrice.Symbol.EQ(String(symbol)),
-				AdjustedPrice.Date.BETWEEN(minDate, maxDate),
+			postgres.AND(
+				table.AdjustedPrice.Symbol.EQ(postgres.String(symbol)),
+				table.AdjustedPrice.Date.BETWEEN(minDate, maxDate),
 			),
 		).
-		ORDER_BY(AdjustedPrice.Date.DESC()).
+		ORDER_BY(table.AdjustedPrice.Date.DESC()).
 		LIMIT(1)
 
 	results := []model.AdjustedPrice{}
@@ -126,13 +133,13 @@ func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time
 func (h adjustedPriceRepositoryHandler) GetMany(tx *sql.Tx, symbols []string, date time.Time) (map[string]float64, error) {
 	cachedResults := map[string]float64{}
 	symbolSet := map[string]bool{}
-	postgresStr := []Expression{}
+	postgresStr := []postgres.Expression{}
 
 	for _, s := range symbols {
 		if _, ok := symbolSet[s]; !ok {
 			cachedPrice := h.GetFromPriceCache(s, date)
 			if cachedPrice == nil {
-				postgresStr = append(postgresStr, String(s))
+				postgresStr = append(postgresStr, postgres.String(s))
 			} else {
 				cachedResults[s] = *cachedPrice
 			}
@@ -143,15 +150,15 @@ func (h adjustedPriceRepositoryHandler) GetMany(tx *sql.Tx, symbols []string, da
 
 	res := []model.AdjustedPrice{}
 	if len(postgresStr) > 0 {
-		query := AdjustedPrice.
-			SELECT(AdjustedPrice.AllColumns).
+		query := table.AdjustedPrice.
+			SELECT(table.AdjustedPrice.AllColumns).
 			WHERE(
-				AND(
-					AdjustedPrice.Symbol.IN(postgresStr...),
-					AdjustedPrice.Date.EQ(DateT(date)),
+				postgres.AND(
+					table.AdjustedPrice.Symbol.IN(postgresStr...),
+					table.AdjustedPrice.Date.EQ(postgres.DateT(date)),
 				),
 			).
-			ORDER_BY(AdjustedPrice.Date.DESC())
+			ORDER_BY(table.AdjustedPrice.Date.DESC())
 
 		err := query.Query(tx, &res)
 		if err != nil {
@@ -172,22 +179,22 @@ func (h adjustedPriceRepositoryHandler) GetMany(tx *sql.Tx, symbols []string, da
 }
 
 func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error) {
-	minDate := DateT(start)
-	maxDate := DateT(end)
-	symbolsFilter := []Expression{}
+	minDate := postgres.DateT(start)
+	maxDate := postgres.DateT(end)
+	symbolsFilter := []postgres.Expression{}
 	for _, s := range symbols {
-		symbolsFilter = append(symbolsFilter, String(s))
+		symbolsFilter = append(symbolsFilter, postgres.String(s))
 	}
 	// use range so we can do t-3 for weekends or holidays
-	query := AdjustedPrice.
-		SELECT(AdjustedPrice.AllColumns).
+	query := table.AdjustedPrice.
+		SELECT(table.AdjustedPrice.AllColumns).
 		WHERE(
-			AND(
-				AdjustedPrice.Symbol.IN(symbolsFilter...),
-				AdjustedPrice.Date.BETWEEN(minDate, maxDate),
+			postgres.AND(
+				table.AdjustedPrice.Symbol.IN(symbolsFilter...),
+				table.AdjustedPrice.Date.BETWEEN(minDate, maxDate),
 			),
 		).
-		ORDER_BY(AdjustedPrice.Date.ASC())
+		ORDER_BY(table.AdjustedPrice.Date.ASC())
 
 	result := []model.AdjustedPrice{}
 	err := query.Query(db, &result)
@@ -209,19 +216,19 @@ func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string,
 }
 
 func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error) {
-	minDate := DateT(start)
-	maxDate := DateT(end)
+	minDate := postgres.DateT(start)
+	maxDate := postgres.DateT(end)
 	// use range so we can do t-3 for weekends or holidays
-	query := AdjustedPrice.
-		SELECT(AdjustedPrice.Date).
+	query := table.AdjustedPrice.
+		SELECT(table.AdjustedPrice.Date).
 		WHERE(
-			AND(
-				AdjustedPrice.Date.BETWEEN(minDate, maxDate),
+			postgres.AND(
+				table.AdjustedPrice.Date.BETWEEN(minDate, maxDate),
 			),
 		).
-		GROUP_BY(AdjustedPrice.Date).
-		HAVING(COUNT(String("*")).GT(Int(10))).
-		ORDER_BY(AdjustedPrice.Date.ASC())
+		GROUP_BY(table.AdjustedPrice.Date).
+		HAVING(postgres.COUNT(postgres.String("*")).GT(postgres.Int(10))).
+		ORDER_BY(table.AdjustedPrice.Date.ASC())
 
 	q, args := query.Sql()
 
@@ -247,9 +254,9 @@ func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end 
 func (h adjustedPriceRepositoryHandler) LatestPrices(tx *sql.Tx, symbols []string) ([]domain.AssetPrice, error) {
 	out := []domain.AssetPrice{}
 	for _, s := range symbols {
-		query := AdjustedPrice.SELECT(AdjustedPrice.AllColumns).
-			WHERE(AdjustedPrice.Symbol.EQ(String(s))).
-			ORDER_BY(AdjustedPrice.Date.DESC()).
+		query := table.AdjustedPrice.SELECT(table.AdjustedPrice.AllColumns).
+			WHERE(table.AdjustedPrice.Symbol.EQ(postgres.String(s))).
+			ORDER_BY(table.AdjustedPrice.Date.DESC()).
 			LIMIT(1)
 		model := model.AdjustedPrice{}
 		err := query.Query(tx, &model)
@@ -260,6 +267,40 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(tx *sql.Tx, symbols []strin
 			Symbol: model.Symbol,
 			Date:   model.Date,
 			Price:  model.Price,
+		})
+	}
+
+	return out, nil
+}
+
+func (h adjustedPriceRepositoryHandler) ListFromSet(tx *sql.Tx, set []ListFromSetInput) ([]domain.AssetPrice, error) {
+	expressions := []postgres.BoolExpression{}
+	for _, s := range set {
+		expressions = append(
+			expressions,
+			postgres.AND(
+				table.AdjustedPrice.Symbol.EQ(postgres.String(s.Symbol)),
+				table.AdjustedPrice.Date.EQ(postgres.DateT(s.Date)),
+			),
+		)
+	}
+	query := table.AdjustedPrice.SELECT(table.AdjustedPrice.AllColumns).
+		WHERE(postgres.OR(
+			expressions...,
+		))
+
+	results := []model.AdjustedPrice{}
+	err := query.Query(tx, &results)
+	if err != nil {
+		return nil, err
+	}
+
+	out := []domain.AssetPrice{}
+	for _, price := range results {
+		out = append(out, domain.AssetPrice{
+			Symbol: price.Symbol,
+			Price:  price.Price,
+			Date:   price.Date,
 		})
 	}
 

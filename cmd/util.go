@@ -46,10 +46,10 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		},
 		BacktestHandler: app.BacktestHandler{
 			PriceRepository: repository.NewAdjustedPriceRepository(),
-			FactorMetricsHandler: internal.FactorMetricsHandler{
-				AdjustedPriceRepository:     priceRepository,
-				AssetFundamentalsRepository: repository.AssetFundamentalsRepositoryHandler{},
-			},
+			FactorMetricsHandler: internal.NewFactorMetricsHandler(
+				priceRepository,
+				repository.AssetFundamentalsRepositoryHandler{},
+			),
 			UniverseRepository: repository.UniverseRepositoryHandler{},
 			Db:                 dbConn,
 			PriceService:       internal.NewPriceService(dbConn, priceRepository),

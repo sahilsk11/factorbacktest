@@ -20,7 +20,7 @@ trading day, and use that price
 */
 
 type PriceService interface {
-	LoadCache(tx *sql.Tx, symbols []string, start time.Time, end time.Time) (*PriceCache, error)
+	LoadCache(tx *sql.Tx, inputs []DataInput) (*PriceCache, error)
 	UpdatePricesIfNeeded(ctx context.Context, tx *sql.Tx, symbols []string) error
 }
 
@@ -75,13 +75,15 @@ func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepo
 	}
 }
 
-func (h priceServiceHandler) LoadCache(tx *sql.Tx, symbols []string, start time.Time, end time.Time) (*PriceCache, error) {
-	tradingDays, err := h.AdjPriceRepository.ListTradingDays(tx, start, end)
-	if err != nil {
-		return nil, err
+func (h priceServiceHandler) LoadCache(tx *sql.Tx, inputs []DataInput) (*PriceCache, error) {
+	setInputs := []repository.ListFromSetInput{}
+	for _, d := range inputs {
+		setInputs = append(setInputs, repository.ListFromSetInput{
+			Symbol: d.Symbol,
+			Date:   d.Date,
+		})
 	}
-
-	prices, err := h.AdjPriceRepository.List(tx, symbols, start, end)
+	prices, err := h.AdjPriceRepository.ListFromSet(tx, setInputs)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +98,7 @@ func (h priceServiceHandler) LoadCache(tx *sql.Tx, symbols []string, start time.
 
 	return &PriceCache{
 		cache:              cache,
-		tradingDays:        tradingDays,
+		tradingDays:        nil, // let's try to remove this
 		adjPriceRepository: h.AdjPriceRepository,
 	}, nil
 }
@@ -126,7 +128,7 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.T
 	for _, s := range assetsToUpdate {
 		err = IngestPrices(tx, s.Symbol, h.AdjPriceRepository, &s.Date)
 		if err != nil {
-			return fmt.Errorf("failed to ingest historical prices for %s: %w", s, err)
+			return fmt.Errorf("failed to ingest historical prices for %s: %w", s.Symbol, err)
 		}
 	}
 

@@ -27,6 +27,29 @@ type workInput struct {
 	FactorExpression string
 }
 
+func (h BacktestHandler) preloadData(in []workInput) (*internal.PriceCache, error) {
+	dataHandler := internal.DryRunFactorMetricsHandler{}
+	for _, n := range in {
+		_, err := internal.EvaluateFactorExpression(nil, nil, n.FactorExpression, n.Symbol, &dataHandler, n.Date)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tx, err := h.Db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	priceCache, err := h.PriceService.LoadCache(tx, dataHandler.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to populate price cache: %w", err)
+	}
+
+	return priceCache, nil
+}
+
 func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal.PriceCache, in []workInput) (map[time.Time]map[string]*float64, error) {
 	numGoroutines := 1
 
@@ -251,12 +274,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		return nil, err
 	}
 
-	// get price on first day? consider removing
-	backtestStartPriceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, in.BacktestStart)
-	if err != nil {
-		return nil, err
-	}
-
 	// all trading days within the selected window that we need to run a calculation on
 	// this will only contain days that we actually have data for, so if data is old, it
 	// will not include recent days
@@ -277,15 +294,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	}
 	profile.Add("finished helper info")
 
-	priceCache, err := h.PriceService.LoadCache(in.RoTx, universeSymbols, in.BacktestStart, in.BacktestEnd)
+	priceCache, err := h.preloadData(inputs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to populate price cache: %w", err)
-	}
-
-	// populate cache
-	_, err = h.PriceRepository.List(in.RoTx, universeSymbols, in.BacktestStart, in.BacktestEnd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load price data: %w", err)
+		return nil, fmt.Errorf("failed to preload data: %w", err)
 	}
 
 	x := time.Now()
@@ -296,6 +307,12 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 
 	fmt.Println("scores calculated in", time.Since(x).Seconds())
 	profile.Add("finished scores")
+
+	// get price on first day? consider removing
+	backtestStartPriceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, in.BacktestStart)
+	if err != nil {
+		return nil, err
+	}
 
 	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.RoTx, in.BacktestStart, in.AnchorPortfolioQuantities, backtestStartPriceMap)
 	if err != nil {
