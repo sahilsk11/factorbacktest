@@ -28,7 +28,9 @@ type workInput struct {
 }
 
 func (h BacktestHandler) preloadData(in []workInput) (*internal.PriceCache, error) {
-	dataHandler := internal.DryRunFactorMetricsHandler{}
+	dataHandler := internal.DryRunFactorMetricsHandler{
+		Data: map[string]internal.DataInput{},
+	}
 	for _, n := range in {
 		_, err := internal.EvaluateFactorExpression(nil, nil, n.FactorExpression, n.Symbol, &dataHandler, n.Date)
 		if err != nil {
@@ -42,7 +44,12 @@ func (h BacktestHandler) preloadData(in []workInput) (*internal.PriceCache, erro
 	}
 	defer tx.Rollback()
 
-	priceCache, err := h.PriceService.LoadCache(tx, dataHandler.Data)
+	dataValues := []internal.DataInput{}
+	for _, v := range dataHandler.Data {
+		dataValues = append(dataValues, v)
+	}
+
+	priceCache, err := h.PriceService.LoadCache(tx, dataValues)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate price cache: %w", err)
 	}

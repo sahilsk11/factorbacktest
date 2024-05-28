@@ -51,40 +51,44 @@ func NewFactorMetricsHandler(adjPriceRepository repository.AdjustedPriceReposito
 }
 
 type DryRunFactorMetricsHandler struct {
-	Data []DataInput
+	Data map[string]DataInput
 }
 
 func (h *DryRunFactorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
-	h.Data = append(h.Data, DataInput{
+	key := fmt.Sprintf("price/%s/%s", date.Format(time.DateOnly), symbol)
+	h.Data[key] = DataInput{
 		Type:   "price",
 		Date:   date,
 		Symbol: symbol,
-	})
+	}
 	return 0, nil
 }
 
 func (h *DryRunFactorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
-	h.Data = append(h.Data, DataInput{
+	key := fmt.Sprintf("price/%s/%s", start.Format(time.DateOnly), symbol)
+	h.Data[key] = DataInput{
 		Type:   "price",
 		Date:   start,
 		Symbol: symbol,
-	})
-	h.Data = append(h.Data, DataInput{
+	}
+	key = fmt.Sprintf("price/%s/%s", end.Format(time.DateOnly), symbol)
+	h.Data[key] = DataInput{
 		Type:   "price",
 		Date:   end,
 		Symbol: symbol,
-	})
+	}
 	return 1, nil
 }
 
 func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol string, start, end time.Time) (float64, error) {
 	current := start
 	for current.Before(end) {
-		h.Data = append(h.Data, DataInput{
+		key := fmt.Sprintf("price/%s/%s", current.Format(time.DateOnly), symbol)
+		h.Data[key] = DataInput{
 			Type:   "price",
 			Date:   current,
 			Symbol: symbol,
-		})
+		}
 		current = current.AddDate(0, 0, 1)
 	}
 	return 1, nil

@@ -275,15 +275,39 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(tx *sql.Tx, symbols []strin
 
 func (h adjustedPriceRepositoryHandler) ListFromSet(tx *sql.Tx, set []ListFromSetInput) ([]domain.AssetPrice, error) {
 	expressions := []postgres.BoolExpression{}
+	symbolRanges := map[string]*struct {
+		min time.Time
+		max time.Time
+	}{}
 	for _, s := range set {
+		if _, ok := symbolRanges[s.Symbol]; !ok {
+			symbolRanges[s.Symbol] = &struct {
+				min time.Time
+				max time.Time
+			}{
+				min: s.Date,
+				max: s.Date,
+			}
+		}
+		if s.Date.After(symbolRanges[s.Symbol].max) {
+			symbolRanges[s.Symbol].max = s.Date
+		}
+		if s.Date.Before(symbolRanges[s.Symbol].min) {
+			symbolRanges[s.Symbol].min = s.Date
+		}
+	}
+
+	for symbol, rng := range symbolRanges {
 		expressions = append(
 			expressions,
 			postgres.AND(
-				table.AdjustedPrice.Symbol.EQ(postgres.String(s.Symbol)),
-				table.AdjustedPrice.Date.EQ(postgres.DateT(s.Date)),
+				table.AdjustedPrice.Symbol.EQ(postgres.String(symbol)),
+				table.AdjustedPrice.Date.LT_EQ(postgres.DateT(rng.max)),
+				table.AdjustedPrice.Date.GT_EQ(postgres.DateT(rng.min)),
 			),
 		)
 	}
+
 	query := table.AdjustedPrice.SELECT(table.AdjustedPrice.AllColumns).
 		WHERE(postgres.OR(
 			expressions...,

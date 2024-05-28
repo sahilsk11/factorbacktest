@@ -29,7 +29,7 @@ type priceServiceHandler struct {
 }
 
 type PriceCache struct {
-	cache              map[string]map[time.Time]float64
+	cache              map[string]map[string]float64
 	tradingDays        []time.Time
 	Tx                 *sql.Tx
 	adjPriceRepository repository.AdjustedPriceRepository
@@ -51,8 +51,8 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	date = closestTradingDay
 
 	if _, ok := pr.cache[symbol]; ok {
-		if _, ok := pr.cache[symbol][date]; ok {
-			return pr.cache[symbol][date], nil
+		if _, ok := pr.cache[symbol][date.Format(time.DateOnly)]; ok {
+			return pr.cache[symbol][date.Format(time.DateOnly)], nil
 		}
 	}
 
@@ -62,7 +62,7 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	pr.cache[symbol][date] = price
+	pr.cache[symbol][date.Format(time.DateOnly)] = price
 
 	// TODO - handle missing here too
 
@@ -88,12 +88,12 @@ func (h priceServiceHandler) LoadCache(tx *sql.Tx, inputs []DataInput) (*PriceCa
 		return nil, err
 	}
 
-	cache := make(map[string]map[time.Time]float64)
+	cache := make(map[string]map[string]float64)
 	for _, p := range prices {
 		if _, ok := cache[p.Symbol]; !ok {
-			cache[p.Symbol] = make(map[time.Time]float64)
+			cache[p.Symbol] = make(map[string]float64)
 		}
-		cache[p.Symbol][p.Date] = p.Price
+		cache[p.Symbol][p.Date.Format(time.DateOnly)] = p.Price
 	}
 
 	return &PriceCache{
