@@ -79,7 +79,7 @@ func constructFunctionMap(
 			if err != nil {
 				return 0, err
 			}
-			p, err := h.Price(pr, symbol, date)
+			p, err := h.Price(tx, pr, symbol, date)
 			if err != nil {
 				return 0, err
 			}
@@ -103,7 +103,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			p, err := h.PricePercentChange(pr, symbol, start, end)
+			p, err := h.PricePercentChange(tx, pr, symbol, start, end)
 			if err != nil {
 				return 0, err
 			}

@@ -99,7 +99,7 @@ func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time
 		return *pc, nil
 	}
 
-	fmt.Println("cache miss", symbol, date)
+	// fmt.Println("cache miss", symbol, date)
 
 	minDate := postgres.DateT(date.AddDate(0, 0, -3))
 	maxDate := postgres.DateT(date)

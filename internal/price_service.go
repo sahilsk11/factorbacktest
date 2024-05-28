@@ -29,13 +29,13 @@ type priceServiceHandler struct {
 }
 
 type PriceCache struct {
-	cache              map[string]map[string]float64
-	tradingDays        []time.Time
-	Tx                 *sql.Tx
+	cache       map[string]map[string]float64
+	tradingDays []time.Time
+	// Tx                 *sql.Tx
 	adjPriceRepository repository.AdjustedPriceRepository
 }
 
-func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
+func (pr PriceCache) Get(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
 	// find the relevant trading day for the price
 	closestTradingDay := date
 	for i := 0; i < len(pr.tradingDays)-1; i++ {
@@ -58,7 +58,7 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 
 	// missed l1 cache - check db
 
-	price, err := pr.adjPriceRepository.Get(pr.Tx, symbol, date)
+	price, err := pr.adjPriceRepository.Get(tx, symbol, date)
 	if err != nil {
 		return 0, err
 	}
@@ -113,10 +113,11 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.T
 	}
 
 	// somehow we need to figure out the real last trading day
-	actualLastTradingDay := time.Now().UTC().AddDate(0, 0, -4)
+	actualLastTradingDay := time.Now().UTC().AddDate(0, 0, -7)
 	assetsToUpdate := []domain.AssetPrice{}
 	for _, price := range latestPrices {
 		if price.Date.Before(actualLastTradingDay) {
+			fmt.Println(price.Symbol, price.Date, actualLastTradingDay)
 			assetsToUpdate = append(assetsToUpdate, price)
 		}
 	}
