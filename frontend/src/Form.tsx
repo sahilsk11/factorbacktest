@@ -317,6 +317,23 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
       expression: "1e12/marketCap(currentDate)",
       factorName: "small_cap"
     },
+    "custom": {
+      expression: `(
+        (
+          pricePercentChange(
+            addDate(currentDate, 0, -6, 0),
+            currentDate
+          ) + pricePercentChange(
+            addDate(currentDate, 0, -12, 0),
+            currentDate
+          ) + pricePercentChange(
+            addDate(currentDate, 0, -18, 0),
+            currentDate
+          )
+        ) / 3
+      ) / stdev(addDate(currentDate, -3, 0, 0), currentDate)`,
+      factorName: "custom"
+    }
   }
 
   useEffect(() => {
@@ -405,6 +422,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
         <option value="value">Value (undervalued relative to price)</option>
         <option value="size">Size (smaller assets by market cap)</option>
         <option value="volatility">Volatility (low risk assets)</option>
+        <option value="custom">Custom</option>
         <option value="gpt">Describe factor in words (ChatGPT)</option>
       </select>
       {selectedFactor === "gpt" ? <>
