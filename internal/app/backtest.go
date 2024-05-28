@@ -76,6 +76,8 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal
 		inputCh <- f
 	}
 	close(inputCh)
+	fmt.Println("*********")
+	fmt.Println(len(in))
 
 	for i := 0; i < numGoroutines; i++ {
 		tx, err := h.Db.BeginTx(ctx, &sql.TxOptions{

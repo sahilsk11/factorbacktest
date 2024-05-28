@@ -2,8 +2,8 @@ FROM golang:1.20 AS builder
 COPY . /go/src/app
 COPY secrets.json /go/src/app/secrets.json
 WORKDIR /go/src/app
-RUN GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o main cmd/lambda/main.go
-FROM public.ecr.aws/lambda/provided:al2
+RUN go build -tags lambda.norpc -o main cmd/lambda/main.go
+FROM public.ecr.aws/lambda/provided:al2023
 COPY --from=builder /go/src/app/main /main
 COPY secrets.json /go/src/app/secrets.json
 ENTRYPOINT [ "/main" ]

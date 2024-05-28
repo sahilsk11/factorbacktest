@@ -117,12 +117,12 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.T
 	assetsToUpdate := []domain.AssetPrice{}
 	for _, price := range latestPrices {
 		if price.Date.Before(actualLastTradingDay) {
-			fmt.Println(price.Symbol, price.Date, actualLastTradingDay)
 			assetsToUpdate = append(assetsToUpdate, price)
 		}
 	}
 
 	// update prices
+	fmt.Printf("updating %d assets\n", len(assetsToUpdate))
 
 	// i think this should use UpdateUniversePrices
 	// instead
