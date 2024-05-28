@@ -31,16 +31,86 @@ type FactorMetricCalculations interface {
 	PbRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error)
 }
 
-type FactorMetricsHandler struct {
+type DataInput struct {
+	Type   string
+	Date   time.Time
+	Symbol string
+}
+
+type factorMetricsHandler struct {
+	// both dependencies should be wrapped in some mds service
 	AdjustedPriceRepository     repository.AdjustedPriceRepository
 	AssetFundamentalsRepository repository.AssetFundamentalsRepository
 }
 
-func (h FactorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
+func NewFactorMetricsHandler(adjPriceRepository repository.AdjustedPriceRepository, afRepository repository.AssetFundamentalsRepository) FactorMetricCalculations {
+	return factorMetricsHandler{
+		AdjustedPriceRepository:     adjPriceRepository,
+		AssetFundamentalsRepository: afRepository,
+	}
+}
+
+type DryRunFactorMetricsHandler struct {
+	Data map[string]DataInput
+}
+
+func (h *DryRunFactorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
+	key := fmt.Sprintf("price/%s/%s", date.Format(time.DateOnly), symbol)
+	h.Data[key] = DataInput{
+		Type:   "price",
+		Date:   date,
+		Symbol: symbol,
+	}
+	return 0, nil
+}
+
+func (h *DryRunFactorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
+	key := fmt.Sprintf("price/%s/%s", start.Format(time.DateOnly), symbol)
+	h.Data[key] = DataInput{
+		Type:   "price",
+		Date:   start,
+		Symbol: symbol,
+	}
+	key = fmt.Sprintf("price/%s/%s", end.Format(time.DateOnly), symbol)
+	h.Data[key] = DataInput{
+		Type:   "price",
+		Date:   end,
+		Symbol: symbol,
+	}
+	return 1, nil
+}
+
+func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol string, start, end time.Time) (float64, error) {
+	current := start
+	for current.Before(end) {
+		key := fmt.Sprintf("price/%s/%s", current.Format(time.DateOnly), symbol)
+		h.Data[key] = DataInput{
+			Type:   "price",
+			Date:   current,
+			Symbol: symbol,
+		}
+		current = current.AddDate(0, 0, 1)
+	}
+	return 1, nil
+}
+
+func (h *DryRunFactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+	return 1, nil
+}
+
+func (h *DryRunFactorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+	return 1, nil
+}
+
+func (h *DryRunFactorMetricsHandler) PbRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+	return 1, nil
+}
+
+func (h factorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
 	return pr.Get(symbol, date)
 }
 
-func (h FactorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
+func (h factorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
 	startPrice, err := pr.Get(symbol, start)
 	if err != nil {
 		return 0, err
@@ -58,7 +128,7 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
-func (h FactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol string, start, end time.Time) (float64, error) {
+func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol string, start, end time.Time) (float64, error) {
 	priceModels, err := h.AdjustedPriceRepository.List(tx, []string{symbol}, start, end)
 	if err != nil {
 		return 0, err
@@ -80,7 +150,7 @@ func (h FactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol s
 	return stdev * magicNumber, nil
 }
 
-func (h FactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+func (h factorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
 	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
 	if err != nil {
 		return 0, FactorMetricsMissingDataError{err}
@@ -97,7 +167,7 @@ func (h FactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Tim
 	return *out.SharesOutstandingBasic * price, nil
 }
 
-func (h FactorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+func (h factorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
 	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
 	if err != nil {
 		return 0, err
@@ -115,7 +185,7 @@ func (h FactorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time)
 
 }
 
-func (h FactorMetricsHandler) PbRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+func (h factorMetricsHandler) PbRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
 	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
 	if err != nil {
 		return 0, err
