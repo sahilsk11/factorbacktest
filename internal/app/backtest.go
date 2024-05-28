@@ -27,12 +27,12 @@ type workInput struct {
 	FactorExpression string
 }
 
-func (h BacktestHandler) preloadData(in []workInput) (*internal.PriceCache, error) {
+func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*internal.PriceCache, error) {
 	dataHandler := internal.DryRunFactorMetricsHandler{
 		Data: map[string]internal.DataInput{},
 	}
 	for _, n := range in {
-		_, err := internal.EvaluateFactorExpression(nil, nil, n.FactorExpression, n.Symbol, &dataHandler, n.Date)
+		_, err := internal.EvaluateFactorExpression(ctx, nil, nil, n.FactorExpression, n.Symbol, &dataHandler, n.Date)
 		if err != nil {
 			return nil, err
 		}
@@ -97,6 +97,7 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal
 						return
 					}
 					res, err := internal.EvaluateFactorExpression(
+						ctx,
 						tx,
 						pr,
 						input.FactorExpression,
@@ -303,7 +304,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	}
 	profile.Add("finished helper info")
 
-	priceCache, err := h.preloadData(inputs)
+	priceCache, err := h.preloadData(ctx, inputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to preload data: %w", err)
 	}
