@@ -3,6 +3,7 @@ package internal
 import (
 	"database/sql"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/service"
 	"fmt"
 	"math"
 	"time"
@@ -32,9 +33,7 @@ type FactorMetricCalculations interface {
 }
 
 type DataInput struct {
-	Type   string
-	Date   time.Time
-	Symbol string
+	Type string
 }
 
 type factorMetricsHandler struct {
@@ -51,13 +50,12 @@ func NewFactorMetricsHandler(adjPriceRepository repository.AdjustedPriceReposito
 }
 
 type DryRunFactorMetricsHandler struct {
-	Data map[string]DataInput
+	Data map[string]service.LoadPriceCacheInput
 }
 
 func (h *DryRunFactorMetricsHandler) Price(tx *sql.Tx, pr PriceRetriever, symbol string, date time.Time) (float64, error) {
 	key := fmt.Sprintf("price/%s/%s", date.Format(time.DateOnly), symbol)
-	h.Data[key] = DataInput{
-		Type:   "price",
+	h.Data[key] = service.LoadPriceCacheInput{
 		Date:   date,
 		Symbol: symbol,
 	}
@@ -66,14 +64,12 @@ func (h *DryRunFactorMetricsHandler) Price(tx *sql.Tx, pr PriceRetriever, symbol
 
 func (h *DryRunFactorMetricsHandler) PricePercentChange(tx *sql.Tx, pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
 	key := fmt.Sprintf("price/%s/%s", start.Format(time.DateOnly), symbol)
-	h.Data[key] = DataInput{
-		Type:   "price",
+	h.Data[key] = service.LoadPriceCacheInput{
 		Date:   start,
 		Symbol: symbol,
 	}
 	key = fmt.Sprintf("price/%s/%s", end.Format(time.DateOnly), symbol)
-	h.Data[key] = DataInput{
-		Type:   "price",
+	h.Data[key] = service.LoadPriceCacheInput{
 		Date:   end,
 		Symbol: symbol,
 	}
@@ -84,8 +80,7 @@ func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx *sql.Tx, s
 	current := start
 	for current.Before(end) {
 		key := fmt.Sprintf("price/%s/%s", current.Format(time.DateOnly), symbol)
-		h.Data[key] = DataInput{
-			Type:   "price",
+		h.Data[key] = service.LoadPriceCacheInput{
 			Date:   current,
 			Symbol: symbol,
 		}
