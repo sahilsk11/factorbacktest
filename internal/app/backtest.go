@@ -7,6 +7,7 @@ import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/service"
 	"fmt"
 	"sync"
 	"time"
@@ -18,7 +19,7 @@ type BacktestHandler struct {
 	UniverseRepository   repository.UniverseRepository
 
 	Db           *sql.DB
-	PriceService internal.PriceService
+	PriceService service.PriceService
 }
 
 type workInput struct {
@@ -30,9 +31,9 @@ type workInput struct {
 // preloadData "dry-runs" the factor expression to determine which dates are needed
 // then loads them into a price cache. it has no concept of trading days, so it
 // may produce cache misses on holidays
-func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*internal.PriceCache, error) {
+func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*service.PriceCache, error) {
 	dataHandler := internal.DryRunFactorMetricsHandler{
-		Data: map[string]internal.DataInput{},
+		Data: map[string]service.LoadPriceCacheInput{},
 	}
 	for _, n := range in {
 		_, err := internal.EvaluateFactorExpression(ctx, nil, nil, n.FactorExpression, n.Symbol, &dataHandler, n.Date)
@@ -47,7 +48,7 @@ func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*inte
 	}
 	defer tx.Rollback()
 
-	dataValues := []internal.DataInput{}
+	dataValues := []service.LoadPriceCacheInput{}
 	for _, v := range dataHandler.Data {
 		dataValues = append(dataValues, v)
 	}
@@ -63,7 +64,7 @@ func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*inte
 // calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
 // using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
 // despite using workers, this is still the slowest part of the flow
-func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal.PriceCache, in []workInput) (map[time.Time]map[string]*float64, error) {
+func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.PriceCache, in []workInput) (map[time.Time]map[string]*float64, error) {
 	numGoroutines := 10
 
 	type result struct {
