@@ -13,6 +13,8 @@ type BenchmarkHandler struct {
 	PriceRepository repository.AdjustedPriceRepository
 }
 
+// GetIntraPeriodChange get historic prices for an asset
+// and converts it to % change from start
 func (h BenchmarkHandler) GetIntraPeriodChange(
 	tx *sql.Tx,
 	symbol string,

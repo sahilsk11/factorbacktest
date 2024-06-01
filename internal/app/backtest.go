@@ -27,6 +27,9 @@ type workInput struct {
 	FactorExpression string
 }
 
+// preloadData "dry-runs" the factor expression to determine which dates are needed
+// then loads them into a price cache. it has no concept of trading days, so it
+// may produce cache misses on holidays
 func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*internal.PriceCache, error) {
 	dataHandler := internal.DryRunFactorMetricsHandler{
 		Data: map[string]internal.DataInput{},
@@ -57,6 +60,9 @@ func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*inte
 	return priceCache, nil
 }
 
+// calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
+// using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
+// despite using workers, this is still the slowest part of the flow
 func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal.PriceCache, in []workInput) (map[time.Time]map[string]*float64, error) {
 	numGoroutines := 10
 
@@ -76,8 +82,6 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal
 		inputCh <- f
 	}
 	close(inputCh)
-	fmt.Println("*********")
-	fmt.Println(len(in))
 
 	for i := 0; i < numGoroutines; i++ {
 		tx, err := h.Db.BeginTx(ctx, &sql.TxOptions{
@@ -88,7 +92,6 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal
 			return nil, err
 		}
 		defer tx.Rollback()
-		// pr.Tx = tx
 		go func() {
 			for {
 				select {
@@ -271,18 +274,18 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
-	tx, err := h.Db.Begin()
+	updatePricesTx, err := h.Db.Begin()
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-	err = h.PriceService.UpdatePricesIfNeeded(ctx, tx, universeSymbols)
+	defer updatePricesTx.Rollback()
+	err = h.PriceService.UpdatePricesIfNeeded(ctx, updatePricesTx, universeSymbols)
 	if err != nil {
 		return nil, err
 	}
-	err = tx.Commit()
+	err = updatePricesTx.Commit()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit update prices changes: %w", err)
 	}
 	profile.Add("finished updating prices (if needed)")
 
@@ -318,7 +321,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
-
 	fmt.Println("scores calculated in", time.Since(x).Seconds())
 	profile.Add("finished scores")
 
@@ -328,7 +330,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		return nil, err
 	}
 
-	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.RoTx, in.BacktestStart, in.AnchorPortfolioQuantities, backtestStartPriceMap)
+	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.AnchorPortfolioQuantities, backtestStartPriceMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate anchor portfolio weights: %w", err)
 	}
@@ -460,8 +462,6 @@ func (h BacktestHandler) transitionToTarget(
 }
 
 func (h BacktestHandler) calculateAnchorPortfolioWeights(
-	tx *sql.Tx,
-	backtestStart time.Time,
 	anchorPortfolioQuantities map[string]float64,
 	priceMap map[string]float64,
 ) (map[string]float64, error) {

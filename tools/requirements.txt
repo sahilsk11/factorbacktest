@@ -1,0 +1,9 @@
+chardet==4.0.0
+diff-cover==6.4.4
+Jinja2==3.0.3
+MarkupSafe==2.0.1
+pluggy==1.0.0
+protobuf==3.19.4
+psycopg2==2.9.6
+Pygments==2.11.2
+six==1.16.0
