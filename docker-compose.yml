@@ -14,3 +14,14 @@ services:
           - '5440:5432'
         volumes: 
           - ./postgres-data:/var/lib/postgresql/data
+    app:
+      container_name: factorbacktest_api
+      build:
+        context: ./
+        dockerfile: ./Dockerfile
+      ports:
+        - 3009:3009
+      depends_on:
+        - postgres
+      environment:
+          - ALPHA_ENV=test

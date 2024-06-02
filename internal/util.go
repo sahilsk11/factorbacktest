@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -40,10 +41,24 @@ func (t DbSecrets) ToConnectionStr() string {
 	return x
 }
 
+func NewTestDb() (*sql.DB, error) {
+	connStr := "postgresql://postgres:postgres@localhost:5440/postgres_test?sslmode=disable"
+	dbConn, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// apply migrations?
+
+	return dbConn, nil
+}
+
 func LoadSecrets() (*Secrets, error) {
 	secretsFile := "/go/src/app/secrets.json"
 	if os.Getenv("ALPHA_ENV") == "dev" {
 		secretsFile = "secrets-dev.json"
+	} else if os.Getenv("ALPHA_ENV") == "test" {
+		secretsFile = "secrets-test.json"
 	}
 	f, err := os.ReadFile(secretsFile)
 	if err != nil {

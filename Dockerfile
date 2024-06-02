@@ -6,7 +6,7 @@ WORKDIR /alpha
 
 # Copy the local package files to the container's workspace
 COPY . .
-
+COPY secrets.json /go/src/app/secrets.json
 # Install any dependencies if needed (e.g., using go get)
 RUN go get -d -v ./...
 

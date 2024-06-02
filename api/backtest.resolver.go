@@ -21,7 +21,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type backtestRequest struct {
+type BacktestRequest struct {
 	FactorOptions struct {
 		Expression string  `json:"expression"`
 		Intensity  float64 `json:"intensity"`
@@ -39,22 +39,22 @@ type backtestRequest struct {
 	UserID                    *string            `json:"userID"`
 }
 
-type backtestSnapshot struct {
-	ValuePercentChange float64                         `json:"valuePercentChange"`
-	Value              float64                         `json:"value"`
-	Date               string                          `json:"date"`
-	AssetMetrics       map[string]snapshotAssetMetrics `json:"assetMetrics"`
+type BacktestSnapshot struct {
+	ValuePercentChange float64                          `json:"valuePercentChange"`
+	Value              float64                          `json:"value"`
+	Date               string                           `json:"date"`
+	AssetMetrics       map[string]ScnapshotAssetMetrics `json:"assetMetrics"`
 }
 
-type snapshotAssetMetrics struct {
+type ScnapshotAssetMetrics struct {
 	AssetWeight                  float64  `json:"assetWeight"`
 	FactorScore                  float64  `json:"factorScore"`
 	PriceChangeTilNextResampling *float64 `json:"priceChangeTilNextResampling"`
 }
 
-type backtestResponse struct {
+type BacktestResponse struct {
 	FactorName string                      `json:"factorName"`
-	Snapshots  map[string]backtestSnapshot `json:"backtestSnapshots"`
+	Snapshots  map[string]BacktestSnapshot `json:"backtestSnapshots"`
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
@@ -76,7 +76,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 	defer tx.Rollback()
 
-	var requestBody backtestRequest
+	var requestBody BacktestRequest
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		returnErrorJson(err, c)
@@ -155,7 +155,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 	performanceProfile.Add("finished backtest")
 
-	snapshots := map[string]backtestSnapshot{}
+	snapshots := map[string]BacktestSnapshot{}
 
 	for i, r := range result {
 		pc := 0.0
@@ -181,7 +181,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 			}
 		}
 
-		snapshots[r.Date.Format("2006-01-02")] = backtestSnapshot{
+		snapshots[r.Date.Format("2006-01-02")] = BacktestSnapshot{
 			ValuePercentChange: pc,
 			Value:              r.TotalValue,
 			Date:               r.Date.Format("2006-01-02"),
@@ -189,7 +189,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		}
 	}
 
-	responseJson := backtestResponse{
+	responseJson := BacktestResponse{
 		FactorName: backtestInput.FactorOptions.Name,
 		Snapshots:  snapshots,
 	}
@@ -203,29 +203,29 @@ func joinAssetMetrics(
 	weights map[string]float64,
 	factorScores map[string]float64,
 	priceChangeTilNextResampling map[string]float64,
-) map[string]snapshotAssetMetrics {
-	assetMetrics := map[string]*snapshotAssetMetrics{}
+) map[string]ScnapshotAssetMetrics {
+	assetMetrics := map[string]*ScnapshotAssetMetrics{}
 	for k, v := range weights {
 		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &snapshotAssetMetrics{}
+			assetMetrics[k] = &ScnapshotAssetMetrics{}
 		}
 		assetMetrics[k].AssetWeight = v
 	}
 	for k, v := range factorScores {
 		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &snapshotAssetMetrics{}
+			assetMetrics[k] = &ScnapshotAssetMetrics{}
 		}
 		assetMetrics[k].FactorScore = v
 	}
 	for k, v := range priceChangeTilNextResampling {
 		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &snapshotAssetMetrics{}
+			assetMetrics[k] = &ScnapshotAssetMetrics{}
 		}
 		x := v // lol pointer math
 		assetMetrics[k].PriceChangeTilNextResampling = &x
 	}
 
-	out := map[string]snapshotAssetMetrics{}
+	out := map[string]ScnapshotAssetMetrics{}
 	for k := range assetMetrics {
 		out[k] = *assetMetrics[k]
 	}
@@ -236,7 +236,7 @@ func joinAssetMetrics(
 func saveUserStrategy(
 	db qrm.Executable,
 	usr repository.UserStrategyRepository,
-	requestBody backtestRequest,
+	requestBody BacktestRequest,
 ) error {
 	type strategyInput struct {
 		FactorName                string             `json:"factorName"`

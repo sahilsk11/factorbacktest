@@ -56,8 +56,19 @@ jobs:
     - name: Set up Database
       run: python3 tools/migrations.py up postgres_test
 
-    - name: Build
-      run: go build -v ./...
+    # - name: Build
+    #   run: go build -v ./...
+
+    - name: Build and run services with Docker Compose
+      run: docker-compose up --build -d
+
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for Postgres to be ready..."
+        until docker-compose exec postgres pg_isready -U postgres; do
+          sleep 2
+        done
+        echo "Postgres is ready!"
 
     - name: Test
       run: go test -v ./...
