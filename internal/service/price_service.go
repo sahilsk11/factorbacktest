@@ -92,9 +92,18 @@ func (h priceServiceHandler) LoadCache(tx *sql.Tx, inputs []LoadPriceCacheInput)
 			Date:   d.Date,
 		})
 	}
+
+	if len(setInputs) == 0 {
+		return &PriceCache{
+			cache:              map[string]map[string]float64{},
+			tradingDays:        []time.Time{},
+			adjPriceRepository: h.AdjPriceRepository,
+		}, nil
+	}
+
 	prices, err := h.AdjPriceRepository.ListFromSet(tx, setInputs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
 
 	cache := make(map[string]map[string]float64)

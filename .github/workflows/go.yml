@@ -10,8 +10,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-
-  container-job:
+  run-tests:
     # Containers must run in Linux based operating systems
     runs-on: ubuntu-latest
     # Docker Hub image that `container-job` executes in
@@ -53,11 +52,23 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r tools/requirements.txt
 
-    - name: Set up Database
-      run: python3 tools/migrations.py up postgres_test
-
     - name: Build
       run: go build -v ./...
 
+    - name: Apply Migrations
+      run: python3 tools/migrations.py up postgres_test
+
+    - name: Start App
+      run: export ALPHA_ENV=test && go run cmd/api/main.go &
+
+    - name: Wait for app to be ready
+      run: |
+        echo "Waiting for app to be ready..."
+        while ! curl -sSf http://localhost:3009/; do
+          echo "Waiting for app..."
+          sleep 5
+        done
+        echo "App is ready!"
+
     - name: Test
-      run: go test -v ./...
+      run: go test ./...
