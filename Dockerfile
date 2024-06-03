@@ -17,4 +17,4 @@ RUN GOARCH=amd64 GOOS=linux go build -o ./bin/ ./cmd/api
 EXPOSE 3009
 
 # Define the command to run your application when the container starts
-CMD ["/alpha/bin/api"]
+CMD ["/app/bin/api"]
