@@ -18,23 +18,23 @@ jobs:
     # container: python:3.9.12-alpine
 
     # Service containers to run with `container-job`
-    # services:
-    #   # Label used to access the service container
-    #   postgres:
-    #     # Docker Hub image
-    #     image: postgres:14-alpine
-    #     # Provide the password for postgres
-    #     env:
-    #       POSTGRES_DB: postgres_test
-    #       POSTGRES_PASSWORD: postgres
-    #     # Set health checks to wait until postgres has started
-    #     options: >-
-    #       --health-cmd pg_isready
-    #       --health-interval 10s
-    #       --health-timeout 5s
-    #       --health-retries 5
-    #     ports:
-    #       - 5440:5432
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres:14-alpine
+        # Provide the password for postgres
+        env:
+          POSTGRES_DB: postgres_test
+          POSTGRES_PASSWORD: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5440:5432
 
     steps:
     - uses: actions/checkout@v3
@@ -53,29 +53,32 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r tools/requirements.txt
 
-    # - name: Build
-    #   run: go build -v ./...
+    - name: Build
+      run: go build -v ./...
 
-    - name: Build and Run Database
-      run: |
-        mkdir /home/runner/work/factorbacktest/factorbacktest/postgres-data
-        docker-compose up -d postgres
-
-    - name: Wait for DB to be ready
-      run: |
-        while ! docker exec factorbacktest_test_db pg_isready -U user -d postgres_test; do
-          echo "Waiting for database to be ready..."
-          sleep 2
-        done
-
-    # - name: Wait for app to be ready
+    # - name: Build and Run Database
     #   run: |
-    #     echo "Waiting for app to be ready..."
-    #     while ! curl -sSf http://localhost:3009/; do
-    #       echo "Waiting for app..."
-    #       sleep 5
+    #     mkdir /home/runner/work/factorbacktest/factorbacktest/postgres-data
+    #     docker-compose up -d postgres
+
+    # - name: Wait for DB to be ready
+    #   run: |
+    #     while ! docker exec factorbacktest_test_db pg_isready -U user -d postgres_test; do
+    #       echo "Waiting for database to be ready..."
+    #       sleep 2
     #     done
-    #     echo "App is ready!"
+
+    - name: Start App
+      run: go run cmd/api/main.go &
+
+    - name: Wait for app to be ready
+      run: |
+        echo "Waiting for app to be ready..."
+        while ! curl -sSf http://localhost:3009/; do
+          echo "Waiting for app..."
+          sleep 5
+        done
+        echo "App is ready!"
 
     - name: Apply Migrations
       run: python3 tools/migrations.py up postgres_test
