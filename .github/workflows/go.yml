@@ -53,16 +53,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r tools/requirements.txt
 
-    - name: Set up Database
-      run: python3 tools/migrations.py up postgres_test
-
-    # - name: Build
-    #   run: go build -v ./...
-
     - name: Build and run services with Docker Compose
-      run: |
-        lsof -i :3009
-        docker-compose up -d app
+      run: docker-compose up -d app
 
     - name: Wait for app to be ready
       run: |
@@ -72,6 +64,14 @@ jobs:
           sleep 5
         done
         echo "App is ready!"
+
+    - name: Set up Database
+      run: python3 tools/migrations.py up postgres_test
+
+    # - name: Build
+    #   run: go build -v ./...
+
+    
 
     - name: Test
       run: go test -v ./...
