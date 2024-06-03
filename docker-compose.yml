@@ -37,7 +37,8 @@ services:
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: postgres
         ALPHA_ENV: test
-        IS_DOCKER: true
+        IS_DOCKER: "true"
       depends_on:
+        - app
         - postgres
-      command: go test -v ./...
+      command: python3 tools/migrations.py up postgres_test && go test -v ./...
