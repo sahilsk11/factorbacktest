@@ -56,8 +56,8 @@ jobs:
     - name: Set up Database
       run: python3 tools/migrations.py up postgres_test
 
-    - name: Build
-      run: go build -v ./...
+    # - name: Build
+    #   run: go build -v ./...
 
     - name: Build and run services with Docker Compose
       run: docker-compose up -d app
