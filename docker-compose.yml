@@ -22,7 +22,7 @@ services:
         dockerfile: ./Dockerfile
       ports:
         - 3009:3009
-      depends_on:
-        - postgres
+      # depends_on:
+      #   - postgres
       environment:
           - ALPHA_ENV=test
