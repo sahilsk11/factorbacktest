@@ -58,7 +58,7 @@ jobs:
 
     - name: Build and Run Database
       run: |
-        mkdir postgres-data
+        mkdir /home/runner/work/factorbacktest/factorbacktest/postgres-data
         docker-compose up -d postgres
 
     - name: Wait for DB to be ready
