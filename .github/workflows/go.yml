@@ -10,8 +10,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-
-  container-job:
+  run-tests:
     # Containers must run in Linux based operating systems
     runs-on: ubuntu-latest
     # Docker Hub image that `container-job` executes in
@@ -53,20 +52,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r tools/requirements.txt
 
-    # - name: Build
-    #   run: go build -v ./...
-
-    # - name: Build and Run Database
-    #   run: |
-    #     mkdir /home/runner/work/factorbacktest/factorbacktest/postgres-data
-    #     docker-compose up -d postgres
-
-    # - name: Wait for DB to be ready
-    #   run: |
-    #     while ! docker exec factorbacktest_test_db pg_isready -U user -d postgres_test; do
-    #       echo "Waiting for database to be ready..."
-    #       sleep 2
-    #     done
+    - name: Build
+      run: go build -v ./...
 
     - name: Apply Migrations
       run: python3 tools/migrations.py up postgres_test
