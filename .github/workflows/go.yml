@@ -37,6 +37,11 @@ jobs:
           - 5440:5432
 
     steps:
+    - name: Cleanup Docker
+      run: |
+        docker-compose down -v
+        docker system prune -f
+        
     - uses: actions/checkout@v3
 
     - name: Set up Go
