@@ -88,7 +88,7 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	body := bytes.NewReader(payloadBytes)
 
 	// Create the POST request
-	req, err := http.NewRequest(method, "http://localhost:3009/"+route, body)
+	req, err := http.NewRequest(method, "http://app:3009/"+route, body)
 	if err != nil {
 		return err
 	}
@@ -179,8 +179,6 @@ func Test_backtestFlow(t *testing.T) {
 	err := hitEndpoint("backtest", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
-
-	fmt.Println(response)
 
 	require.Less(t, elapsed, int64(25e3))
 }

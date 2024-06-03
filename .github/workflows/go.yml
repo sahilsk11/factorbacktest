@@ -79,4 +79,4 @@ jobs:
       run: python3 tools/migrations.py up postgres_test
 
     - name: Test
-      run: docker-compose run --rm test
+      run: docker-compose up --build test

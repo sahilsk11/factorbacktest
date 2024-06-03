@@ -28,6 +28,7 @@ services:
           - ALPHA_ENV=test
 
     test:
+      container_name: factorbacktest_test
       build:
         context: .
         dockerfile: Dockerfile
@@ -35,7 +36,8 @@ services:
         POSTGRES_DB: postgres_test
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: postgres
+        ALPHA_ENV: test
+        IS_DOCKER: true
       depends_on:
         - postgres
-        - app
       command: go test -v ./...
