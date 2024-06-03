@@ -78,7 +78,7 @@ jobs:
     # - name: Build
     #   run: go build -v ./...
 
-    
-
     - name: Test
-      run: go test -v $(go list ./... | grep -v '/home/runner/work/factorbacktest/factorbacktest/postgres-data')
+      run: |
+        go list ./...
+        go test -v $(go list ./... | grep -v 'postgres-data')
