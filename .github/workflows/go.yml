@@ -57,7 +57,9 @@ jobs:
     #   run: go build -v ./...
 
     - name: Build and Run Database
-      run: docker-compose up -d postgres
+      run: |
+        mkdir postgres-data
+        docker-compose up -d postgres
 
     - name: Wait for DB to be ready
       run: |
