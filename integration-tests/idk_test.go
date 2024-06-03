@@ -88,7 +88,7 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	body := bytes.NewReader(payloadBytes)
 
 	// Create the POST request
-	req, err := http.NewRequest(method, "http://localhost:3009/"+route, body)
+	req, err := http.NewRequest(method, "http://host.docker.internal:3009/"+route, body)
 	if err != nil {
 		return err
 	}
