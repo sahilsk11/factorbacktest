@@ -10,6 +10,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"testing"
@@ -17,6 +18,8 @@ import (
 
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/gocarina/gocsv"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
@@ -122,11 +125,10 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	if err != nil {
 		return err
 	}
+
 	if errResponse.Error != "" {
 		return fmt.Errorf("failed with response body: %s", string(responseBody))
 	}
-
-	fmt.Println(string(responseBody))
 
 	// Unmarshal the JSON response into the struct
 	err = json.Unmarshal(responseBody, target)
@@ -163,7 +165,8 @@ func Test_backtestFlow(t *testing.T) {
 	/*
 		{"factorOptions":{"expression":"pricePercentChange(\n  nDaysAgo(7),\n  currentDate\n) ","name":"7_day_momentum","intensity":0.75},"backtestStart":"2024-04-07","backtestEnd":"2024-06-02","samplingIntervalUnit":"weekly","startCash":10000,"anchorPortfolioQuantities":{"AAPL":10,"MSFT":15,"GOOGL":8},"assetSelectionMode":"NUM_SYMBOLS","numSymbols":10,"userID":"84c1c4de-2dbd-4c0e-84d5-830894d01b68"}*/
 
-	numSymbols := 10
+	numSymbols := 3
+	userID := uuid.NewString()
 	startTime := time.Now()
 	request := api.BacktestRequest{
 		FactorOptions: struct {
@@ -175,21 +178,57 @@ func Test_backtestFlow(t *testing.T) {
 			Intensity:  0.75,
 			Name:       "7_day_momentum",
 		},
-		BacktestStart:             "2020-01-01",
-		BacktestEnd:               "2020-01-31",
-		SamplingIntervalUnit:      "weekly",
-		AssetSelectionMode:        "NUM_SYMBOLS",
-		StartCash:                 10000,
-		AnchorPortfolioQuantities: map[string]float64{},
-		NumSymbols:                &numSymbols,
-		UserID:                    nil,
+		BacktestStart:        "2020-01-10",
+		BacktestEnd:          "2020-12-31",
+		SamplingIntervalUnit: "weekly",
+		AssetSelectionMode:   "NUM_SYMBOLS",
+		StartCash:            10000,
+		AnchorPortfolioQuantities: map[string]float64{
+			"AAPL":  10,
+			"MSFT":  10,
+			"GOOGL": 8,
+		},
+		NumSymbols: &numSymbols,
+		UserID:     &userID,
 	}
 	response := api.BacktestResponse{}
 	err = hitEndpoint("backtest", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 
-	// TODO - verify accuracy of result
+	require.Equal(t, 51, len(response.Snapshots))
+	require.Equal(
+		t,
+		"",
+		cmp.Diff(
+			api.BacktestSnapshot{
+				ValuePercentChange: 33.6989043,
+				Value:              13369.89043,
+				Date:               "2020-12-29",
+				AssetMetrics: map[string]api.ScnapshotAssetMetrics{
+					"AAPL": {
+						AssetWeight:                  0.1253766234821042,
+						FactorScore:                  2.2169708025194654,
+						PriceChangeTilNextResampling: nil,
+					},
+					"GOOG": {
+						AssetWeight:                  0.00033333333333335213,
+						FactorScore:                  2.0025859914157165,
+						PriceChangeTilNextResampling: nil,
+					},
+					"META": {
+						AssetWeight:                  0.8742900431845622,
+						FactorScore:                  3.500971422024536,
+						PriceChangeTilNextResampling: nil,
+					},
+				},
+			},
+			response.Snapshots["2020-12-29"],
+			cmp.Comparer(func(i, j float64) bool {
+				return math.Abs(i-j) < 1e-4
+			}),
+		),
+	)
 
 	// 1800 today
 	require.Less(t, elapsed, int64(2500))
