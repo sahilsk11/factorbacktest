@@ -61,10 +61,13 @@ jobs:
 
     - name: Cleanup Docker
       run: |
+        lsof -i :3009
         docker-compose down -v
 
     - name: Build and run services with Docker Compose
-      run: docker-compose up -d app
+      run: |
+        lsof -i :3009
+        docker-compose up -d app
 
     - name: Wait for app to be ready
       run: |
