@@ -18,23 +18,23 @@ jobs:
     # container: python:3.9.12-alpine
 
     # Service containers to run with `container-job`
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres:14-alpine
-        # Provide the password for postgres
-        env:
-          POSTGRES_DB: postgres_test
-          POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5440:5432
+    # services:
+    #   # Label used to access the service container
+    #   postgres:
+    #     # Docker Hub image
+    #     image: postgres:14-alpine
+    #     # Provide the password for postgres
+    #     env:
+    #       POSTGRES_DB: postgres_test
+    #       POSTGRES_PASSWORD: postgres
+    #     # Set health checks to wait until postgres has started
+    #     options: >-
+    #       --health-cmd pg_isready
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+    #     ports:
+    #       - 5440:5432
 
     steps:
     - uses: actions/checkout@v3
@@ -53,11 +53,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r tools/requirements.txt
 
-    - name: Build
-      run: go build -v ./...
+    # - name: Build
+    #   run: go build -v ./...
 
-    - name: Build and run services with Docker Compose
-      run: docker-compose up -d app
+    # - name: Build and run services with Docker Compose
+    #   run: docker-compose up -d app
 
     # - name: Wait for DB to be ready
     #   run: |
@@ -66,17 +66,17 @@ jobs:
     #       sleep 2
     #     done
 
-    - name: Wait for app to be ready
-      run: |
-        echo "Waiting for app to be ready..."
-        while ! curl -sSf http://localhost:3009/; do
-          echo "Waiting for app..."
-          sleep 5
-        done
-        echo "App is ready!"
+    # - name: Wait for app to be ready
+    #   run: |
+    #     echo "Waiting for app to be ready..."
+    #     while ! curl -sSf http://localhost:3009/; do
+    #       echo "Waiting for app..."
+    #       sleep 5
+    #     done
+    #     echo "App is ready!"
 
     - name: Set up Database
       run: python3 tools/migrations.py up postgres_test
 
     - name: Test
-      run: go test -v ./...
+      run: docker-compose run --rm test
