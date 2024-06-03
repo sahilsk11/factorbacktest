@@ -187,5 +187,6 @@ func Test_backtestFlow(t *testing.T) {
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 
-	require.Less(t, elapsed, int64(25e3))
+	// 1800 today
+	require.Less(t, elapsed, int64(2500))
 }
