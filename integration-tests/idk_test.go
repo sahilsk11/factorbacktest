@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/gocarina/gocsv"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
@@ -148,12 +149,14 @@ func Test_backtestFlow(t *testing.T) {
 	err = seedPrices(tx)
 	require.NoError(t, err)
 
-	// fml
 	err = tx.Commit()
 	require.NoError(t, err)
-	// defer func() {
-	// 	q1 := table.
-	// }
+	defer func() {
+		_, err = table.Universe.DELETE().WHERE(postgres.Bool(true)).Exec(db)
+		require.NoError(t, err)
+		_, err = table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db)
+		require.NoError(t, err)
+	}()
 
 	/*
 		{"factorOptions":{"expression":"pricePercentChange(\n  nDaysAgo(7),\n  currentDate\n) ","name":"7_day_momentum","intensity":0.75},"backtestStart":"2024-04-07","backtestEnd":"2024-06-02","samplingIntervalUnit":"weekly","startCash":10000,"anchorPortfolioQuantities":{"AAPL":10,"MSFT":15,"GOOGL":8},"assetSelectionMode":"NUM_SYMBOLS","numSymbols":10,"userID":"84c1c4de-2dbd-4c0e-84d5-830894d01b68"}*/
