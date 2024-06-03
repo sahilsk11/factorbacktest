@@ -1,13 +1,13 @@
 version: '3.7'
 services:
     postgres:
-        container_name: factorbacktest_test_db
+        container_name: factorbacktest_db
         image: postgres:14-alpine
         restart: always
         environment:
           - POSTGRES_USER=postgres
           - POSTGRES_PASSWORD=postgres
-          - POSTGRES_DB=postgres_test
+          - POSTGRES_DB=postgres
         logging:
           options:
             max-size: 10m
@@ -16,17 +16,17 @@ services:
           - '5440:5432'
         volumes: 
           - ./postgres-data:/var/lib/postgresql/data
-    app:
-      container_name: factorbacktest_api
-      build:
-        context: ./
-        dockerfile: ./Dockerfile
-      ports:
-        - 3009:3009
-      depends_on:
-        - postgres
-      environment:
-          - ALPHA_ENV=test
+    # app:
+    #   container_name: factorbacktest_api
+    #   build:
+    #     context: ./
+    #     dockerfile: ./Dockerfile
+    #   ports:
+    #     - 3009:3009
+    #   depends_on:
+    #     - postgres
+    #   environment:
+    #       - ALPHA_ENV=test
 
     # test:
     #   container_name: factorbacktest_test

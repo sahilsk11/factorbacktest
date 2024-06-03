@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/api"
+	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
@@ -135,21 +136,24 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 
 func Test_backtestFlow(t *testing.T) {
 	// setup db
-	// db, err := internal.NewTestDb()
-	// require.NoError(t, err)
-	// tx, err := db.Begin()
-	// require.NoError(t, err)
-	// defer tx.Rollback()
+	db, err := internal.NewTestDb()
+	require.NoError(t, err)
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	defer tx.Rollback()
 
-	// // seed data
-	// err = seedUniverse(tx)
-	// require.NoError(t, err)
-	// err = seedPrices(tx)
-	// require.NoError(t, err)
+	// seed data
+	err = seedUniverse(tx)
+	require.NoError(t, err)
+	err = seedPrices(tx)
+	require.NoError(t, err)
 
-	// // fml
-	// err = tx.Commit()
-	// require.NoError(t, err)
+	// fml
+	err = tx.Commit()
+	require.NoError(t, err)
+	// defer func() {
+	// 	q1 := table.
+	// }
 
 	/*
 		{"factorOptions":{"expression":"pricePercentChange(\n  nDaysAgo(7),\n  currentDate\n) ","name":"7_day_momentum","intensity":0.75},"backtestStart":"2024-04-07","backtestEnd":"2024-06-02","samplingIntervalUnit":"weekly","startCash":10000,"anchorPortfolioQuantities":{"AAPL":10,"MSFT":15,"GOOGL":8},"assetSelectionMode":"NUM_SYMBOLS","numSymbols":10,"userID":"84c1c4de-2dbd-4c0e-84d5-830894d01b68"}*/
@@ -176,7 +180,7 @@ func Test_backtestFlow(t *testing.T) {
 		UserID:                    nil,
 	}
 	response := api.BacktestResponse{}
-	err := hitEndpoint("backtest", http.MethodPost, request, &response)
+	err = hitEndpoint("backtest", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 
