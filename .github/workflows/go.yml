@@ -18,23 +18,23 @@ jobs:
     # container: python:3.9.12-alpine
 
     # Service containers to run with `container-job`
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres:14-alpine
-        # Provide the password for postgres
-        env:
-          POSTGRES_DB: postgres_test
-          POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5440:5432
+    # services:
+    #   # Label used to access the service container
+    #   postgres:
+    #     # Docker Hub image
+    #     image: postgres:14-alpine
+    #     # Provide the password for postgres
+    #     env:
+    #       POSTGRES_DB: postgres_test
+    #       POSTGRES_PASSWORD: postgres
+    #     # Set health checks to wait until postgres has started
+    #     options: >-
+    #       --health-cmd pg_isready
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+    #     ports:
+    #       - 5440:5432
 
     steps:
     - uses: actions/checkout@v3
@@ -58,11 +58,6 @@ jobs:
 
     # - name: Build
     #   run: go build -v ./...
-
-    - name: Cleanup Docker
-      run: |
-        lsof -i :3009
-        docker-compose down -v
 
     - name: Build and run services with Docker Compose
       run: |
