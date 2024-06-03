@@ -56,6 +56,13 @@ jobs:
     - name: Build and run services with Docker Compose
       run: docker-compose up -d app
 
+    - name: Wait for DB to be ready
+      run: |
+        while ! docker exec factorbacktest_test_db pg_isready -U user -d postgres_test; do
+          echo "Waiting for database to be ready..."
+          sleep 2
+        done
+
     - name: Wait for app to be ready
       run: |
         echo "Waiting for app to be ready..."
