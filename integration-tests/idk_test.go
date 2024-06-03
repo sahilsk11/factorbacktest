@@ -126,6 +126,8 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 		return fmt.Errorf("failed with response body: %s", string(responseBody))
 	}
 
+	fmt.Println(string(responseBody))
+
 	// Unmarshal the JSON response into the struct
 	err = json.Unmarshal(responseBody, target)
 	if err != nil {
@@ -186,6 +188,8 @@ func Test_backtestFlow(t *testing.T) {
 	err = hitEndpoint("backtest", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
+
+	// TODO - verify accuracy of result
 
 	// 1800 today
 	require.Less(t, elapsed, int64(2500))

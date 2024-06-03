@@ -57,7 +57,6 @@ func IngestFundamentals(
 	if err != nil {
 		return err
 	}
-	fmt.Println(len(models))
 
 	err = afRepository.Add(tx, models)
 	if err != nil {
