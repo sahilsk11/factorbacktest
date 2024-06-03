@@ -308,9 +308,6 @@ func (h adjustedPriceRepositoryHandler) ListFromSet(tx *sql.Tx, set []ListFromSe
 		)
 	}
 
-	fmt.Println(len(expressions))
-	fmt.Println(expressions)
-
 	if len(expressions) == 0 {
 		return nil, fmt.Errorf("no prices to include")
 	}

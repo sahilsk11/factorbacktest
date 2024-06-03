@@ -48,8 +48,6 @@ func NewTestDb() (*sql.DB, error) {
 		return nil, err
 	}
 
-	// apply migrations?
-
 	return dbConn, nil
 }
 
