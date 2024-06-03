@@ -71,7 +71,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		returnErrorJson(err, c)
+		returnErrorJson(fmt.Errorf("failed to create transaction: %w", err), c)
 		return
 	}
 	defer tx.Rollback()
