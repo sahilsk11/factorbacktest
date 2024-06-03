@@ -5,7 +5,7 @@ FROM golang:1.20
 WORKDIR /app
 
 # Copy the local package files to the container's workspace
-COPY --exclude=postgres-data --exclude=node_modules . . 
+COPY . . 
 COPY secrets-test.json /go/src/app/secrets-test.json
 # Install any dependencies if needed (e.g., using go get)
 RUN go get -d -v ./...

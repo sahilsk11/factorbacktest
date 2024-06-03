@@ -81,4 +81,4 @@ jobs:
     
 
     - name: Test
-      run: go test -v ./...
+      run: go test -v $(go list ./... | grep -v /postgres-data)
