@@ -1,24 +1,24 @@
 package api
 
 import (
-	"context"
+	"factorbacktest/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 func (m ApiHandler) updatePrices(c *gin.Context) {
-	universe, err := m.BacktestHandler.UniverseRepository.List(m.Db)
-	universeSymbols := []string{}
-	for _, u := range universe {
-		universeSymbols = append(universeSymbols, u.Symbol)
-	}
-
+	tx, err := m.Db.Begin()
 	if err != nil {
 		returnErrorJson(err, c)
 		return
 	}
 
-	err = m.PriceService.UpdatePricesIfNeeded(context.Background(), universeSymbols)
+	err = service.UpdateUniversePrices(tx, m.BacktestHandler.UniverseRepository, m.PriceRepository)
+	if err != nil {
+		returnErrorJson(err, c)
+		return
+	}
+	err = tx.Commit()
 	if err != nil {
 		returnErrorJson(err, c)
 		return

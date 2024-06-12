@@ -222,6 +222,9 @@ func UpdateUniversePrices(
 	if len(assets) == 0 {
 		return fmt.Errorf("no assets found in universe")
 	}
+	assets = append(assets, model.Universe{
+		Symbol: "SPY",
+	})
 
 	errors := []error{}
 

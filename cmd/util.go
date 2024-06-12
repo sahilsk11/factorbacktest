@@ -63,7 +63,9 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		GptRepository:                gptRepository,
 		ApiRequestRepository:         repository.ApiRequestRepositoryHandler{},
 		LatencencyTrackingRepository: repository.NewLatencyTrackingRepository(dbConn),
+		UniverseRepository:           repository.UniverseRepositoryHandler{},
 		PriceService:                 priceService,
+		PriceRepository:              repository.NewAdjustedPriceRepository(),
 	}
 
 	return apiHandler, nil

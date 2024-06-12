@@ -287,12 +287,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
-	err = h.PriceService.UpdatePricesIfNeeded(ctx, universeSymbols)
-	if err != nil {
-		return nil, err
-	}
-	profile.Add("finished updating prices (if needed)")
-
 	// all trading days within the selected window that we need to run a calculation on
 	// this will only contain days that we actually have data for, so if data is old, it
 	// will not include recent days
