@@ -39,22 +39,9 @@ type BacktestRequest struct {
 	UserID                    *string            `json:"userID"`
 }
 
-type BacktestSnapshot struct {
-	ValuePercentChange float64                          `json:"valuePercentChange"`
-	Value              float64                          `json:"value"`
-	Date               string                           `json:"date"`
-	AssetMetrics       map[string]ScnapshotAssetMetrics `json:"assetMetrics"`
-}
-
-type ScnapshotAssetMetrics struct {
-	AssetWeight                  float64  `json:"assetWeight"`
-	FactorScore                  float64  `json:"factorScore"`
-	PriceChangeTilNextResampling *float64 `json:"priceChangeTilNextResampling"`
-}
-
 type BacktestResponse struct {
-	FactorName string                      `json:"factorName"`
-	Snapshots  map[string]BacktestSnapshot `json:"backtestSnapshots"`
+	FactorName string                          `json:"factorName"`
+	Snapshots  map[string]app.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
@@ -179,43 +166,9 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 	performanceProfile.Add("finished backtest")
 
-	snapshots := map[string]BacktestSnapshot{}
-
-	for i, r := range result {
-		pc := 0.0
-		if i != 0 {
-			pc = 100 * (r.TotalValue - result[0].TotalValue) / result[0].TotalValue
-		}
-		priceChangeTilNextResampling := map[string]float64{}
-
-		if i < len(result)-1 {
-			nextResamplingDate := result[i+1].Date
-			for symbol := range r.AssetWeights {
-				startPrice, err := h.BacktestHandler.PriceRepository.Get(tx, symbol, r.Date)
-				if err != nil {
-					returnErrorJson(fmt.Errorf("failed to get price: %w", err), c)
-					return
-				}
-				endPrice, err := h.BacktestHandler.PriceRepository.Get(tx, symbol, nextResamplingDate)
-				if err != nil {
-					returnErrorJson(fmt.Errorf("failed to get price: %w", err), c)
-					return
-				}
-				priceChangeTilNextResampling[symbol] = 100 * (endPrice - startPrice) / startPrice
-			}
-		}
-
-		snapshots[r.Date.Format("2006-01-02")] = BacktestSnapshot{
-			ValuePercentChange: pc,
-			Value:              r.TotalValue,
-			Date:               r.Date.Format("2006-01-02"),
-			AssetMetrics:       joinAssetMetrics(r.AssetWeights, r.FactorScores, priceChangeTilNextResampling),
-		}
-	}
-
 	responseJson := BacktestResponse{
 		FactorName: backtestInput.FactorOptions.Name,
-		Snapshots:  snapshots,
+		Snapshots:  result.Snapshots,
 	}
 
 	performanceProfile.Add("finished formatting")
@@ -224,40 +177,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	h.LatencencyTrackingRepository.Add(*performanceProfile, requestId)
 
 	c.JSON(200, responseJson)
-}
-
-func joinAssetMetrics(
-	weights map[string]float64,
-	factorScores map[string]float64,
-	priceChangeTilNextResampling map[string]float64,
-) map[string]ScnapshotAssetMetrics {
-	assetMetrics := map[string]*ScnapshotAssetMetrics{}
-	for k, v := range weights {
-		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &ScnapshotAssetMetrics{}
-		}
-		assetMetrics[k].AssetWeight = v
-	}
-	for k, v := range factorScores {
-		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &ScnapshotAssetMetrics{}
-		}
-		assetMetrics[k].FactorScore = v
-	}
-	for k, v := range priceChangeTilNextResampling {
-		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &ScnapshotAssetMetrics{}
-		}
-		x := v // lol pointer math
-		assetMetrics[k].PriceChangeTilNextResampling = &x
-	}
-
-	out := map[string]ScnapshotAssetMetrics{}
-	for k := range assetMetrics {
-		out[k] = *assetMetrics[k]
-	}
-
-	return out
 }
 
 func saveUserStrategy(
