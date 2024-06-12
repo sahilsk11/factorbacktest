@@ -58,7 +58,7 @@ type BacktestResponse struct {
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
-	performanceProfile := &internal.PerformanceProfile{}
+	performanceProfile := &domain.PerformanceProfile{}
 	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
 	performanceProfile.Add("initialized")
 	defer func() { performanceProfile.Print() }()
@@ -114,11 +114,23 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
+	var requestId *uuid.UUID
+	requestIDAny, ok := c.Get("requestID")
+	if ok {
+		requestIDStr, ok := requestIDAny.(string)
+		if ok {
+			id, err := uuid.Parse(requestIDStr)
+			if err == nil {
+				requestId = &id
+			}
+		}
+	}
 	// ensure the user input is valid
 	err = saveUserStrategy(
 		h.Db,
 		h.UserStrategyRepository,
 		requestBody,
+		requestId,
 	)
 	if err != nil {
 		returnErrorJson(err, c)
@@ -201,6 +213,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 
 	performanceProfile.Add("finished formatting")
 
+	h.LatencencyTrackingRepository.Add(*performanceProfile, requestId)
+
 	c.JSON(200, responseJson)
 }
 
@@ -242,6 +256,7 @@ func saveUserStrategy(
 	db qrm.Executable,
 	usr repository.UserStrategyRepository,
 	requestBody BacktestRequest,
+	requestId *uuid.UUID,
 ) error {
 	type strategyInput struct {
 		FactorName                string             `json:"factorName"`
@@ -293,6 +308,7 @@ func saveUserStrategy(
 		StrategyInput:        string(siBytes),
 		StrategyInputHash:    siHash,
 		FactorExpressionHash: expressionHash,
+		RequestID:            requestId,
 	}
 
 	if requestBody.UserID != nil {

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+
 	"fmt"
 	"math"
 	"sort"

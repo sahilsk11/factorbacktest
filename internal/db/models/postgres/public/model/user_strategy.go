@@ -19,4 +19,5 @@ type UserStrategy struct {
 	FactorExpressionHash string
 	StrategyInputHash    string
 	CreatedAt            time.Time
+	RequestID            *uuid.UUID
 }

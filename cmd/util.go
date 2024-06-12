@@ -55,11 +55,12 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 			Db:                 dbConn,
 			PriceService:       service.NewPriceService(dbConn, priceRepository),
 		},
-		UserStrategyRepository: repository.UniverseRepositoryHandler{},
-		ContactRepository:      repository.ContactRepositoryHandler{},
-		Db:                     dbConn,
-		GptRepository:          gptRepository,
-		ApiRequestRepository:   repository.ApiRequestRepositoryHandler{},
+		UserStrategyRepository:       repository.UniverseRepositoryHandler{},
+		ContactRepository:            repository.ContactRepositoryHandler{},
+		Db:                           dbConn,
+		GptRepository:                gptRepository,
+		ApiRequestRepository:         repository.ApiRequestRepositoryHandler{},
+		LatencencyTrackingRepository: repository.NewLatencyTrackingRepository(dbConn),
 	}
 
 	return apiHandler, nil
