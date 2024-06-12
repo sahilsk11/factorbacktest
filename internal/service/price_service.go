@@ -125,6 +125,7 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 
 // UpdatePricesIfNeeded determines if the prices we currently have stored are up to date
 // and fetches + updates prices if they are not
+// Currently not used, since we rely on UpdateUniversePrices
 // TODO - handle stock splits
 func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, symbols []string) error {
 	// need a better way of handling this too
