@@ -21,11 +21,7 @@ export default function StatsFooter({ userID }: { userID: string }) {
   }
 
   useEffect(() => {
-    if (userID !== "") {
-      const timer = setTimeout(() => getStats(), 5000)
-      getStats()
-      return () => clearTimeout(timer);
-    }
+    getStats();
   }, [userID]);
 
   return <>
