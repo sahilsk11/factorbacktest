@@ -19,6 +19,7 @@ type latencyTrackingTable struct {
 	//Columns
 	LatencyTrackingID postgres.ColumnString
 	ProcessingTimes   postgres.ColumnString
+	TotalProcessingMs postgres.ColumnInteger
 	RequestID         postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
@@ -52,9 +53,10 @@ func newLatencyTrackingTableImpl(schemaName, tableName, alias string) latencyTra
 	var (
 		LatencyTrackingIDColumn = postgres.StringColumn("latency_tracking_id")
 		ProcessingTimesColumn   = postgres.StringColumn("processing_times")
+		TotalProcessingMsColumn = postgres.IntegerColumn("total_processing_ms")
 		RequestIDColumn         = postgres.StringColumn("request_id")
-		allColumns              = postgres.ColumnList{LatencyTrackingIDColumn, ProcessingTimesColumn, RequestIDColumn}
-		mutableColumns          = postgres.ColumnList{ProcessingTimesColumn, RequestIDColumn}
+		allColumns              = postgres.ColumnList{LatencyTrackingIDColumn, ProcessingTimesColumn, TotalProcessingMsColumn, RequestIDColumn}
+		mutableColumns          = postgres.ColumnList{ProcessingTimesColumn, TotalProcessingMsColumn, RequestIDColumn}
 	)
 
 	return latencyTrackingTable{
@@ -63,6 +65,7 @@ func newLatencyTrackingTableImpl(schemaName, tableName, alias string) latencyTra
 		//Columns
 		LatencyTrackingID: LatencyTrackingIDColumn,
 		ProcessingTimes:   ProcessingTimesColumn,
+		TotalProcessingMs: TotalProcessingMsColumn,
 		RequestID:         RequestIDColumn,
 
 		AllColumns:     allColumns,

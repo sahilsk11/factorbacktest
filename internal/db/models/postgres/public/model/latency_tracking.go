@@ -14,5 +14,6 @@ import (
 type LatencyTracking struct {
 	LatencyTrackingID uuid.UUID `sql:"primary_key"`
 	ProcessingTimes   string
+	TotalProcessingMs int64
 	RequestID         *uuid.UUID
 }

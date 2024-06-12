@@ -58,7 +58,7 @@ type BacktestResponse struct {
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
-	performanceProfile := &domain.PerformanceProfile{}
+	performanceProfile := domain.NewPeformanceProfile()
 	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
 	performanceProfile.Add("initialized")
 	defer func() {

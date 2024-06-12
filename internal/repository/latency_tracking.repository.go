@@ -29,8 +29,9 @@ func (h latencyTrackingRepositoryHandler) Add(lt domain.PerformanceProfile, requ
 	}
 
 	m := model.LatencyTracking{
-		ProcessingTimes: string(bytes),
-		RequestID:       requestID,
+		ProcessingTimes:   string(bytes),
+		RequestID:         requestID,
+		TotalProcessingMs: lt.TotalMs,
 	}
 	query := table.LatencyTracking.INSERT(table.LatencyTracking.MutableColumns).MODEL(m)
 
