@@ -50,7 +50,7 @@ type AdjustedPriceRepository interface {
 	GetMany(*sql.Tx, []string, time.Time) (map[string]float64, error)
 	List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error)
-	LatestPrices(tx *sql.Tx, symbols []string) ([]domain.AssetPrice, error)
+	LatestPrices(tx qrm.Queryable, symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
 	ListFromSet(tx qrm.Queryable, set []ListFromSetInput) ([]domain.AssetPrice, error)
@@ -251,7 +251,7 @@ func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end 
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) LatestPrices(tx *sql.Tx, symbols []string) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) LatestPrices(tx qrm.Queryable, symbols []string) ([]domain.AssetPrice, error) {
 	out := []domain.AssetPrice{}
 	for _, s := range symbols {
 		query := table.AdjustedPrice.SELECT(table.AdjustedPrice.AllColumns).

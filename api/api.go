@@ -8,6 +8,7 @@ import (
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/service"
 	"fmt"
 	"io"
 	"log"
@@ -28,6 +29,9 @@ type ApiHandler struct {
 	GptRepository                repository.GptRepository
 	ApiRequestRepository         repository.ApiRequestRepository
 	LatencencyTrackingRepository repository.LatencyTrackingRepository
+	PriceService                 service.PriceService
+	UniverseRepository           repository.UniverseRepository
+	PriceRepository              repository.AdjustedPriceRepository
 }
 
 func int64Ptr(i int64) *int64 {
@@ -65,6 +69,7 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 	})
 
 	router.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
+	router.POST("/updatePrices", m.updatePrices)
 
 	return router
 }
