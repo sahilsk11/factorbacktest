@@ -112,7 +112,7 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.
 						input.Date,
 					)
 					if err != nil {
-						err = fmt.Errorf("failed to compute factor score for %s on %s: %w", input.Symbol, input.Date.Format("2006-01-02"), err)
+						err = fmt.Errorf("failed to compute factor score for %s on %s: %w", input.Symbol, input.Date.Format(time.DateOnly), err)
 					}
 					resultCh <- result{
 						ExpressionResult: res,
@@ -245,6 +245,19 @@ type BacktestSample struct {
 	PriceChangeTilNextResampling map[string]float64
 }
 
+type BacktestSnapshot struct {
+	ValuePercentChange float64                          `json:"valuePercentChange"`
+	Value              float64                          `json:"value"`
+	Date               string                           `json:"date"`
+	AssetMetrics       map[string]ScnapshotAssetMetrics `json:"assetMetrics"`
+}
+
+type ScnapshotAssetMetrics struct {
+	AssetWeight                  float64  `json:"assetWeight"`
+	FactorScore                  float64  `json:"factorScore"`
+	PriceChangeTilNextResampling *float64 `json:"priceChangeTilNextResampling"`
+}
+
 type FactorOptions struct {
 	Expression string
 	Intensity  float64
@@ -263,7 +276,12 @@ type BacktestInput struct {
 	AssetOptions              internal.AssetSelectionOptions
 }
 
-func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]BacktestSample, error) {
+type BacktestResponse struct {
+	BacktestSamples []BacktestSample
+	Snapshots       map[string]BacktestSnapshot
+}
+
+func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*BacktestResponse, error) {
 	profile := domain.GetPerformanceProfile(ctx) // used for profiling API performance
 
 	universe, err := h.UniverseRepository.List(in.RoTx)
@@ -386,7 +404,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 			// we couldn't rebalance here
 			backtestErrors = append(backtestErrors, err)
 			continue
-			// return nil, fmt.Errorf("failed to compute target portfolio in backtest on %s: %w", t.Format("2006-01-02"), err)
+			// return nil, fmt.Errorf("failed to compute target portfolio in backtest on %s: %w", t.Format(time.DateOnly), err)
 		}
 		trades, err := h.transitionToTarget(
 			currentPortfolio,
@@ -417,7 +435,91 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
 	}
 
-	return out, nil
+	snapshots, err := toSnapshots(out, priceCache, h.Db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute snapshots: %w", err)
+	}
+
+	return &BacktestResponse{
+		BacktestSamples: out,
+		Snapshots:       snapshots,
+	}, nil
+}
+
+func toSnapshots(result []BacktestSample, priceCache *service.PriceCache, db *sql.DB) (map[string]BacktestSnapshot, error) {
+	snapshots := map[string]BacktestSnapshot{}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	for i, r := range result {
+		pc := 0.0
+		if i != 0 {
+			pc = 100 * (r.TotalValue - result[0].TotalValue) / result[0].TotalValue
+		}
+		priceChangeTilNextResampling := map[string]float64{}
+
+		if i < len(result)-1 {
+			nextResamplingDate := result[i+1].Date
+			for symbol := range r.AssetWeights {
+				startPrice, err := priceCache.Get(tx, symbol, r.Date)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get start price from cache: %w", err)
+				}
+				endPrice, err := priceCache.Get(tx, symbol, nextResamplingDate)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get end price from cache: %w", err)
+				}
+				priceChangeTilNextResampling[symbol] = 100 * (endPrice - startPrice) / startPrice
+			}
+		}
+
+		snapshots[r.Date.Format(time.DateOnly)] = BacktestSnapshot{
+			ValuePercentChange: pc,
+			Value:              r.TotalValue,
+			Date:               r.Date.Format(time.DateOnly),
+			AssetMetrics:       joinAssetMetrics(r.AssetWeights, r.FactorScores, priceChangeTilNextResampling),
+		}
+	}
+
+	return snapshots, nil
+}
+
+func joinAssetMetrics(
+	weights map[string]float64,
+	factorScores map[string]float64,
+	priceChangeTilNextResampling map[string]float64,
+) map[string]ScnapshotAssetMetrics {
+	assetMetrics := map[string]*ScnapshotAssetMetrics{}
+	for k, v := range weights {
+		if _, ok := assetMetrics[k]; !ok {
+			assetMetrics[k] = &ScnapshotAssetMetrics{}
+		}
+		assetMetrics[k].AssetWeight = v
+	}
+	for k, v := range factorScores {
+		if _, ok := assetMetrics[k]; !ok {
+			assetMetrics[k] = &ScnapshotAssetMetrics{}
+		}
+		assetMetrics[k].FactorScore = v
+	}
+	for k, v := range priceChangeTilNextResampling {
+		if _, ok := assetMetrics[k]; !ok {
+			assetMetrics[k] = &ScnapshotAssetMetrics{}
+		}
+		x := v // lol pointer math
+		assetMetrics[k].PriceChangeTilNextResampling = &x
+	}
+
+	out := map[string]ScnapshotAssetMetrics{}
+	for k := range assetMetrics {
+		out[k] = *assetMetrics[k]
+	}
+
+	return out
 }
 
 type transitionToTargetResult struct {
