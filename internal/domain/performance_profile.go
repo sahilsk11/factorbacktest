@@ -7,19 +7,30 @@ import (
 	"time"
 )
 
+func NewPeformanceProfile() *PerformanceProfile {
+	return &PerformanceProfile{
+		StartTime: time.Now(),
+	}
+}
+
 type PerformanceProfileEvent struct {
-	Name      string `json:"name"`
-	ElapsedMs int64  `json:"elapsed"`
-	Time      time.Time
+	Name      string    `json:"name"`
+	ElapsedMs int64     `json:"elapsedMs"`
+	Time      time.Time `json:"time"`
 }
 
 type PerformanceProfile struct {
-	Events []PerformanceProfileEvent `json:"events"`
-	Total  int64                     `json:"total"`
+	StartTime time.Time                 `json:"-"`
+	Events    []PerformanceProfileEvent `json:"events"`
+	TotalMs   int64                     `json:"totalMs"`
 }
 
 func GetPerformanceProfile(ctx context.Context) *PerformanceProfile {
 	return ctx.Value("performanceProfile").(*PerformanceProfile)
+}
+
+func (p *PerformanceProfile) End() {
+	p.TotalMs = time.Since(p.StartTime).Milliseconds()
 }
 
 func (p *PerformanceProfile) Add(name string) {
@@ -48,7 +59,7 @@ func pprint(i interface{}) {
 }
 
 func (p PerformanceProfile) Print() {
-	p.Total = p.Events[len(p.Events)-1].Time.Sub(p.Events[0].Time).Milliseconds()
+	p.End()
 	pprint(p)
 }
 

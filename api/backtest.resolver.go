@@ -61,7 +61,10 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	performanceProfile := &domain.PerformanceProfile{}
 	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
 	performanceProfile.Add("initialized")
-	defer func() { performanceProfile.Print() }()
+	defer func() {
+		performanceProfile.End()
+		performanceProfile.Print()
+	}()
 
 	tx, err := h.Db.BeginTx(
 		ctx,
@@ -123,7 +126,11 @@ func (h ApiHandler) backtest(c *gin.Context) {
 			if err == nil {
 				requestId = &id
 			}
+		} else {
+			fmt.Println("failed to convert to str")
 		}
+	} else {
+		fmt.Println("missing from ctx")
 	}
 	// ensure the user input is valid
 	err = saveUserStrategy(
@@ -212,6 +219,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 
 	performanceProfile.Add("finished formatting")
+	performanceProfile.End()
 
 	h.LatencencyTrackingRepository.Add(*performanceProfile, requestId)
 

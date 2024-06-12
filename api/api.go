@@ -159,7 +159,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		log.Println(err)
 	}
 
-	ctx.Set("requestID", req.RequestID)
+	ctx.Set("requestID", req.RequestID.String())
 	ctx.Next()
 
 	if req != nil {
