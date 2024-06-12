@@ -264,7 +264,7 @@ type BacktestInput struct {
 }
 
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]BacktestSample, error) {
-	profile := internal.GetPerformanceProfile(ctx) // used for profiling API performance
+	profile := domain.GetPerformanceProfile(ctx) // used for profiling API performance
 
 	universe, err := h.UniverseRepository.List(in.RoTx)
 	if err != nil {

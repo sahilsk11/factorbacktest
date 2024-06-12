@@ -23,6 +23,7 @@ type userStrategyTable struct {
 	FactorExpressionHash postgres.ColumnString
 	StrategyInputHash    postgres.ColumnString
 	CreatedAt            postgres.ColumnTimestampz
+	RequestID            postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -59,8 +60,9 @@ func newUserStrategyTableImpl(schemaName, tableName, alias string) userStrategyT
 		FactorExpressionHashColumn = postgres.StringColumn("factor_expression_hash")
 		StrategyInputHashColumn    = postgres.StringColumn("strategy_input_hash")
 		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
-		allColumns                 = postgres.ColumnList{UserStrategyIDColumn, UserIDColumn, StrategyInputColumn, FactorExpressionHashColumn, StrategyInputHashColumn, CreatedAtColumn}
-		mutableColumns             = postgres.ColumnList{UserIDColumn, StrategyInputColumn, FactorExpressionHashColumn, StrategyInputHashColumn, CreatedAtColumn}
+		RequestIDColumn            = postgres.StringColumn("request_id")
+		allColumns                 = postgres.ColumnList{UserStrategyIDColumn, UserIDColumn, StrategyInputColumn, FactorExpressionHashColumn, StrategyInputHashColumn, CreatedAtColumn, RequestIDColumn}
+		mutableColumns             = postgres.ColumnList{UserIDColumn, StrategyInputColumn, FactorExpressionHashColumn, StrategyInputHashColumn, CreatedAtColumn, RequestIDColumn}
 	)
 
 	return userStrategyTable{
@@ -73,6 +75,7 @@ func newUserStrategyTableImpl(schemaName, tableName, alias string) userStrategyT
 		FactorExpressionHash: FactorExpressionHashColumn,
 		StrategyInputHash:    StrategyInputHashColumn,
 		CreatedAt:            CreatedAtColumn,
+		RequestID:            RequestIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
