@@ -25,7 +25,7 @@ trading day, and use that price
 
 type PriceService interface {
 	LoadCache(inputs []LoadPriceCacheInput) (*PriceCache, error)
-	UpdatePricesIfNeeded(ctx context.Context, tx *sql.Tx, symbols []string) error
+	UpdatePricesIfNeeded(ctx context.Context, symbols []string) error
 }
 
 type LoadPriceCacheInput struct {
@@ -123,11 +123,11 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 	}, nil
 }
 
-func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.Tx, symbols []string) error {
+func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, symbols []string) error {
 	// need a better way of handling this too
 	symbols = append(symbols, "SPY")
 
-	latestPrices, err := h.AdjPriceRepository.LatestPrices(tx, symbols)
+	latestPrices, err := h.AdjPriceRepository.LatestPrices(h.Db, symbols)
 	if err != nil {
 		return fmt.Errorf("failed to get latest prices: %w", err)
 	}
@@ -144,6 +144,12 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.T
 	// update prices
 	fmt.Printf("updating %d assets\n", len(assetsToUpdate))
 
+	tx, err := h.Db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	// i think this should use UpdateUniversePrices
 	// instead
 	for _, s := range assetsToUpdate {
@@ -151,6 +157,10 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.T
 		if err != nil {
 			return fmt.Errorf("failed to ingest historical prices for %s: %w", s.Symbol, err)
 		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
 	}
 
 	return nil
