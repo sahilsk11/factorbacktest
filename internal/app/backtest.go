@@ -42,18 +42,12 @@ func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*serv
 		}
 	}
 
-	tx, err := h.Db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	dataValues := []service.LoadPriceCacheInput{}
 	for _, v := range dataHandler.Data {
 		dataValues = append(dataValues, v)
 	}
 
-	priceCache, err := h.PriceService.LoadCache(tx, dataValues)
+	priceCache, err := h.PriceService.LoadCache(dataValues)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate price cache: %w", err)
 	}

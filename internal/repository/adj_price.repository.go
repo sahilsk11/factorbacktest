@@ -53,7 +53,7 @@ type AdjustedPriceRepository interface {
 	LatestPrices(tx *sql.Tx, symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
-	ListFromSet(tx *sql.Tx, set []ListFromSetInput) ([]domain.AssetPrice, error)
+	ListFromSet(tx qrm.Queryable, set []ListFromSetInput) ([]domain.AssetPrice, error)
 }
 
 type ListFromSetInput struct {
@@ -273,7 +273,7 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(tx *sql.Tx, symbols []strin
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) ListFromSet(tx *sql.Tx, set []ListFromSetInput) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) ListFromSet(tx qrm.Queryable, set []ListFromSetInput) ([]domain.AssetPrice, error) {
 	expressions := []postgres.BoolExpression{}
 	symbolRanges := map[string]*struct {
 		min time.Time
