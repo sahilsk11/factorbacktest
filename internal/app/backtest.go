@@ -287,18 +287,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
-	updatePricesTx, err := h.Db.Begin()
+	err = h.PriceService.UpdatePricesIfNeeded(ctx, universeSymbols)
 	if err != nil {
 		return nil, err
-	}
-	defer updatePricesTx.Rollback()
-	err = h.PriceService.UpdatePricesIfNeeded(ctx, updatePricesTx, universeSymbols)
-	if err != nil {
-		return nil, err
-	}
-	err = updatePricesTx.Commit()
-	if err != nil {
-		return nil, fmt.Errorf("failed to commit update prices changes: %w", err)
 	}
 	profile.Add("finished updating prices (if needed)")
 

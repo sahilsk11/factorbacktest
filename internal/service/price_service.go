@@ -123,6 +123,9 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 	}, nil
 }
 
+// UpdatePricesIfNeeded determines if the prices we currently have stored are up to date
+// and fetches + updates prices if they are not
+// TODO - handle stock splits
 func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, symbols []string) error {
 	// need a better way of handling this too
 	symbols = append(symbols, "SPY")
@@ -160,7 +163,7 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, symbols [
 	}
 	err = tx.Commit()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to commit update prices changes: %w", err)
 	}
 
 	return nil
