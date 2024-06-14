@@ -27,6 +27,7 @@ type aPIRequestTable struct {
 	DurationMs   postgres.ColumnInteger
 	StatusCode   postgres.ColumnInteger
 	ResponseBody postgres.ColumnString
+	Version      postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -67,8 +68,9 @@ func newAPIRequestTableImpl(schemaName, tableName, alias string) aPIRequestTable
 		DurationMsColumn   = postgres.IntegerColumn("duration_ms")
 		StatusCodeColumn   = postgres.IntegerColumn("status_code")
 		ResponseBodyColumn = postgres.StringColumn("response_body")
-		allColumns         = postgres.ColumnList{RequestIDColumn, UserIDColumn, IPAddressColumn, MethodColumn, RouteColumn, RequestBodyColumn, StartTsColumn, DurationMsColumn, StatusCodeColumn, ResponseBodyColumn}
-		mutableColumns     = postgres.ColumnList{UserIDColumn, IPAddressColumn, MethodColumn, RouteColumn, RequestBodyColumn, StartTsColumn, DurationMsColumn, StatusCodeColumn, ResponseBodyColumn}
+		VersionColumn      = postgres.StringColumn("version")
+		allColumns         = postgres.ColumnList{RequestIDColumn, UserIDColumn, IPAddressColumn, MethodColumn, RouteColumn, RequestBodyColumn, StartTsColumn, DurationMsColumn, StatusCodeColumn, ResponseBodyColumn, VersionColumn}
+		mutableColumns     = postgres.ColumnList{UserIDColumn, IPAddressColumn, MethodColumn, RouteColumn, RequestBodyColumn, StartTsColumn, DurationMsColumn, StatusCodeColumn, ResponseBodyColumn, VersionColumn}
 	)
 
 	return aPIRequestTable{
@@ -85,6 +87,7 @@ func newAPIRequestTableImpl(schemaName, tableName, alias string) aPIRequestTable
 		DurationMs:   DurationMsColumn,
 		StatusCode:   StatusCodeColumn,
 		ResponseBody: ResponseBodyColumn,
+		Version:      VersionColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
