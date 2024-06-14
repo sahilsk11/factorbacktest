@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	. "factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
@@ -13,7 +12,7 @@ import (
 
 type AssetFundamentalsRepository interface {
 	Add(qrm.Executable, []model.AssetFundamental) error
-	Get(tx *sql.Tx, symbol string, date time.Time) (*model.AssetFundamental, error)
+	Get(tx qrm.Queryable, symbol string, date time.Time) (*model.AssetFundamental, error)
 }
 
 type AssetFundamentalsRepositoryHandler struct{}
@@ -37,7 +36,7 @@ func (h AssetFundamentalsRepositoryHandler) Add(tx qrm.Executable, af []model.As
 	return nil
 }
 
-func (h AssetFundamentalsRepositoryHandler) Get(tx *sql.Tx, symbol string, date time.Time) (*model.AssetFundamental, error) {
+func (h AssetFundamentalsRepositoryHandler) Get(tx qrm.Queryable, symbol string, date time.Time) (*model.AssetFundamental, error) {
 	d := DateT(date)
 	query := AssetFundamental.
 		SELECT(AssetFundamental.AllColumns).

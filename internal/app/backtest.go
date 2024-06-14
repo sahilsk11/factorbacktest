@@ -79,14 +79,6 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.
 	close(inputCh)
 
 	for i := 0; i < numGoroutines; i++ {
-		tx, err := h.Db.BeginTx(ctx, &sql.TxOptions{
-			ReadOnly:  true,
-			Isolation: sql.LevelReadCommitted,
-		})
-		if err != nil {
-			return nil, err
-		}
-		defer tx.Rollback()
 		go func() {
 			for {
 				select {
@@ -98,7 +90,7 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.
 					}
 					res, err := internal.EvaluateFactorExpression(
 						ctx,
-						tx,
+						h.Db,
 						pr,
 						input.FactorExpression,
 						input.Symbol,
@@ -290,7 +282,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	// all trading days within the selected window that we need to run a calculation on
 	// this will only contain days that we actually have data for, so if data is old, it
 	// will not include recent days
-	tradingDays, err := h.calculateRelevantTradingDays(in.RoTx, in.BacktestStart, in.BacktestEnd, in.SamplingInterval)
+	tradingDays, err := h.calculateRelevantTradingDays(in.BacktestStart, in.BacktestEnd, in.SamplingInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -560,11 +552,10 @@ func (h BacktestHandler) calculateAnchorPortfolioWeights(
 }
 
 func (h BacktestHandler) calculateRelevantTradingDays(
-	tx *sql.Tx,
 	start, end time.Time,
 	interval time.Duration,
 ) ([]time.Time, error) {
-	allTradingDays, err := h.PriceRepository.ListTradingDays(tx, start, end)
+	allTradingDays, err := h.PriceRepository.ListTradingDays(h.Db, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate trading days: %w", err)
 	}

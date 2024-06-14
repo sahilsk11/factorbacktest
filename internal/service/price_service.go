@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/piquette/finance-go/chart"
 	"github.com/piquette/finance-go/datetime"
 )
@@ -45,7 +46,7 @@ type PriceCache struct {
 	adjPriceRepository repository.AdjustedPriceRepository
 }
 
-func (pr PriceCache) Get(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+func (pr PriceCache) Get(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
 	// find the relevant trading day for the price
 	closestTradingDay := date
 	for i := 0; i < len(pr.tradingDays)-1; i++ {
