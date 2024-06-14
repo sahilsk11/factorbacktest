@@ -6,9 +6,12 @@ WORKDIR /app
 
 # Copy the local package files to the container's workspace
 COPY . . 
-COPY secrets-test.json /go/src/app/secrets-test.json
+COPY secrets.json /go/src/app/secrets.json
 # Install any dependencies if needed (e.g., using go get)
 RUN go get -d -v ./...
+
+ARG commit_hash
+ENV commit_hash $commit_hash
 
 # Build the Go application for x86_64 architecture
 RUN GOARCH=amd64 GOOS=linux go build -o ./bin/ ./cmd/api

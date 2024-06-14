@@ -23,4 +23,5 @@ type APIRequest struct {
 	DurationMs   *int64
 	StatusCode   *int32
 	ResponseBody *string
+	Version      *string
 }
