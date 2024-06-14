@@ -46,10 +46,10 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
-	Get(*sql.Tx, string, time.Time) (float64, error)
-	GetMany(*sql.Tx, []string, time.Time) (map[string]float64, error)
+	Get(qrm.Queryable, string, time.Time) (float64, error)
+	GetMany(qrm.Queryable, []string, time.Time) (map[string]float64, error)
 	List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
-	ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error)
+	ListTradingDays(tx *sql.DB, start, end time.Time) ([]time.Time, error)
 	LatestPrices(tx qrm.Queryable, symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
@@ -94,7 +94,7 @@ func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 	return nil
 }
 
-func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
+func (h adjustedPriceRepositoryHandler) Get(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
 	if pc := h.GetFromPriceCache(symbol, date); pc != nil {
 		return *pc, nil
 	}
@@ -130,7 +130,7 @@ func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time
 }
 
 // assumes input date is a trading day
-func (h adjustedPriceRepositoryHandler) GetMany(tx *sql.Tx, symbols []string, date time.Time) (map[string]float64, error) {
+func (h adjustedPriceRepositoryHandler) GetMany(tx qrm.Queryable, symbols []string, date time.Time) (map[string]float64, error) {
 	cachedResults := map[string]float64{}
 	symbolSet := map[string]bool{}
 	postgresStr := []postgres.Expression{}
@@ -215,7 +215,7 @@ func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string,
 	return out, nil
 }
 
-func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error) {
+func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.DB, start, end time.Time) ([]time.Time, error) {
 	minDate := postgres.DateT(start)
 	maxDate := postgres.DateT(end)
 	// use range so we can do t-3 for weekends or holidays
