@@ -2,12 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"factorbacktest/api"
 	"factorbacktest/cmd"
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -21,9 +18,6 @@ type lambdaHandler struct {
 func (m lambdaHandler) Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	engine := m.apiHandler.InitializeRouterEngine()
 	ginLambda := ginadapter.New(engine)
-	fmt.Println("starting api version " + os.Getenv("commit_hash"))
-	bytes, _ := json.Marshal(req)
-	fmt.Println(string(bytes))
 
 	return ginLambda.ProxyWithContext(ctx, req)
 }
