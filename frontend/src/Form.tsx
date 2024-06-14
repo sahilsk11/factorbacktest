@@ -41,7 +41,7 @@ export default function FactorForm({
 }) {
   const [factorExpression, setFactorExpression] = useState("");
   const [factorIntensity, setFactorIntensity] = useState(0.75);
-  const [factorName, setFactorName] = useState("7_day_rolling_price_momentum");
+  const [factorName, setFactorName] = useState("7_day_momentum_weekly");
   const [backtestStart, setBacktestStart] = useState(eightWeeksAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("weekly");
@@ -58,18 +58,36 @@ export default function FactorForm({
   const [loading, setLoading] = useState(false);
 
   let found = false;
+  let nextNum = 1;
   names.forEach(n => {
-    if (n === factorName) {
+    if (n.includes(factorName)) {
       found = true;
+      const match = n.match(/\((\d+)\)/);
+      if (match) {
+        const number = parseInt(match[1], 10);
+        nextNum = Math.max(number+1, nextNum)
+      }
     }
   })
 
-  const factorNameInput = document.getElementById("factor-name");
-  if (found) {
-    (factorNameInput as HTMLInputElement)?.setCustomValidity("Please use a unique factor name.");
-  } else {
-    (factorNameInput as HTMLInputElement)?.setCustomValidity("");
+  const updateName = (newName:string) => {
+    setFactorName(newName + "_" + samplingIntervalUnit)
   }
+
+  useEffect(() => {
+    let name = factorName;
+    if (name.endsWith("_monthly")) {
+      name = name.substring(0, name.indexOf("_monthly"))
+    }
+    if (name.endsWith("_weekly")) {
+      name = name.substring(0, name.indexOf("_weekly"))
+    }
+    if (name.endsWith("_daily")) {
+      name = name.substring(0, name.indexOf("_daily"))
+    }
+    updateName(name);
+  }, [samplingIntervalUnit])
+
   const cashInput = document.getElementById("cash");
   if (cash <= 0) {
     (cashInput as HTMLInputElement)?.setCustomValidity("Please enter more than $0.")
@@ -90,10 +108,15 @@ export default function FactorForm({
     setErr(null);
     setLoading(true);
 
+    let name = factorName;
+    if (found) {
+      name += " (" + nextNum.toString() + ")"
+    }
+
     const data: BacktestRequest = {
       factorOptions: {
         expression: factorExpression,
-        name: factorName,
+        name,
         intensity: factorIntensity,
       } as FactorOptions,
       backtestStart,
@@ -122,7 +145,7 @@ export default function FactorForm({
           return;
         }
         jumpToAnchorOnSmallScreen("backtest-chart")
-        setNames([...names, factorName])
+        setNames([...names, data.factorOptions.name])
         const fd: FactorData = {
           name: data.factorOptions.name,
           data: result.backtestSnapshots,
@@ -175,7 +198,7 @@ export default function FactorForm({
             userID={userID}
             factorExpression={factorExpression}
             setFactorExpression={setFactorExpression}
-            setFactorName={setFactorName}
+            updateName={updateName}
           />
         </div>
 
@@ -299,11 +322,11 @@ export function Error({ message }: { message: string | null }) {
   </>
 }
 
-function FactorExpressionInput({ userID, factorExpression, setFactorExpression, setFactorName }: {
+function FactorExpressionInput({ userID, factorExpression, setFactorExpression, updateName }: {
   userID: string;
   factorExpression: string;
   setFactorExpression: Dispatch<SetStateAction<string>>;
-  setFactorName: Dispatch<SetStateAction<string>>;
+  updateName: (arg: string) => void;
 }) {
   const [gptInput, setGptInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -361,7 +384,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
   useEffect(() => {
     setFactorExpression(presetMap[selectedFactor].expression)
     if (selectedFactor !== "gpt") {
-      setFactorName(presetMap[selectedFactor].factorName)
+      updateName(presetMap[selectedFactor].factorName)
     }
   }, [selectedFactor])
 
@@ -384,7 +407,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
         const result = await response.json()
         if (result.error.length === 0) {
           setFactorExpression(result.factorExpression)
-          setFactorName(result.factorName)
+          updateName(result.factorName)
         } else {
           setErr(result.error + " - " + result.reason);
         }
