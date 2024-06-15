@@ -46,7 +46,7 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
-	Get(qrm.Queryable, string, time.Time) (float64, error)
+	Get(string, time.Time) (float64, error)
 	GetMany([]string, time.Time) (map[string]float64, error)
 	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(tx *sql.DB, start, end time.Time) ([]time.Time, error)
@@ -96,7 +96,7 @@ func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 	return nil
 }
 
-func (h adjustedPriceRepositoryHandler) Get(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
+func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (float64, error) {
 	if pc := h.GetFromPriceCache(symbol, date); pc != nil {
 		return *pc, nil
 	}
@@ -118,7 +118,7 @@ func (h adjustedPriceRepositoryHandler) Get(tx qrm.Queryable, symbol string, dat
 		LIMIT(1)
 
 	results := []model.AdjustedPrice{}
-	err := query.Query(tx, &results)
+	err := query.Query(h.Db, &results)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query price for %s on %v: %w", symbol, date, err)
 	}

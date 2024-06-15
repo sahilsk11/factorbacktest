@@ -426,11 +426,11 @@ func toSnapshots(result []BacktestSample, priceCache *service.PriceCache, db *sq
 		if i < len(result)-1 {
 			nextResamplingDate := result[i+1].Date
 			for symbol := range r.AssetWeights {
-				startPrice, err := priceCache.Get(db, symbol, r.Date)
+				startPrice, err := priceCache.Get(symbol, r.Date)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get start price from cache: %w", err)
 				}
-				endPrice, err := priceCache.Get(db, symbol, nextResamplingDate)
+				endPrice, err := priceCache.Get(symbol, nextResamplingDate)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get end price from cache: %w", err)
 				}
