@@ -61,8 +61,9 @@ type ListFromSetInput struct {
 	Date   time.Time
 }
 
-func NewAdjustedPriceRepository() AdjustedPriceRepository {
+func NewAdjustedPriceRepository(db *sql.DB) AdjustedPriceRepository {
 	return &adjustedPriceRepositoryHandler{
+		Db:         db,
 		PriceCache: make(PriceCache),
 		ReadMutex:  &sync.RWMutex{},
 	}
