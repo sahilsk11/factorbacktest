@@ -124,7 +124,7 @@ func percentChange(end, start float64) float64 {
 }
 
 func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(tx qrm.Queryable, symbol string, start, end time.Time) (float64, error) {
-	priceModels, err := h.AdjustedPriceRepository.List(tx, []string{symbol}, start, end)
+	priceModels, err := h.AdjustedPriceRepository.List([]string{symbol}, start, end)
 	if err != nil {
 		return 0, err
 	}
