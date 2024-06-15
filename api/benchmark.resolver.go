@@ -1,8 +1,6 @@
 package api
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -19,20 +17,6 @@ type benchmarkRequest struct {
 }
 
 func (h ApiHandler) benchmark(c *gin.Context) {
-	ctx := context.Background()
-	tx, err := h.Db.BeginTx(
-		ctx,
-		&sql.TxOptions{
-			Isolation: sql.LevelReadCommitted,
-			ReadOnly:  true,
-		},
-	)
-	if err != nil {
-		returnErrorJson(err, c)
-		return
-	}
-	defer tx.Rollback()
-
 	var requestBody benchmarkRequest
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
@@ -59,7 +43,6 @@ func (h ApiHandler) benchmark(c *gin.Context) {
 	}
 
 	results, err := h.BenchmarkHandler.GetIntraPeriodChange(
-		tx,
 		requestBody.Symbol,
 		start,
 		end,

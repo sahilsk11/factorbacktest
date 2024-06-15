@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"database/sql"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"fmt"
@@ -16,14 +15,12 @@ type BenchmarkHandler struct {
 // GetIntraPeriodChange get historic prices for an asset
 // and converts it to % change from start
 func (h BenchmarkHandler) GetIntraPeriodChange(
-	tx *sql.Tx,
 	symbol string,
 	start,
 	end time.Time,
 	granularity time.Duration,
 ) (map[time.Time]float64, error) {
 	prices, err := h.PriceRepository.List(
-		tx,
 		[]string{symbol},
 		start,
 		end,

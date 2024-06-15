@@ -19,7 +19,7 @@ type UserStrategyRepository interface {
 
 type UserStrategyRepositoryHandler struct{}
 
-func (h UniverseRepositoryHandler) Add(db qrm.Executable, us model.UserStrategy) error {
+func (h UserStrategyRepositoryHandler) Add(db qrm.Executable, us model.UserStrategy) error {
 	us.UserStrategyID = uuid.New()
 	us.CreatedAt = time.Now().UTC()
 	query := UserStrategy.

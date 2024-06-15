@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-jet/jet/v2/qrm"
 	"github.com/piquette/finance-go/chart"
 	"github.com/piquette/finance-go/datetime"
 )
@@ -46,7 +45,7 @@ type PriceCache struct {
 	adjPriceRepository repository.AdjustedPriceRepository
 }
 
-func (pr PriceCache) Get(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
+func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	// find the relevant trading day for the price
 	closestTradingDay := date
 	for i := 0; i < len(pr.tradingDays)-1; i++ {
@@ -69,7 +68,7 @@ func (pr PriceCache) Get(tx qrm.Queryable, symbol string, date time.Time) (float
 
 	// missed l1 cache - check db
 
-	price, err := pr.adjPriceRepository.Get(tx, symbol, date)
+	price, err := pr.adjPriceRepository.Get(symbol, date)
 	if err != nil {
 		return 0, err
 	}
@@ -104,7 +103,7 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 		}, nil
 	}
 
-	prices, err := h.AdjPriceRepository.ListFromSet(h.Db, setInputs)
+	prices, err := h.AdjPriceRepository.ListFromSet(setInputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
@@ -132,7 +131,7 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, symbols [
 	// need a better way of handling this too
 	symbols = append(symbols, "SPY")
 
-	latestPrices, err := h.AdjPriceRepository.LatestPrices(h.Db, symbols)
+	latestPrices, err := h.AdjPriceRepository.LatestPrices(symbols)
 	if err != nil {
 		return fmt.Errorf("failed to get latest prices: %w", err)
 	}
@@ -217,7 +216,7 @@ func UpdateUniversePrices(
 	universeRepository repository.UniverseRepository,
 	adjPricesRepository repository.AdjustedPriceRepository,
 ) error {
-	assets, err := universeRepository.List(tx)
+	assets, err := universeRepository.List()
 	if err != nil {
 		return err
 	}
