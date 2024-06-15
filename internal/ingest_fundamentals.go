@@ -20,7 +20,7 @@ func IngestUniverseFundamentals(
 	afRepository repository.AssetFundamentalsRepository,
 	universeRepository repository.UniverseRepository,
 ) error {
-	assets, err := universeRepository.List(db)
+	assets, err := universeRepository.List()
 	if err != nil {
 		log.Fatal(err)
 	}

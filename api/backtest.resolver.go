@@ -135,7 +135,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 
 	backtestInput := app.BacktestInput{
-		RoTx: tx,
 		FactorOptions: app.FactorOptions{
 			Expression: requestBody.FactorOptions.Expression,
 			Intensity:  requestBody.FactorOptions.Intensity,

@@ -138,7 +138,6 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.
 }
 
 type ComputeTargetPortfolioInput struct {
-	RoTx            *sql.Tx
 	PriceMap        map[string]float64
 	Date            time.Time
 	PortfolioValue  float64
@@ -172,7 +171,6 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 	}
 
 	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
-		Tx:                    in.RoTx,
 		Date:                  in.Date,
 		FactorScoresBySymbol:  in.FactorScores,
 		FactorIntensity:       in.FactorIntensity,
@@ -251,7 +249,6 @@ type FactorOptions struct {
 }
 
 type BacktestInput struct {
-	RoTx             *sql.Tx
 	FactorOptions    FactorOptions
 	BacktestStart    time.Time
 	BacktestEnd      time.Time
@@ -270,7 +267,7 @@ type BacktestResponse struct {
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*BacktestResponse, error) {
 	profile := domain.GetPerformanceProfile(ctx) // used for profiling API performance
 
-	universe, err := h.UniverseRepository.List(in.RoTx)
+	universe, err := h.UniverseRepository.List()
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +312,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	profile.Add("finished scores")
 
 	// get price on first day? consider removing
-	backtestStartPriceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, in.BacktestStart)
+	backtestStartPriceMap, err := h.PriceRepository.GetMany(universeSymbols, in.BacktestStart)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +346,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// of assets so much that it kinda makes sense to
 		// just get everything and let everyone figure it out
 		// this is also premature optimization
-		priceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, t)
+		priceMap, err := h.PriceRepository.GetMany(universeSymbols, t)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get prices on day %v: %w", t, err)
 		}
@@ -360,7 +357,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		}
 
 		computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
-			RoTx:            in.RoTx,
 			Date:            t,
 			FactorIntensity: in.FactorOptions.Intensity,
 			FactorScores:    factorScoresByDay[t],

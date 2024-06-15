@@ -217,7 +217,7 @@ func UpdateUniversePrices(
 	universeRepository repository.UniverseRepository,
 	adjPricesRepository repository.AdjustedPriceRepository,
 ) error {
-	assets, err := universeRepository.List(tx)
+	assets, err := universeRepository.List()
 	if err != nil {
 		return err
 	}

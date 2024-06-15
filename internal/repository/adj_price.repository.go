@@ -47,7 +47,7 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
 	Get(qrm.Queryable, string, time.Time) (float64, error)
-	GetMany(qrm.Queryable, []string, time.Time) (map[string]float64, error)
+	GetMany([]string, time.Time) (map[string]float64, error)
 	List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(tx *sql.DB, start, end time.Time) ([]time.Time, error)
 	LatestPrices(tx qrm.Queryable, symbols []string) ([]domain.AssetPrice, error)
@@ -69,6 +69,7 @@ func NewAdjustedPriceRepository() AdjustedPriceRepository {
 }
 
 type adjustedPriceRepositoryHandler struct {
+	Db         *sql.DB
 	PriceCache PriceCache
 	ReadMutex  *sync.RWMutex
 	days       []time.Time
@@ -130,7 +131,7 @@ func (h adjustedPriceRepositoryHandler) Get(tx qrm.Queryable, symbol string, dat
 }
 
 // assumes input date is a trading day
-func (h adjustedPriceRepositoryHandler) GetMany(tx qrm.Queryable, symbols []string, date time.Time) (map[string]float64, error) {
+func (h adjustedPriceRepositoryHandler) GetMany(symbols []string, date time.Time) (map[string]float64, error) {
 	cachedResults := map[string]float64{}
 	symbolSet := map[string]bool{}
 	postgresStr := []postgres.Expression{}
@@ -160,7 +161,7 @@ func (h adjustedPriceRepositoryHandler) GetMany(tx qrm.Queryable, symbols []stri
 			).
 			ORDER_BY(table.AdjustedPrice.Date.DESC())
 
-		err := query.Query(tx, &res)
+		err := query.Query(h.Db, &res)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query prices for %d symbols on date %v: %w", len(postgresStr), date, err)
 		}
