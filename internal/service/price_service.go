@@ -103,7 +103,7 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 		}, nil
 	}
 
-	prices, err := h.AdjPriceRepository.ListFromSet(h.Db, setInputs)
+	prices, err := h.AdjPriceRepository.ListFromSet(setInputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
@@ -131,7 +131,7 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, symbols [
 	// need a better way of handling this too
 	symbols = append(symbols, "SPY")
 
-	latestPrices, err := h.AdjPriceRepository.LatestPrices(h.Db, symbols)
+	latestPrices, err := h.AdjPriceRepository.LatestPrices(symbols)
 	if err != nil {
 		return fmt.Errorf("failed to get latest prices: %w", err)
 	}
