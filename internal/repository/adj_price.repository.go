@@ -48,7 +48,7 @@ type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
 	Get(qrm.Queryable, string, time.Time) (float64, error)
 	GetMany([]string, time.Time) (map[string]float64, error)
-	List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
+	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(tx *sql.DB, start, end time.Time) ([]time.Time, error)
 	LatestPrices(tx qrm.Queryable, symbols []string) ([]domain.AssetPrice, error)
 
@@ -180,7 +180,7 @@ func (h adjustedPriceRepositoryHandler) GetMany(symbols []string, date time.Time
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error) {
 	minDate := postgres.DateT(start)
 	maxDate := postgres.DateT(end)
 	symbolsFilter := []postgres.Expression{}
@@ -199,7 +199,7 @@ func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string,
 		ORDER_BY(table.AdjustedPrice.Date.ASC())
 
 	result := []model.AdjustedPrice{}
-	err := query.Query(db, &result)
+	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list prices for %v: %w", symbols, err)
 	}
