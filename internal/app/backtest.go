@@ -545,7 +545,7 @@ func (h BacktestHandler) calculateRelevantTradingDays(
 	start, end time.Time,
 	interval time.Duration,
 ) ([]time.Time, error) {
-	allTradingDays, err := h.PriceRepository.ListTradingDays(h.Db, start, end)
+	allTradingDays, err := h.PriceRepository.ListTradingDays(start, end)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate trading days: %w", err)
 	}
