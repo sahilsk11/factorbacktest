@@ -416,12 +416,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 func toSnapshots(result []BacktestSample, priceCache *service.PriceCache, db *sql.DB) (map[string]BacktestSnapshot, error) {
 	snapshots := map[string]BacktestSnapshot{}
 
-	tx, err := db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	for i, r := range result {
 		pc := 0.0
 		if i != 0 {
@@ -432,11 +426,11 @@ func toSnapshots(result []BacktestSample, priceCache *service.PriceCache, db *sq
 		if i < len(result)-1 {
 			nextResamplingDate := result[i+1].Date
 			for symbol := range r.AssetWeights {
-				startPrice, err := priceCache.Get(tx, symbol, r.Date)
+				startPrice, err := priceCache.Get(db, symbol, r.Date)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get start price from cache: %w", err)
 				}
-				endPrice, err := priceCache.Get(tx, symbol, nextResamplingDate)
+				endPrice, err := priceCache.Get(db, symbol, nextResamplingDate)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get end price from cache: %w", err)
 				}
