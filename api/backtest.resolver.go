@@ -28,12 +28,10 @@ type BacktestRequest struct {
 	BacktestEnd          string `json:"backtestEnd"`
 	SamplingIntervalUnit string `json:"samplingIntervalUnit"`
 
-	AssetSelectionMode string  `json:"assetSelectionMode"`
-	StartCash          float64 `json:"startCash"`
+	StartCash float64 `json:"startCash"`
 
-	AnchorPortfolioQuantities map[string]float64 `json:"anchorPortfolio"`
-	NumSymbols                int                `json:"numSymbols"`
-	UserID                    *string            `json:"userID"`
+	NumSymbols int     `json:"numSymbols"`
+	UserID     *string `json:"userID"`
 }
 
 type BacktestResponse struct {
@@ -144,15 +142,13 @@ func saveUserStrategy(
 	requestId *uuid.UUID,
 ) error {
 	type strategyInput struct {
-		FactorName                string             `json:"factorName"`
-		FactorExpression          string             `json:"factorExpression"`
-		BacktestStart             string             `json:"backtestStart"`
-		BacktestEnd               string             `json:"backtestEnd"`
-		RebalanceInterval         string             `json:"rebalanceInterval"`
-		AssetSelectionMode        string             `json:"assetSelectionMode"`
-		StartCash                 float64            `json:"startCash"`
-		AnchorPortfolioQuantities map[string]float64 `json:"anchorPortfolio"`
-		NumSymbols                int                `json:"numSymbols,omitempty"`
+		FactorName        string  `json:"factorName"`
+		FactorExpression  string  `json:"factorExpression"`
+		BacktestStart     string  `json:"backtestStart"`
+		BacktestEnd       string  `json:"backtestEnd"`
+		RebalanceInterval string  `json:"rebalanceInterval"`
+		StartCash         float64 `json:"startCash"`
+		NumSymbols        int     `json:"numSymbols,omitempty"`
 	}
 
 	regex := regexp.MustCompile(`\s+`)
@@ -161,18 +157,11 @@ func saveUserStrategy(
 	// keep only selected fields bc we don't care about including
 	// factor name and cash in hash
 	si := &strategyInput{
-		FactorExpression:   cleanedExpression,
-		BacktestStart:      requestBody.BacktestStart,
-		BacktestEnd:        requestBody.BacktestEnd,
-		RebalanceInterval:  requestBody.SamplingIntervalUnit,
-		AssetSelectionMode: requestBody.AssetSelectionMode,
-		// keep history happy by finding prev values
-		AnchorPortfolioQuantities: map[string]float64{
-			"AAPL":  10,
-			"MSFT":  10,
-			"GOOGL": 8,
-		},
-		NumSymbols: requestBody.NumSymbols,
+		FactorExpression:  cleanedExpression,
+		BacktestStart:     requestBody.BacktestStart,
+		BacktestEnd:       requestBody.BacktestEnd,
+		RebalanceInterval: requestBody.SamplingIntervalUnit,
+		NumSymbols:        requestBody.NumSymbols,
 	}
 	siBytes, err := json.Marshal(si)
 	if err != nil {

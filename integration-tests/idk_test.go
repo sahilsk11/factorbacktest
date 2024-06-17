@@ -178,7 +178,6 @@ func Test_backtestFlow(t *testing.T) {
 		BacktestStart:        "2020-01-10",
 		BacktestEnd:          "2020-12-31",
 		SamplingIntervalUnit: "weekly",
-		AssetSelectionMode:   "NUM_SYMBOLS",
 		StartCash:            10000,
 
 		UserID: &userID,

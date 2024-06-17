@@ -239,7 +239,6 @@ type BacktestInput struct {
 	BacktestStart     time.Time
 	BacktestEnd       time.Time
 	RebalanceInterval time.Duration
-	AssetUniverse     string
 	StartingCash      float64
 	NumTickers        int
 }
@@ -370,7 +369,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
 	}
 
-	snapshots, err := toSnapshots(out, priceCache, h.Db)
+	snapshots, err := toSnapshots(out, priceCache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute snapshots: %w", err)
 	}
@@ -381,7 +380,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	}, nil
 }
 
-func toSnapshots(result []BacktestSample, priceCache *service.PriceCache, db *sql.DB) (map[string]BacktestSnapshot, error) {
+func toSnapshots(result []BacktestSample, priceCache *service.PriceCache) (map[string]BacktestSnapshot, error) {
 	snapshots := map[string]BacktestSnapshot{}
 
 	for i, r := range result {
