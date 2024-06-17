@@ -12,4 +12,4 @@ rename to universe;
 
 -- dirty, sorry
 alter table universe
-add column serial not null;
+add column id serial not null;
