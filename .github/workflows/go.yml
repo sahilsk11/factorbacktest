@@ -60,7 +60,9 @@ jobs:
 
     - name: Start App
       run: |
-        export ALPHA_ENV=test && go run cmd/api/main.go & > out.log
+        export ALPHA_ENV=test
+        go run cmd/api/main.go > out.log 2>&1 &
+        sleep 1
         cat out.log
 
     - name: Wait for app to be ready
