@@ -240,7 +240,7 @@ type BacktestInput struct {
 	RebalanceInterval time.Duration
 	StartingCash      float64
 	NumTickers        int
-	AssetUniverse     model.AssetUniverse
+	AssetUniverse     model.AssetUniverseName
 }
 
 type BacktestResponse struct {
