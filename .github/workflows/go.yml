@@ -59,7 +59,9 @@ jobs:
       run: python3 tools/migrations.py up postgres_test
 
     - name: Start App
-      run: export ALPHA_ENV=test && go run cmd/api/main.go &
+      run: |
+        export ALPHA_ENV=test && go run cmd/api/main.go & > out.log
+        cat out.log
 
     - name: Wait for app to be ready
       run: |
@@ -72,6 +74,7 @@ jobs:
           counter=$((counter+1))
           if [ $counter -ge $max_retries ]; then
             echo "App did not become ready after $max_retries attempts."
+            cat out.log
             exit 1
           fi
         done
