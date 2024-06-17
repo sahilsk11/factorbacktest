@@ -70,15 +70,8 @@ jobs:
         echo "Waiting for app to be ready..."
         counter=0
         max_retries=5
-        while true; do
-          response=$(curl -sSf http://localhost:3009/ 2>&1)
-          if [ $? -eq 0 ]; then
-            echo "App is ready!"
-            break
-          else
-            echo "Waiting for app..."
-            echo "Error response: $response"
-          fi
+        while ! curl -sSf http://localhost:3009/; do
+          echo "Waiting for app..."
           sleep 5
           counter=$((counter+1))
           if [ $counter -ge $max_retries ]; then
@@ -87,6 +80,7 @@ jobs:
             exit 1
           fi
         done
+        echo "App is ready!"
     
 
     - name: Test
