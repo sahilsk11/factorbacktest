@@ -7,8 +7,12 @@
 
 package model
 
-type Universe struct {
-	ID     int32 `sql:"primary_key"`
-	Symbol string
-	Name   string
+import (
+	"github.com/google/uuid"
+)
+
+type Ticker struct {
+	Symbol   string
+	Name     string
+	TickerID uuid.UUID `sql:"primary_key"`
 }

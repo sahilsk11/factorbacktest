@@ -118,7 +118,7 @@ func ingestUniverseFundamentals() {
 	}
 	afRepository := repository.AssetFundamentalsRepositoryHandler{}
 
-	ur := repository.NewUniverseRepository(db)
+	ur := repository.NewTickerRepository(db)
 
 	err = internal.IngestUniverseFundamentals(
 		db,

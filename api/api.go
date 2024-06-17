@@ -31,7 +31,7 @@ type ApiHandler struct {
 	ApiRequestRepository         repository.ApiRequestRepository
 	LatencencyTrackingRepository repository.LatencyTrackingRepository
 	PriceService                 service.PriceService
-	UniverseRepository           repository.UniverseRepository
+	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
 }
 

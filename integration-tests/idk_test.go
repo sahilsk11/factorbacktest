@@ -63,7 +63,7 @@ func seedPrices(tx *sql.Tx) error {
 }
 
 func seedUniverse(tx *sql.Tx) error {
-	models := []model.Universe{
+	models := []model.Ticker{
 		{
 			Symbol: "AAPL",
 			Name:   "Apple",
@@ -77,7 +77,7 @@ func seedUniverse(tx *sql.Tx) error {
 			Name:   "Meta",
 		},
 	}
-	query := table.Universe.INSERT(table.Universe.MutableColumns).MODELS(models)
+	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(models)
 	_, err := query.Exec(tx)
 	if err != nil {
 		return err
@@ -152,7 +152,7 @@ func Test_backtestFlow(t *testing.T) {
 	err = seedUniverse(tx)
 	require.NoError(t, err)
 	defer func() {
-		_, err = table.Universe.DELETE().WHERE(postgres.Bool(true)).Exec(db)
+		_, err = table.Ticker.DELETE().WHERE(postgres.Bool(true)).Exec(db)
 		require.NoError(t, err)
 	}()
 	err = seedPrices(tx)

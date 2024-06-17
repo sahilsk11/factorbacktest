@@ -16,7 +16,7 @@ import (
 type BacktestHandler struct {
 	PriceRepository      repository.AdjustedPriceRepository
 	FactorMetricsHandler internal.FactorMetricCalculations
-	UniverseRepository   repository.UniverseRepository
+	TickerRepository     repository.TickerRepository
 
 	Db           *sql.DB
 	PriceService service.PriceService
@@ -249,7 +249,7 @@ type BacktestResponse struct {
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*BacktestResponse, error) {
 	profile := domain.GetPerformanceProfile(ctx) // used for profiling API performance
 
-	universe, err := h.UniverseRepository.List()
+	universe, err := h.TickerRepository.List()
 	if err != nil {
 		return nil, err
 	}

@@ -18,9 +18,9 @@ func IngestUniverseFundamentals(
 	db *sql.DB, // commit as we go for partial failures
 	djClient datajockey.Client,
 	afRepository repository.AssetFundamentalsRepository,
-	universeRepository repository.UniverseRepository,
+	tickerRepository repository.TickerRepository,
 ) error {
-	assets, err := universeRepository.List()
+	assets, err := tickerRepository.List()
 	if err != nil {
 		log.Fatal(err)
 	}
