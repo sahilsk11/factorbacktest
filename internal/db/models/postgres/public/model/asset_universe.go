@@ -13,5 +13,5 @@ import (
 
 type AssetUniverse struct {
 	AssetUniverseID   uuid.UUID `sql:"primary_key"`
-	AssetUniverseName string
+	AssetUniverseName AssetUniverseName
 }
