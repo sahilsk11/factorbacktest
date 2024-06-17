@@ -81,4 +81,6 @@ jobs:
         echo "App is ready!"
 
     - name: Test
-      run: go test ./...
+      run: |
+        go test ./...
+        cat out.log
