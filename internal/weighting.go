@@ -32,10 +32,6 @@ type CalculateTargetAssetWeightsInput struct {
 // use a factor strategy and determine what the weight
 // of each asset should be on given date
 func CalculateTargetAssetWeights(in CalculateTargetAssetWeightsInput) (map[string]float64, error) {
-	// todo - validate rest of input
-	// keys(FactorScoresBySymbol) == keys(Benchmark)
-	// non-nil maps, valid date
-
 	newWeights, err := calculateWeightsViaNumTickers(
 		in.NumTickers,
 		in.FactorScoresBySymbol,

@@ -156,6 +156,9 @@ type ComputeTargetPortfolioResponse struct {
 // Computes what the portfolio should hold on a given day, given the
 // strategy (equation and universe) and value of current holdings
 func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
+	if in.TargetNumTickers < 3 {
+		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
+	}
 	symbols := in.UniverseSymbols
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("cannot compute target portfolio with 0 asset universe")

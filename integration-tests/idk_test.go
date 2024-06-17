@@ -179,8 +179,8 @@ func Test_backtestFlow(t *testing.T) {
 		BacktestEnd:          "2020-12-31",
 		SamplingIntervalUnit: "weekly",
 		StartCash:            10000,
-
-		UserID: &userID,
+		NumSymbols:           3,
+		UserID:               &userID,
 	}
 	response := api.BacktestResponse{}
 	err = hitEndpoint("backtest", http.MethodPost, request, &response)
