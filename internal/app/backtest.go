@@ -15,9 +15,9 @@ import (
 )
 
 type BacktestHandler struct {
-	PriceRepository      repository.AdjustedPriceRepository
-	FactorMetricsHandler internal.FactorMetricCalculations
-	TickerRepository     repository.TickerRepository
+	PriceRepository         repository.AdjustedPriceRepository
+	FactorMetricsHandler    internal.FactorMetricCalculations
+	AssetUniverseRepository repository.AssetUniverseRepository
 
 	Db           *sql.DB
 	PriceService service.PriceService
@@ -251,12 +251,12 @@ type BacktestResponse struct {
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*BacktestResponse, error) {
 	profile := domain.GetPerformanceProfile(ctx) // used for profiling API performance
 
-	universe, err := h.TickerRepository.List()
+	tickers, err := h.AssetUniverseRepository.GetAssets(in.AssetUniverse)
 	if err != nil {
 		return nil, err
 	}
 	universeSymbols := []string{}
-	for _, u := range universe {
+	for _, u := range tickers {
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
