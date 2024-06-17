@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
@@ -22,9 +21,8 @@ import (
 
 type BacktestRequest struct {
 	FactorOptions struct {
-		Expression string  `json:"expression"`
-		Intensity  float64 `json:"intensity"`
-		Name       string  `json:"name"`
+		Expression string `json:"expression"`
+		Name       string `json:"name"`
 	} `json:"factorOptions"`
 	BacktestStart        string `json:"backtestStart"`
 	BacktestEnd          string `json:"backtestEnd"`
@@ -34,7 +32,7 @@ type BacktestRequest struct {
 	StartCash          float64 `json:"startCash"`
 
 	AnchorPortfolioQuantities map[string]float64 `json:"anchorPortfolio"`
-	NumSymbols                *int               `json:"numSymbols"`
+	NumSymbols                int                `json:"numSymbols"`
 	UserID                    *string            `json:"userID"`
 }
 
@@ -80,12 +78,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		samplingInterval *= 365
 	}
 
-	assetSelectionMode, err := internal.NewAssetSelectionMode(requestBody.AssetSelectionMode)
-	if err != nil {
-		returnErrorJson(fmt.Errorf("could not parse asset selection mode: %w", err), c)
-		return
-	}
-
 	var requestId *uuid.UUID
 	requestIDAny, ok := c.Get("requestID")
 	if ok {
@@ -113,29 +105,14 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	startPortfolio := domain.Portfolio{
-		Cash: requestBody.StartCash,
-	}
-	if *assetSelectionMode == internal.AssetSelectionMode_AnchorPortfolio {
-		startPortfolio.Positions = domain.PositionsFromQuantity(requestBody.AnchorPortfolioQuantities)
-	}
-
 	backtestInput := app.BacktestInput{
-		FactorOptions: app.FactorOptions{
-			Expression: requestBody.FactorOptions.Expression,
-			Intensity:  requestBody.FactorOptions.Intensity,
-			Name:       requestBody.FactorOptions.Name,
-		},
-		BacktestStart:             backtestStartDate,
-		BacktestEnd:               backtestEndDate,
-		SamplingInterval:          samplingInterval,
-		StartPortfolio:            startPortfolio,
-		AnchorPortfolioQuantities: requestBody.AnchorPortfolioQuantities,
-		AssetOptions: internal.AssetSelectionOptions{
-			NumTickers:             requestBody.NumSymbols,
-			AnchorPortfolioWeights: nil, // don't know this yet
-			Mode:                   *assetSelectionMode,
-		},
+		FactorExpression:  requestBody.FactorOptions.Expression,
+		FactorName:        requestBody.FactorOptions.Name,
+		BacktestStart:     backtestStartDate,
+		BacktestEnd:       backtestEndDate,
+		RebalanceInterval: samplingInterval,
+		StartingCash:      requestBody.StartCash,
+		NumTickers:        requestBody.NumSymbols,
 	}
 
 	performanceProfile.Add("starting backtest")
@@ -148,7 +125,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	performanceProfile.Add("finished backtest")
 
 	responseJson := BacktestResponse{
-		FactorName: backtestInput.FactorOptions.Name,
+		FactorName: backtestInput.FactorName,
 		Snapshots:  result.Snapshots,
 	}
 
@@ -175,7 +152,7 @@ func saveUserStrategy(
 		AssetSelectionMode        string             `json:"assetSelectionMode"`
 		StartCash                 float64            `json:"startCash"`
 		AnchorPortfolioQuantities map[string]float64 `json:"anchorPortfolio"`
-		NumSymbols                *int               `json:"numSymbols,omitempty"`
+		NumSymbols                int                `json:"numSymbols,omitempty"`
 	}
 
 	regex := regexp.MustCompile(`\s+`)
@@ -184,13 +161,18 @@ func saveUserStrategy(
 	// keep only selected fields bc we don't care about including
 	// factor name and cash in hash
 	si := &strategyInput{
-		FactorExpression:          cleanedExpression,
-		BacktestStart:             requestBody.BacktestStart,
-		BacktestEnd:               requestBody.BacktestEnd,
-		RebalanceInterval:         requestBody.SamplingIntervalUnit,
-		AssetSelectionMode:        requestBody.AssetSelectionMode,
-		AnchorPortfolioQuantities: requestBody.AnchorPortfolioQuantities,
-		NumSymbols:                requestBody.NumSymbols,
+		FactorExpression:   cleanedExpression,
+		BacktestStart:      requestBody.BacktestStart,
+		BacktestEnd:        requestBody.BacktestEnd,
+		RebalanceInterval:  requestBody.SamplingIntervalUnit,
+		AssetSelectionMode: requestBody.AssetSelectionMode,
+		// keep history happy by finding prev values
+		AnchorPortfolioQuantities: map[string]float64{
+			"AAPL":  10,
+			"MSFT":  10,
+			"GOOGL": 8,
+		},
+		NumSymbols: requestBody.NumSymbols,
 	}
 	siBytes, err := json.Marshal(si)
 	if err != nil {
