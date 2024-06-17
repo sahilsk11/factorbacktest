@@ -213,17 +213,17 @@ func IngestPrices(
 
 func UpdateUniversePrices(
 	tx *sql.Tx,
-	universeRepository repository.UniverseRepository,
+	tickerRepository repository.TickerRepository,
 	adjPricesRepository repository.AdjustedPriceRepository,
 ) error {
-	assets, err := universeRepository.List()
+	assets, err := tickerRepository.List()
 	if err != nil {
 		return err
 	}
 	if len(assets) == 0 {
 		return fmt.Errorf("no assets found in universe")
 	}
-	assets = append(assets, model.Universe{
+	assets = append(assets, model.Ticker{
 		Symbol: "SPY",
 	})
 
