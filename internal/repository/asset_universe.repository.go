@@ -43,5 +43,5 @@ func (h assetUniverseRepositoryHandler) GetAssets(name model.AssetUniverseName) 
 		return nil, fmt.Errorf("failed to query assets from %s: %w", name.String(), err)
 	}
 
-	return nil, nil
+	return tickers, nil
 }

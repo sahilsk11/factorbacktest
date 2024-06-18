@@ -108,7 +108,7 @@ func seedUniverse(tx *sql.Tx) error {
 
 	_, err = query.Exec(tx)
 	if err != nil {
-		return fmt.Errorf("failed to asset universe tickers: %w", err)
+		return fmt.Errorf("failed to insert asset universe tickers: %w", err)
 	}
 
 	return nil
@@ -168,10 +168,29 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	return nil
 }
 
+func cleanupUniverse(db *sql.DB) error {
+	if _, err := table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
+	if _, err := table.AssetUniverseTicker.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
+	if _, err := table.AssetUniverse.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
+	if _, err := table.Ticker.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
+	return nil
+}
+
 func Test_backtestFlow(t *testing.T) {
 	// setup db
 	db, err := internal.NewTestDb()
 	require.NoError(t, err)
+	err = cleanupUniverse(db) // redundant but ensures tables are empty
+	require.NoError(t, err)
+
 	tx, err := db.Begin()
 	require.NoError(t, err)
 	defer tx.Rollback()
@@ -180,19 +199,14 @@ func Test_backtestFlow(t *testing.T) {
 	err = seedUniverse(tx)
 	require.NoError(t, err)
 	defer func() {
-		_, err = table.Ticker.DELETE().WHERE(postgres.Bool(true)).Exec(db)
+		err = cleanupUniverse(db)
 		require.NoError(t, err)
 	}()
+
 	err = seedPrices(tx)
 	require.NoError(t, err)
 	defer func() {
 		_, err = table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-		require.NoError(t, err)
-		_, err = table.AssetUniverseTicker.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-		require.NoError(t, err)
-		_, err = table.AssetUniverse.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-		require.NoError(t, err)
-		_, err = table.Ticker.DELETE().WHERE(postgres.Bool(true)).Exec(db)
 		require.NoError(t, err)
 	}()
 
