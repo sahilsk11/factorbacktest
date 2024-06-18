@@ -32,6 +32,11 @@ func (m ApiHandler) addAssetsToUniverse(c *gin.Context) {
 		return
 	}
 
+	if len(requestBody.Assets) == 0 {
+		returnErrorJson(fmt.Errorf("no assets provided"), c)
+		return
+	}
+
 	universe, err := m.AssetUniverseRepository.GetOrCreate(tx, requestBody.UniverseName)
 	if err != nil {
 		returnErrorJson(err, c)

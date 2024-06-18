@@ -64,7 +64,13 @@ func (h assetUniverseRepositoryHandler) AddAssets(tx *sql.Tx, universe model.Ass
 			AssetUniverseID: universe.AssetUniverseID,
 		})
 	}
-	query := table.AssetUniverseTicker.INSERT(table.AssetUniverseTicker.MutableColumns).MODELS(models)
+	query := table.AssetUniverseTicker.
+		INSERT(table.AssetUniverseTicker.MutableColumns).
+		MODELS(models).
+		ON_CONFLICT(
+			table.AssetUniverseTicker.TickerID,
+			table.AssetUniverseTicker.AssetUniverseID,
+		).DO_NOTHING()
 
 	_, err := query.Exec(tx)
 	if err != nil {
@@ -78,7 +84,9 @@ func (h assetUniverseRepositoryHandler) GetOrCreate(tx *sql.Tx, name string) (*m
 	query := table.AssetUniverse.SELECT(table.AssetUniverse.AllColumns).WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.String(name)))
 	out := model.AssetUniverse{}
 	err := query.Query(h.Db, &out)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err == nil {
+		return &out, nil
+	} else if !errors.Is(err, qrm.ErrNoRows) {
 		return nil, fmt.Errorf("failed to get universe: %w", err)
 	}
 
@@ -86,7 +94,7 @@ func (h assetUniverseRepositoryHandler) GetOrCreate(tx *sql.Tx, name string) (*m
 		AssetUniverseName: name,
 	}).RETURNING(table.AssetUniverse.AllColumns)
 	err = query1.Query(tx, &out)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil {
 		return nil, fmt.Errorf("failed to create universe: %w", err)
 	}
 
