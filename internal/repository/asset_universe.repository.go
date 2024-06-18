@@ -35,7 +35,7 @@ func (h assetUniverseRepositoryHandler) GetAssets(name model.AssetUniverseName) 
 				table.AssetUniverse.AssetUniverseID.EQ(table.AssetUniverseTicker.AssetUniverseID),
 			),
 	).
-		WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.String(name.String())))
+		WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.NewEnumValue(name.String())))
 
 	tickers := []model.Ticker{}
 	err := query.Query(h.Db, &tickers)

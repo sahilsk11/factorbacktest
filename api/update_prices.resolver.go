@@ -13,7 +13,7 @@ func (m ApiHandler) updatePrices(c *gin.Context) {
 		return
 	}
 
-	err = service.UpdateUniversePrices(tx, m.BacktestHandler.TickerRepository, m.PriceRepository)
+	err = service.UpdateUniversePrices(tx, m.TickerRepository, m.PriceRepository)
 	if err != nil {
 		returnErrorJson(err, c)
 		return

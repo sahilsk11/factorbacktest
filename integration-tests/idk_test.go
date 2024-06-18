@@ -63,7 +63,7 @@ func seedPrices(tx *sql.Tx) error {
 }
 
 func seedUniverse(tx *sql.Tx) error {
-	models := []model.Ticker{
+	modelsToInsert := []model.Ticker{
 		{
 			Symbol: "AAPL",
 			Name:   "Apple",
@@ -77,10 +77,38 @@ func seedUniverse(tx *sql.Tx) error {
 			Name:   "Meta",
 		},
 	}
-	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(models)
-	_, err := query.Exec(tx)
+	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(modelsToInsert).RETURNING(table.Ticker.AllColumns)
+	insertedTickers := []model.Ticker{}
+	err := query.Query(tx, &insertedTickers)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert tickers: %w", err)
+	}
+
+	query = table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{
+		AssetUniverseName: model.AssetUniverseName_SpyTop80,
+	}).RETURNING(table.AssetUniverse.AllColumns)
+
+	universe := model.AssetUniverse{}
+	err = query.Query(tx, &universe)
+	if err != nil {
+		return fmt.Errorf("failed to insert universe: %w", err)
+	}
+
+	tickerModels := []model.AssetUniverseTicker{}
+	for _, m := range insertedTickers {
+		tickerModels = append(tickerModels, model.AssetUniverseTicker{
+			TickerID:        m.TickerID,
+			AssetUniverseID: universe.AssetUniverseID,
+		})
+	}
+
+	query = table.AssetUniverseTicker.
+		INSERT(table.AssetUniverseTicker.MutableColumns).
+		MODELS(tickerModels)
+
+	_, err = query.Exec(tx)
+	if err != nil {
+		return fmt.Errorf("failed to asset universe tickers: %w", err)
 	}
 
 	return nil
@@ -160,8 +188,15 @@ func Test_backtestFlow(t *testing.T) {
 	defer func() {
 		_, err = table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db)
 		require.NoError(t, err)
+		_, err = table.AssetUniverseTicker.DELETE().WHERE(postgres.Bool(true)).Exec(db)
+		require.NoError(t, err)
+		_, err = table.AssetUniverse.DELETE().WHERE(postgres.Bool(true)).Exec(db)
+		require.NoError(t, err)
+		_, err = table.Ticker.DELETE().WHERE(postgres.Bool(true)).Exec(db)
+		require.NoError(t, err)
 	}()
 
+	// need to commit because test is running in another process
 	err = tx.Commit()
 	require.NoError(t, err)
 

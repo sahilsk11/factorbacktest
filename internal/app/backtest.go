@@ -260,6 +260,8 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
+	fmt.Println(universeSymbols)
+
 	// all trading days within the selected window that we need to run a calculation on
 	// this will only contain days that we actually have data for, so if data is old, it
 	// will not include recent days
