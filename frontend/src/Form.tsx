@@ -40,22 +40,18 @@ export default function FactorForm({
   appendFactorData: (newFactorData: FactorData) => void;
 }) {
   const [factorExpression, setFactorExpression] = useState("");
-  const [factorIntensity, setFactorIntensity] = useState(0.75);
   const [factorName, setFactorName] = useState("7_day_momentum_weekly");
   const [backtestStart, setBacktestStart] = useState(eightWeeksAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("weekly");
-  const [startPortfolio, setStartPortfolio] = useState(`{
-      "AAPL": 10,
-      "MSFT": 15,
-      "GOOGL": 8
-}`);
+  
   const [cash, setCash] = useState(10_000);
-  const [assetSelectionMode, setAssetSelectionMode] = useState("NUM_SYMBOLS");
+
   const [numSymbols, setNumSymbols] = useState(10);
   const [names, setNames] = useState<string[]>([...takenNames]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [assetUniverse, setAssetUniverse] = useState('SPY_TOP_80');
 
   let found = false;
   let nextNum = 1;
@@ -117,16 +113,14 @@ export default function FactorForm({
       factorOptions: {
         expression: factorExpression,
         name,
-        intensity: factorIntensity,
       } as FactorOptions,
       backtestStart,
       backtestEnd,
       samplingIntervalUnit,
       startCash: cash,
-      anchorPortfolioQuantities: JSON.parse(startPortfolio),
-      assetSelectionMode,
       numSymbols,
-      userID
+      userID,
+      assetUniverse,
     };
 
     try {
@@ -234,14 +228,8 @@ export default function FactorForm({
           {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className='label-subtext'>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
         </div>
 
-        <div style={{ display: "none" }}>
-          <label>Asset Selection Mode</label>
-          <select value={assetSelectionMode} onChange={(e) => setAssetSelectionMode(e.target.value)}>
-            <option value="NUM_SYMBOLS">top N scoring assets</option>
-            <option value="ANCHOR_PORTFOLIO">tilt existing portfolio</option>
-          </select>
-        </div>
-        {assetSelectionMode === "NUM_SYMBOLS" ? <div>
+        
+        <div>
           <label>Number of Assets</label>
           <p className='label-subtext'>How many assets the target portfolio should hold at any time.</p>
           <input
@@ -260,16 +248,8 @@ export default function FactorForm({
             }
             }
           />
-        </div> : null}
+        </div>
 
-        {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
-          <label>Start Portfolio</label>
-          <textarea
-            value={startPortfolio}
-            onChange={(e) => setStartPortfolio(e.target.value)}
-            style={{ height: "100px" }}
-          />
-        </div> : null}
         <div>
           <label>Starting Cash</label>
           <span style={{ fontSize: "14px" }}>$</span> <input
@@ -290,20 +270,12 @@ export default function FactorForm({
         <div className='form-element'>
           <label>Asset Universe</label>
           <p className='label-subtext'>The pool of assets that are eligible for the target portfolio.</p>
-          <select>
-            <option value="daily">SPY Top 80 Holdings</option>
+          <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
+            <option value="SPY_TOP_80">SPY Top 80 Holdings</option>
+            <option value="F-PRIME_FINTECH_INDEX">F-Prime Fintech Index</option>
+            <option value="ALL">All</option>
           </select>
         </div>
-        {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
-          <label>Intensity</label>
-          <input
-            type="number"
-            value={factorIntensity}
-            onChange={(e) =>
-              setFactorIntensity(parseFloat(e.target.value))
-            }
-          />
-        </div> : null}
 
         {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className='backtest-btn' type="submit">Run Backtest</button>}
 

@@ -69,6 +69,9 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 
 	assetUniverse := "SPY_TOP_80"
+	if requestBody.AssetUniverse != "" {
+		assetUniverse = requestBody.AssetUniverse
+	}
 
 	samplingInterval := time.Hour * 24
 	if strings.EqualFold(requestBody.SamplingIntervalUnit, "weekly") {
