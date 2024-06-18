@@ -28,7 +28,8 @@ type BacktestRequest struct {
 	BacktestEnd          string `json:"backtestEnd"`
 	SamplingIntervalUnit string `json:"samplingIntervalUnit"`
 
-	StartCash float64 `json:"startCash"`
+	StartCash     float64 `json:"startCash"`
+	AssetUniverse string  `json:"assetUniverse"`
 
 	NumSymbols int     `json:"numSymbols"`
 	UserID     *string `json:"userID"`
@@ -66,6 +67,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		returnErrorJson(fmt.Errorf("end date cannot be before start date"), c)
 		return
 	}
+
+	assetUniverse := model.AssetUniverseName_SpyTop80
 
 	samplingInterval := time.Hour * 24
 	if strings.EqualFold(requestBody.SamplingIntervalUnit, "weekly") {
@@ -111,6 +114,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		RebalanceInterval: samplingInterval,
 		StartingCash:      requestBody.StartCash,
 		NumTickers:        requestBody.NumSymbols,
+		AssetUniverse:     assetUniverse,
 	}
 
 	performanceProfile.Add("starting backtest")
