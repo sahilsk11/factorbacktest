@@ -1,0 +1,2 @@
+alter table asset_universe
+drop CONSTRAINT unique_asset_universe_name;
