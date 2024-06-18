@@ -71,6 +71,7 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 
 	router.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
 	router.POST("/updatePrices", m.updatePrices)
+	router.POST("/addAssetsToUniverse", m.addAssetsToUniverse)
 
 	return router
 }
