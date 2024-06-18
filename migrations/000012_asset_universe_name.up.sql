@@ -23,3 +23,6 @@ alter table asset_universe
 drop column old_asset_universe_name;
 
 drop type asset_universe_name;
+
+ALTER TABLE ticker
+add constraint unique_symbol unique(symbol);
