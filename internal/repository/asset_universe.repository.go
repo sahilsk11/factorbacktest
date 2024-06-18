@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 type AssetUniverseRepository interface {
 	GetAssets(string) ([]model.Ticker, error)
 	AddAssets(tx *sql.Tx, universe model.AssetUniverse, tickers []model.Ticker) error
+	GetOrCreate(tx *sql.Tx, name string) (*model.AssetUniverse, error)
 }
 
 type assetUniverseRepositoryHandler struct {
@@ -62,7 +64,13 @@ func (h assetUniverseRepositoryHandler) AddAssets(tx *sql.Tx, universe model.Ass
 			AssetUniverseID: universe.AssetUniverseID,
 		})
 	}
-	query := table.AssetUniverseTicker.INSERT(table.AssetUniverseTicker.MutableColumns).MODELS(models)
+	query := table.AssetUniverseTicker.
+		INSERT(table.AssetUniverseTicker.MutableColumns).
+		MODELS(models).
+		ON_CONFLICT(
+			table.AssetUniverseTicker.TickerID,
+			table.AssetUniverseTicker.AssetUniverseID,
+		).DO_NOTHING()
 
 	_, err := query.Exec(tx)
 	if err != nil {
@@ -70,4 +78,25 @@ func (h assetUniverseRepositoryHandler) AddAssets(tx *sql.Tx, universe model.Ass
 	}
 
 	return nil
+}
+
+func (h assetUniverseRepositoryHandler) GetOrCreate(tx *sql.Tx, name string) (*model.AssetUniverse, error) {
+	query := table.AssetUniverse.SELECT(table.AssetUniverse.AllColumns).WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.String(name)))
+	out := model.AssetUniverse{}
+	err := query.Query(h.Db, &out)
+	if err == nil {
+		return &out, nil
+	} else if !errors.Is(err, qrm.ErrNoRows) {
+		return nil, fmt.Errorf("failed to get universe: %w", err)
+	}
+
+	query1 := table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{
+		AssetUniverseName: name,
+	}).RETURNING(table.AssetUniverse.AllColumns)
+	err = query1.Query(tx, &out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create universe: %w", err)
+	}
+
+	return &out, nil
 }

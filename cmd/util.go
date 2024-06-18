@@ -43,6 +43,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	tickerRepository := repository.NewTickerRepository(dbConn)
 
 	priceService := service.NewPriceService(dbConn, priceRepository)
+	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
 
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
@@ -54,7 +55,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 				priceRepository,
 				repository.AssetFundamentalsRepositoryHandler{},
 			),
-			AssetUniverseRepository: repository.NewAssetUniverseRepository(dbConn),
+			AssetUniverseRepository: assetUniverseRepository,
 			Db:                      dbConn,
 			PriceService:            priceService,
 		},
@@ -67,6 +68,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		TickerRepository:             tickerRepository,
 		PriceService:                 priceService,
 		PriceRepository:              priceRepository,
+		AssetUniverseRepository:      assetUniverseRepository,
 	}
 
 	return apiHandler, nil
