@@ -4,6 +4,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/service"
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,6 +44,7 @@ func (m ApiHandler) addAssetsToUniverse(c *gin.Context) {
 		return
 	}
 	tickers := []model.Ticker{}
+	symbols := []string{}
 	for _, asset := range requestBody.Assets {
 		ticker, err := m.TickerRepository.GetOrCreate(tx, model.Ticker{
 			Symbol: asset.Symbol,
@@ -52,12 +54,24 @@ func (m ApiHandler) addAssetsToUniverse(c *gin.Context) {
 			returnErrorJson(err, c)
 			return
 		}
+		symbols = append(symbols, ticker.Symbol)
+		tickers = append(tickers, *ticker)
+	}
+
+	// verify ticker is real
+	for _, ticker := range tickers {
+		// try getting price on some random day to check if we already track the price
+		_, err = m.PriceRepository.Get(ticker.Symbol, time.Date(2024, 06, 12, 0, 0, 0, 0, time.UTC))
+		if err == nil {
+			fmt.Println("skipping", ticker.Symbol)
+			continue
+		}
 		err = service.IngestPrices(tx, ticker.Symbol, m.PriceRepository, nil)
 		if err != nil {
 			returnErrorJson(fmt.Errorf("failed to ingest prices: %w", err), c)
 			return
 		}
-		tickers = append(tickers, *ticker)
+
 	}
 
 	err = m.AssetUniverseRepository.AddAssets(tx, *universe, tickers)
