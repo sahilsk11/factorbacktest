@@ -33,6 +33,7 @@ type ApiHandler struct {
 	PriceService                 service.PriceService
 	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
+	AssetUniverseRepository      repository.AssetUniverseRepository
 }
 
 func int64Ptr(i int64) *int64 {
