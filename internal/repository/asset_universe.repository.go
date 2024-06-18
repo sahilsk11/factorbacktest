@@ -11,7 +11,8 @@ import (
 )
 
 type AssetUniverseRepository interface {
-	GetAssets(model.AssetUniverseName) ([]model.Ticker, error)
+	GetAssets(string) ([]model.Ticker, error)
+	AddAssets(tx *sql.Tx, universe model.AssetUniverse, tickers []model.Ticker) error
 }
 
 type assetUniverseRepositoryHandler struct {
@@ -24,7 +25,7 @@ func NewAssetUniverseRepository(db *sql.DB) AssetUniverseRepository {
 	}
 }
 
-func (h assetUniverseRepositoryHandler) GetAssets(name model.AssetUniverseName) ([]model.Ticker, error) {
+func (h assetUniverseRepositoryHandler) GetAssets(name string) ([]model.Ticker, error) {
 	query := postgres.SELECT(table.Ticker.AllColumns).FROM(
 		table.Ticker.
 			INNER_JOIN(
@@ -37,8 +38,8 @@ func (h assetUniverseRepositoryHandler) GetAssets(name model.AssetUniverseName) 
 			),
 	)
 
-	if name != model.AssetUniverseName_All {
-		query = query.WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.NewEnumValue(name.String())))
+	if name != "ALL" {
+		query = query.WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.String(name)))
 	}
 
 	// i don't understand where duplicates are
@@ -47,8 +48,26 @@ func (h assetUniverseRepositoryHandler) GetAssets(name model.AssetUniverseName) 
 	tickers := []model.Ticker{}
 	err := query.Query(h.Db, &tickers)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query assets from %s: %w", name.String(), err)
+		return nil, fmt.Errorf("failed to query assets from %s: %w", name, err)
 	}
 
 	return tickers, nil
+}
+
+func (h assetUniverseRepositoryHandler) AddAssets(tx *sql.Tx, universe model.AssetUniverse, tickers []model.Ticker) error {
+	models := []model.AssetUniverseTicker{}
+	for _, t := range tickers {
+		models = append(models, model.AssetUniverseTicker{
+			TickerID:        t.TickerID,
+			AssetUniverseID: universe.AssetUniverseID,
+		})
+	}
+	query := table.AssetUniverseTicker.INSERT(table.AssetUniverseTicker.MutableColumns).MODELS(models)
+
+	_, err := query.Exec(tx)
+	if err != nil {
+		return fmt.Errorf("failed to add assets to universe %s: %w", universe.AssetUniverseName, err)
+	}
+
+	return nil
 }

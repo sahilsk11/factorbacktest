@@ -61,7 +61,7 @@ func seedOneUniverse(tx *sql.Tx) error {
 	}
 
 	query = table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{
-		AssetUniverseName: model.AssetUniverseName_SpyTop80,
+		AssetUniverseName: "SPY_TOP_80",
 	}).RETURNING(table.AssetUniverse.AllColumns)
 
 	universe := model.AssetUniverse{}
@@ -107,7 +107,7 @@ func seedTwoUniverses(tx *sql.Tx) error {
 
 	// kind of awkward but i don't have a second universe yet lol
 	query1 := table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{
-		AssetUniverseName: model.AssetUniverseName_All,
+		AssetUniverseName: "ALL",
 	}).RETURNING(table.AssetUniverse.AllColumns)
 
 	universe := model.AssetUniverse{}
@@ -147,7 +147,7 @@ func Test_assetUniverseRepositoryHandler_GetAssets(t *testing.T) {
 
 		handler := assetUniverseRepositoryHandler{tx}
 
-		tickers, err := handler.GetAssets(model.AssetUniverseName_SpyTop80)
+		tickers, err := handler.GetAssets("SPY_TOP_80")
 		require.NoError(t, err)
 		require.Equal(t, 3, len(tickers))
 	})
@@ -166,7 +166,7 @@ func Test_assetUniverseRepositoryHandler_GetAssets(t *testing.T) {
 
 		tickerSet := map[string]struct{}{}
 
-		tickers, err := handler.GetAssets(model.AssetUniverseName_All)
+		tickers, err := handler.GetAssets("ALL")
 		require.NoError(t, err)
 
 		for _, ticker := range tickers {
