@@ -7,6 +7,7 @@ import (
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/piquette/finance-go/chart"
@@ -227,22 +228,49 @@ func UpdateUniversePrices(
 		Symbol: "SPY",
 	})
 
-	errors := []error{}
-
-	for _, a := range assets {
-		err = IngestPrices(tx, a.Symbol, adjPricesRepository, nil)
-		if err != nil {
-			err = fmt.Errorf("failed to ingest historical prices for %s: %w", a.Symbol, err)
-			fmt.Println(err)
-			errors = append(errors, err)
-		} else {
-			fmt.Println("added", a.Symbol)
-		}
+	symbols := []string{}
+	for _, a := range assets[:10] {
+		symbols = append(symbols, a.Symbol)
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to update %d/%d universe prices. first err: %w", len(errors), len(assets), errors[0])
+	asyncIngestPrices(context.Background(), tx, symbols, adjPricesRepository)
+
+	return nil
+}
+
+func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPriceRepository repository.AdjustedPriceRepository) error {
+	numGoroutines := 10
+
+	inputCh := make(chan string, len(symbols))
+
+	var wg sync.WaitGroup
+	for _, f := range symbols {
+		wg.Add(1)
+		inputCh <- f
 	}
+	close(inputCh)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case symbol, ok := <-inputCh:
+					if !ok {
+						return
+					}
+					err := IngestPrices(tx, symbol, adjPriceRepository, nil)
+					if err != nil {
+						fmt.Printf("failed to ingest price for %s: %s\n", symbol, err.Error())
+					}
+					wg.Done()
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
 
 	return nil
 }
