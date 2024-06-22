@@ -3,146 +3,21 @@ package app
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"factorbacktest/internal"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
 	"fmt"
-	"sync"
 	"time"
 )
 
 type BacktestHandler struct {
 	PriceRepository         repository.AdjustedPriceRepository
-	FactorMetricsHandler    internal.FactorMetricCalculations
 	AssetUniverseRepository repository.AssetUniverseRepository
 
-	Db           *sql.DB
-	PriceService service.PriceService
-}
-
-type workInput struct {
-	Symbol           string
-	Date             time.Time
-	FactorExpression string
-}
-
-// preloadData "dry-runs" the factor expression to determine which dates are needed
-// then loads them into a price cache. it has no concept of trading days, so it
-// may produce cache misses on holidays
-func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*service.PriceCache, error) {
-	dataHandler := internal.DryRunFactorMetricsHandler{
-		Data: map[string]service.LoadPriceCacheInput{},
-	}
-	for _, n := range in {
-		_, err := internal.EvaluateFactorExpression(ctx, nil, nil, n.FactorExpression, n.Symbol, &dataHandler, n.Date)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	dataValues := []service.LoadPriceCacheInput{}
-	for _, v := range dataHandler.Data {
-		dataValues = append(dataValues, v)
-	}
-
-	priceCache, err := h.PriceService.LoadCache(dataValues)
-	if err != nil {
-		return nil, fmt.Errorf("failed to populate price cache: %w", err)
-	}
-
-	return priceCache, nil
-}
-
-type scoresResultsOnDay struct {
-	symbolScores map[string]*float64
-	errors       []error
-}
-
-// calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
-// using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
-// despite using workers, this is still the slowest part of the flow
-func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.PriceCache, in []workInput) (map[time.Time]*scoresResultsOnDay, error) {
-	numGoroutines := 10
-
-	type result struct {
-		Date             time.Time
-		Symbol           string
-		ExpressionResult *internal.ExpressionResult
-		Err              error
-	}
-
-	inputCh := make(chan workInput, len(in))
-	resultCh := make(chan result, len(in))
-
-	var wg sync.WaitGroup
-	for _, f := range in {
-		wg.Add(1)
-		inputCh <- f
-	}
-	close(inputCh)
-
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case input, ok := <-inputCh:
-					if !ok {
-						return
-					}
-					res, err := internal.EvaluateFactorExpression(
-						ctx,
-						h.Db,
-						pr,
-						input.FactorExpression,
-						input.Symbol,
-						h.FactorMetricsHandler,
-						input.Date,
-					)
-					if err != nil {
-						err = fmt.Errorf("failed to compute factor score for %s on %s: %w", input.Symbol, input.Date.Format(time.DateOnly), err)
-					}
-					resultCh <- result{
-						ExpressionResult: res,
-						Symbol:           input.Symbol,
-						Date:             input.Date,
-						Err:              err,
-					}
-					wg.Done()
-				}
-			}
-		}()
-	}
-
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
-
-	results := []result{}
-	for res := range resultCh {
-		results = append(results, res)
-	}
-
-	out := map[time.Time]*scoresResultsOnDay{}
-	for _, res := range results {
-		if _, ok := out[res.Date]; !ok {
-			out[res.Date] = &scoresResultsOnDay{
-				symbolScores: map[string]*float64{},
-				errors:       []error{},
-			}
-		}
-		if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
-			out[res.Date].errors = append(out[res.Date].errors, res.Err)
-		} else if res.Err == nil {
-			out[res.Date].symbolScores[res.Symbol] = &res.ExpressionResult.Value
-		}
-	}
-
-	return out, nil
+	Db                      *sql.DB
+	PriceService            service.PriceService
+	FactorExpressionService FactorExpressionService
 }
 
 type ComputeTargetPortfolioInput struct {
@@ -261,6 +136,8 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	tickers, err := h.AssetUniverseRepository.GetAssets(in.AssetUniverse)
 	if err != nil {
 		return nil, err
+	} else if len(tickers) == 0 {
+		return nil, fmt.Errorf("no tickers found")
 	}
 	universeSymbols := []string{}
 	for _, u := range tickers {
@@ -274,32 +151,16 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	if err != nil {
 		return nil, err
 	}
-
-	inputs := []workInput{}
-	for _, tradingDay := range tradingDays {
-		for _, symbol := range universeSymbols {
-			inputs = append(inputs, workInput{
-				Symbol:           symbol,
-				Date:             tradingDay,
-				FactorExpression: in.FactorExpression,
-			})
-		}
+	if len(tradingDays) == 0 {
+		return nil, fmt.Errorf("failed to backtest: no calculated trading days in given range")
 	}
+
 	profile.Add("finished helper info")
 
-	priceCache, err := h.preloadData(ctx, inputs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to preload data: %w", err)
-	}
-
-	profile.Add("finished preloading prices")
-
-	x := time.Now()
-	factorScoresByDay, err := h.calculateFactorScores(ctx, priceCache, inputs)
+	factorScoresByDay, err := h.FactorExpressionService.CalculateFactorScores(ctx, tradingDays, tickers, in.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
-	fmt.Println("scores calculated in", time.Since(x).Seconds())
 	profile.Add("finished scores")
 
 	startValue := in.StartingCash
@@ -314,6 +175,8 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	const errThreshold = 0.1
 	backtestErrors := []error{}
 
+	priceMap := map[string]map[string]float64{}
+
 	for _, t := range tradingDays {
 		// should work on weekends too
 
@@ -321,12 +184,13 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// of assets so much that it kinda makes sense to
 		// just get everything and let everyone figure it out
 		// this is also premature optimization
-		priceMap, err := h.PriceRepository.GetMany(universeSymbols, t)
+		pm, err := h.PriceRepository.GetMany(universeSymbols, t)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get prices on day %v: %w", t, err)
 		}
+		priceMap[t.Format(time.DateOnly)] = pm
 
-		currentPortfolioValue, err := currentPortfolio.TotalValue(priceMap)
+		currentPortfolioValue, err := currentPortfolio.TotalValue(pm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate portfolio value on %v: %w", t, err)
 		}
@@ -338,9 +202,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
-			FactorScores:     valuesFromDay.symbolScores,
+			FactorScores:     valuesFromDay.SymbolScores,
 			PortfolioValue:   currentPortfolioValue,
-			PriceMap:         priceMap,
+			PriceMap:         pm,
 		})
 		if err != nil {
 			// TODO figure out what to do here. should
@@ -353,7 +217,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		trades, err := h.transitionToTarget(
 			currentPortfolio,
 			*computeTargetPortfolioResponse.TargetPortfolio,
-			priceMap,
+			pm,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to transition to target: %w", err)
@@ -379,7 +243,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
 	}
 
-	snapshots, err := toSnapshots(out, priceCache)
+	snapshots, err := toSnapshots(out, priceMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute snapshots: %w", err)
 	}
@@ -390,7 +254,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	}, nil
 }
 
-func toSnapshots(result []BacktestSample, priceCache *service.PriceCache) (map[string]BacktestSnapshot, error) {
+func toSnapshots(result []BacktestSample, priceMap map[string]map[string]float64) (map[string]BacktestSnapshot, error) {
 	snapshots := map[string]BacktestSnapshot{}
 
 	for i, r := range result {
@@ -403,13 +267,13 @@ func toSnapshots(result []BacktestSample, priceCache *service.PriceCache) (map[s
 		if i < len(result)-1 {
 			nextResamplingDate := result[i+1].Date
 			for symbol := range r.AssetWeights {
-				startPrice, err := priceCache.Get(symbol, r.Date)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get start price from cache: %w", err)
+				startPrice, ok := priceMap[r.Date.Format(time.DateOnly)][symbol]
+				if !ok {
+					return nil, fmt.Errorf("failed to get start price from cache: %s, %v", symbol, r.Date)
 				}
-				endPrice, err := priceCache.Get(symbol, nextResamplingDate)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get end price from cache: %w", err)
+				endPrice, ok := priceMap[nextResamplingDate.Format(time.DateOnly)][symbol]
+				if !ok {
+					return nil, fmt.Errorf("failed to get end price from cache: %s, %v", symbol, r.Date)
 				}
 				priceChangeTilNextResampling[symbol] = 100 * (endPrice - startPrice) / startPrice
 			}

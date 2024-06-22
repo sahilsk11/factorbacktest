@@ -1,10 +1,13 @@
 package internal
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 )
 
 func Pprint(i interface{}) {
@@ -68,4 +71,14 @@ func LoadSecrets() (*Secrets, error) {
 	}
 
 	return &secrets, nil
+}
+
+func HashFactorExpression(in string) string {
+	regex := regexp.MustCompile(`\s+`)
+	cleanedExpression := regex.ReplaceAllString(in, "")
+	expressionHasher := sha256.New()
+	expressionHasher.Write([]byte(cleanedExpression))
+	expressionHash := hex.EncodeToString(expressionHasher.Sum(nil))
+
+	return expressionHash
 }
