@@ -3,6 +3,7 @@ create table factor_score(
   ticker_id uuid not null references ticker(ticker_id),
   factor_expression_hash text not null,
   date date not null,
+  score float not null,
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null,
   unique(factor_expression_hash, ticker_id, date)

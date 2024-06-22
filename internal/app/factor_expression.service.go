@@ -7,6 +7,7 @@ import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
 
 	"fmt"
@@ -24,9 +25,10 @@ type FactorExpressionService interface {
 }
 
 type factorExpressionServiceHandler struct {
-	Db                   *sql.DB
-	FactorMetricsHandler internal.FactorMetricCalculations
-	PriceService         service.PriceService
+	Db                    *sql.DB
+	FactorMetricsHandler  internal.FactorMetricCalculations
+	PriceService          service.PriceService
+	FactorScoreRepository repository.FactorScoreRepository
 }
 
 func NewFactorExpressionService(db *sql.DB, factorMetricsHandler internal.FactorMetricCalculations) FactorExpressionService {
@@ -37,9 +39,16 @@ func NewFactorExpressionService(db *sql.DB, factorMetricsHandler internal.Factor
 }
 
 type workInput struct {
-	Symbol           string
+	Ticker           model.Ticker
 	Date             time.Time
 	FactorExpression string
+}
+
+type workResult struct {
+	Date             time.Time
+	Ticker           model.Ticker
+	ExpressionResult *internal.ExpressionResult
+	Err              error
 }
 
 // calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
@@ -48,35 +57,42 @@ type workInput struct {
 func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error) {
 	profile := domain.GetPerformanceProfile(ctx) // used for profiling API performance
 
+	// convert params to list of inputs
 	inputs := []workInput{}
 	for _, tradingDay := range tradingDays {
 		for _, ticker := range tickers {
 			inputs = append(inputs, workInput{
-				Symbol:           ticker.Symbol,
+				Ticker:           ticker,
 				Date:             tradingDay,
 				FactorExpression: factorExpression,
 			})
 		}
 	}
 
-	cache, err := h.preloadData(ctx, inputs)
+	inputCh := make(chan workInput, len(inputs))
+	resultCh := make(chan workResult, len(inputs))
+	numGoroutines := 10
+	out := map[time.Time]*ScoresResultsOnDay{}
+
+	// if we have any of the inputs stored already, load them and remove
+	// from the inputs list
+	precomputedScores, err := h.getPrecomputedScores(inputs)
+	if err != nil {
+		return nil, err
+	}
+	for date, valuesOnDate := range precomputedScores {
+		out[date] = &ScoresResultsOnDay{
+			SymbolScores: valuesOnDate,
+			Errors:       []error{},
+		}
+	}
+
+	cache, err := h.loadPriceCache(ctx, inputs)
 	if err != nil {
 		return nil, err
 	}
 
 	profile.Add("finished preloading prices")
-
-	numGoroutines := 10
-
-	type result struct {
-		Date             time.Time
-		Symbol           string
-		ExpressionResult *internal.ExpressionResult
-		Err              error
-	}
-
-	inputCh := make(chan workInput, len(inputs))
-	resultCh := make(chan result, len(inputs))
 
 	var wg sync.WaitGroup
 	for _, f := range inputs {
@@ -100,16 +116,16 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 						h.Db,
 						cache,
 						input.FactorExpression,
-						input.Symbol,
+						input.Ticker.Symbol,
 						h.FactorMetricsHandler,
 						input.Date,
 					)
 					if err != nil {
-						err = fmt.Errorf("failed to compute factor score for %s on %s: %w", input.Symbol, input.Date.Format(time.DateOnly), err)
+						err = fmt.Errorf("failed to compute factor score for %s on %s: %w", input.Ticker.Symbol, input.Date.Format(time.DateOnly), err)
 					}
-					resultCh <- result{
+					resultCh <- workResult{
 						ExpressionResult: res,
-						Symbol:           input.Symbol,
+						Ticker:           input.Ticker,
 						Date:             input.Date,
 						Err:              err,
 					}
@@ -124,12 +140,12 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		close(resultCh)
 	}()
 
-	results := []result{}
+	results := []workResult{}
 	for res := range resultCh {
 		results = append(results, res)
 	}
 
-	out := map[time.Time]*ScoresResultsOnDay{}
+	addManyInput := []model.FactorScore{}
 	for _, res := range results {
 		if _, ok := out[res.Date]; !ok {
 			out[res.Date] = &ScoresResultsOnDay{
@@ -137,25 +153,45 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 				Errors:       []error{},
 			}
 		}
+
 		if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
 			out[res.Date].Errors = append(out[res.Date].Errors, res.Err)
 		} else if res.Err == nil {
-			out[res.Date].SymbolScores[res.Symbol] = &res.ExpressionResult.Value
+			out[res.Date].SymbolScores[res.Ticker.Symbol] = &res.ExpressionResult.Value
+			addManyInput = append(addManyInput, model.FactorScore{
+				TickerID:             res.Ticker.TickerID,
+				FactorExpressionHash: factorExpression,
+				Date:                 res.Date,
+				Score:                res.ExpressionResult.Value,
+			})
 		}
+	}
+
+	err = h.FactorScoreRepository.AddMany(addManyInput)
+	if err != nil {
+		return nil, err
 	}
 
 	return out, nil
 }
 
-// preloadData "dry-runs" the factor expression to determine which dates are needed
+// loadPriceCache "dry-runs" the factor expression to determine which dates are needed
 // then loads them into a price cache. it has no concept of trading days, so it
 // may produce cache misses on holidays
-func (h factorExpressionServiceHandler) preloadData(ctx context.Context, in []workInput) (*service.PriceCache, error) {
+func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in []workInput) (*service.PriceCache, error) {
 	dataHandler := internal.DryRunFactorMetricsHandler{
 		Data: map[string]service.LoadPriceCacheInput{},
 	}
 	for _, n := range in {
-		_, err := internal.EvaluateFactorExpression(ctx, nil, nil, n.FactorExpression, n.Symbol, &dataHandler, n.Date)
+		_, err := internal.EvaluateFactorExpression(
+			ctx,
+			nil,
+			nil,
+			n.FactorExpression,
+			n.Ticker.Symbol,
+			&dataHandler,
+			n.Date,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -172,4 +208,61 @@ func (h factorExpressionServiceHandler) preloadData(ctx context.Context, in []wo
 	}
 
 	return priceCache, nil
+}
+
+func (h factorExpressionServiceHandler) getPrecomputedScores(inputs []workInput) (map[time.Time]map[string]*float64, error) {
+	// work backwards so we can pop from the inputs array
+	getScoresInput := []repository.FactorScoreGetManyInput{}
+	for _, in := range inputs {
+		getScoresInput = append(getScoresInput, repository.FactorScoreGetManyInput{
+			FactorExpressionHash: "",
+			Ticker:               in.Ticker,
+			Date:                 in.Date,
+		})
+	}
+
+	scoreResults, err := h.FactorScoreRepository.GetMany(getScoresInput)
+	if err != nil {
+		return nil, err
+	}
+
+	sortedIndicesToRemove := []int{}
+	out := map[time.Time]map[string]*float64{}
+	for i := 0; i < len(inputs); i++ {
+		if valuesOnDate, ok := scoreResults[inputs[i].Date]; ok {
+			if score, ok := valuesOnDate[inputs[i].Ticker.TickerID]; ok {
+				if _, ok := out[inputs[i].Date]; !ok {
+					out[inputs[i].Date] = map[string]*float64{}
+				}
+				out[inputs[i].Date][inputs[i].Ticker.Symbol] = &score
+				sortedIndicesToRemove = append(sortedIndicesToRemove, i)
+			}
+		}
+	}
+
+	removeIndicesInPlace(inputs, sortedIndicesToRemove)
+
+	return out, nil
+}
+
+func removeIndicesInPlace(slice []workInput, sortedIndexesToRemove []int) {
+	// Sort indexes to remove
+
+	// Initialize pointers
+	j := 0 // Pointer for the new slice position
+	k := 0 // Pointer for indexesToRemove
+
+	for i := 0; i < len(slice); i++ {
+		// If current index matches the next index to remove, skip it
+		if k < len(sortedIndexesToRemove) && i == sortedIndexesToRemove[k] {
+			k++
+			continue
+		}
+		// Otherwise, copy the element to the 'j' position and increment 'j'
+		(slice)[j] = (slice)[i]
+		j++
+	}
+
+	// Slice the original slice to its new size
+	slice = (slice)[:j]
 }

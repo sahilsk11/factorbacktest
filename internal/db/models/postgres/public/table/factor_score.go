@@ -21,6 +21,7 @@ type factorScoreTable struct {
 	TickerID             postgres.ColumnString
 	FactorExpressionHash postgres.ColumnString
 	Date                 postgres.ColumnDate
+	Score                postgres.ColumnFloat
 	CreatedAt            postgres.ColumnTimestampz
 	UpdatedAt            postgres.ColumnTimestampz
 
@@ -57,10 +58,11 @@ func newFactorScoreTableImpl(schemaName, tableName, alias string) factorScoreTab
 		TickerIDColumn             = postgres.StringColumn("ticker_id")
 		FactorExpressionHashColumn = postgres.StringColumn("factor_expression_hash")
 		DateColumn                 = postgres.DateColumn("date")
+		ScoreColumn                = postgres.FloatColumn("score")
 		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn            = postgres.TimestampzColumn("updated_at")
-		allColumns                 = postgres.ColumnList{FactorScoreIDColumn, TickerIDColumn, FactorExpressionHashColumn, DateColumn, CreatedAtColumn, UpdatedAtColumn}
-		mutableColumns             = postgres.ColumnList{TickerIDColumn, FactorExpressionHashColumn, DateColumn, CreatedAtColumn, UpdatedAtColumn}
+		allColumns                 = postgres.ColumnList{FactorScoreIDColumn, TickerIDColumn, FactorExpressionHashColumn, DateColumn, ScoreColumn, CreatedAtColumn, UpdatedAtColumn}
+		mutableColumns             = postgres.ColumnList{TickerIDColumn, FactorExpressionHashColumn, DateColumn, ScoreColumn, CreatedAtColumn, UpdatedAtColumn}
 	)
 
 	return factorScoreTable{
@@ -71,6 +73,7 @@ func newFactorScoreTableImpl(schemaName, tableName, alias string) factorScoreTab
 		TickerID:             TickerIDColumn,
 		FactorExpressionHash: FactorExpressionHashColumn,
 		Date:                 DateColumn,
+		Score:                ScoreColumn,
 		CreatedAt:            CreatedAtColumn,
 		UpdatedAt:            UpdatedAtColumn,
 

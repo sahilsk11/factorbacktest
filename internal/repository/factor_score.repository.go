@@ -3,10 +3,17 @@ package repository
 import (
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/db/models/postgres/public/table"
 	"time"
+
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 )
 
-type FactorScoreRepository interface{}
+type FactorScoreRepository interface {
+	GetMany([]FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]float64, error)
+	AddMany([]model.FactorScore) error
+}
 
 type factorScoreRepositoryHandler struct {
 	Db *sql.DB
@@ -16,7 +23,7 @@ func NewFactorScoreRepository(db *sql.DB) FactorScoreRepository {
 	return factorScoreRepositoryHandler{db}
 }
 
-func Add(tx *sql.Tx, ticker model.Ticker, score float64, date time.Time) error {
+func (h factorScoreRepositoryHandler) AddMany(in []model.FactorScore) error {
 	return nil
 }
 
@@ -26,4 +33,33 @@ type FactorScoreGetManyInput struct {
 	Date                 time.Time
 }
 
-func GetMany(inputs []FactorScoreGetManyInput)
+func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]float64, error) {
+	tickerIdToSymbol := map[uuid.UUID]string{}
+	expressions := []postgres.BoolExpression{}
+	for _, in := range inputs {
+		tickerIdToSymbol[in.Ticker.TickerID] = in.Ticker.Symbol
+		expressions = append(expressions, postgres.AND(
+			table.FactorScore.FactorExpressionHash.EQ(postgres.String(in.FactorExpressionHash)),
+			table.FactorScore.Date.EQ(postgres.DateT(in.Date)),
+			table.FactorScore.TickerID.EQ(postgres.UUID(in.Ticker.TickerID)),
+		))
+	}
+	query := table.FactorScore.SELECT(table.FactorScore.AllColumns).
+		WHERE(postgres.OR(expressions...))
+
+	out := []model.FactorScore{}
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, err
+	}
+
+	results := map[time.Time]map[uuid.UUID]float64{}
+	for _, m := range out {
+		if _, ok := results[m.Date]; !ok {
+			results[m.Date] = map[uuid.UUID]float64{}
+		}
+		results[m.Date][m.TickerID] = m.Score
+	}
+
+	return results, nil
+}
