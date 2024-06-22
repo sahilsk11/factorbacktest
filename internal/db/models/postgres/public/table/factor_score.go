@@ -24,6 +24,7 @@ type factorScoreTable struct {
 	Score                postgres.ColumnFloat
 	CreatedAt            postgres.ColumnTimestampz
 	UpdatedAt            postgres.ColumnTimestampz
+	Error                postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -61,8 +62,9 @@ func newFactorScoreTableImpl(schemaName, tableName, alias string) factorScoreTab
 		ScoreColumn                = postgres.FloatColumn("score")
 		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn            = postgres.TimestampzColumn("updated_at")
-		allColumns                 = postgres.ColumnList{FactorScoreIDColumn, TickerIDColumn, FactorExpressionHashColumn, DateColumn, ScoreColumn, CreatedAtColumn, UpdatedAtColumn}
-		mutableColumns             = postgres.ColumnList{TickerIDColumn, FactorExpressionHashColumn, DateColumn, ScoreColumn, CreatedAtColumn, UpdatedAtColumn}
+		ErrorColumn                = postgres.StringColumn("error")
+		allColumns                 = postgres.ColumnList{FactorScoreIDColumn, TickerIDColumn, FactorExpressionHashColumn, DateColumn, ScoreColumn, CreatedAtColumn, UpdatedAtColumn, ErrorColumn}
+		mutableColumns             = postgres.ColumnList{TickerIDColumn, FactorExpressionHashColumn, DateColumn, ScoreColumn, CreatedAtColumn, UpdatedAtColumn, ErrorColumn}
 	)
 
 	return factorScoreTable{
@@ -76,6 +78,7 @@ func newFactorScoreTableImpl(schemaName, tableName, alias string) factorScoreTab
 		Score:                ScoreColumn,
 		CreatedAt:            CreatedAtColumn,
 		UpdatedAt:            UpdatedAtColumn,
+		Error:                ErrorColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

@@ -12,7 +12,7 @@ import (
 )
 
 type FactorScoreRepository interface {
-	GetMany([]FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]float64, error)
+	GetMany([]FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]model.FactorScore, error)
 	AddMany([]*model.FactorScore) error
 }
 
@@ -70,7 +70,7 @@ type FactorScoreGetManyInput struct {
 	Date                 time.Time
 }
 
-func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]float64, error) {
+func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]model.FactorScore, error) {
 	tickerIdToSymbol := map[uuid.UUID]string{}
 	expressions := []postgres.BoolExpression{}
 	for _, in := range inputs {
@@ -90,12 +90,12 @@ func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) 
 		return nil, err
 	}
 
-	results := map[time.Time]map[uuid.UUID]float64{}
+	results := map[time.Time]map[uuid.UUID]model.FactorScore{}
 	for _, m := range out {
 		if _, ok := results[m.Date]; !ok {
-			results[m.Date] = map[uuid.UUID]float64{}
+			results[m.Date] = map[uuid.UUID]model.FactorScore{}
 		}
-		results[m.Date][m.TickerID] = m.Score
+		results[m.Date][m.TickerID] = m
 	}
 
 	return results, nil

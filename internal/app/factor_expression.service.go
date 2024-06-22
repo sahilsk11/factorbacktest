@@ -89,15 +89,26 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		return nil, err
 	}
 	numFound := 0
+	numErrors := 0
 	for date, valuesOnDate := range precomputedScores {
+		scoresOnDate := map[string]*float64{}
+		errList := []error{}
+		for symbol, score := range valuesOnDate {
+			if score.Error != nil {
+				errList = append(errList, errors.New(*score.Error))
+			} else {
+				scoresOnDate[symbol] = score.Score
+			}
+		}
 		out[date] = &ScoresResultsOnDay{
-			SymbolScores: valuesOnDate,
+			SymbolScores: scoresOnDate,
 			Errors:       []error{},
 		}
 		numFound += len(valuesOnDate)
+		numErrors += len(errList)
 	}
 
-	fmt.Printf("found %d scores, computing data for %d scores\n", len(precomputedScores), len(inputs))
+	fmt.Printf("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
 
 	cache, err := h.loadPriceCache(ctx, inputs)
 	if err != nil {
@@ -169,17 +180,22 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 			}
 		}
 
+		m := &model.FactorScore{
+			TickerID:             res.Ticker.TickerID,
+			FactorExpressionHash: internal.HashFactorExpression(factorExpression),
+			Date:                 res.Date,
+		}
+
 		if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
 			out[res.Date].Errors = append(out[res.Date].Errors, res.Err)
+			errString := res.Err.Error()
+			m.Error = &errString
 		} else if res.Err == nil {
 			out[res.Date].SymbolScores[res.Ticker.Symbol] = &res.ExpressionResult.Value
-			addManyInput = append(addManyInput, &model.FactorScore{
-				TickerID:             res.Ticker.TickerID,
-				FactorExpressionHash: internal.HashFactorExpression(factorExpression),
-				Date:                 res.Date,
-				Score:                res.ExpressionResult.Value,
-			})
+			m.Score = &res.ExpressionResult.Value
 		}
+
+		addManyInput = append(addManyInput, m)
 	}
 
 	fmt.Printf("adding %d scores to db\n", len(addManyInput))
@@ -226,7 +242,7 @@ func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in [
 	return priceCache, nil
 }
 
-func (h factorExpressionServiceHandler) getPrecomputedScores(inputsPtr *[]workInput) (map[time.Time]map[string]*float64, error) {
+func (h factorExpressionServiceHandler) getPrecomputedScores(inputsPtr *[]workInput) (map[time.Time]map[string]model.FactorScore, error) {
 	inputs := *inputsPtr
 	// work backwards so we can pop from the inputs array
 	getScoresInput := []repository.FactorScoreGetManyInput{}
@@ -244,14 +260,14 @@ func (h factorExpressionServiceHandler) getPrecomputedScores(inputsPtr *[]workIn
 	}
 
 	sortedIndicesToRemove := []int{}
-	out := map[time.Time]map[string]*float64{}
+	out := map[time.Time]map[string]model.FactorScore{}
 	for i := 0; i < len(inputs); i++ {
 		if valuesOnDate, ok := scoreResults[inputs[i].Date]; ok {
 			if score, ok := valuesOnDate[inputs[i].Ticker.TickerID]; ok {
 				if _, ok := out[inputs[i].Date]; !ok {
-					out[inputs[i].Date] = map[string]*float64{}
+					out[inputs[i].Date] = map[string]model.FactorScore{}
 				}
-				out[inputs[i].Date][inputs[i].Ticker.Symbol] = &score
+				out[inputs[i].Date][inputs[i].Ticker.Symbol] = score
 				sortedIndicesToRemove = append(sortedIndicesToRemove, i)
 			}
 		}

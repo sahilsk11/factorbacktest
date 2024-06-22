@@ -17,7 +17,8 @@ type FactorScore struct {
 	TickerID             uuid.UUID
 	FactorExpressionHash string
 	Date                 time.Time
-	Score                float64
+	Score                *float64
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	Error                *string
 }
