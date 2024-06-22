@@ -136,6 +136,8 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	tickers, err := h.AssetUniverseRepository.GetAssets(in.AssetUniverse)
 	if err != nil {
 		return nil, err
+	} else if len(tickers) == 0 {
+		return nil, fmt.Errorf("no tickers found")
 	}
 	universeSymbols := []string{}
 	for _, u := range tickers {
@@ -148,6 +150,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	tradingDays, err := h.calculateRelevantTradingDays(in.BacktestStart, in.BacktestEnd, in.RebalanceInterval)
 	if err != nil {
 		return nil, err
+	}
+	if len(tradingDays) == 0 {
+		return nil, fmt.Errorf("failed to backtest: no calculated trading days in given range")
 	}
 
 	profile.Add("finished helper info")

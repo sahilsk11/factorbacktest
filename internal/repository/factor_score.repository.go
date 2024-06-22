@@ -25,7 +25,17 @@ func NewFactorScoreRepository(db *sql.DB) FactorScoreRepository {
 }
 
 func (h factorScoreRepositoryHandler) AddMany(in []model.FactorScore) error {
-	query := table.FactorScore.INSERT(table.FactorScore.MutableColumns).MODELS(in)
+	for _, x := range in {
+		x.CreatedAt = time.Now().UTC()
+		x.UpdatedAt = time.Now().UTC()
+	}
+	query := table.FactorScore.INSERT(table.FactorScore.MutableColumns).
+		MODELS(in).
+		ON_CONFLICT().DO_UPDATE(
+		postgres.SET(
+			table.FactorScore.UpdatedAt.SET(table.FactorScore.EXCLUDED.UpdatedAt),
+		),
+	)
 	_, err := query.Exec(h.Db)
 	if err != nil {
 		return fmt.Errorf("failed to create factor scores in db: %w", err)

@@ -4,7 +4,7 @@ create table factor_score(
   factor_expression_hash text not null,
   date date not null,
   score float not null,
-  created_at timestamp with time zone not null,
-  updated_at timestamp with time zone not null,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
   unique(factor_expression_hash, ticker_id, date)
 );

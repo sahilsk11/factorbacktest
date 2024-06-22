@@ -76,6 +76,10 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		}
 	}
 
+	if len(inputs) == 0 {
+		return nil, fmt.Errorf("cannot calculate factor scores with 0 inputs")
+	}
+
 	inputCh := make(chan workInput, len(inputs))
 	resultCh := make(chan workResult, len(inputs))
 	numGoroutines := 10
