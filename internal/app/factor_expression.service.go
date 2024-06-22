@@ -88,11 +88,13 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
+	numFound := 0
 	for date, valuesOnDate := range precomputedScores {
 		out[date] = &ScoresResultsOnDay{
 			SymbolScores: valuesOnDate,
 			Errors:       []error{},
 		}
+		numFound += len(valuesOnDate)
 	}
 
 	fmt.Printf("found %d scores, computing data for %d scores\n", len(precomputedScores), len(inputs))
@@ -180,6 +182,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		}
 	}
 
+	fmt.Printf("adding %d scores to db\n", len(addManyInput))
 	err = h.FactorScoreRepository.AddMany(addManyInput)
 	if err != nil {
 		return nil, err
