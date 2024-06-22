@@ -95,7 +95,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		}
 	}
 
-	fmt.Printf("computing data for %d assets\n", len(inputs))
+	fmt.Printf("found %d scores, computing data for %d scores\n", len(precomputedScores), len(inputs))
 
 	cache, err := h.loadPriceCache(ctx, inputs)
 	if err != nil {
