@@ -13,7 +13,6 @@ import (
 
 type BacktestHandler struct {
 	PriceRepository         repository.AdjustedPriceRepository
-	FactorMetricsHandler    internal.FactorMetricCalculations
 	AssetUniverseRepository repository.AssetUniverseRepository
 
 	Db                      *sql.DB

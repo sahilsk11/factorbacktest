@@ -31,10 +31,17 @@ type factorExpressionServiceHandler struct {
 	FactorScoreRepository repository.FactorScoreRepository
 }
 
-func NewFactorExpressionService(db *sql.DB, factorMetricsHandler internal.FactorMetricCalculations) FactorExpressionService {
+func NewFactorExpressionService(
+	db *sql.DB,
+	factorMetricsHandler internal.FactorMetricCalculations,
+	priceService service.PriceService,
+	factorScoreRepository repository.FactorScoreRepository,
+) FactorExpressionService {
 	return factorExpressionServiceHandler{
-		Db:                   db,
-		FactorMetricsHandler: factorMetricsHandler,
+		Db:                    db,
+		FactorMetricsHandler:  factorMetricsHandler,
+		PriceService:          priceService,
+		FactorScoreRepository: factorScoreRepository,
 	}
 }
 
@@ -160,7 +167,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 			out[res.Date].SymbolScores[res.Ticker.Symbol] = &res.ExpressionResult.Value
 			addManyInput = append(addManyInput, model.FactorScore{
 				TickerID:             res.Ticker.TickerID,
-				FactorExpressionHash: factorExpression,
+				FactorExpressionHash: internal.HashFactorExpression(factorExpression),
 				Date:                 res.Date,
 				Score:                res.ExpressionResult.Value,
 			})
@@ -215,7 +222,7 @@ func (h factorExpressionServiceHandler) getPrecomputedScores(inputs []workInput)
 	getScoresInput := []repository.FactorScoreGetManyInput{}
 	for _, in := range inputs {
 		getScoresInput = append(getScoresInput, repository.FactorScoreGetManyInput{
-			FactorExpressionHash: "",
+			FactorExpressionHash: internal.HashFactorExpression(in.FactorExpression),
 			Ticker:               in.Ticker,
 			Date:                 in.Date,
 		})
