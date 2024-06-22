@@ -1,0 +1,9 @@
+create table factor_score(
+  factor_score_id uuid default uuid_generate_v4() primary key,
+  ticker_id uuid not null references ticker(ticker_id),
+  factor_expression_hash text not null,
+  date date not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null,
+  unique(factor_expression_hash, ticker_id, date)
+);

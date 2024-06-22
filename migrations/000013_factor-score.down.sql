@@ -1,0 +1,1 @@
+drop table factor_score;
