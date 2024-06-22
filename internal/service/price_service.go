@@ -62,13 +62,19 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	}
 	date = closestTradingDay
 
+	var result float64
+	found := false
 	pr.ReadMutex.RLock()
 	if _, ok := pr.cache[symbol]; ok {
 		if _, ok := pr.cache[symbol][date.Format(time.DateOnly)]; ok {
-			return pr.cache[symbol][date.Format(time.DateOnly)], nil
+			result = pr.cache[symbol][date.Format(time.DateOnly)]
+			found = true
 		}
 	}
 	pr.ReadMutex.RUnlock()
+	if found {
+		return result, nil
+	}
 
 	// missed l1 cache - check db
 
