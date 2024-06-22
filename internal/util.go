@@ -58,6 +58,8 @@ func LoadSecrets() (*Secrets, error) {
 		secretsFile = "secrets-dev.json"
 	} else if os.Getenv("ALPHA_ENV") == "test" {
 		secretsFile = "secrets-test.json"
+	} else if os.Getenv("ALPHA_ENV") == "prod" {
+		secretsFile = "secrets.json"
 	}
 	f, err := os.ReadFile(secretsFile)
 	if err != nil {
