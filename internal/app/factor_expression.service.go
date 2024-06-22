@@ -80,14 +80,11 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		return nil, fmt.Errorf("cannot calculate factor scores with 0 inputs")
 	}
 
-	inputCh := make(chan workInput, len(inputs))
-	resultCh := make(chan workResult, len(inputs))
-	numGoroutines := 10
 	out := map[time.Time]*ScoresResultsOnDay{}
 
 	// if we have any of the inputs stored already, load them and remove
 	// from the inputs list
-	precomputedScores, err := h.getPrecomputedScores(inputs)
+	precomputedScores, err := h.getPrecomputedScores(&inputs)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +95,8 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		}
 	}
 
+	fmt.Printf("computing data for %d assets\n", len(inputs))
+
 	cache, err := h.loadPriceCache(ctx, inputs)
 	if err != nil {
 		return nil, err
@@ -105,6 +104,9 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 
 	profile.Add("finished preloading prices")
 
+	inputCh := make(chan workInput, len(inputs))
+	resultCh := make(chan workResult, len(inputs))
+	numGoroutines := 10
 	var wg sync.WaitGroup
 	for _, f := range inputs {
 		wg.Add(1)
@@ -156,7 +158,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		results = append(results, res)
 	}
 
-	addManyInput := []model.FactorScore{}
+	addManyInput := []*model.FactorScore{}
 	for _, res := range results {
 		if _, ok := out[res.Date]; !ok {
 			out[res.Date] = &ScoresResultsOnDay{
@@ -169,7 +171,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 			out[res.Date].Errors = append(out[res.Date].Errors, res.Err)
 		} else if res.Err == nil {
 			out[res.Date].SymbolScores[res.Ticker.Symbol] = &res.ExpressionResult.Value
-			addManyInput = append(addManyInput, model.FactorScore{
+			addManyInput = append(addManyInput, &model.FactorScore{
 				TickerID:             res.Ticker.TickerID,
 				FactorExpressionHash: internal.HashFactorExpression(factorExpression),
 				Date:                 res.Date,
@@ -221,7 +223,8 @@ func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in [
 	return priceCache, nil
 }
 
-func (h factorExpressionServiceHandler) getPrecomputedScores(inputs []workInput) (map[time.Time]map[string]*float64, error) {
+func (h factorExpressionServiceHandler) getPrecomputedScores(inputsPtr *[]workInput) (map[time.Time]map[string]*float64, error) {
+	inputs := *inputsPtr
 	// work backwards so we can pop from the inputs array
 	getScoresInput := []repository.FactorScoreGetManyInput{}
 	for _, in := range inputs {
@@ -251,29 +254,29 @@ func (h factorExpressionServiceHandler) getPrecomputedScores(inputs []workInput)
 		}
 	}
 
-	removeIndicesInPlace(inputs, sortedIndicesToRemove)
+	removeIndicesInPlace(inputsPtr, sortedIndicesToRemove)
 
 	return out, nil
 }
 
-func removeIndicesInPlace(slice []workInput, sortedIndexesToRemove []int) {
+func removeIndicesInPlace(slice *[]workInput, sortedIndexesToRemove []int) {
 	// Sort indexes to remove
 
 	// Initialize pointers
 	j := 0 // Pointer for the new slice position
 	k := 0 // Pointer for indexesToRemove
 
-	for i := 0; i < len(slice); i++ {
+	for i := 0; i < len(*slice); i++ {
 		// If current index matches the next index to remove, skip it
 		if k < len(sortedIndexesToRemove) && i == sortedIndexesToRemove[k] {
 			k++
 			continue
 		}
 		// Otherwise, copy the element to the 'j' position and increment 'j'
-		(slice)[j] = (slice)[i]
+		(*slice)[j] = (*slice)[i]
 		j++
 	}
 
 	// Slice the original slice to its new size
-	slice = (slice)[:j]
+	*slice = (*slice)[:j]
 }

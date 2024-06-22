@@ -13,7 +13,7 @@ import (
 
 type FactorScoreRepository interface {
 	GetMany([]FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]float64, error)
-	AddMany([]model.FactorScore) error
+	AddMany([]*model.FactorScore) error
 }
 
 type factorScoreRepositoryHandler struct {
@@ -24,18 +24,27 @@ func NewFactorScoreRepository(db *sql.DB) FactorScoreRepository {
 	return factorScoreRepositoryHandler{db}
 }
 
-func (h factorScoreRepositoryHandler) AddMany(in []model.FactorScore) error {
+func (h factorScoreRepositoryHandler) AddMany(in []*model.FactorScore) error {
+	if len(in) == 0 {
+		return nil
+	}
+
 	for _, x := range in {
 		x.CreatedAt = time.Now().UTC()
 		x.UpdatedAt = time.Now().UTC()
 	}
 	query := table.FactorScore.INSERT(table.FactorScore.MutableColumns).
 		MODELS(in).
-		ON_CONFLICT().DO_UPDATE(
-		postgres.SET(
-			table.FactorScore.UpdatedAt.SET(table.FactorScore.EXCLUDED.UpdatedAt),
-		),
-	)
+		ON_CONFLICT(
+			table.FactorScore.FactorExpressionHash,
+			table.FactorScore.Date,
+			table.FactorScore.TickerID,
+		).
+		DO_UPDATE(
+			postgres.SET(
+				table.FactorScore.UpdatedAt.SET(table.FactorScore.EXCLUDED.UpdatedAt),
+			),
+		)
 	_, err := query.Exec(h.Db)
 	if err != nil {
 		return fmt.Errorf("failed to create factor scores in db: %w", err)
