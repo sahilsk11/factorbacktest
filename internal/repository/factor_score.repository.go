@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
+	"fmt"
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
@@ -24,6 +25,12 @@ func NewFactorScoreRepository(db *sql.DB) FactorScoreRepository {
 }
 
 func (h factorScoreRepositoryHandler) AddMany(in []model.FactorScore) error {
+	query := table.FactorScore.INSERT(table.FactorScore.MutableColumns).MODELS(in)
+	_, err := query.Exec(h.Db)
+	if err != nil {
+		return fmt.Errorf("failed to create factor scores in db: %w", err)
+	}
+
 	return nil
 }
 

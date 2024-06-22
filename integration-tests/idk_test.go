@@ -30,6 +30,7 @@ func seedPrices(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	defer f.Close()
 
 	type Row struct {
@@ -169,6 +170,9 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 }
 
 func cleanupUniverse(db *sql.DB) error {
+	if _, err := table.FactorScore.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
 	if _, err := table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
 		return err
 	}
