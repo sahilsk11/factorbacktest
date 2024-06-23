@@ -57,13 +57,15 @@ type workResult struct {
 	ExpressionResult *internal.ExpressionResult
 	Err              error
 	elapsedMs        int64
+	span             *domain.Span
 }
 
 // calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
 // using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
 // despite using workers, this is still the slowest part of the flow
 func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error) {
-	profile := domain.GetPerformanceProfile(ctx) // used for profiling API performance
+	profile, endProfile := domain.GetProfile(ctx)
+	defer endProfile()
 
 	// convert params to list of inputs
 	inputs := []workInput{}
@@ -85,6 +87,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 
 	// if we have any of the inputs stored already, load them and remove
 	// from the inputs list
+	_, endSpan := profile.StartNewSpan("get precomputed scores")
 	precomputedScores, err := h.getPrecomputedScores(&inputs)
 	if err != nil {
 		return nil, err
@@ -108,16 +111,16 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		numFound += len(valuesOnDate)
 		numErrors += len(errList)
 	}
-	profile.Add("finished fetching pre-computed results")
+	endSpan()
 
 	fmt.Printf("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
 
+	_, endSpan = profile.StartNewSpan("load price cache")
 	cache, err := h.loadPriceCache(ctx, inputs)
 	if err != nil {
 		return nil, err
 	}
-
-	profile.Add("finished preloading prices")
+	endSpan()
 
 	inputCh := make(chan workInput, len(inputs))
 	resultCh := make(chan workResult, len(inputs))
@@ -129,6 +132,9 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	}
 	close(inputCh)
 
+	span, endSpan := profile.StartNewSpan("evaluate factor expressions")
+	newProfile, endNewProfile := span.NewSubProfile()
+	// i want a list of spans - one for each element in this
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
 			for {
@@ -140,8 +146,10 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 						return
 					}
 					start := time.Now()
+					span, endSpan := domain.NewSpan(fmt.Sprintf("evaluating expression for %s on %s", input.Ticker.Symbol, input.Date.Format(time.DateOnly)))
+					subProfile, endProfile := span.NewSubProfile()
 					res, err := internal.EvaluateFactorExpression(
-						ctx,
+						context.WithValue(ctx, domain.ContextProfileKey, subProfile),
 						h.Db,
 						cache,
 						input.FactorExpression,
@@ -152,12 +160,15 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 					if err != nil {
 						err = fmt.Errorf("failed to compute factor score for %s on %s: %w", input.Ticker.Symbol, input.Date.Format(time.DateOnly), err)
 					}
+					endSpan()
+					endProfile()
 					resultCh <- workResult{
 						ExpressionResult: res,
 						Ticker:           input.Ticker,
 						Date:             input.Date,
 						Err:              err,
 						elapsedMs:        time.Since(start).Milliseconds(),
+						span:             span,
 					}
 					wg.Done()
 				}
@@ -175,11 +186,13 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	for res := range resultCh {
 		results = append(results, res)
 		totalMs += float64(res.elapsedMs)
+		newProfile.AddSpan(res.span)
 	}
 	fmt.Printf("avg score processing: %f\n", totalMs/float64(len(results)))
+	endNewProfile()
+	endSpan()
 
-	profile.Add("finished computing prices")
-
+	_, endSpan = profile.StartNewSpan("adding factor scores to db")
 	addManyInput := []*model.FactorScore{}
 	for _, res := range results {
 		if _, ok := out[res.Date]; !ok {
@@ -215,8 +228,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 			return nil, err
 		}
 	}
-
-	profile.Add("finished adding factor scores")
+	endSpan()
 
 	return out, nil
 }

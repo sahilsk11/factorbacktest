@@ -131,10 +131,10 @@ type BacktestResponse struct {
 }
 
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*BacktestResponse, error) {
-	profile := domain.GetProfile(ctx) // used for profiling API performance
-	defer profile.End()
+	profile, endProfile := domain.GetProfile(ctx) // used for profiling API performance
+	defer endProfile()
 
-	s := profile.StartNewSpan("setting up backtest")
+	span, endSpan := profile.StartNewSpan("setting up backtest")
 	tickers, err := h.AssetUniverseRepository.GetAssets(in.AssetUniverse)
 	if err != nil {
 		return nil, err
@@ -157,14 +157,14 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		return nil, fmt.Errorf("failed to backtest: no calculated trading days in given range")
 	}
 
-	s.End()
+	endSpan()
 
-	s = profile.StartNewSpan("calculating factor scores")
-	factorScoresByDay, err := h.FactorExpressionService.CalculateFactorScores(domain.NewCtxWithSubProfile(ctx, s), tradingDays, tickers, in.FactorExpression)
+	span, endSpan = profile.StartNewSpan("calculating factor scores")
+	factorScoresByDay, err := h.FactorExpressionService.CalculateFactorScores(domain.NewCtxWithSubProfile(ctx, span), tradingDays, tickers, in.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
-	s.End()
+	endSpan()
 
 	startValue := in.StartingCash
 
@@ -178,7 +178,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 
 	priceMap := map[string]map[string]float64{}
 
-	s = profile.StartNewSpan("daily calcs")
+	span, endSpan = profile.StartNewSpan("daily calcs")
 	for _, t := range tradingDays {
 		// should work on weekends too
 
@@ -235,7 +235,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		})
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 	}
-	s.End()
+	endSpan()
 
 	if float64(len(backtestErrors))/float64(len(tradingDays)) >= errThreshold {
 		numErrors := 3
@@ -245,12 +245,12 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
 	}
 
-	s = profile.StartNewSpan("creating snapshots")
+	span, endSpan = profile.StartNewSpan("creating snapshots")
 	snapshots, err := toSnapshots(out, priceMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute snapshots: %w", err)
 	}
-	s.End()
+	endSpan()
 
 	return &BacktestResponse{
 		BacktestSamples: out,
