@@ -81,22 +81,38 @@ func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) 
 			table.FactorScore.TickerID.EQ(postgres.UUID(in.Ticker.TickerID)),
 		))
 	}
-	query := table.FactorScore.SELECT(table.FactorScore.AllColumns).
-		WHERE(postgres.OR(expressions...))
 
-	out := []model.FactorScore{}
-	err := query.Query(h.Db, &out)
-	if err != nil {
-		return nil, err
-	}
-
+	batchSize := int(60)
 	results := map[time.Time]map[uuid.UUID]model.FactorScore{}
-	for _, m := range out {
-		if _, ok := results[m.Date]; !ok {
-			results[m.Date] = map[uuid.UUID]model.FactorScore{}
+
+	x := time.Now()
+
+	for start := 0; start < len(expressions); start += batchSize {
+		end := start + batchSize
+		if end > len(expressions) {
+			end = len(expressions)
 		}
-		results[m.Date][m.TickerID] = m
+
+		expr := expressions[start:end]
+
+		query := table.FactorScore.SELECT(table.FactorScore.AllColumns).
+			WHERE(postgres.OR(expr...))
+
+		out := []model.FactorScore{}
+		err := query.Query(h.Db, &out)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, m := range out {
+			if _, ok := results[m.Date]; !ok {
+				results[m.Date] = map[uuid.UUID]model.FactorScore{}
+			}
+			results[m.Date][m.TickerID] = m
+		}
+
 	}
+	fmt.Printf("query took %d ms\n", time.Since(x).Milliseconds())
 
 	return results, nil
 }
