@@ -1,10 +1,12 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
@@ -71,6 +73,13 @@ type FactorScoreGetManyInput struct {
 }
 
 func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) (map[time.Time]map[uuid.UUID]model.FactorScore, error) {
+	ctx := context.Background()
+
+	type workResult struct {
+		models []model.FactorScore
+		err    error
+	}
+
 	tickerIdToSymbol := map[uuid.UUID]string{}
 	expressions := []postgres.BoolExpression{}
 	for _, in := range inputs {
@@ -85,6 +94,12 @@ func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) 
 	batchSize := int(60)
 	results := map[time.Time]map[uuid.UUID]model.FactorScore{}
 
+	inputCh := make(chan []postgres.BoolExpression, len(inputs))
+	resultCh := make(chan workResult, len(inputs))
+
+	numGoroutines := 10
+	var wg sync.WaitGroup
+
 	x := time.Now()
 
 	for start := 0; start < len(expressions); start += batchSize {
@@ -92,26 +107,56 @@ func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) 
 		if end > len(expressions) {
 			end = len(expressions)
 		}
-
 		expr := expressions[start:end]
 
-		query := table.FactorScore.SELECT(table.FactorScore.AllColumns).
-			WHERE(postgres.OR(expr...))
+		wg.Add(1)
+		inputCh <- expr
+	}
+	close(inputCh)
 
-		out := []model.FactorScore{}
-		err := query.Query(h.Db, &out)
-		if err != nil {
-			return nil, err
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case input, ok := <-inputCh:
+					if !ok {
+						return
+					}
+
+					query := table.FactorScore.SELECT(table.FactorScore.AllColumns).
+						WHERE(postgres.OR(input...))
+
+					out := []model.FactorScore{}
+					err := query.Query(h.Db, &out)
+					resultCh <- workResult{
+						models: out,
+						err:    err,
+					}
+					wg.Done()
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	for out := range resultCh {
+		if out.err != nil {
+			return nil, out.err
 		}
-
-		for _, m := range out {
+		for _, m := range out.models {
 			if _, ok := results[m.Date]; !ok {
 				results[m.Date] = map[uuid.UUID]model.FactorScore{}
 			}
 			results[m.Date][m.TickerID] = m
 		}
-
 	}
+
 	fmt.Printf("query took %d ms\n", time.Since(x).Milliseconds())
 
 	return results, nil
