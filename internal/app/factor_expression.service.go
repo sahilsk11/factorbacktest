@@ -56,6 +56,7 @@ type workResult struct {
 	Ticker           model.Ticker
 	ExpressionResult *internal.ExpressionResult
 	Err              error
+	elapsedMs        int64
 }
 
 // calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
@@ -138,6 +139,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 					if !ok {
 						return
 					}
+					start := time.Now()
 					res, err := internal.EvaluateFactorExpression(
 						ctx,
 						h.Db,
@@ -155,6 +157,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 						Ticker:           input.Ticker,
 						Date:             input.Date,
 						Err:              err,
+						elapsedMs:        time.Since(start).Milliseconds(),
 					}
 					wg.Done()
 				}
@@ -167,10 +170,13 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		close(resultCh)
 	}()
 
+	totalMs := 0.0
 	results := []workResult{}
 	for res := range resultCh {
 		results = append(results, res)
+		totalMs += float64(res.elapsedMs)
 	}
+	fmt.Printf("avg score processing: %f\n", totalMs/float64(len(results)))
 
 	profile.Add("finished computing prices")
 

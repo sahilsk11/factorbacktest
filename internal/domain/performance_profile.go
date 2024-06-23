@@ -14,9 +14,10 @@ func NewPeformanceProfile() *PerformanceProfile {
 }
 
 type PerformanceProfileEvent struct {
-	Name      string    `json:"name"`
-	ElapsedMs int64     `json:"elapsedMs"`
-	Time      time.Time `json:"time"`
+	Name      string                    `json:"name"`
+	ElapsedMs int64                     `json:"elapsedMs"`
+	Time      time.Time                 `json:"time"`
+	Events    []PerformanceProfileEvent `json:"events"`
 }
 
 type PerformanceProfile struct {
@@ -26,7 +27,7 @@ type PerformanceProfile struct {
 }
 
 func GetPerformanceProfile(ctx context.Context) *PerformanceProfile {
-	return ctx.Value("performanceProfile").(*PerformanceProfile)
+	return ctx.Value(ContextProfileKey).(*PerformanceProfile)
 }
 
 func (p *PerformanceProfile) End() {
