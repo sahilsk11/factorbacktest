@@ -107,6 +107,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		numFound += len(valuesOnDate)
 		numErrors += len(errList)
 	}
+	profile.Add("finished fetching pre-computed results")
 
 	fmt.Printf("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
 
@@ -171,6 +172,8 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		results = append(results, res)
 	}
 
+	profile.Add("finished computing prices")
+
 	addManyInput := []*model.FactorScore{}
 	for _, res := range results {
 		if _, ok := out[res.Date]; !ok {
@@ -199,10 +202,15 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	}
 
 	fmt.Printf("adding %d scores to db\n", len(addManyInput))
-	err = h.FactorScoreRepository.AddMany(addManyInput)
-	if err != nil {
-		return nil, err
+
+	if false {
+		err = h.FactorScoreRepository.AddMany(addManyInput)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	profile.Add("finished adding factor scores")
 
 	return out, nil
 }
