@@ -52,12 +52,7 @@ type AdjustedPriceRepository interface {
 	LatestPrices(symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
-	GetManyOnDays(set []GetManyOnDaysInput) ([]domain.AssetPrice, error)
-}
-
-type GetManyOnDaysInput struct {
-	Symbol string
-	Date   time.Time
+	GetMany(set []GetManyInput) ([]domain.AssetPrice, error)
 }
 
 func NewAdjustedPriceRepository(db *sql.DB) AdjustedPriceRepository {
@@ -274,41 +269,28 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(symbols []string) ([]domain
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) GetManyOnDays(inputs []GetManyOnDaysInput) ([]domain.AssetPrice, error) {
+type GetManyInput struct {
+	Symbol  string
+	MinDate time.Time
+	MaxDate time.Time
+}
+
+func (h adjustedPriceRepositoryHandler) GetMany(inputs []GetManyInput) ([]domain.AssetPrice, error) {
 	// finds the min and max dates required
 	// priceChange(t-100, t) would require
 	// price from way before, so min trading date
 	// isn't enough
+	// TODO - is it really better to do this instead
+	// of passing individual dates?
 	expressions := []postgres.BoolExpression{}
-	symbolRanges := map[string]*struct {
-		min time.Time
-		max time.Time
-	}{}
-	for _, s := range inputs {
-		if _, ok := symbolRanges[s.Symbol]; !ok {
-			symbolRanges[s.Symbol] = &struct {
-				min time.Time
-				max time.Time
-			}{
-				min: s.Date,
-				max: s.Date,
-			}
-		}
-		if s.Date.After(symbolRanges[s.Symbol].max) {
-			symbolRanges[s.Symbol].max = s.Date
-		}
-		if s.Date.Before(symbolRanges[s.Symbol].min) {
-			symbolRanges[s.Symbol].min = s.Date
-		}
-	}
 
-	for symbol, rng := range symbolRanges {
+	for _, in := range inputs {
 		expressions = append(
 			expressions,
 			postgres.AND(
-				table.AdjustedPrice.Symbol.EQ(postgres.String(symbol)),
-				table.AdjustedPrice.Date.LT_EQ(postgres.DateT(rng.max)),
-				table.AdjustedPrice.Date.GT_EQ(postgres.DateT(rng.min)),
+				table.AdjustedPrice.Symbol.EQ(postgres.String(in.Symbol)),
+				table.AdjustedPrice.Date.LT_EQ(postgres.DateT(in.MaxDate)),
+				table.AdjustedPrice.Date.GT_EQ(postgres.DateT(in.MinDate)),
 			),
 		)
 	}

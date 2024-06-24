@@ -112,6 +112,14 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
+func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput) (stdevCache, error) {
+	stdevCache := stdevCache{
+		cache: map[string]map[time.Time]map[time.Time]float64{},
+	}
+
+	return stdevCache, nil
+}
+
 func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
 	if result, ok := pr.stdevs.get(symbol, start, end); ok {
 		return result, nil
@@ -148,11 +156,41 @@ func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepo
 
 // LoadPriceCache uses dry-run results to populate prices and stdevs
 func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*PriceCache, error) {
-	getInputs := []repository.GetManyOnDaysInput{}
-	for _, d := range inputs {
-		getInputs = append(getInputs, repository.GetManyOnDaysInput{
-			Symbol: d.Symbol,
-			Date:   d.Date,
+	type minMax struct {
+		min *time.Time
+		max *time.Time
+	}
+	minMaxMap := map[string]*minMax{}
+	for _, in := range inputs {
+		if _, ok := minMaxMap[in.Symbol]; !ok {
+			minMaxMap[in.Symbol] = &minMax{}
+		}
+		mp := minMaxMap[in.Symbol]
+		if mp.min == nil || in.Date.Before(*mp.min) {
+			mp.min = &in.Date
+		}
+		if mp.max == nil || in.Date.After(*mp.max) {
+			mp.max = &in.Date
+		}
+	}
+	for _, in := range stdevInputs {
+		if _, ok := minMaxMap[in.Symbol]; !ok {
+			minMaxMap[in.Symbol] = &minMax{}
+		}
+		mp := minMaxMap[in.Symbol]
+		if mp.min == nil || in.Start.Before(*mp.min) {
+			mp.min = &in.Start
+		}
+		if mp.max == nil || in.End.After(*mp.max) {
+			mp.max = &in.End
+		}
+	}
+	getInputs := []repository.GetManyInput{}
+	for symbol, minMaxValues := range minMaxMap {
+		getInputs = append(getInputs, repository.GetManyInput{
+			Symbol:  symbol,
+			MinDate: *minMaxValues.min,
+			MaxDate: *minMaxValues.max,
 		})
 	}
 
@@ -168,7 +206,9 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		}, nil
 	}
 
-	prices, err := h.AdjPriceRepository.GetManyOnDays(getInputs)
+	// TODO - we're gonna have lots of stdev values in this
+	// if we decide to optimize, we should remove them
+	prices, err := h.AdjPriceRepository.GetMany(getInputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
@@ -181,8 +221,14 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		cache[p.Symbol][p.Date.Format(time.DateOnly)] = p.Price
 	}
 
+	stdevCache, err := stdevsFromPriceMap(cache, stdevInputs)
+	if err != nil {
+		return nil, err
+	}
+
 	return &PriceCache{
 		prices:             cache,
+		stdevs:             stdevCache,
 		tradingDays:        nil,
 		adjPriceRepository: h.AdjPriceRepository,
 		ReadMutex:          &sync.RWMutex{},
