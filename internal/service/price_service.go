@@ -6,9 +6,11 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/repository"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
+	"github.com/montanaflynn/stats"
 	"github.com/piquette/finance-go/chart"
 	"github.com/piquette/finance-go/datetime"
 )
@@ -24,11 +26,17 @@ trading day, and use that price
 */
 
 type PriceService interface {
-	LoadCache(inputs []LoadPriceCacheInput) (*PriceCache, error)
+	LoadPriceCache(inputs []LoadPriceCacheInput, stdevs []LoadStdevCacheInput) (*PriceCache, error)
 }
 
 type LoadPriceCacheInput struct {
 	Date   time.Time
+	Symbol string
+}
+
+type LoadStdevCacheInput struct {
+	Start  time.Time
+	End    time.Time
 	Symbol string
 }
 
@@ -37,15 +45,31 @@ type priceServiceHandler struct {
 	Db                 *sql.DB
 }
 
+type stdevCache struct {
+	// symbol, start, end
+	cache map[string]map[time.Time]map[time.Time]float64
+}
+
+func (c stdevCache) get(symbol string, start, end time.Time) (float64, bool) {
+	if symbolValue, ok := c.cache[symbol]; ok {
+		if startValue, ok := symbolValue[start]; ok {
+			if stdev, ok := startValue[end]; ok {
+				return stdev, true
+			}
+		}
+	}
+	return 0, false
+}
+
 type PriceCache struct {
-	cache       map[string]map[string]float64
-	tradingDays []time.Time
-	// Tx                 *sql.Tx
+	prices             map[string]map[string]float64
+	stdevs             stdevCache
+	tradingDays        []time.Time
 	adjPriceRepository repository.AdjustedPriceRepository
 	ReadMutex          *sync.RWMutex
 }
 
-func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
+func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	// find the relevant trading day for the price
 	closestTradingDay := date
 	for i := 0; i < len(pr.tradingDays)-1; i++ {
@@ -61,8 +85,8 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	date = closestTradingDay
 
 	pr.ReadMutex.RLock()
-	if _, ok := pr.cache[symbol]; ok {
-		if price, ok := pr.cache[symbol][date.Format(time.DateOnly)]; ok {
+	if _, ok := pr.prices[symbol]; ok {
+		if price, ok := pr.prices[symbol][date.Format(time.DateOnly)]; ok {
 			pr.ReadMutex.RUnlock()
 			return price, nil
 		}
@@ -76,12 +100,43 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 		return 0, err
 	}
 	pr.ReadMutex.Lock()
-	pr.cache[symbol][date.Format(time.DateOnly)] = price
+	pr.prices[symbol][date.Format(time.DateOnly)] = price
 	pr.ReadMutex.Unlock()
 
 	// TODO - handle missing here too
 
 	return price, nil
+}
+
+func percentChange(end, start float64) float64 {
+	return ((end - start) / end) * 100
+}
+
+func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
+	if result, ok := pr.stdevs.get(symbol, start, end); ok {
+		return result, nil
+	}
+
+	priceModels, err := pr.adjPriceRepository.List([]string{symbol}, start, end)
+	if err != nil {
+		return 0, err
+	}
+
+	intradayChanges := make([]float64, len(priceModels)-1)
+	for i := 1; i < len(priceModels); i++ {
+		intradayChanges[i-1] = percentChange(
+			priceModels[i].Price,
+			priceModels[i-1].Price,
+		)
+	}
+
+	stdev, err := stats.StandardDeviationSample(intradayChanges)
+	if err != nil {
+		return 0, err
+	}
+	magicNumber := math.Sqrt(252)
+
+	return stdev * magicNumber, nil
 }
 
 func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository) PriceService {
@@ -91,7 +146,7 @@ func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepo
 	}
 }
 
-func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCache, error) {
+func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*PriceCache, error) {
 	setInputs := []repository.ListFromSetInput{}
 	for _, d := range inputs {
 		setInputs = append(setInputs, repository.ListFromSetInput{
@@ -102,11 +157,17 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 
 	if len(setInputs) == 0 {
 		return &PriceCache{
-			cache:              map[string]map[string]float64{},
+			prices: map[string]map[string]float64{},
+			stdevs: stdevCache{
+				cache: map[string]map[time.Time]map[time.Time]float64{},
+			},
 			tradingDays:        []time.Time{},
 			adjPriceRepository: h.AdjPriceRepository,
+			ReadMutex:          &sync.RWMutex{},
 		}, nil
 	}
+
+	// based on
 
 	prices, err := h.AdjPriceRepository.ListFromSet(setInputs)
 	if err != nil {
@@ -122,7 +183,7 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 	}
 
 	return &PriceCache{
-		cache:              cache,
+		prices:             cache,
 		tradingDays:        nil,
 		adjPriceRepository: h.AdjPriceRepository,
 		ReadMutex:          &sync.RWMutex{},

@@ -238,7 +238,8 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 // may produce cache misses on holidays
 func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in []workInput) (*service.PriceCache, error) {
 	dataHandler := internal.DryRunFactorMetricsHandler{
-		Data: map[string]service.LoadPriceCacheInput{},
+		Prices: []service.LoadPriceCacheInput{},
+		Stdevs: []service.LoadStdevCacheInput{},
 	}
 	for _, n := range in {
 		_, err := internal.EvaluateFactorExpression(
@@ -255,12 +256,7 @@ func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in [
 		}
 	}
 
-	dataValues := []service.LoadPriceCacheInput{}
-	for _, v := range dataHandler.Data {
-		dataValues = append(dataValues, v)
-	}
-
-	priceCache, err := h.PriceService.LoadCache(dataValues)
+	priceCache, err := h.PriceService.LoadPriceCache(dataHandler.Prices, dataHandler.Stdevs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate price cache: %w", err)
 	}

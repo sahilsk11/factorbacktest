@@ -12,7 +12,7 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-type PriceCache map[string]map[time.Time]float64
+type priceCache map[string]map[time.Time]float64
 
 type TradingDatesCache struct {
 	Start time.Time
@@ -21,7 +21,7 @@ type TradingDatesCache struct {
 }
 
 func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date time.Time) *float64 {
-	pc := h.PriceCache
+	pc := h.priceCache
 	h.ReadMutex.RLock()
 	if _, ok := pc[symbol]; ok {
 		if price, ok := pc[symbol][date]; ok {
@@ -34,7 +34,7 @@ func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date ti
 }
 
 func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time.Time, price float64) {
-	pc := h.PriceCache
+	pc := h.priceCache
 	h.ReadMutex.Lock()
 	if _, ok := pc[symbol]; !ok {
 		pc[symbol] = map[time.Time]float64{}
@@ -63,14 +63,14 @@ type ListFromSetInput struct {
 func NewAdjustedPriceRepository(db *sql.DB) AdjustedPriceRepository {
 	return &adjustedPriceRepositoryHandler{
 		Db:         db,
-		PriceCache: make(PriceCache),
+		priceCache: make(priceCache),
 		ReadMutex:  &sync.RWMutex{},
 	}
 }
 
 type adjustedPriceRepositoryHandler struct {
 	Db         *sql.DB
-	PriceCache PriceCache
+	priceCache priceCache
 	ReadMutex  *sync.RWMutex
 	days       []time.Time
 }
