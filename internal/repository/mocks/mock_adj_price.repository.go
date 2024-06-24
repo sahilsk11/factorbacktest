@@ -68,18 +68,33 @@ func (mr *MockAdjustedPriceRepositoryMockRecorder) Get(arg0, arg1 interface{}) *
 }
 
 // GetMany mocks base method.
-func (m *MockAdjustedPriceRepository) GetMany(arg0 []string, arg1 time.Time) (map[string]float64, error) {
+func (m *MockAdjustedPriceRepository) GetMany(set []repository.GetManyInput) ([]domain.AssetPrice, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMany", arg0, arg1)
-	ret0, _ := ret[0].(map[string]float64)
+	ret := m.ctrl.Call(m, "GetMany", set)
+	ret0, _ := ret[0].([]domain.AssetPrice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetMany indicates an expected call of GetMany.
-func (mr *MockAdjustedPriceRepositoryMockRecorder) GetMany(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockAdjustedPriceRepositoryMockRecorder) GetMany(set interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMany", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).GetMany), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMany", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).GetMany), set)
+}
+
+// GetManyOnDay mocks base method.
+func (m *MockAdjustedPriceRepository) GetManyOnDay(arg0 []string, arg1 time.Time) (map[string]float64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetManyOnDay", arg0, arg1)
+	ret0, _ := ret[0].(map[string]float64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetManyOnDay indicates an expected call of GetManyOnDay.
+func (mr *MockAdjustedPriceRepositoryMockRecorder) GetManyOnDay(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManyOnDay", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).GetManyOnDay), arg0, arg1)
 }
 
 // LatestPrices mocks base method.
@@ -110,21 +125,6 @@ func (m *MockAdjustedPriceRepository) List(symbols []string, start, end time.Tim
 func (mr *MockAdjustedPriceRepositoryMockRecorder) List(symbols, start, end interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).List), symbols, start, end)
-}
-
-// ListFromSet mocks base method.
-func (m *MockAdjustedPriceRepository) ListFromSet(set []repository.ListFromSetInput) ([]domain.AssetPrice, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListFromSet", set)
-	ret0, _ := ret[0].([]domain.AssetPrice)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListFromSet indicates an expected call of ListFromSet.
-func (mr *MockAdjustedPriceRepositoryMockRecorder) ListFromSet(set interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListFromSet", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).ListFromSet), set)
 }
 
 // ListTradingDays mocks base method.

@@ -112,12 +112,30 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
-func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput) (stdevCache, error) {
-	stdevCache := stdevCache{
-		cache: map[string]map[time.Time]map[time.Time]float64{},
+func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput) (*stdevCache, error) {
+	c := map[string]map[time.Time]map[time.Time]float64{}
+
+	for _, in := range stdevInputs {
+		intradayChanges := []float64{}
+		for i := 1; i < len(priceModels); i++ {
+			intradayChanges[i-1] = percentChange(
+				priceModels[i].Price,
+				priceModels[i-1].Price,
+			)
+		}
+
+		stdev, err := stats.StandardDeviationSample(intradayChanges)
+		if err != nil {
+			return nil, err
+		}
+		magicNumber := math.Sqrt(252)
+
+		c[in.Symbol][in.Start][in.End] = stdev * magicNumber
 	}
 
-	return stdevCache, nil
+	return &stdevCache{
+		cache: c,
+	}, nil
 }
 
 func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
