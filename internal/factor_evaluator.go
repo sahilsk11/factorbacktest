@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/internal/service"
 	"fmt"
 	"math"
 	"time"
@@ -15,7 +16,7 @@ const dateLayout = "2006-01-02"
 func constructFunctionMap(
 	ctx context.Context,
 	db *sql.DB,
-	pr PriceRetriever,
+	pr *service.PriceCache,
 	symbol string,
 	h FactorMetricCalculations,
 	debug FormulaDebugger,
@@ -185,7 +186,7 @@ type ExpressionResult struct {
 func EvaluateFactorExpression(
 	ctx context.Context,
 	db *sql.DB,
-	pr PriceRetriever,
+	pr *service.PriceCache,
 	expression string,
 	symbol string,
 	factorMetricsHandler FactorMetricCalculations,
