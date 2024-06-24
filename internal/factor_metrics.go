@@ -27,10 +27,6 @@ type FactorMetricCalculations interface {
 	PbRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 }
 
-type PriceCacheDataInput struct {
-	Type string
-}
-
 type factorMetricsHandler struct {
 	// both dependencies should be wrapped in some mds service
 	AdjustedPriceRepository     repository.AdjustedPriceRepository
