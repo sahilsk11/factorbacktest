@@ -186,7 +186,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// of assets so much that it kinda makes sense to
 		// just get everything and let everyone figure it out
 		// this is also premature optimization
-		pm, err := h.PriceRepository.GetMany(universeSymbols, t)
+		pm, err := h.PriceRepository.GetManyOnDay(universeSymbols, t)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get prices on day %v: %w", t, err)
 		}

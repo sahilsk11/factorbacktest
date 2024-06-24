@@ -46,16 +46,16 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
 	Get(string, time.Time) (float64, error)
-	GetMany([]string, time.Time) (map[string]float64, error)
+	GetManyOnDay([]string, time.Time) (map[string]float64, error)
 	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(start, end time.Time) ([]time.Time, error)
 	LatestPrices(symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
-	ListFromSet(set []ListFromSetInput) ([]domain.AssetPrice, error)
+	GetManyOnDays(set []GetManyOnDaysInput) ([]domain.AssetPrice, error)
 }
 
-type ListFromSetInput struct {
+type GetManyOnDaysInput struct {
 	Symbol string
 	Date   time.Time
 }
@@ -131,7 +131,7 @@ func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (floa
 }
 
 // assumes input date is a trading day
-func (h adjustedPriceRepositoryHandler) GetMany(symbols []string, date time.Time) (map[string]float64, error) {
+func (h adjustedPriceRepositoryHandler) GetManyOnDay(symbols []string, date time.Time) (map[string]float64, error) {
 	cachedResults := map[string]float64{}
 	symbolSet := map[string]bool{}
 	postgresStr := []postgres.Expression{}
@@ -274,13 +274,17 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(symbols []string) ([]domain
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) ListFromSet(set []ListFromSetInput) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) GetManyOnDays(inputs []GetManyOnDaysInput) ([]domain.AssetPrice, error) {
+	// finds the min and max dates required
+	// priceChange(t-100, t) would require
+	// price from way before, so min trading date
+	// isn't enough
 	expressions := []postgres.BoolExpression{}
 	symbolRanges := map[string]*struct {
 		min time.Time
 		max time.Time
 	}{}
-	for _, s := range set {
+	for _, s := range inputs {
 		if _, ok := symbolRanges[s.Symbol]; !ok {
 			symbolRanges[s.Symbol] = &struct {
 				min time.Time

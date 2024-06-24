@@ -146,16 +146,17 @@ func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepo
 	}
 }
 
+// LoadPriceCache uses dry-run results to populate prices and stdevs
 func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*PriceCache, error) {
-	setInputs := []repository.ListFromSetInput{}
+	getInputs := []repository.GetManyOnDaysInput{}
 	for _, d := range inputs {
-		setInputs = append(setInputs, repository.ListFromSetInput{
+		getInputs = append(getInputs, repository.GetManyOnDaysInput{
 			Symbol: d.Symbol,
 			Date:   d.Date,
 		})
 	}
 
-	if len(setInputs) == 0 {
+	if len(getInputs) == 0 {
 		return &PriceCache{
 			prices: map[string]map[string]float64{},
 			stdevs: stdevCache{
@@ -167,9 +168,7 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		}, nil
 	}
 
-	// based on
-
-	prices, err := h.AdjPriceRepository.ListFromSet(setInputs)
+	prices, err := h.AdjPriceRepository.GetManyOnDays(getInputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
