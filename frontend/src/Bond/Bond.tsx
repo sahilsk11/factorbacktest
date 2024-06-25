@@ -264,11 +264,19 @@ function BondPortfolioPerformanceChart({
 
   const datasets: ChartDataset<"line", (number | null)[]>[] = [{
     label: "total",
-    data: returns.map(e => e.totalReturn),
+    data: returns.map(e => 100 * e.totalReturn),
   }];
   const options: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
+    scales: {
+      y: {
+        title: {
+          display: true,
+          text: 'Portfolio Growth since Inception (%)', // Y-axis label
+        },
+      },
+    }
   }
   const data: ChartData<"line", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
     labels: returns.map(e => e.date),

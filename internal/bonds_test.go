@@ -34,13 +34,13 @@ func TestBond_currentValue(t *testing.T) {
 
 	t.Run("interest rate drops", func(t *testing.T) {
 		bond := Bond{
-			Expiration:       time.Now().Add(730 * time.Hour), // 1mo
+			Expiration:       time.Now().AddDate(1, 0, 0),
 			AnnualCouponRate: 0.05,
 			ParValue:         100,
 		}
 		interestRatesMap := domain.InterestRateMap{
 			Rates: map[int]float64{
-				1: 0.03,
+				1: 0.01,
 			},
 		}
 
@@ -51,19 +51,19 @@ func TestBond_currentValue(t *testing.T) {
 
 	t.Run("interest rate rises", func(t *testing.T) {
 		bond := Bond{
-			Expiration:       time.Now().Add(730 * time.Hour), // 1mo
+			Expiration:       time.Now().AddDate(1, 0, 0),
 			AnnualCouponRate: 0.05,
 			ParValue:         100,
 		}
 		interestRatesMap := domain.InterestRateMap{
 			Rates: map[int]float64{
-				1: 0.1,
+				12: 0.1,
 			},
 		}
 
 		value := bond.currentValue(time.Now(), interestRatesMap)
 
-		require.Equal(t, float64(90), value)
+		require.Equal(t, float64(95), value)
 	})
 }
 
@@ -237,7 +237,7 @@ func TestBondPortfolio_RefreshBondHoldings(t *testing.T) {
 			Rates: map[int]float64{
 				2: 0.05,
 			},
-		}, time.Now())
+		})
 
 		require.Equal(
 			t,
