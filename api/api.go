@@ -33,6 +33,7 @@ type ApiHandler struct {
 	PriceService                 service.PriceService
 	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
+	AssetUniverseRepository      repository.AssetUniverseRepository
 }
 
 func int64Ptr(i int64) *int64 {
@@ -71,6 +72,7 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 
 	router.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
 	router.POST("/updatePrices", m.updatePrices)
+	router.POST("/addAssetsToUniverse", m.addAssetsToUniverse)
 
 	return router
 }
