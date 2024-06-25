@@ -100,7 +100,7 @@ export default function BacktestChart({
         forceOverride: true,
         enabled: true
       }
-      
+
     },
     onClick: (_, elements) => {
       elements.forEach(e => {
@@ -129,11 +129,15 @@ export default function BacktestChart({
     }
   };
 
-  return <div className='backtest-chart-wrapper' >
+  return <div className='backtest-chart-wrapper'>
     <Line
-    options={options}
-    data={data}
-    updateMode='resize'
-  />
+      options={options}
+      data={data}
+      updateMode='resize'
+      style={{
+        width: "100%",
+        height: "100%"
+      }}
+    />
   </div>
 }

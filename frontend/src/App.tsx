@@ -79,13 +79,13 @@ const App = () => {
             updateBenchmarkData={updateBenchmarkData}
           />
         </div>
-        <div id="backtest-chart" className="column backtest-chart-wrapper">
-          <BacktestChart
-            benchmarkData={benchmarkData}
-            factorData={factorData}
-            updateInspectFactorDataIndex={updateInspectFactorDataIndex}
-            updateInspectFactorDataDate={updateInspectFactorDataDate}
-          />
+        <div id="backtest-chart" className="column backtest-chart-container">
+            <BacktestChart
+              benchmarkData={benchmarkData}
+              factorData={factorData}
+              updateInspectFactorDataIndex={updateInspectFactorDataIndex}
+              updateInspectFactorDataDate={updateInspectFactorDataDate}
+            />
           <InspectFactorData
             fdIndex={inspectFactorDataIndex}
             fdDate={inspectFactorDataDate}

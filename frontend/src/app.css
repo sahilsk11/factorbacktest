@@ -16,7 +16,7 @@
   /* align-items: center; */
   justify-content: center;
   height: 100%;
-  width: 90%;
+  width: 100%;
 }
 
 .form-wrapper {
@@ -24,30 +24,46 @@
   margin-right: 20px;
 }
 
-.backtest-chart-wrapper {
+.backtest-chart-container {
   flex-grow: 4;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding-bottom: 30px;
+}
+
+
+.tile {
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  width: fit-content;
+  padding: 20px;
+  padding-left: 30px;
+  min-width: 40px;
+  padding-bottom: 30px;
+  min-width: 300px;
+  border-radius: 10px;
 }
 
 @media only screen and (max-width: 600px) {
   .container {
     display: block;
   }
+
   .column {
     display: block;
-    width: 100%;
+    width: 95%;
     margin: 0px auto;
   }
+
   .tile {
-    padding: 0px;
+    width: 90%;
+    padding-left: 20px;
   }
 
   .backtest-chart-wrapper {
     margin-top: 30px;
     width: 100%;
-  }
-
-  .form-wrapper {
-    margin-right: 0px;
+    overflow-x: visible;
+    overflow-y: visible;
   }
 }
 
@@ -60,19 +76,6 @@
 .subtext {
   font-size: 13px;
   color: rgb(100, 100, 100);
-}
-
-
-
-.tile {
-  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
-  width: fit-content;
-  padding: 20px;
-  padding-left: 30px;
-  min-width: 40px;
-  padding-bottom: 30px;
-  min-width: 300px;
-  border-radius: 10px;
 }
 
 .nav {

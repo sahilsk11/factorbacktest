@@ -1,5 +1,9 @@
 .backtest-chart-wrapper {
-  height: 60vh;
+  height: 50vh;
+  max-width: 100%;
+  overflow: hidden;
+  left: 0;
+  right: 0;
 }
 
 @media only screen and (max-width: 600px) {
