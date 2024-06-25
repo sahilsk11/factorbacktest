@@ -18,10 +18,14 @@ type InterestRateRepository interface {
 	Add(m domain.InterestRateMap, date time.Time, tx *sql.Tx) error
 }
 
-type interestRateRepository struct{}
+type interestRateRepository struct {
+	DB *sql.DB
+}
 
-func NewInterestRateRepository() InterestRateRepository {
-	return interestRateRepository{}
+func NewInterestRateRepository(db *sql.DB) InterestRateRepository {
+	return interestRateRepository{
+		DB: db,
+	}
 }
 
 func (r interestRateRepository) GetRatesOnDate(date time.Time, tx *sql.Tx) (*domain.InterestRateMap, error) {
@@ -42,12 +46,12 @@ func (r interestRateRepository) GetRatesOnDate(date time.Time, tx *sql.Tx) (*dom
 			return nil, err
 		}
 
-		err = r.Add(*m, date, tx)
+		err = r.Add(m, date, tx)
 		if err != nil {
 			return nil, err
 		}
 
-		return m, nil
+		return &m, nil
 	}
 
 	m := domain.InterestRateMap{
@@ -75,7 +79,7 @@ func (r interestRateRepository) GetRatesOnDates(dates []time.Time, tx *sql.Tx) (
 	rows := []model.InterestRate{}
 	err := query.Query(tx, &rows)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query rates: %w", err)
 	}
 
 	out := map[string]domain.InterestRateMap{}
@@ -92,6 +96,11 @@ func (r interestRateRepository) GetRatesOnDates(dates []time.Time, tx *sql.Tx) (
 		out[dateStr].Rates[int(row.DurationMonths)] = row.InterestRate
 	}
 
+	fmt.Printf("missing %d rates\n", len(datesSet))
+
+	maps := []domain.InterestRateMap{}
+	mapTimes := []time.Time{}
+
 	for dateStr := range datesSet {
 		date, err := time.Parse(time.DateOnly, dateStr)
 		if err != nil {
@@ -103,12 +112,18 @@ func (r interestRateRepository) GetRatesOnDates(dates []time.Time, tx *sql.Tx) (
 			return nil, err
 		}
 
-		err = r.Add(*m, date, tx)
+		maps = append(maps, m)
+		mapTimes = append(mapTimes, date)
+
+		out[dateStr] = m
+	}
+
+	if len(maps) > 0 {
+		err = r.AddMany(maps, mapTimes)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to add missing values back: %w", err)
 		}
 
-		out[dateStr] = *m
 	}
 
 	return out, nil
@@ -126,6 +141,32 @@ func (r interestRateRepository) Add(m domain.InterestRateMap, date time.Time, tx
 	query := table.InterestRate.INSERT(table.InterestRate.MutableColumns).MODELS(models)
 
 	_, err := query.Exec(tx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r interestRateRepository) AddMany(maps []domain.InterestRateMap, dates []time.Time) error {
+	models := []model.InterestRate{}
+	for i, m := range maps {
+		for duration, rate := range m.Rates {
+			models = append(models, model.InterestRate{
+				Date:           dates[i],
+				DurationMonths: int32(duration),
+				InterestRate:   rate,
+			})
+		}
+	}
+
+	if len(models) == 0 {
+		return nil
+	}
+
+	query := table.InterestRate.INSERT(table.InterestRate.MutableColumns).MODELS(models)
+
+	_, err := query.Exec(r.DB)
 	if err != nil {
 		return err
 	}

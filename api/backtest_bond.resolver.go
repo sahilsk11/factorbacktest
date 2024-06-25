@@ -81,7 +81,7 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 	}
 
 	bs := internal.BondService{
-		InterestRateRepository: repository.NewInterestRateRepository(),
+		InterestRateRepository: repository.NewInterestRateRepository(h.Db),
 	}
 
 	result, err := bs.BacktestBondPortfolio(
@@ -98,7 +98,7 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 
 	err = tx.Commit()
 	if err != nil {
-		returnErrorJson(fmt.Errorf("failed to run backtest: %w", err), c)
+		returnErrorJson(fmt.Errorf("failed to commit rows: %w", err), c)
 		return
 	}
 
