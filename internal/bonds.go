@@ -29,17 +29,21 @@ func NewBond(amount float64, creationDate time.Time, durationMonths int, rate fl
 	}
 }
 
+// TODO - fix this jank function
 func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) float64 {
-	if t.After(b.Expiration) {
-		return b.ParValue
-	}
 	hoursTillExpiration := b.Expiration.Sub(t).Hours()
 	monthsTillExpiration := int(hoursTillExpiration/730 + 0.005)
+	if monthsTillExpiration <= 0 {
+		return b.ParValue
+	}
+
 	marketRate := interestRates.GetRate(monthsTillExpiration)
 
 	// totally wrong, but somewhat accounts for bond price dropping
 	// if marketRate
-	return b.ParValue * (1 + (b.AnnualCouponRate-marketRate)*2/float64(monthsTillExpiration))
+	out := b.ParValue * (1 + (b.AnnualCouponRate-marketRate)*2/float64(monthsTillExpiration))
+
+	return out
 }
 
 type Payment struct {
@@ -80,6 +84,17 @@ func ConstructBondPortfolio(
 	}, nil
 }
 
+func (bp BondPortfolio) calculateValue(t time.Time, interestRates domain.InterestRateMap) (float64, map[uuid.UUID]float64) {
+	total := bp.Cash
+	bondValues := map[uuid.UUID]float64{}
+	for _, bond := range bp.Bonds {
+		value := bond.currentValue(t, interestRates)
+		bondValues[bond.ID] = value
+		total += value
+	}
+	return total, bondValues
+}
+
 func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.InterestRateMap, backtestEnd time.Time) error {
 	outBonds := []Bond{}
 
@@ -108,6 +123,9 @@ func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.I
 	return nil
 }
 
+// TODO - this needs to figure out all missing payments
+// from the last payment, and add them on the correct date
+// will allow us to decouple payment logic from granularity
 func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 	for _, bond := range bp.Bonds {
 		paymentAmount := bond.ParValue * bond.AnnualCouponRate / 12
@@ -139,13 +157,9 @@ func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 	}
 }
 
-func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time) error {
-	interestRates, err := treasury_client.GetInterestRatesOnDay(t)
-	if err != nil {
-		return err
-	}
+func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time, interestRates domain.InterestRateMap) error {
 	bp.refreshCouponPayments(t)
-	err = bp.refreshBondHoldings(t, *interestRates, backtestEnd)
+	err := bp.refreshBondHoldings(t, interestRates, backtestEnd)
 	if err != nil {
 		return err
 	}
@@ -153,17 +167,6 @@ func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time) error {
 }
 
 /*
-want a stream of coupon payments
-that i can stack in a bar chart, something like
-[
-	{
-		day
-		payments: [{
-			id,
-			amount
-		}]
-	}
-]
 
 then for performance
 
@@ -180,7 +183,6 @@ then for performance
 		}]
 	}
 ]
-
 
 */
 
@@ -201,6 +203,11 @@ type BacktestBondPortfolioResult struct {
 	Returns        []BondPortfolioReturn `json:"returns"`
 }
 
+type ValueOnDay struct {
+	Value float64
+	Date  time.Time
+}
+
 func BacktestBondPortfolio(
 	durations []int,
 	startingAmount float64,
@@ -214,16 +221,52 @@ func BacktestBondPortfolio(
 	if err != nil {
 		return nil, err
 	}
-	out := BacktestBondPortfolioResult{
-		CouponPayments: []CouponPaymentOnDate{},
-		Returns:        []BondPortfolioReturn{},
+
+	// initialize total value and bond values
+
+	bondValues := map[uuid.UUID][]ValueOnDay{}
+	for _, bond := range bp.Bonds {
+		bondValues[bond.ID] = []ValueOnDay{{
+			Date:  start,
+			Value: bond.ParValue,
+		}}
 	}
 
-	for current.Before(end) {
-		bp.Refresh(current, end)
+	returns := []BondPortfolioReturn{}
 
-		// calculate new value of bond portfolio
-		// track total change from inception?
+	current = current.AddDate(0, 0, granularityDays)
+
+	for current.Before(end) {
+		interestRates, err := treasury_client.GetInterestRatesOnDay(current)
+		if err != nil {
+			return nil, err
+		}
+
+		// before dumping the current bonds, i'd like to show
+		// that their return goes back to 0. in other words, when we
+		// dump a bond, somehow add one more entry to the date. maybe we can
+		// do this afterwards?
+		// like, for each bond return stream, add a 1 at the end
+		bp.Refresh(current, end, *interestRates)
+
+		totalValueOnDay, bondValuesOnDay := bp.calculateValue(current, *interestRates)
+		// I don't know if this is always true
+		// TODO - cleanup
+		bondReturns := map[uuid.UUID]float64{}
+		for id, value := range bondValuesOnDay {
+			for _, bond := range bp.Bonds {
+				if bond.ID == id {
+					bondReturns[id] = (value - bond.ParValue) / bond.ParValue
+				}
+			}
+		}
+
+		returns = append(returns, BondPortfolioReturn{
+			Date:        current,
+			TotalReturn: (totalValueOnDay - startingAmount) / startingAmount,
+			BondReturns: bondReturns,
+		})
+
 		current = current.AddDate(0, 0, granularityDays)
 	}
 
@@ -231,9 +274,11 @@ func BacktestBondPortfolio(
 	if err != nil {
 		return nil, err
 	}
-	out.CouponPayments = couponPayments
 
-	return &out, nil
+	return &BacktestBondPortfolioResult{
+		CouponPayments: couponPayments,
+		Returns:        returns,
+	}, nil
 }
 
 func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]CouponPaymentOnDate, error) {
