@@ -7,6 +7,28 @@ import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
 import { enumerateDates } from './util';
 
+function todayAsString() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function eightWeeksAgoAsString() {
+  const today = new Date();
+  const eightWeeksAgo = new Date(today);
+
+  // Subtract 8 weeks (56 days) from today's date
+  eightWeeksAgo.setDate(today.getDate() - 56);
+
+  const year = eightWeeksAgo.getFullYear();
+  const month = String(eightWeeksAgo.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
+  const day = String(eightWeeksAgo.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
 
 export default function FactorForm({
   userID,
@@ -20,9 +42,9 @@ export default function FactorForm({
   const [factorExpression, setFactorExpression] = useState("");
   const [factorIntensity, setFactorIntensity] = useState(0.75);
   const [factorName, setFactorName] = useState("7_day_rolling_price_momentum");
-  const [backtestStart, setBacktestStart] = useState("2024-01-01");
-  const [backtestEnd, setBacktestEnd] = useState("2024-02-29");
-  const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
+  const [backtestStart, setBacktestStart] = useState(eightWeeksAgoAsString());
+  const [backtestEnd, setBacktestEnd] = useState(todayAsString());
+  const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("weekly");
   const [startPortfolio, setStartPortfolio] = useState(`{
       "AAPL": 10,
       "MSFT": 15,
@@ -127,7 +149,7 @@ export default function FactorForm({
   }
 
   const maxDate = new Date().toISOString().split('T')[0];
-  let numComputations = 0; 
+  let numComputations = 0;
   if (backtestStart <= backtestEnd && backtestEnd <= maxDate) {
     numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4 / 7 / rebalanceDuration;
   }
@@ -460,7 +482,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
   </>
 }
 
-function jumpToAnchorOnSmallScreen(anchorId:string) {
+function jumpToAnchorOnSmallScreen(anchorId: string) {
   // Check if the screen width is less than 600 pixels
   if (window.innerWidth < 600) {
     // Get the element with the specified anchorId
