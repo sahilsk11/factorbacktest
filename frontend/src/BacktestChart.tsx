@@ -1,4 +1,5 @@
 import { Dispatch } from 'react';
+import "./backtest-chart.css"
 
 import {
   Chart as ChartJS,
@@ -83,6 +84,7 @@ export default function BacktestChart({
   };
   const options: ChartOptions<"line"> = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
@@ -127,9 +129,11 @@ export default function BacktestChart({
     }
   };
 
-  return <Line
+  return <div className='backtest-chart-wrapper' id="backtest-results">
+    <Line
     options={options}
     data={data}
     updateMode='resize'
   />
+  </div>
 }
