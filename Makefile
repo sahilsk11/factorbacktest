@@ -19,6 +19,7 @@ deploy-fe:
 	aws s3 sync ./frontend/build s3://factorbacktest.net
 	aws s3 sync ./frontend/build s3://www.factorbacktest.net
 	rm -rf ./frontend/build;
+	aws cloudfront create-invalidation --distribution-id E2LDUUB6BBDSV8 --paths "/*"
 
 deploy:
 	make deploy-be;
