@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FactorData } from "./App";
+import "./form.css"
 
 interface FactorOptions {
   expression: string;
@@ -50,7 +51,10 @@ export default function FactorForm({
   appendFactorData: (newFactorData: FactorData) => void;
 }) {
   const [factorOptions, setFactorOptions] = useState({
-    expression: `pricePercentChange(addDate(currentDate, 0, 0, -7),currentDate) `,
+    expression: `pricePercentChange(
+      addDate(currentDate, 0, 0, -7),
+      currentDate
+) `,
     intensity: 0.75,
     name: "test"
   });
@@ -68,8 +72,24 @@ export default function FactorForm({
   const [names, setNames] = useState<string[]>([...takenNames]);
   const [sendEnabled, setSendEnabled] = useState(true);
 
+  let found = false;
+  names.forEach(n => {
+    if (n === factorOptions.name) {
+      found = true;
+    }
+  })
+
+  const email = document.getElementById("factor-name");
+  if (found) {
+    (email as HTMLInputElement)?.setCustomValidity("Please use a unique factor name.");
+  } else {
+    (email as HTMLInputElement)?.setCustomValidity("");
+  }
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+
+
     const data: BacktestRequest = {
       factorOptions,
       backtestStart,
@@ -95,17 +115,9 @@ export default function FactorForm({
         setNames([...names, factorOptions.name])
         const fd: FactorData = {
           name: data.factorOptions.name,
-          data: result.backtestSnapshots, 
+          data: result.backtestSnapshots,
           expression: data.factorOptions.expression
         } as FactorData;
-        // Object.keys(result.backtestSnapshots).forEach(date => {
-        //   const value = result.backtestSnapshots[date];
-        //   fd.data[date] = {
-        //     totalValue: value.value,
-        //     percentChange: value.valuePercentChange,
-        //     date,
-        //   } as Portfolio
-        // })
         appendFactorData(fd)
       } else {
         console.error("Error submitting data:", response.status);
@@ -116,37 +128,23 @@ export default function FactorForm({
     }
   };
 
-  let found = false;
-  names.forEach(n => {
-    if (n === factorOptions.name) {
-      found = true;
-    }
-  })
-  if (found && sendEnabled) {
-    setSendEnabled(false)
-  } else if (!found && !sendEnabled) {
-    setSendEnabled(true)
-  }
+  // if (found && sendEnabled) {
+  //   setSendEnabled(false)
+  // } else if (!found && !sendEnabled) {
+  //   setSendEnabled(true)
+  // }
+
 
 
   return (
-    <div>
+    <div className='tile'>
+      <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
+      <p style={{maxWidth: "380px", marginTop: "10px", fontSize: "13px", color: "rgb(100, 100, 100)"}}>Define your quantitative strategy and customize backtest parameters.</p>
       <form onSubmit={handleSubmit}>
-        <div>
-          <label>Factor Expression:</label>
-          <br />
-          <textarea
-            style={{ height: "100px" }}
-            value={factorOptions.expression}
-            onChange={(e) =>
-              setFactorOptions({ ...factorOptions, expression: e.target.value })
-            }
-          />
-        </div>
-        {found ? <p>this name is already used</p> : null}
-        <div>
-          <label>Factor Name:</label>
-          <input
+        <div className='form-element'>
+          <label>Factor Name</label>
+          <input required
+            id="factor-name"
             type="text"
             value={factorOptions.name}
             onChange={(e) =>
@@ -154,41 +152,53 @@ export default function FactorForm({
             }
           />
         </div>
-        <div>
-          <label>Backtest Start:</label>
+        <div className='form-element'>
+          <label>Factor Expression</label>
+          <textarea required
+            style={{ height: "150px", width: "250px" }}
+            value={factorOptions.expression}
+            onChange={(e) =>
+              setFactorOptions({ ...factorOptions, expression: e.target.value })
+            }
+          />
+        </div>
+
+        <div className='form-element'>
+          <label>Backtest Range</label>
           <input
+            required
             type="date"
             value={backtestStart}
             onChange={(e) => setBacktestStart(e.target.value)}
           />
-        </div>
-        <div>
-          <label>Backtest End:</label>
+          <p style={{display: "inline"}}> to </p>
           <input
+            required
             type="date"
             value={backtestEnd}
             onChange={(e) => setBacktestEnd(e.target.value)}
           />
         </div>
-        <div>
-          <label>Sampling Interval Unit:</label>
-          <input
-            type="text"
-            value={samplingIntervalUnit}
-            onChange={(e) => setSamplingIntervalUnit(e.target.value)}
-          />
+        
+        <div className='form-element'>
+          <label>Sampling Interval</label>
+          <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
+            <option value="daily">daily</option>
+            <option value="weekly">weekly</option>
+            <option value="monthly">monthly</option>
+            <option value="yearly">yearly</option>
+          </select>
         </div>
 
         <div>
-          <label>Asset Selection Mode:</label>
-          <input
-            type="text"
-            value={assetSelectionMode}
-            onChange={(e) => setAssetSelectionMode(e.target.value)}
-          />
+          <label>Asset Selection Mode</label>
+          <select value={assetSelectionMode} onChange={(e) => setAssetSelectionMode(e.target.value)}>
+            <option value="NUM_SYMBOLS">top N scoring assets</option>
+            <option value="ANCHOR_PORTFOLIO">tilt existing portfolio</option>
+          </select>
         </div>
         {assetSelectionMode === "NUM_SYMBOLS" ? <div>
-          <label>Num Symbols:</label>
+          <label>Number of Assets</label>
           <input
             type="number"
             value={numSymbols}
@@ -197,8 +207,7 @@ export default function FactorForm({
         </div> : null}
 
         {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
-          <label>Start Portfolio:</label>
-          <br />
+          <label>Start Portfolio</label>
           <textarea
             value={startPortfolio}
             onChange={(e) => setStartPortfolio(e.target.value)}
@@ -206,15 +215,16 @@ export default function FactorForm({
           />
         </div> : null}
         <div>
-          <label>Cash:</label>
-          <input
+          <label>Starting Cash</label>
+          $ <input
+            min={1}
             type="number"
             value={cash}
             onChange={(e) => setCash(parseFloat(e.target.value))}
           />
         </div>
         {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
-          <label>Intensity:</label>
+          <label>Intensity</label>
           <input
             type="number"
             value={factorOptions.intensity}
@@ -223,8 +233,8 @@ export default function FactorForm({
             }
           />
         </div> : null}
-        
-        <button disabled={!sendEnabled} type="submit">Submit</button>
+
+        <button className='backtest-btn ' type="submit">Run Backtest</button>
       </form>
     </div>
   );
