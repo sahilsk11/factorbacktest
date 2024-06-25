@@ -24,7 +24,7 @@ trading day, and use that price
 */
 
 type PriceService interface {
-	LoadCache(tx *sql.Tx, inputs []LoadPriceCacheInput) (*PriceCache, error)
+	LoadCache(inputs []LoadPriceCacheInput) (*PriceCache, error)
 	UpdatePricesIfNeeded(ctx context.Context, tx *sql.Tx, symbols []string) error
 }
 
@@ -35,6 +35,7 @@ type LoadPriceCacheInput struct {
 
 type priceServiceHandler struct {
 	AdjPriceRepository repository.AdjustedPriceRepository
+	Db                 *sql.DB
 }
 
 type PriceCache struct {
@@ -81,10 +82,11 @@ func (pr PriceCache) Get(tx *sql.Tx, symbol string, date time.Time) (float64, er
 func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository) PriceService {
 	return &priceServiceHandler{
 		AdjPriceRepository: adjPriceRepository,
+		Db:                 db,
 	}
 }
 
-func (h priceServiceHandler) LoadCache(tx *sql.Tx, inputs []LoadPriceCacheInput) (*PriceCache, error) {
+func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCache, error) {
 	setInputs := []repository.ListFromSetInput{}
 	for _, d := range inputs {
 		setInputs = append(setInputs, repository.ListFromSetInput{
@@ -101,7 +103,7 @@ func (h priceServiceHandler) LoadCache(tx *sql.Tx, inputs []LoadPriceCacheInput)
 		}, nil
 	}
 
-	prices, err := h.AdjPriceRepository.ListFromSet(tx, setInputs)
+	prices, err := h.AdjPriceRepository.ListFromSet(h.Db, setInputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
