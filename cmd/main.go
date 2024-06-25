@@ -6,6 +6,7 @@ import (
 	"alpha/internal/domain"
 	"alpha/internal/repository"
 	"alpha/pkg/datajockey"
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -77,11 +78,11 @@ func backtest(tx *sql.Tx) {
 	}
 
 	factorMetricsHandler := internal.FactorMetricsHandler{
-		AdjustedPriceRepository:     repository.AdjustedPriceRepositoryHandler{},
+		AdjustedPriceRepository:     repository.NewAdjustedPriceRepository(),
 		AssetFundamentalsRepository: repository.AssetFundamentalsRepositoryHandler{},
 	}
 	h := app.BacktestHandler{
-		PriceRepository:      repository.AdjustedPriceRepositoryHandler{},
+		PriceRepository:      repository.NewAdjustedPriceRepository(),
 		FactorMetricsHandler: factorMetricsHandler,
 		UniverseRepository:   repository.UniverseRepositoryHandler{},
 	}
@@ -97,7 +98,7 @@ func backtest(tx *sql.Tx) {
 		SamplingInterval: time.Hour * 24 * 30,
 		StartPortfolio:   startPortfolio,
 	}
-	out, err := h.Backtest(backtestInput)
+	out, err := h.Backtest(context.Background(), backtestInput)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -106,7 +107,7 @@ func backtest(tx *sql.Tx) {
 }
 
 func exp(tx *sql.Tx) {
-	adjPricesRepo := repository.AdjustedPriceRepositoryHandler{}
+	adjPricesRepo := repository.NewAdjustedPriceRepository()
 	metricsHandler := internal.FactorMetricsHandler{
 		AdjustedPriceRepository: adjPricesRepo,
 	}
@@ -189,12 +190,12 @@ func updateUniversePrices() {
 	err = internal.IngestPrices(
 		tx,
 		"SPY",
-		repository.AdjustedPriceRepositoryHandler{},
+		repository.NewAdjustedPriceRepository(),
 	)
 	// err = internal.UpdateUniversePrices(
 	// 	tx,
 	// 	repository.UniverseRepositoryHandler{},
-	// 	repository.AdjustedPriceRepositoryHandler{},
+	// 	repository.NewAdjustedPriceRepository(),
 	// )
 	if err != nil {
 		log.Fatal(err)
@@ -215,7 +216,7 @@ func ingestPrices(symbol string) {
 		log.Fatal(err)
 	}
 
-	adjPricesRepository := repository.AdjustedPriceRepositoryHandler{}
+	adjPricesRepository := repository.NewAdjustedPriceRepository()
 
 	err = internal.IngestPrices(tx, symbol, adjPricesRepository)
 	if err != nil {

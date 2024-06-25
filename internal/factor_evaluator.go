@@ -128,7 +128,6 @@ func EvaluateFactorExpression(
 	factorMetricsHandler FactorMetricCalculations,
 	date time.Time, // expressions are evaluated on the given date
 ) (*ExpressionResult, error) {
-	// Implementing strlen()
 	eval := goval.NewEvaluator()
 	variables := map[string]interface{}{
 		"currentDate": date.Format(dateLayout),

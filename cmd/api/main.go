@@ -12,6 +12,7 @@ import (
 )
 
 func New() (*sql.DB, error) {
+	// connStr := "user=postgres password=postgres host=localhost port=5440 dbname=postgres sslmode=disable"
 	connStr := "user=postgres password=dVucP6jSZqx7yyPOsz1v host=alpha.cuutadkicrvi.us-east-2.rds.amazonaws.com port=5432 dbname=postgres"
 	dbConn, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -28,15 +29,16 @@ func main() {
 	}
 	apiHandler := api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
-			PriceRepository: repository.AdjustedPriceRepositoryHandler{},
+			PriceRepository: repository.NewAdjustedPriceRepository(),
 		},
 		BacktestHandler: app.BacktestHandler{
-			PriceRepository: repository.AdjustedPriceRepositoryHandler{},
+			PriceRepository: repository.NewAdjustedPriceRepository(),
 			FactorMetricsHandler: internal.FactorMetricsHandler{
-				AdjustedPriceRepository:     repository.AdjustedPriceRepositoryHandler{},
+				AdjustedPriceRepository:     repository.NewAdjustedPriceRepository(),
 				AssetFundamentalsRepository: repository.AssetFundamentalsRepositoryHandler{},
 			},
 			UniverseRepository: repository.UniverseRepositoryHandler{},
+			Db:                 dbConn,
 		},
 		UserStrategyRepository: repository.UniverseRepositoryHandler{},
 		ContactRepository:      repository.ContactRepositoryHandler{},
