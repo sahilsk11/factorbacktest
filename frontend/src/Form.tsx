@@ -51,7 +51,7 @@ export default function FactorForm({
   const [names, setNames] = useState<string[]>([...takenNames]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [assetUniverse, setAssetUniverse] = useState('SPY_TOP_80');
+  const [assetUniverse, setAssetUniverse] = useState('SPY_TOP_100');
 
   let found = false;
   let nextNum = 1;
@@ -271,7 +271,7 @@ export default function FactorForm({
           <label>Asset Universe</label>
           <p className='label-subtext'>The pool of assets that are eligible for the target portfolio.</p>
           <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
-            <option value="SPY_TOP_80">SPY Top 80 Holdings</option>
+            <option value="SPY_TOP_100">SPY Top 100 Holdings</option>
             <option value="F-PRIME_FINTECH_INDEX">F-Prime Fintech Index</option>
             <option value="ALL">All</option>
           </select>
