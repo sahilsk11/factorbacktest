@@ -273,22 +273,22 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		})
 	}
 
-	// super random, no idea what this represents
-	tradingDays, err := h.AdjPriceRepository.ListTradingDays(*absMin, *absMax)
-	if err != nil {
-		return nil, err
-	}
-
 	if len(getInputs) == 0 {
 		return &PriceCache{
 			prices: map[string]map[string]float64{},
 			stdevs: &stdevCache{
 				cache: map[string]map[time.Time]map[time.Time]float64{},
 			},
-			tradingDays:        tradingDays,
+			tradingDays:        []time.Time{},
 			adjPriceRepository: h.AdjPriceRepository,
 			ReadMutex:          &sync.RWMutex{},
 		}, nil
+	}
+
+	// super random, no idea what this represents
+	tradingDays, err := h.AdjPriceRepository.ListTradingDays(*absMin, *absMax)
+	if err != nil {
+		return nil, err
 	}
 
 	// TODO - we're gonna have lots of stdev values in this
