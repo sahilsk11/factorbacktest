@@ -10,7 +10,7 @@ import {
 } from 'chart.js';
 import "./app.css";
 import "./factor-snapshot.css";
-import { FaQuestionCircle } from 'react-icons/fa';
+import { AiOutlineQuestionCircle } from 'react-icons/ai';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
 
@@ -78,12 +78,16 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
               data-tooltip-id="my-tooltip"
               data-tooltip-content={toolTipMessage}
               data-tooltip-place="bottom"
-              style={{paddingLeft: "5px",
-            marginTop: "2px"}}
+              style={{
+                paddingLeft: "5px",
+                marginTop: "2px",
+                height: "100%",
+                // "border": "1px solid red"
+              }}
             >
-              <ReactTooltip id="my-tooltip" />
-              <FaQuestionCircle className="question-icon" />
+              <AiOutlineQuestionCircle className="question-icon" />
             </a>
+            <ReactTooltip id="my-tooltip" />
           </th>
 
         </tr>
