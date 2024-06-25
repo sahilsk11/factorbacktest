@@ -93,6 +93,8 @@ func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	}
 	pr.ReadMutex.RUnlock()
 
+	return 0, fmt.Errorf("skipping - cache miss")
+
 	// fmt.Printf("price cache miss %s %s\n", symbol, date.Format(time.DateOnly))
 
 	// missed l1 cache - check db
@@ -185,6 +187,8 @@ func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end ti
 	if result, ok := pr.stdevs.get(symbol, start, end); ok {
 		return result, nil
 	}
+
+	return 0, fmt.Errorf("skipping - cache miss")
 
 	// fmt.Printf("stdev cache miss %s %s-%s\n", symbol, start.Format(time.DateOnly), end.Format(time.DateOnly))
 
