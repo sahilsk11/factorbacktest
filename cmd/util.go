@@ -41,6 +41,8 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 
 	priceRepository := repository.NewAdjustedPriceRepository()
 
+	priceService := service.NewPriceService(dbConn, priceRepository)
+
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
@@ -53,7 +55,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 			),
 			UniverseRepository: repository.UniverseRepositoryHandler{},
 			Db:                 dbConn,
-			PriceService:       service.NewPriceService(dbConn, priceRepository),
+			PriceService:       priceService,
 		},
 		UserStrategyRepository:       repository.UniverseRepositoryHandler{},
 		ContactRepository:            repository.ContactRepositoryHandler{},
@@ -61,6 +63,9 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		GptRepository:                gptRepository,
 		ApiRequestRepository:         repository.ApiRequestRepositoryHandler{},
 		LatencencyTrackingRepository: repository.NewLatencyTrackingRepository(dbConn),
+		UniverseRepository:           repository.UniverseRepositoryHandler{},
+		PriceService:                 priceService,
+		PriceRepository:              repository.NewAdjustedPriceRepository(),
 	}
 
 	return apiHandler, nil
