@@ -56,7 +56,7 @@ note for all these functions, negative numbers are not allowed, as that would lo
 - marketCap(strDate date) - market cap of the asset on the given day. if the user wants smaller cap assets, use the reciprocal of this
 - eps(strDate date) - earnings per share of the asset on the given day
 
-Respond ONLY IN THE FOLLOWING JSON FORMAT. UNDER NO CIRCUMSTANCES SHOULD YOU RESPOND IN ANOTHER OTHER FORMAT:
+Do not include any explanations, only provide a  RFC8259 compliant JSON response following this format without deviation:
 {
 	"factorExpression": <the generated factor equation>,
 	"factorName" <a short, meaningful name used as the title. use underscores instead of spaces and commas>,
