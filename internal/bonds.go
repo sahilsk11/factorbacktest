@@ -33,27 +33,6 @@ func NewBond(amount float64, creationDate time.Time, durationMonths int, rate fl
 	}
 }
 
-type BondService struct {
-	InterestRateRepository repository.InterestRateRepository
-}
-
-func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) float64 {
-	hoursTillExpiration := b.Expiration.Sub(t).Hours()
-	monthsTillExpiration := int(hoursTillExpiration/720 + 0.005)
-	if monthsTillExpiration <= 0 {
-		return b.ParValue
-	}
-
-	marketRate, err := interestRates.GetRate(monthsTillExpiration)
-	if err != nil {
-		panic(fmt.Sprintf("no rate on %v", t))
-	}
-	remainingPayoutForMarket := b.ParValue * float64(monthsTillExpiration) / 12 * marketRate
-	remainingPayoutForCurrent := b.ParValue * float64(monthsTillExpiration) / 12 * b.AnnualCouponRate
-
-	return b.ParValue - (remainingPayoutForMarket - remainingPayoutForCurrent)
-}
-
 type Payment struct {
 	Date   time.Time
 	Amount float64
@@ -67,13 +46,34 @@ type BondPortfolio struct {
 	CouponPayments       map[uuid.UUID][]Payment
 }
 
+type BondService struct {
+	InterestRateRepository repository.InterestRateRepository
+}
+
+func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) (float64, error) {
+	hoursTillExpiration := b.Expiration.Sub(t).Hours()
+	monthsTillExpiration := int(hoursTillExpiration/720 + 0.005)
+	if monthsTillExpiration <= 0 {
+		return b.ParValue, nil
+	}
+
+	marketRate, err := interestRates.GetRate(monthsTillExpiration)
+	if err != nil {
+		return 0, fmt.Errorf("no rate on %v", t)
+	}
+	remainingPayoutForMarket := b.ParValue * float64(monthsTillExpiration) / 12 * marketRate
+	remainingPayoutForCurrent := b.ParValue * float64(monthsTillExpiration) / 12 * b.AnnualCouponRate
+
+	return b.ParValue - (remainingPayoutForMarket - remainingPayoutForCurrent), nil
+}
+
 func getBondStreamIndex(bondID uuid.UUID, streams []map[uuid.UUID]struct{}) int {
 	for i := 0; i < len(streams); i++ {
 		if _, ok := streams[i][bondID]; ok {
 			return i
 		}
 	}
-	panic(fmt.Sprintf("could not identify stream for %s", bondID.String()))
+	panic(fmt.Sprintf("could not identify stream for %s", bondID.String())) // TODO - return error instead
 }
 
 func (b BondService) ConstructBondPortfolio(
@@ -118,7 +118,11 @@ func (bp BondPortfolio) calculateValue(t time.Time, interestRates domain.Interes
 	total := bp.Cash
 	bondValues := map[uuid.UUID]float64{}
 	for _, bond := range bp.Bonds {
-		value := bond.currentValue(t, interestRates)
+		value, err := bond.currentValue(t, interestRates)
+		if err != nil {
+			panic(err) // TODO - return error instead
+		}
+
 		bondValues[bond.ID] = value
 		total += value
 	}
@@ -159,9 +163,6 @@ func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates doma
 	return nil
 }
 
-// TODO - this needs to figure out all missing payments
-// from the last payment, and add them on the correct date
-// will allow us to decouple payment logic from granularity
 func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 	for _, bond := range bp.Bonds {
 		paymentAmount := bond.ParValue * bond.AnnualCouponRate / 12
@@ -228,9 +229,10 @@ type InterestRatesOnDate struct {
 }
 
 type Metrics struct {
-	Stdev           float64 `json:"stdev"`
-	AverageCoupon   float64 `json:"averageCoupon"`
-	MaximumDrawdown float64 `json:"maxDrawdown"`
+	TotalCouponPayments float64 `json:"totalCoupon"`
+	Stdev               float64 `json:"stdev"`
+	AverageCoupon       float64 `json:"averageCoupon"`
+	MaximumDrawdown     float64 `json:"maxDrawdown"`
 }
 
 type BondLadderOnDate struct {
@@ -279,8 +281,8 @@ func (b BondService) BacktestBondPortfolio(
 		return nil, fmt.Errorf("failed to get interest rates: %w", err)
 	}
 
-	// current method likely misses last day
-	// because granularity overshoots
+	// TODO - there are a lot of components within this for loop
+	// split these off into individual functions so we can test this easier
 	for _, date := range dates {
 		dateStr := date.Format(time.DateOnly)
 		interestRates, ok := interestRatesForBacktest[dateStr]
@@ -439,7 +441,7 @@ func computeMetrics(bonds []Bond, couponPayments map[uuid.UUID][]Payment, portfo
 		if err != nil {
 			return nil, err
 		}
-		magicNumber := math.Sqrt(252)
+		magicNumber := math.Sqrt(12)
 		stdev *= magicNumber
 
 		top := portfolioReturns[0].ReturnSinceInception
@@ -461,8 +463,9 @@ func computeMetrics(bonds []Bond, couponPayments map[uuid.UUID][]Payment, portfo
 	}
 
 	return &Metrics{
-		AverageCoupon:   averageCoupon,
-		Stdev:           stdev,
-		MaximumDrawdown: maxDrawdown,
+		TotalCouponPayments: totalCouponPayment,
+		AverageCoupon:       averageCoupon,
+		Stdev:               stdev,
+		MaximumDrawdown:     maxDrawdown,
 	}, nil
 }
