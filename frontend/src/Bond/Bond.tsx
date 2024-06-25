@@ -93,8 +93,12 @@ interface InterestRatesOnDate {
 }
 
 function BondBuilderForm(
-  { updateBondBacktestData }: {
-    updateBondBacktestData: Dispatch<SetStateAction<BacktestBondPortfolioResult | null>>
+  {
+    updateBondBacktestData,
+    userID
+  }: {
+    updateBondBacktestData: Dispatch<SetStateAction<BacktestBondPortfolioResult | null>>;
+    userID: string;
   }
 ) {
   const [backtestStart, setBacktestStart] = useState("2020-01");
@@ -107,8 +111,10 @@ function BondBuilderForm(
 
 
   useEffect(() => {
-    submit();
-  }, []);
+    if (userID !== "") {
+      submit();
+    }
+  }, [userID]);
 
   const submit = async () => {
     setLoading(true);
@@ -123,7 +129,8 @@ function BondBuilderForm(
           backtestStart,
           backtestEnd,
           durationKey: selectedDuration,
-          startCash
+          startCash,
+          userID
         })
       })
       if (response.ok) {
@@ -237,7 +244,7 @@ export function BondBuilder() {
     <div className='centered-container' >
       <div className='container'>
         <div className="column form-wrapper">
-          <BondBuilderForm updateBondBacktestData={updateBondBacktestData} />
+          <BondBuilderForm userID={userID} updateBondBacktestData={updateBondBacktestData} />
           <ResultsOverview metrics={bondBacktestData?.metrics} />
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
@@ -268,9 +275,9 @@ function ResultsOverview({
   if (!metrics) {
     return null;
   }
-  function numberWithCommas(x:number) {
-    return Math.floor(x+0.05).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
+  function numberWithCommas(x: number) {
+    return Math.floor(x + 0.05).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
   return <>
     <div className='tile' style={{ marginTop: "10px", marginBottom: "20px" }}>
       <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
@@ -312,16 +319,6 @@ function CouponPaymentChart({
       backgroundColor: colors[names[i]].backgroundColor,
     })
   })
-
-  // datasets.push(
-  //   {
-  //     label: "Total",
-  //     data: couponPayments.map(e => e.totalAmount),
-  //     borderColor: colors["total"].borderColor,
-  //     backgroundColor: colors["total"].backgroundColor,
-  //   }
-  // )
-
 
   const data: ChartData<"bar", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
     labels: couponPayments.map(e => e.dateString),
@@ -525,7 +522,7 @@ function InterestRateChart({ interestRates }: {
 
   return <>
     <h4 className='chart-title'>Interest Rates</h4>
-    <p className='chart-description'>Our simplified bond market assumes US T-bills are the only securities available. Interest rates sourced from <a style={{color:"black"}} href="https://www.ustreasuryyieldcurve.com/" target='_blank'>here</a>.</p>
+    <p className='chart-description'>Our simplified bond market assumes US T-bills are the only securities available. Interest rates sourced from <a style={{ color: "black" }} href="https://www.ustreasuryyieldcurve.com/" target='_blank'>here</a>.</p>
     <div className='backtest-chart-wrapper'>
 
       <Line

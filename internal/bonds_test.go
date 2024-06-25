@@ -99,6 +99,7 @@ func TestConstructBondPortfolio(t *testing.T) {
 					TargetDurationMonths: []int{},
 					Bonds:                []Bond{},
 					CouponPayments:       map[uuid.UUID][]Payment{},
+					BondStreams:          []map[uuid.UUID]struct{}{},
 				},
 				portfolio,
 			),
@@ -147,6 +148,17 @@ func TestConstructBondPortfolio(t *testing.T) {
 					TargetDurationMonths: []int{1, 2, 3},
 					Bonds:                expectedBonds,
 					CouponPayments:       map[uuid.UUID][]Payment{},
+					BondStreams: []map[uuid.UUID]struct{}{
+						{
+							expectedBonds[0].ID: {},
+						},
+						{
+							expectedBonds[1].ID: {},
+						},
+						{
+							expectedBonds[2].ID: {},
+						},
+					},
 				},
 				portfolio,
 				cmpopts.IgnoreFields(Bond{}, "ID"),

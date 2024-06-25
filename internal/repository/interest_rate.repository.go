@@ -96,8 +96,6 @@ func (r interestRateRepository) GetRatesOnDates(dates []time.Time, tx *sql.Tx) (
 		out[dateStr].Rates[int(row.DurationMonths)] = row.InterestRate
 	}
 
-	fmt.Printf("missing %d rates\n", len(datesSet))
-
 	maps := []domain.InterestRateMap{}
 	mapTimes := []time.Time{}
 
