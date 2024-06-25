@@ -28,11 +28,17 @@ func New() (*sql.DB, error) {
 }
 
 func NewTx() (*sql.Tx, error) {
-	ctx := context.Background()
 	dbConn, err := New()
 	if err != nil {
 		return nil, err
 	}
+
+	return dbConn.Begin()
+	// return roTx(dbConn)
+}
+
+func roTx(dbConn *sql.DB) (*sql.Tx, error) {
+	ctx := context.Background()
 	return dbConn.BeginTx(
 		ctx,
 		&sql.TxOptions{
@@ -40,10 +46,10 @@ func NewTx() (*sql.Tx, error) {
 			ReadOnly:  true,
 		},
 	)
-	// return dbConn.Begin()
 }
 
 func main() {
+	// ingestFundamentals("AAPL")
 	ap()
 }
 
@@ -206,8 +212,27 @@ func exp(tx *sql.Tx) {
 
 func Ingest(tx *sql.Tx, symbol string) {
 	ingestPrices(symbol)
-	ingestFundamentals(tx, symbol)
+	ingestFundamentals(symbol)
 	err := tx.Commit()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func updateUniversePrices() {
+	tx, err := NewTx()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = internal.UpdateUniversePrices(
+		tx,
+		repository.UniverseRepositoryHandler{},
+		repository.AdjustedPriceRepositoryHandler{},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = tx.Commit()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -236,20 +261,39 @@ func ingestPrices(symbol string) {
 	}
 }
 
-func ingestFundamentals(tx *sql.Tx, symbol string) {
+func ingestFundamentals(symbol string) {
+	dbConn, err := New()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tx, err := dbConn.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	secrets, err := internal.LoadSecrets()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	djClient := datajockey.Client{
 		HttpClient: http.DefaultClient,
-		ApiKey:     "",
+		ApiKey:     secrets.DataJockeyApiKey,
 	}
 
 	afRepository := repository.AssetFundamentalsRepositoryHandler{}
 
-	err := internal.IngestFundamentals(
+	err = internal.IngestFundamentals(
 		tx,
 		djClient,
 		symbol,
 		afRepository,
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = tx.Commit()
 	if err != nil {
 		log.Fatal(err)
 	}
