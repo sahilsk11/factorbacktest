@@ -126,7 +126,7 @@ export default function FactorForm({
     case "yearly": rebalanceDuration = 365; break;
   }
 
-  const maxDate = Date();
+  const maxDate = new Date().toISOString().split('T')[0];
   let numComputations = 0; 
   if (backtestStart <= backtestEnd && backtestEnd <= maxDate) {
     numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4 / 7 / rebalanceDuration;
