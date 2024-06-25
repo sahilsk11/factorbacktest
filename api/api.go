@@ -49,6 +49,7 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 	router.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(200, map[string]string{"message": "welcome to alpha"})
 	})
+
 	router.POST("/backtest", m.backtest)
 	router.POST("/benchmark", m.benchmark)
 	router.POST("/contact", m.contact)
@@ -61,6 +62,8 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 		}
 		ctx.JSON(200, result)
 	})
+
+	router.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
 
 	return router
 }
