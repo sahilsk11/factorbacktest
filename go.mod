@@ -16,6 +16,7 @@ require (
 	github.com/ayush6624/go-chatgpt v0.3.0
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.9.1
+	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
 	github.com/piquette/finance-go v1.1.0
 )
