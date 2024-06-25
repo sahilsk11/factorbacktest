@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -25,7 +26,7 @@ type workInput struct {
 	FactorExpression string
 }
 
-func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInput) (map[time.Time]map[string]float64, error) {
+func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInput) (map[time.Time]map[string]*float64, error) {
 	numGoroutines := 10
 
 	type result struct {
@@ -89,18 +90,20 @@ func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInp
 
 	results := []result{}
 	for res := range resultCh {
-		if res.Err != nil {
-			return nil, res.Err
-		}
 		results = append(results, res)
 	}
 
-	out := map[time.Time]map[string]float64{}
+	out := map[time.Time]map[string]*float64{}
 	for _, res := range results {
 		if _, ok := out[res.Date]; !ok {
-			out[res.Date] = map[string]float64{}
+			out[res.Date] = map[string]*float64{}
 		}
-		out[res.Date][res.Symbol] = res.ExpressionResult.Value
+		if res.Err != nil {
+			// TODO - figure out what to do with this
+			log.Println(res.Err)
+		} else {
+			out[res.Date][res.Symbol] = &res.ExpressionResult.Value
+		}
 	}
 
 	return out, nil
@@ -114,7 +117,7 @@ type ComputeTargetPortfolioInput struct {
 	FactorIntensity float64
 	UniverseSymbols []string
 	AssetOptions    internal.AssetSelectionOptions
-	FactorScores    map[string]float64
+	FactorScores    map[string]*float64
 }
 
 type ComputeTargetPortfolioResponse struct {
@@ -136,10 +139,6 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("cannot compute target portfolio with 0 asset universe")
-	}
-
-	if len(in.FactorScores) != len(symbols) {
-		return nil, fmt.Errorf("received %d symbols but calculated %d factor scores", len(symbols), len(in.FactorScores))
 	}
 
 	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
@@ -176,7 +175,7 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 
 	selectedAssetFactorScores := map[string]float64{}
 	for _, asset := range targetPortfolio.Positions {
-		selectedAssetFactorScores[asset.Symbol] = in.FactorScores[asset.Symbol]
+		selectedAssetFactorScores[asset.Symbol] = *in.FactorScores[asset.Symbol]
 	}
 
 	return &ComputeTargetPortfolioResponse{
@@ -303,9 +302,12 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 			PriceMap:        priceMap,
 			UniverseSymbols: universeSymbols,
 		})
-
 		if err != nil {
-			return nil, fmt.Errorf("failed to compute target portfolio in backtest on %v: %w", t, err)
+			// TODO figure out what to do here. should
+			// include something in the response that says
+			// we couldn't rebalance here
+			continue
+			// return nil, fmt.Errorf("failed to compute target portfolio in backtest on %s: %w", t.Format("2006-01-02"), err)
 		}
 		trades, err := h.transitionToTarget(
 			currentPortfolio,

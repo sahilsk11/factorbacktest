@@ -116,7 +116,7 @@ func mapQuarter(year, quarter int) (time.Time, time.Time) {
 		},
 		4: {
 			start: time.Date(year, 10, 1, 0, 0, 0, 0, time.UTC),
-			end:   time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(year+1, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 	}
 	x := quarterMap[quarter]
