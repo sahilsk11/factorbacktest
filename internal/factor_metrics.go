@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"alpha/internal/repository"
 	"database/sql"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"math"
 	"time"

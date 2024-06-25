@@ -1,10 +1,10 @@
 package internal
 
 import (
-	"alpha/internal/db/models/postgres/public/model"
-	"alpha/internal/repository"
-	"alpha/pkg/datajockey"
 	"database/sql"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/repository"
+	"factorbacktest/pkg/datajockey"
 	"fmt"
 	"log"
 	"regexp"

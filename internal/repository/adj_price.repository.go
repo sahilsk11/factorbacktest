@@ -1,10 +1,10 @@
 package repository
 
 import (
-	"alpha/internal/db/models/postgres/public/model"
-	. "alpha/internal/db/models/postgres/public/table"
-	"alpha/internal/domain"
 	"database/sql"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	. "factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/domain"
 	"fmt"
 	"sync"
 	"time"

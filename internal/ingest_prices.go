@@ -1,9 +1,9 @@
 package internal
 
 import (
-	"alpha/internal/db/models/postgres/public/model"
-	"alpha/internal/repository"
 	"database/sql"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"time"
 

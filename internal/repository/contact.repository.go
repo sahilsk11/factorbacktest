@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"alpha/internal/db/models/postgres/public/model"
-	. "alpha/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	. "factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
 	"time"
 

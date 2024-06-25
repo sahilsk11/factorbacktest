@@ -1,13 +1,13 @@
 package api
 
 import (
-	"alpha/internal"
-	"alpha/internal/app"
-	"alpha/internal/db/models/postgres/public/model"
-	"alpha/internal/repository"
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"factorbacktest/internal"
+	"factorbacktest/internal/app"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/repository"
 	"fmt"
 	"io"
 	"log"
