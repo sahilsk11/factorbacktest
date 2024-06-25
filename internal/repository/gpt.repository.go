@@ -54,7 +54,7 @@ functions:
 note for all these functions, negative numbers are not allowed, as that would look into the future which is not possible in a backtest
 - price(strDate date) - retrieves the price of the ticker on a given day
 - pricePercentChange(strDate start, strDate end) - percent change of the asset's price
-- stdev(strDate start, strDate end) - the annualized standard deviation of daily returns over the given period
+- stdev(strDate start, strDate end) - the annualized standard deviation of daily returns over the given period. by itself, this returns high volatility. the reciprocal (1/stdev) would be low volatility
 - pbRatio(strDate date) - price-to-book ratio of the asset on the given day
 - peRatio(strDate date) - price-to-book ratio of the asset on the given day
 - marketCap(strDate date) - market cap of the asset on the given day. if the user wants smaller cap assets, use the reciprocal of this
