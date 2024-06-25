@@ -272,6 +272,7 @@ export default function FactorForm({
           <p className='label-subtext'>The pool of assets that are eligible for the target portfolio.</p>
           <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
             <option value="SPY_TOP_100">SPY Top 100 Holdings</option>
+            <option value="SPY_TOP_300">SPY Top 300 Holdings</option>
             <option value="F-PRIME_FINTECH_INDEX">F-Prime Fintech Index</option>
             <option value="ALL">All</option>
           </select>
