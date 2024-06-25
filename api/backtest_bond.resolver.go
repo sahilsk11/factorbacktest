@@ -30,11 +30,6 @@ type backtestBondPortfolioRequest struct {
 	UserID *string `json:"userID"`
 }
 
-type backtestBondPortfolioResponse struct {
-	FactorName string                      `json:"factorName"`
-	Snapshots  map[string]backtestSnapshot `json:"backtestSnapshots"`
-}
-
 func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 	ctx := context.Background()
 	tx, err := h.Db.BeginTx(
