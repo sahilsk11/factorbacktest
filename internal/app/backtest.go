@@ -109,7 +109,6 @@ type BacktestSample struct {
 	EndPortfolio   domain.Portfolio
 	TotalValue     float64
 	ProposedTrades []domain.ProposedTrade
-	PriceMap       map[string]float64
 }
 
 type FactorOptions struct {
@@ -131,11 +130,6 @@ type BacktestInput struct {
 }
 
 func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
-	currentTime := in.BacktestStart
-	currentPortfolio := *in.StartPortfolio.DeepCopy()
-
-	// currentPortfolio := deepCopyMap(in.StartPortfolio)
-	out := []BacktestSample{}
 	universe, err := h.UniverseRepository.List(in.RoTx)
 	if err != nil {
 		return nil, err
@@ -146,24 +140,35 @@ func (h BacktestHandler) Backtest(in BacktestInput) ([]BacktestSample, error) {
 	}
 
 	priceMap := map[string]float64{}
-	anchorPortfolioWeights := map[string]float64{}
+
 	for _, symbol := range universeSymbols {
-		price, err := h.PriceRepository.Get(in.RoTx, symbol, currentTime)
+		price, err := h.PriceRepository.Get(in.RoTx, symbol, in.BacktestStart)
 		if err != nil {
 			return nil, err
 		}
 		priceMap[symbol] = price
 	}
+
+	anchorPortfolioWeights := map[string]float64{}
 	sum := 0.0
 	for symbol, quantity := range in.AnchorPortfolioQuantities {
 		sum += priceMap[symbol] * quantity
 	}
-
 	for symbol, weight := range in.AnchorPortfolioQuantities {
 		anchorPortfolioWeights[symbol] = priceMap[symbol] * weight / sum
 	}
 	in.AssetOptions.AnchorPortfolioWeights = anchorPortfolioWeights
 
+	startValue, err := in.StartPortfolio.TotalValue(priceMap)
+	if err != nil {
+		return nil, err
+	} else if startValue == 0 {
+		return nil, fmt.Errorf("cannot backtest portfolio with 0 total value")
+	}
+
+	currentPortfolio := *in.StartPortfolio.DeepCopy()
+	currentTime := in.BacktestStart
+	out := []BacktestSample{}
 	for currentTime.Unix() <= in.BacktestEnd.Unix() {
 		// should work on weekends too
 

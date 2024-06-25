@@ -6,6 +6,7 @@ import {
   BenchmarkData,
   DatasetInfo
 } from './models';
+import { enumerateDates } from './util';
 
 export default function BenchmarkManager({
   minDate,
@@ -22,6 +23,13 @@ export default function BenchmarkManager({
   useEffect(() => {
     const fetchData = async (symbol: string): Promise<BenchmarkData | null> => {
       try {
+        minDate = minDate === "" ? "2018-01-01" : minDate;
+        maxDate = maxDate === "" ? "2023-01-01" : maxDate;
+        let granularity = "monthly";
+        if (enumerateDates(minDate, maxDate).length < 60) {
+          granularity = "daily"
+        }
+        console.log(minDate, maxDate)
         const response = await fetch(
           'http://localhost:3009/benchmark',
           {
@@ -31,9 +39,9 @@ export default function BenchmarkManager({
             },
             body: JSON.stringify({
               symbol,
-              start: minDate === "" ? "2018-01-01" : minDate,
-              end: maxDate === "" ? "2023-01-01" : maxDate,
-              granularity: "monthly"
+              start: minDate,
+              end: maxDate,
+              granularity
             }),
           }
         );

@@ -11,8 +11,6 @@ export function enumerateDates(startDateStr: string, endDateStr: string) {
   const startDate = new Date(startDateStr+ "T00:00:00");
   const endDate = new Date(endDateStr+ "T00:00:00");
 
-  console.log(startDate, endDate)
-
   const dates: string[] = [];
   const currentDate = new Date(startDate);
 
@@ -62,7 +60,7 @@ export const minMaxDates = (factorData:FactorData[]): {min: string; max:string} 
       if (min === "" || date < min) {
         min = date;
       }
-      if (max === "" || max > min) {
+      if (max === "" || date > max) {
         max = date;
       }
     })

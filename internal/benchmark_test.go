@@ -15,17 +15,17 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 		t2 := NewDate(2020, 1, 2)
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
-				// {
-				// 	Price: 100,
-				// 	Date:  NewDate(2020, 1, 1),
-				// },
+				{
+					Price: 100,
+					Date:  NewDate(2020, 1, 1),
+				},
 				{
 					Price: 110,
 					Date:  NewDate(2020, 1, 2),
 				},
 			},
 			t1,
-			NewDate(2020, 1, 2),
+			t2,
 			time.Hour*24,
 		)
 
