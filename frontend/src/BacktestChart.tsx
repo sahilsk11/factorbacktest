@@ -120,7 +120,7 @@ export default function BacktestChart({
       y: {
         title: {
           display: true,
-          text: 'Return Since Inception (%)', // Y-axis label
+          text: 'Return Since Backtest Start (%)', // Y-axis label
           color: "black"
         },
       },

@@ -44,11 +44,18 @@ export default function FactorForm({
     }
   })
 
-  const email = document.getElementById("factor-name");
+  const factorNameInput = document.getElementById("factor-name");
   if (found) {
-    (email as HTMLInputElement)?.setCustomValidity("Please use a unique factor name.");
+    (factorNameInput as HTMLInputElement)?.setCustomValidity("Please use a unique factor name.");
   } else {
-    (email as HTMLInputElement)?.setCustomValidity("");
+    (factorNameInput as HTMLInputElement)?.setCustomValidity("");
+  }
+  const cashInput = document.getElementById("cash");
+  if (cash <= 0) {
+    (cashInput as HTMLInputElement)?.setCustomValidity("Please enter more than $0")
+  } else {
+    (cashInput as HTMLInputElement)?.setCustomValidity("")
+
   }
 
   const handleSubmit = async (e: any) => {
@@ -148,6 +155,7 @@ export default function FactorForm({
 
         <div className='form-element'>
           <label>Rebalance Interval</label>
+          <p className='label-subtext'>How frequently should we re-evaluate portfolio holdings</p>
           <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
             <option value="daily">daily</option>
             <option value="weekly">weekly</option>
@@ -156,7 +164,7 @@ export default function FactorForm({
           </select>
         </div>
 
-        <div>
+        <div style={{ display: "none" }}>
           <label>Asset Selection Mode</label>
           <select value={assetSelectionMode} onChange={(e) => setAssetSelectionMode(e.target.value)}>
             <option value="NUM_SYMBOLS">top N scoring assets</option>
@@ -165,10 +173,14 @@ export default function FactorForm({
         </div>
         {assetSelectionMode === "NUM_SYMBOLS" ? <div>
           <label>Number of Assets</label>
+          <p className='label-subtext'>How many assets the target portfolio should hold at any time</p>
           <input
+            min={1}
+            max={100}
+            style={{width: "80px"}}
             type="number"
             value={numSymbols}
-            onChange={(e) => setNumSymbols(parseInt(e.target.value))}
+            onChange={(e) => (parseInt(e.target.value) <= 100) ? setNumSymbols(parseInt(e.target.value)): null}
           />
         </div> : null}
 
@@ -183,10 +195,19 @@ export default function FactorForm({
         <div>
           <label>Starting Cash</label>
           $ <input
-            min={1}
-            type="number"
-            value={cash}
-            onChange={(e) => setCash(parseFloat(e.target.value))}
+            id="cash"
+            // type="number"
+            value={cash.toLocaleString()}
+            style={{paddingLeft: "5px"}}
+            onChange={(e) => {
+              let x = e.target.value.replace(/,/g, '')
+              if (x.length === 0) {
+                x = "0";
+              }
+              if (!/[^0-9]/.test(x) && x.length < 12) {
+                setCash(parseFloat(x))
+              }
+            }}
           />
         </div>
         {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
@@ -200,7 +221,7 @@ export default function FactorForm({
           />
         </div> : null}
 
-        {loading ? <img style={{width: "40px", marginTop: "20px", marginLeft: "50px"}} src='loading.gif' /> : <button className='backtest-btn ' type="submit">Run Backtest</button> }
+        {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "50px" }} src='loading.gif' /> : <button className='backtest-btn ' type="submit">Run Backtest</button>}
 
         <Error message={err} />
       </form>
