@@ -55,10 +55,15 @@ func (h BacktestHandler) preloadData(ctx context.Context, in []workInput) (*serv
 	return priceCache, nil
 }
 
+type scoresResultsOnDay struct {
+	symbolScores map[string]*float64
+	errors       []error
+}
+
 // calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
 // using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
 // despite using workers, this is still the slowest part of the flow
-func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.PriceCache, in []workInput) (map[time.Time]map[string]*float64, error) {
+func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.PriceCache, in []workInput) (map[time.Time]*scoresResultsOnDay, error) {
 	numGoroutines := 10
 
 	type result struct {
@@ -122,15 +127,18 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.
 		results = append(results, res)
 	}
 
-	out := map[time.Time]map[string]*float64{}
+	out := map[time.Time]*scoresResultsOnDay{}
 	for _, res := range results {
 		if _, ok := out[res.Date]; !ok {
-			out[res.Date] = map[string]*float64{}
+			out[res.Date] = &scoresResultsOnDay{
+				symbolScores: map[string]*float64{},
+				errors:       []error{},
+			}
 		}
 		if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
-			return nil, res.Err
+			out[res.Date].errors = append(out[res.Date].errors, res.Err)
 		} else if res.Err == nil {
-			out[res.Date][res.Symbol] = &res.ExpressionResult.Value
+			out[res.Date].symbolScores[res.Symbol] = &res.ExpressionResult.Value
 		}
 	}
 
@@ -323,10 +331,14 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			return nil, fmt.Errorf("failed to calculate portfolio value on %v: %w", t, err)
 		}
 
+		valuesFromDay := factorScoresByDay[t]
+		// scoringErrors := valuesFromDay.errors
+		// backtestErrors = append(backtestErrors, scoringErrors...)
+
 		computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
-			FactorScores:     factorScoresByDay[t],
+			FactorScores:     valuesFromDay.symbolScores,
 			PortfolioValue:   currentPortfolioValue,
 			PriceMap:         priceMap,
 		})
