@@ -10,6 +10,11 @@ import {
 } from 'chart.js';
 import "./app.css";
 import "./factor-snapshot.css";
+import { FaQuestionCircle } from 'react-icons/fa';
+import { Tooltip as ReactTooltip } from 'react-tooltip';
+import 'react-tooltip/dist/react-tooltip.css'
+
+
 
 
 export default function InspectFactorData({
@@ -29,7 +34,7 @@ export default function InspectFactorData({
   const fdData = fdDetails.data[fdDate];
   // TODO - make this a one-liner
   const snapshotToAssetWeight = (snapshot: BacktestSnapshot): Record<string, number> => {
-    let out:Record<string, number> = {}
+    let out: Record<string, number> = {}
     Object.keys(snapshot.assetMetrics).forEach(symbol => {
       out[symbol] = snapshot.assetMetrics[symbol].assetWeight
     })
@@ -40,7 +45,7 @@ export default function InspectFactorData({
     <div style={{ margin: "0px auto", display: "block" }}>
       <h3 style={{ marginBottom: "0px", marginTop: "0px" }}>Factor Snapshot</h3>
       <i><p className="subtext">What did "{fdDetails.name}" look like on {fdDate}?</p></i>
-      <div className="container" style={{ marginTop: "30px",  width: "100%", minHeight: "0px", alignItems: "center" }}>
+      <div className="container" style={{ marginTop: "30px", width: "100%", minHeight: "0px", alignItems: "center" }}>
         <div className="column" style={{ "flexGrow": 5, maxWidth: "600px" }}>
           <AssetAllocationTable snapshot={fdData} />
         </div>
@@ -59,6 +64,7 @@ export default function InspectFactorData({
 
 const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
   const sortedSymbols = Object.keys(snapshot.assetMetrics).sort((a, b) => snapshot.assetMetrics[b].assetWeight - snapshot.assetMetrics[a].assetWeight);
+  const toolTipMessage = `Indicates asset performance (% return) between the current date (${snapshot.date}) and the next rebalance.`
   return (
     <table className="table">
       <thead>
@@ -66,7 +72,19 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
           <th>Symbol</th>
           <th>Factor Score</th>
           <th>Portfolio Allocation</th>
-          <th>Price Change til Next Resampling</th>
+          <th>
+            Price Change til Next Rebalance
+            <a
+              data-tooltip-id="my-tooltip"
+              data-tooltip-content={toolTipMessage}
+              data-tooltip-place="bottom"
+              style={{paddingLeft: "5px",
+            marginTop: "2px"}}
+            >
+              <ReactTooltip id="my-tooltip" />
+              <FaQuestionCircle className="question-icon" />
+            </a>
+          </th>
 
         </tr>
       </thead>
@@ -74,11 +92,11 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
         {sortedSymbols.map(symbol => <tr>
           <td>{symbol}</td>
           <td>{snapshot.assetMetrics[symbol].factorScore.toFixed(2)}</td>
-          <td>{(100*snapshot.assetMetrics[symbol].assetWeight).toFixed(2)}%</td>
+          <td>{(100 * snapshot.assetMetrics[symbol].assetWeight).toFixed(2)}%</td>
           <td>{snapshot.assetMetrics[symbol].priceChangeTilNextResampling?.toFixed(2)}%</td>
         </tr>)}
       </tbody>
-    </table>
+    </table >
   );
 };
 
