@@ -12,7 +12,7 @@ import (
 )
 
 func New() (*sql.DB, error) {
-	connStr := "postgresql://postgres:postgres@docker.for.mac.localhost:5440/postgres?sslmode=disable"
+	connStr := "user=postgres password=dVucP6jSZqx7yyPOsz1v host=alpha.cuutadkicrvi.us-east-2.rds.amazonaws.com port=5432 dbname=postgres"
 	dbConn, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err

@@ -61,7 +61,7 @@ export default function FactorForm({
     name: "7_day_rolling_price_momentum"
   });
   const [backtestStart, setBacktestStart] = useState("2020-01-02");
-  const [backtestEnd, setBacktestEnd] = useState("2020-02-01");
+  const [backtestEnd, setBacktestEnd] = useState("2022-01-01");
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
   const [startPortfolio, setStartPortfolio] = useState(`{
       "AAPL": 10,

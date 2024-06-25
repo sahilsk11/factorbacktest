@@ -6,7 +6,6 @@ import (
 	"alpha/internal/domain"
 	"alpha/internal/repository"
 	"alpha/pkg/datajockey"
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -17,10 +16,11 @@ import (
 )
 
 func New() (*sql.DB, error) {
-	connStr := "postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable"
+	connStr := "user=postgres password=dVucP6jSZqx7yyPOsz1v host=alpha.cuutadkicrvi.us-east-2.rds.amazonaws.com port=5432 dbname=postgres"
+
 	dbConn, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
 
 	return dbConn, nil
@@ -33,23 +33,11 @@ func NewTx() (*sql.Tx, error) {
 	}
 
 	return dbConn.Begin()
-	// return roTx(dbConn)
-}
-
-func roTx(dbConn *sql.DB) (*sql.Tx, error) {
-	ctx := context.Background()
-	return dbConn.BeginTx(
-		ctx,
-		&sql.TxOptions{
-			Isolation: sql.LevelReadCommitted,
-			ReadOnly:  true,
-		},
-	)
 }
 
 func main() {
-	// ingestFundamentals("AAPL")
-	// ap()
+	// internal.IngestPrices()
+	updateUniversePrices()
 }
 
 func backtest(tx *sql.Tx) {
@@ -196,13 +184,18 @@ func Ingest(tx *sql.Tx, symbol string) {
 func updateUniversePrices() {
 	tx, err := NewTx()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("failed to create tx: %w", err))
 	}
-	err = internal.UpdateUniversePrices(
+	err = internal.IngestPrices(
 		tx,
-		repository.UniverseRepositoryHandler{},
+		"SPY",
 		repository.AdjustedPriceRepositoryHandler{},
 	)
+	// err = internal.UpdateUniversePrices(
+	// 	tx,
+	// 	repository.UniverseRepositoryHandler{},
+	// 	repository.AdjustedPriceRepositoryHandler{},
+	// )
 	if err != nil {
 		log.Fatal(err)
 	}
