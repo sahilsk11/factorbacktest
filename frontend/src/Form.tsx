@@ -212,7 +212,7 @@ export default function FactorForm({
         </div> : null}
         <div>
           <label>Starting Cash</label>
-          $ <input
+          <span style={{fontSize: "14px"}}>$</span> <input
             id="cash"
             value={cash.toLocaleString()}
             style={{ paddingLeft: "5px" }}
@@ -227,6 +227,13 @@ export default function FactorForm({
             }}
           />
         </div>
+        <div className='form-element'>
+          <label>Asset Universe</label>
+          <p className='label-subtext'>The pool of assets that are eligible for the target portfolio.</p>
+          <select>
+            <option value="daily">SPY Top 80 Holdings</option>
+          </select>
+        </div> 
         {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
           <label>Intensity</label>
           <input
@@ -238,7 +245,7 @@ export default function FactorForm({
           />
         </div> : null}
 
-        {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "50px" }} src='loading.gif' /> : <button className='backtest-btn ' type="submit">Run Backtest</button>}
+        {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className='backtest-btn ' type="submit">Run Backtest</button>}
 
         <Error message={err} />
       </form>
@@ -285,7 +292,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
     },
     "value": {
       expression: "1/pbRatio(currentDate)",
-      factorName: "undervalued"
+      factorName: "undervalued_by_pb_ratio"
     },
     "volatility": {
       expression: "1/stdev(nYearsAgo(1), currentDate)",
@@ -343,7 +350,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
 
       <select
         onChange={(e) => setSelectedFactor(e.target.value)}
-        style={{ fontSize: "13px" }}
+        style={{ fontSize: "14px" }}
       >
         <option value="momentum">Momentum (price trending up)</option>
         <option value="value">Value (undervalued relative to price)</option>
@@ -357,8 +364,8 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
           <textarea
             style={{
               width: "250px",
-              height: "30px",
-              fontSize: "13px"
+              height: "38px",
+              fontSize: "14px"
             }}
             placeholder='small cap, undervalued, and price going up'
             value={gptInput}
