@@ -16,6 +16,7 @@ func Pprint(i interface{}) {
 
 type Secrets struct {
 	DataJockeyApiKey string `json:"dataJockey"`
+	ChatGPTApiKey    string `json:"gpt"`
 }
 
 func LoadSecrets() (*Secrets, error) {
