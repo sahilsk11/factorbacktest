@@ -68,7 +68,6 @@ export default function BacktestChart({ benchmarkData, results }: any) {
 
   const datasetInfo: DatasetInfo[] = [];
 
-
   benchmarkData.forEach((k:any) => {
     datasets.push({
       label: k.symbol,
@@ -80,9 +79,6 @@ export default function BacktestChart({ benchmarkData, results }: any) {
       symbol: k.symbol,
     })
   })
-
-
-
 
   results.forEach((e:any) => {
     datasets.push({
