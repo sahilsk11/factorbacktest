@@ -135,7 +135,7 @@ func Test_assetUniverseRepositoryHandler_GetAssets(t *testing.T) {
 	db, err := newTestDb()
 	require.NoError(t, err)
 	t.Run("get assets from one universe", func(t *testing.T) {
-		t.Skip()
+		cleanupUniverse(db)
 		tx, err := db.Begin()
 		require.NoError(t, err)
 		defer func() {

@@ -44,17 +44,8 @@ func (h assetUniverseRepositoryHandler) GetAssets(name model.AssetUniverseName) 
 	// i don't understand where duplicates are
 	// being filtered
 
-	query2 := table.AssetUniverseTicker.SELECT(table.AssetUniverseTicker.AllColumns).WHERE(postgres.Bool(true))
-	out := []model.AssetUniverseTicker{}
-	err := query2.Query(h.Db, &out)
-	if err != nil {
-		return nil, err
-	}
-
-	// i don't know why this filters duplicates
-
 	tickers := []model.Ticker{}
-	err = query.Query(h.Db, &tickers)
+	err := query.Query(h.Db, &tickers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query assets from %s: %w", name.String(), err)
 	}
