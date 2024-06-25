@@ -249,6 +249,35 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		return nil, err
 	}
 
+	// if we have no days in the window, or the end date is after the last date in the window, get prices
+	// TODO - if user selects end date like 3/30 but it's a holiday, last trading day will be 3/29 but this
+	// gets triggered
+	shouldFetchPrices := false && (len(tradingDays) == 0 || in.BacktestEnd.After(tradingDays[len(tradingDays)-1]))
+	if shouldFetchPrices {
+		tx, err := h.Db.Begin()
+		if err != nil {
+			return nil, err
+		}
+
+		err = internal.UpdateUniversePrices(
+			tx,
+			repository.UniverseRepositoryHandler{},
+			repository.NewAdjustedPriceRepository(),
+		)
+		if err != nil {
+			return nil, err
+		}
+		err = internal.IngestPrices(tx, "SPY", repository.NewAdjustedPriceRepository())
+		if err != nil {
+			return nil, err
+		}
+		err = tx.Commit()
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
 	inputs := []workInput{}
 	for _, tradingDay := range tradingDays {
 		for _, symbol := range universeSymbols {
@@ -439,6 +468,10 @@ func (h BacktestHandler) calculateRelevantTradingDays(
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate trading days: %w", err)
 	}
+	if len(allTradingDays) == 0 {
+		return []time.Time{}, nil
+	}
+
 	allTradingDaysSet := map[time.Time]bool{}
 	for _, t := range allTradingDays {
 		allTradingDaysSet[t] = true
