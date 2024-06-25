@@ -12,7 +12,7 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-type PriceCache map[string]map[time.Time]float64
+type priceCache map[string]map[time.Time]float64
 
 type TradingDatesCache struct {
 	Start time.Time
@@ -21,7 +21,7 @@ type TradingDatesCache struct {
 }
 
 func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date time.Time) *float64 {
-	pc := h.PriceCache
+	pc := h.priceCache
 	h.ReadMutex.RLock()
 	if _, ok := pc[symbol]; ok {
 		if price, ok := pc[symbol][date]; ok {
@@ -34,7 +34,7 @@ func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date ti
 }
 
 func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time.Time, price float64) {
-	pc := h.PriceCache
+	pc := h.priceCache
 	h.ReadMutex.Lock()
 	if _, ok := pc[symbol]; !ok {
 		pc[symbol] = map[time.Time]float64{}
@@ -46,31 +46,26 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
 	Get(string, time.Time) (float64, error)
-	GetMany([]string, time.Time) (map[string]float64, error)
+	GetManyOnDay([]string, time.Time) (map[string]float64, error)
 	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(start, end time.Time) ([]time.Time, error)
 	LatestPrices(symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
-	ListFromSet(set []ListFromSetInput) ([]domain.AssetPrice, error)
-}
-
-type ListFromSetInput struct {
-	Symbol string
-	Date   time.Time
+	GetMany(set []GetManyInput) ([]domain.AssetPrice, error)
 }
 
 func NewAdjustedPriceRepository(db *sql.DB) AdjustedPriceRepository {
 	return &adjustedPriceRepositoryHandler{
 		Db:         db,
-		PriceCache: make(PriceCache),
+		priceCache: make(priceCache),
 		ReadMutex:  &sync.RWMutex{},
 	}
 }
 
 type adjustedPriceRepositoryHandler struct {
 	Db         *sql.DB
-	PriceCache PriceCache
+	priceCache priceCache
 	ReadMutex  *sync.RWMutex
 	days       []time.Time
 }
@@ -131,7 +126,7 @@ func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (floa
 }
 
 // assumes input date is a trading day
-func (h adjustedPriceRepositoryHandler) GetMany(symbols []string, date time.Time) (map[string]float64, error) {
+func (h adjustedPriceRepositoryHandler) GetManyOnDay(symbols []string, date time.Time) (map[string]float64, error) {
 	cachedResults := map[string]float64{}
 	symbolSet := map[string]bool{}
 	postgresStr := []postgres.Expression{}
@@ -274,37 +269,28 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(symbols []string) ([]domain
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) ListFromSet(set []ListFromSetInput) ([]domain.AssetPrice, error) {
-	expressions := []postgres.BoolExpression{}
-	symbolRanges := map[string]*struct {
-		min time.Time
-		max time.Time
-	}{}
-	for _, s := range set {
-		if _, ok := symbolRanges[s.Symbol]; !ok {
-			symbolRanges[s.Symbol] = &struct {
-				min time.Time
-				max time.Time
-			}{
-				min: s.Date,
-				max: s.Date,
-			}
-		}
-		if s.Date.After(symbolRanges[s.Symbol].max) {
-			symbolRanges[s.Symbol].max = s.Date
-		}
-		if s.Date.Before(symbolRanges[s.Symbol].min) {
-			symbolRanges[s.Symbol].min = s.Date
-		}
-	}
+type GetManyInput struct {
+	Symbol  string
+	MinDate time.Time
+	MaxDate time.Time
+}
 
-	for symbol, rng := range symbolRanges {
+func (h adjustedPriceRepositoryHandler) GetMany(inputs []GetManyInput) ([]domain.AssetPrice, error) {
+	// finds the min and max dates required
+	// priceChange(t-100, t) would require
+	// price from way before, so min trading date
+	// isn't enough
+	// TODO - is it really better to do this instead
+	// of passing individual dates?
+	expressions := []postgres.BoolExpression{}
+
+	for _, in := range inputs {
 		expressions = append(
 			expressions,
 			postgres.AND(
-				table.AdjustedPrice.Symbol.EQ(postgres.String(symbol)),
-				table.AdjustedPrice.Date.LT_EQ(postgres.DateT(rng.max)),
-				table.AdjustedPrice.Date.GT_EQ(postgres.DateT(rng.min)),
+				table.AdjustedPrice.Symbol.EQ(postgres.String(in.Symbol)),
+				table.AdjustedPrice.Date.LT_EQ(postgres.DateT(in.MaxDate)),
+				table.AdjustedPrice.Date.GT_EQ(postgres.DateT(in.MinDate)),
 			),
 		)
 	}

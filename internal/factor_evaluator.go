@@ -131,7 +131,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			p, err := h.AnnualizedStdevOfDailyReturns(ctx, symbol, start, end)
+			p, err := h.AnnualizedStdevOfDailyReturns(ctx, pr, symbol, start, end)
 			if err != nil {
 				return 0, err
 			}

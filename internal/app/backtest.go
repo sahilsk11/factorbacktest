@@ -134,7 +134,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	profile, endProfile := domain.GetProfile(ctx) // used for profiling API performance
 	defer endProfile()
 
-	span, endSpan := profile.StartNewSpan("setting up backtest")
+	_, endSpan := profile.StartNewSpan("setting up backtest")
 	tickers, err := h.AssetUniverseRepository.GetAssets(in.AssetUniverse)
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 
 	endSpan()
 
-	span, endSpan = profile.StartNewSpan("calculating factor scores")
+	span, endSpan := profile.StartNewSpan("calculating factor scores")
 	factorScoresByDay, err := h.FactorExpressionService.CalculateFactorScores(domain.NewCtxWithSubProfile(ctx, span), tradingDays, tickers, in.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
@@ -178,7 +178,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 
 	priceMap := map[string]map[string]float64{}
 
-	span, endSpan = profile.StartNewSpan("daily calcs")
+	_, endSpan = profile.StartNewSpan("daily calcs")
 	for _, t := range tradingDays {
 		// should work on weekends too
 
@@ -186,7 +186,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// of assets so much that it kinda makes sense to
 		// just get everything and let everyone figure it out
 		// this is also premature optimization
-		pm, err := h.PriceRepository.GetMany(universeSymbols, t)
+		pm, err := h.PriceRepository.GetManyOnDay(universeSymbols, t)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get prices on day %v: %w", t, err)
 		}
@@ -245,7 +245,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
 	}
 
-	span, endSpan = profile.StartNewSpan("creating snapshots")
+	_, endSpan = profile.StartNewSpan("creating snapshots")
 	snapshots, err := toSnapshots(out, priceMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute snapshots: %w", err)

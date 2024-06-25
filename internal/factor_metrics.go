@@ -2,15 +2,12 @@ package internal
 
 import (
 	"context"
-	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/go-jet/jet/v2/qrm"
-	"github.com/montanaflynn/stats"
 )
 
 type FactorMetricsMissingDataError struct {
@@ -24,14 +21,10 @@ func (e FactorMetricsMissingDataError) Error() string {
 type FactorMetricCalculations interface {
 	Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error)
 	PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error)
-	AnnualizedStdevOfDailyReturns(ctx context.Context, symbol string, start, end time.Time) (float64, error)
+	AnnualizedStdevOfDailyReturns(ctx context.Context, pr *service.PriceCache, symbol string, start, end time.Time) (float64, error)
 	MarketCap(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PbRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
-}
-
-type DataInput struct {
-	Type string
 }
 
 type factorMetricsHandler struct {
@@ -48,42 +41,38 @@ func NewFactorMetricsHandler(adjPriceRepository repository.AdjustedPriceReposito
 }
 
 type DryRunFactorMetricsHandler struct {
-	Data map[string]service.LoadPriceCacheInput
+	// these may contain duplicates
+	Prices []service.LoadPriceCacheInput
+	Stdevs []service.LoadStdevCacheInput
 }
 
 func (h *DryRunFactorMetricsHandler) Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error) {
-	key := fmt.Sprintf("price/%s/%s", date.Format(time.DateOnly), symbol)
-	h.Data[key] = service.LoadPriceCacheInput{
+	h.Prices = append(h.Prices, service.LoadPriceCacheInput{
 		Date:   date,
 		Symbol: symbol,
-	}
+	})
 	return 0, nil
 }
 
 func (h *DryRunFactorMetricsHandler) PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
-	key := fmt.Sprintf("price/%s/%s", start.Format(time.DateOnly), symbol)
-	h.Data[key] = service.LoadPriceCacheInput{
+	h.Prices = append(h.Prices, service.LoadPriceCacheInput{
 		Date:   start,
 		Symbol: symbol,
-	}
-	key = fmt.Sprintf("price/%s/%s", end.Format(time.DateOnly), symbol)
-	h.Data[key] = service.LoadPriceCacheInput{
+	})
+	h.Prices = append(h.Prices, service.LoadPriceCacheInput{
 		Date:   end,
 		Symbol: symbol,
-	}
+	})
+
 	return 1, nil
 }
 
-func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
-	current := start
-	for current.Before(end) {
-		key := fmt.Sprintf("price/%s/%s", current.Format(time.DateOnly), symbol)
-		h.Data[key] = service.LoadPriceCacheInput{
-			Date:   current,
-			Symbol: symbol,
-		}
-		current = current.AddDate(0, 0, 1)
-	}
+func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
+	h.Stdevs = append(h.Stdevs, service.LoadStdevCacheInput{
+		Start:  start,
+		End:    end,
+		Symbol: symbol,
+	})
 	return 1, nil
 }
 
@@ -121,49 +110,8 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
-// super hacky but because we can't control the direct caller of the metrics
-// functions, we can't set the parent span correctly. so just create it here
-// def one of those things I will look back and hate - sry
-func (h factorMetricsHandler) createProfile(ctx context.Context, funcName string) (*domain.Profile, func()) {
-	profile, _ := domain.GetProfile(ctx)
-	newSpan, endSpan := profile.StartNewSpan(funcName)
-	newProfile, endProfile := newSpan.NewSubProfile()
-	end := func() {
-		endSpan()
-		endProfile()
-	}
-	return newProfile, end
-}
-
-func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
-	profile, endProfile := h.createProfile(ctx, "AnnualizedStdevOfDailyReturns")
-	defer endProfile()
-
-	_, endSpan := profile.StartNewSpan("listing prices")
-	priceModels, err := h.AdjustedPriceRepository.List([]string{symbol}, start, end)
-	if err != nil {
-		return 0, err
-	}
-	endSpan()
-	_, endSpan = profile.StartNewSpan("converting to percent change")
-	intradayChanges := make([]float64, len(priceModels)-1)
-	for i := 1; i < len(priceModels); i++ {
-		intradayChanges[i-1] = percentChange(
-			priceModels[i].Price,
-			priceModels[i-1].Price,
-		)
-	}
-	endSpan()
-
-	_, endSpan = profile.StartNewSpan("calculating stdev")
-	defer endSpan()
-	stdev, err := stats.StandardDeviationSample(intradayChanges)
-	if err != nil {
-		return 0, err
-	}
-	magicNumber := math.Sqrt(252)
-
-	return stdev * magicNumber, nil
+func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
+	return pr.GetStdev(ctx, symbol, start, end)
 }
 
 func (h factorMetricsHandler) MarketCap(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
