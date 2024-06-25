@@ -34,7 +34,6 @@ const App = () => {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
-
   useEffect(() => {
     if (getCookie("userID") === null) {
       setShowHelpModal(true);
