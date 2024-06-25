@@ -18,11 +18,8 @@ export default function FactorForm({
   appendFactorData: (newFactorData: FactorData) => void;
 }) {
   const [factorExpression, setFactorExpression] = useState("");
-
   const [factorIntensity, setFactorIntensity] = useState(0.75);
-
   const [factorName, setFactorName] = useState("7_day_rolling_price_momentum");
-
   const [backtestStart, setBacktestStart] = useState("2020-01-01");
   const [backtestEnd, setBacktestEnd] = useState("2022-01-01");
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
@@ -129,7 +126,11 @@ export default function FactorForm({
     case "yearly": rebalanceDuration = 365; break;
   }
 
-  const numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4 / 7 / rebalanceDuration;
+  const maxDate = Date();
+  let numComputations = 0; 
+  if (backtestStart <= backtestEnd && backtestEnd <= maxDate) {
+    numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4 / 7 / rebalanceDuration;
+  }
 
   return (
     <div className='tile'>
@@ -160,7 +161,7 @@ export default function FactorForm({
           <label>Backtest Range</label>
           <input
             min={'2018-01-01'}
-            max={backtestEnd > '2023-09-05' ? '2023-09-05' : backtestEnd}
+            max={backtestEnd > maxDate ? maxDate : backtestEnd}
             required
             type="date"
             value={backtestStart}
@@ -168,7 +169,7 @@ export default function FactorForm({
           />
           <p style={{ display: "inline" }}> to </p>
           <input
-            max={'2023-09-05'}
+            max={maxDate}
             required
             type="date"
             value={backtestEnd}
@@ -342,7 +343,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
       setLoading(false);
       if (response.ok) {
         const result = await response.json()
-        if (result.error.length == 0) {
+        if (result.error.length === 0) {
           setFactorExpression(result.factorExpression)
           setFactorName(result.factorName)
         } else {
