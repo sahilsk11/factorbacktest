@@ -14,7 +14,7 @@ const dateLayout = "2006-01-02"
 
 func constructFunctionMap(
 	ctx context.Context,
-	tx *sql.Tx,
+	db *sql.DB,
 	pr PriceRetriever,
 	symbol string,
 	h FactorMetricCalculations,
@@ -81,7 +81,7 @@ func constructFunctionMap(
 			if err != nil {
 				return 0, err
 			}
-			p, err := h.Price(tx, pr, symbol, date)
+			p, err := h.Price(db, pr, symbol, date)
 			if err != nil {
 				return 0, err
 			}
@@ -105,7 +105,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			p, err := h.PricePercentChange(tx, pr, symbol, start, end)
+			p, err := h.PricePercentChange(db, pr, symbol, start, end)
 			if err != nil {
 				return 0, err
 			}
@@ -130,7 +130,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			p, err := h.AnnualizedStdevOfDailyReturns(tx, symbol, start, end)
+			p, err := h.AnnualizedStdevOfDailyReturns(db, symbol, start, end)
 			if err != nil {
 				return 0, err
 			}
@@ -148,7 +148,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			return h.MarketCap(tx, symbol, date)
+			return h.MarketCap(db, symbol, date)
 		},
 		"pbRatio": func(args ...interface{}) (interface{}, error) {
 			if len(args) < 1 {
@@ -160,7 +160,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			return h.PbRatio(tx, symbol, date)
+			return h.PbRatio(db, symbol, date)
 		},
 		"peRatio": func(args ...interface{}) (interface{}, error) {
 			if len(args) < 1 {
@@ -172,7 +172,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			return h.PeRatio(tx, symbol, date)
+			return h.PeRatio(db, symbol, date)
 		},
 	}
 }
@@ -184,7 +184,7 @@ type ExpressionResult struct {
 
 func EvaluateFactorExpression(
 	ctx context.Context,
-	tx *sql.Tx,
+	db *sql.DB,
 	pr PriceRetriever,
 	expression string,
 	symbol string,
@@ -197,7 +197,7 @@ func EvaluateFactorExpression(
 	}
 
 	debug := FormulaDebugger{}
-	functions := constructFunctionMap(ctx, tx, pr, symbol, factorMetricsHandler, debug, date)
+	functions := constructFunctionMap(ctx, db, pr, symbol, factorMetricsHandler, debug, date)
 	result, err := eval.Evaluate(expression, variables, functions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate factor expression: %w", err)
