@@ -294,15 +294,15 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
       factorName: "7_day_momentum"
     },
     "value": {
-      expression: "1/pbRatio(currentDate)",
+      expression: "10/pbRatio(currentDate)",
       factorName: "undervalued_by_pb_ratio"
     },
     "volatility": {
-      expression: "1/stdev(nYearsAgo(1), currentDate)",
+      expression: "1e3/stdev(nYearsAgo(1), currentDate)",
       factorName: "low_volatility"
     },
     "size": {
-      expression: "1/marketCap(currentDate)",
+      expression: "1e12/marketCap(currentDate)",
       factorName: "small_cap"
     },
   }
