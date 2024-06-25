@@ -114,13 +114,15 @@ func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates doma
 			// buy a new bond with max duration
 			// and value of exited bond
 			duration := bp.TargetDurationMonths[len(bp.TargetDurationMonths)-1]
+			newBondInceptionDate := bond.Expiration // buy the day the old expires
 
 			// if the bond will expire before the end of the backtest, include it
 			// there's some weird edge cases as we approach end of the backtest,
 			// like should we buy smaller duration?
 			// TODO - consider cycling this bond if it happens to expire before today
 			// which could happen with long duration
-			if !today.AddDate(0, duration, 0).After(backtestEnd) {
+			expiration := newBondInceptionDate.AddDate(0, duration, 0)
+			if !expiration.After(backtestEnd) {
 				rate := interestRates.GetRate(duration)
 				outBonds = append(outBonds, NewBond(value, bond.Expiration, duration, rate))
 			} else {
@@ -253,7 +255,9 @@ func (b BondService) BacktestBondPortfolio(
 
 	current = current.AddDate(0, 0, granularityDays)
 
-	for current.Before(end) {
+	// current method likely misses last day
+	// because granularity overshoots
+	for !current.After(end) {
 		interestRates, err := b.InterestRateRepository.GetRatesOnDate(current, tx)
 		if err != nil {
 			return nil, err
