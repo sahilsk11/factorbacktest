@@ -129,7 +129,7 @@ export default function BacktestChart({
     }
   };
 
-  return <div className='backtest-chart-wrapper' id="backtest-results">
+  return <div className='backtest-chart-wrapper' >
     <Line
     options={options}
     data={data}

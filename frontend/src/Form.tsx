@@ -102,7 +102,7 @@ export default function FactorForm({
           setErr("No backtest results were calculated");
           return;
         }
-        jumpToAnchorOnSmallScreen("backtest-results")
+        // jumpToAnchorOnSmallScreen("backtest-results")
         setNames([...names, factorName])
         const fd: FactorData = {
           name: data.factorOptions.name,
@@ -441,22 +441,22 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
   </>
 }
 
-function jumpToAnchorOnSmallScreen(anchorId:string) {
-  // Check if the screen width is less than 600 pixels
-  if (window.innerWidth < 600) {
-    // Get the element with the specified anchorId
-    const anchorElement = document.getElementById(anchorId);
+// function jumpToAnchorOnSmallScreen(anchorId:string) {
+//   // Check if the screen width is less than 600 pixels
+//   if (window.innerWidth < 600) {
+//     // Get the element with the specified anchorId
+//     const anchorElement = document.getElementById(anchorId);
 
-    // Check if the element exists
-    if (anchorElement) {
-      // Calculate the position to scroll to
-      const offset = anchorElement.getBoundingClientRect().top + window.scrollY;
+//     // Check if the element exists
+//     if (anchorElement) {
+//       // Calculate the position to scroll to
+//       const offset = anchorElement.getBoundingClientRect().top + window.scrollY;
 
-      // Scroll to the element smoothly
-      window.scrollTo({
-        top: offset,
-        behavior: 'smooth'
-      });
-    }
-  }
-}
+//       // Scroll to the element smoothly
+//       window.scrollTo({
+//         top: offset,
+//         behavior: 'smooth'
+//       });
+//     }
+//   }
+// }
