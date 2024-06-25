@@ -2,7 +2,6 @@ package api
 
 import (
 	"factorbacktest/internal/service"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +14,10 @@ func (m ApiHandler) updatePrices(c *gin.Context) {
 	}
 
 	err = service.UpdateUniversePrices(tx, m.TickerRepository, m.PriceRepository)
-	fmt.Println(err)
+	if err != nil {
+		returnErrorJson(err, c)
+		return
+	}
 
 	err = tx.Commit()
 	if err != nil {
