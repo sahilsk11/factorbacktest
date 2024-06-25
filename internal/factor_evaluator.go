@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 const dateLayout = "2006-01-02"
 
 func constructFunctionMap(
+	ctx context.Context,
 	tx *sql.Tx,
 	pr PriceRetriever,
 	symbol string,
@@ -181,6 +183,7 @@ type ExpressionResult struct {
 }
 
 func EvaluateFactorExpression(
+	ctx context.Context,
 	tx *sql.Tx,
 	pr PriceRetriever,
 	expression string,
@@ -194,7 +197,7 @@ func EvaluateFactorExpression(
 	}
 
 	debug := FormulaDebugger{}
-	functions := constructFunctionMap(tx, pr, symbol, factorMetricsHandler, debug, date)
+	functions := constructFunctionMap(ctx, tx, pr, symbol, factorMetricsHandler, debug, date)
 	result, err := eval.Evaluate(expression, variables, functions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate factor expression: %w", err)
