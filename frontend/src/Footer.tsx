@@ -3,28 +3,30 @@ import "./app.css";
 import "./footer.css";
 import { endpoint } from "./App";
 
-export default function StatsFooter() {
+export default function StatsFooter({ userID }: { userID: string }) {
   const [uniqueUsers, setUniqueUsers] = useState<number | null>(null);
   const [backtests, setBacktests] = useState<number | null>(null);
   const [strategies, setStrategies] = useState<number | null>(null);
 
   async function getStats() {
     try {
-      const response = await fetch(endpoint + "/usageStats");
+      const response = await fetch(endpoint + "/usageStats?id=" + userID);
       const responseJson = await response.json()
       setUniqueUsers(responseJson.uniqueUsers)
       setBacktests(responseJson.backtests)
       setStrategies(responseJson.strategies)
-    } catch(error) {
+    } catch (error) {
       console.log(error)
     }
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => getStats(), 5000)
-    getStats()
-    return () => clearTimeout(timer);
-  }, []);
+    if (userID !== "") {
+      const timer = setTimeout(() => getStats(), 5000)
+      getStats()
+      return () => clearTimeout(timer);
+    }
+  }, [userID]);
 
   return <>
     <div className="footer">

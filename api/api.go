@@ -133,6 +133,9 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 			userID = &reqBody.UserID
 		}
 	}
+	if method == "GET" {
+		userID = GetUserIDUrlParam(ctx)
+	}
 
 	start := time.Now().UTC()
 	req, err := m.ApiRequestRepository.Add(m.Db, model.APIRequest{
@@ -159,4 +162,20 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 			log.Println(err)
 		}
 	}
+}
+
+func GetUserIDUrlParam(ctx *gin.Context) *uuid.UUID {
+	urlParams := ctx.Request.URL.Query()
+
+	urlUserID := urlParams.Get("id")
+	if urlUserID == "" {
+		urlUserID = urlParams.Get("userID")
+	}
+
+	id, err := uuid.Parse(urlUserID)
+	if err == nil {
+		return &id
+	}
+
+	return nil
 }
