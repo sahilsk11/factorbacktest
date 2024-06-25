@@ -8,6 +8,7 @@ import (
 	sql "database/sql"
 	model "factorbacktest/internal/db/models/postgres/public/model"
 	domain "factorbacktest/internal/domain"
+	repository "factorbacktest/internal/repository"
 	reflect "reflect"
 	time "time"
 
@@ -110,6 +111,21 @@ func (m *MockAdjustedPriceRepository) List(db qrm.Queryable, symbols []string, s
 func (mr *MockAdjustedPriceRepositoryMockRecorder) List(db, symbols, start, end interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).List), db, symbols, start, end)
+}
+
+// ListFromSet mocks base method.
+func (m *MockAdjustedPriceRepository) ListFromSet(tx *sql.Tx, set []repository.ListFromSetInput) ([]domain.AssetPrice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListFromSet", tx, set)
+	ret0, _ := ret[0].([]domain.AssetPrice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListFromSet indicates an expected call of ListFromSet.
+func (mr *MockAdjustedPriceRepositoryMockRecorder) ListFromSet(tx, set interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListFromSet", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).ListFromSet), tx, set)
 }
 
 // ListTradingDays mocks base method.

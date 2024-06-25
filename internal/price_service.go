@@ -20,7 +20,7 @@ trading day, and use that price
 */
 
 type PriceService interface {
-	LoadCache(tx *sql.Tx, symbols []string, start time.Time, end time.Time) (*PriceCache, error)
+	LoadCache(tx *sql.Tx, inputs []DataInput) (*PriceCache, error)
 	UpdatePricesIfNeeded(ctx context.Context, tx *sql.Tx, symbols []string) error
 }
 
@@ -29,7 +29,7 @@ type priceServiceHandler struct {
 }
 
 type PriceCache struct {
-	cache              map[string]map[time.Time]float64
+	cache              map[string]map[string]float64
 	tradingDays        []time.Time
 	Tx                 *sql.Tx
 	adjPriceRepository repository.AdjustedPriceRepository
@@ -51,8 +51,8 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	date = closestTradingDay
 
 	if _, ok := pr.cache[symbol]; ok {
-		if _, ok := pr.cache[symbol][date]; ok {
-			return pr.cache[symbol][date], nil
+		if _, ok := pr.cache[symbol][date.Format(time.DateOnly)]; ok {
+			return pr.cache[symbol][date.Format(time.DateOnly)], nil
 		}
 	}
 
@@ -62,7 +62,7 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	pr.cache[symbol][date] = price
+	pr.cache[symbol][date.Format(time.DateOnly)] = price
 
 	// TODO - handle missing here too
 
@@ -75,28 +75,30 @@ func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepo
 	}
 }
 
-func (h priceServiceHandler) LoadCache(tx *sql.Tx, symbols []string, start time.Time, end time.Time) (*PriceCache, error) {
-	tradingDays, err := h.AdjPriceRepository.ListTradingDays(tx, start, end)
+func (h priceServiceHandler) LoadCache(tx *sql.Tx, inputs []DataInput) (*PriceCache, error) {
+	setInputs := []repository.ListFromSetInput{}
+	for _, d := range inputs {
+		setInputs = append(setInputs, repository.ListFromSetInput{
+			Symbol: d.Symbol,
+			Date:   d.Date,
+		})
+	}
+	prices, err := h.AdjPriceRepository.ListFromSet(tx, setInputs)
 	if err != nil {
 		return nil, err
 	}
 
-	prices, err := h.AdjPriceRepository.List(tx, symbols, start, end)
-	if err != nil {
-		return nil, err
-	}
-
-	cache := make(map[string]map[time.Time]float64)
+	cache := make(map[string]map[string]float64)
 	for _, p := range prices {
 		if _, ok := cache[p.Symbol]; !ok {
-			cache[p.Symbol] = make(map[time.Time]float64)
+			cache[p.Symbol] = make(map[string]float64)
 		}
-		cache[p.Symbol][p.Date] = p.Price
+		cache[p.Symbol][p.Date.Format(time.DateOnly)] = p.Price
 	}
 
 	return &PriceCache{
 		cache:              cache,
-		tradingDays:        tradingDays,
+		tradingDays:        nil, // let's try to remove this
 		adjPriceRepository: h.AdjPriceRepository,
 	}, nil
 }
@@ -126,7 +128,7 @@ func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, tx *sql.T
 	for _, s := range assetsToUpdate {
 		err = IngestPrices(tx, s.Symbol, h.AdjPriceRepository, &s.Date)
 		if err != nil {
-			return fmt.Errorf("failed to ingest historical prices for %s: %w", s, err)
+			return fmt.Errorf("failed to ingest historical prices for %s: %w", s.Symbol, err)
 		}
 	}
 

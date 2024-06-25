@@ -200,6 +200,8 @@ func EvaluateFactorExpression(
 		return nil, fmt.Errorf("failed to evaluate factor expression: %w", err)
 	}
 
+	// TODO - if it's a dry-run, we're not computing real results
+	// and should allow any value to be processed here
 	r, ok := result.(float64)
 	if !ok {
 		return nil, fmt.Errorf("failed to convert to float")

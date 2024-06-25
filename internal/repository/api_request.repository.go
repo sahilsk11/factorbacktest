@@ -42,7 +42,6 @@ func (h ApiRequestRepositoryHandler) Update(db qrm.Executable, ar model.APIReque
 
 	_, err := query.Exec(db)
 	if err != nil {
-		fmt.Println(query.DebugSql())
 		return fmt.Errorf("failed to update API request: %w", err)
 	}
 
