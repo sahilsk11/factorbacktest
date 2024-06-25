@@ -139,6 +139,8 @@ export default function FactorForm({
         <div className='form-element'>
           <label>Backtest Range</label>
           <input
+            min={'2018-01-01'}
+            max={backtestEnd > '2023-09-05' ? '2023-09-05' : backtestEnd}
             required
             type="date"
             value={backtestStart}
@@ -146,6 +148,7 @@ export default function FactorForm({
           />
           <p style={{ display: "inline" }}> to </p>
           <input
+            max={'2023-09-05'}
             required
             type="date"
             value={backtestEnd}
