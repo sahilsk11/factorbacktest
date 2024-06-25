@@ -5,9 +5,13 @@ import {
   DatasetInfo
 } from './models';
 
+import { FactorData } from './App';
+
 export function enumerateDates(startDateStr: string, endDateStr: string) {
-  const startDate = new Date(startDateStr);
-  const endDate = new Date(endDateStr);
+  const startDate = new Date(startDateStr+ "T00:00:00");
+  const endDate = new Date(endDateStr+ "T00:00:00");
+
+  console.log(startDate, endDate)
 
   const dates: string[] = [];
   const currentDate = new Date(startDate);
@@ -47,4 +51,22 @@ export function findMinMaxDates(data: BenchmarkData[]): { minDate: string | null
   }
 
   return { minDate, maxDate };
+}
+
+export const minMaxDates = (factorData:FactorData[]): {min: string; max:string} => {
+  let min = "";
+  let max = ""
+
+  factorData.forEach(fd => {
+    Object.keys(fd.data).forEach(date => {
+      if (min === "" || date < min) {
+        min = date;
+      }
+      if (max === "" || max > min) {
+        max = date;
+      }
+    })
+  })
+
+  return {min, max};
 }

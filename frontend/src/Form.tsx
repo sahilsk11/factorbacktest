@@ -1,7 +1,40 @@
 import { useState } from 'react';
+import { FactorData } from "./App";
+
+interface BacktestRequest {
+  factorOptions: {
+    expression: string;
+    intensity: number;
+    name: string;
+  };
+  backtestStart: string;
+  backtestEnd: string;
+  samplingIntervalUnit: string;
+  assetSelectionMode: string;
+  startCash: number;
+  anchorPortfolioQuantities: Record<string, number>;
+  numSymbols?: number;
+}
+
+interface BacktestSample {
+  valuePercentChange: number;
+  value: number;
+  date: string;
+}
+
+interface BacktestResponse {
+  factorName: string;
+  backtestSamples: Record<string, BacktestSample>;
+}
 
 
-export default function Form({ results, updateResults, selectedBenchmarks }: any) {
+export default function FactorForm({
+  takenNames,
+  appendFactorData
+}: {
+  takenNames: string[];
+  appendFactorData: (newFactorData: FactorData) => void;
+}) {
   const [factorOptions, setFactorOptions] = useState({
     expression: `pricePercentChange(addDate(currentDate, 0, 0, -7),currentDate) `,
     intensity: 0.75,
@@ -18,18 +51,18 @@ export default function Form({ results, updateResults, selectedBenchmarks }: any
   const [cash, setCash] = useState(0);
   const [assetSelectionMode, setAssetSelectionMode] = useState("NUM_SYMBOLS");
   const [numSymbols, setNumSymbols] = useState(10);
-  const [names, setNames] = useState<string[]>([...selectedBenchmarks]);
+  const [names, setNames] = useState<string[]>([...takenNames]);
   const [sendEnabled, setSendEnabled] = useState(true);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    const data = {
+    const data: BacktestRequest = {
       factorOptions,
       backtestStart,
       backtestEnd,
       samplingIntervalUnit,
-      cash,
-      anchorPortfolio: JSON.parse(startPortfolio),
+      startCash: cash,
+      anchorPortfolioQuantities: JSON.parse(startPortfolio),
       assetSelectionMode,
       numSymbols,
     };
@@ -44,10 +77,13 @@ export default function Form({ results, updateResults, selectedBenchmarks }: any
       });
 
       if (response.ok) {
-        const result = await response.json()
-        const newResults = [...results, result];
+        const result: BacktestResponse = await response.json()
         setNames([...names, factorOptions.name])
-        updateResults(newResults)
+        appendFactorData({
+          name: data.factorOptions.name,
+          data: {}, // TODO - fix
+          expression: data.factorOptions.expression
+        } as FactorData)
       } else {
         console.error("Error submitting data:", response.status);
       }
