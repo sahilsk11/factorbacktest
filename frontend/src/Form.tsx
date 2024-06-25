@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FactorData } from "./App";
-import "./form.css"
+import "./form.css";
+import "./app.css";
 
 interface FactorOptions {
   expression: string;
@@ -139,7 +140,7 @@ export default function FactorForm({
   return (
     <div className='tile'>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
-      <p style={{maxWidth: "380px", marginTop: "10px", fontSize: "13px", color: "rgb(100, 100, 100)"}}>Define your quantitative strategy and customize backtest parameters.</p>
+      <p className='subtext'>Define your quantitative strategy and customize backtest parameters.</p>
       <form onSubmit={handleSubmit}>
         <div className='form-element'>
           <label>Factor Name</label>
