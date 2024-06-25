@@ -141,7 +141,6 @@ type ComputeTargetPortfolioInput struct {
 	PriceMap         map[string]float64
 	Date             time.Time
 	PortfolioValue   float64
-	UniverseSymbols  []string
 	FactorScores     map[string]*float64
 	TargetNumTickers int
 }
@@ -158,10 +157,6 @@ type ComputeTargetPortfolioResponse struct {
 func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
 	if in.TargetNumTickers < 3 {
 		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
-	}
-	symbols := in.UniverseSymbols
-	if len(symbols) == 0 {
-		return nil, fmt.Errorf("cannot compute target portfolio with 0 asset universe")
 	}
 
 	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
@@ -333,7 +328,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			FactorScores:     factorScoresByDay[t],
 			PortfolioValue:   currentPortfolioValue,
 			PriceMap:         priceMap,
-			UniverseSymbols:  universeSymbols,
 		})
 		if err != nil {
 			// TODO figure out what to do here. should
