@@ -33,21 +33,32 @@ func (h factorScoreRepositoryHandler) AddMany(in []*model.FactorScore) error {
 		x.CreatedAt = time.Now().UTC()
 		x.UpdatedAt = time.Now().UTC()
 	}
-	query := table.FactorScore.INSERT(table.FactorScore.MutableColumns).
-		MODELS(in).
-		ON_CONFLICT(
-			table.FactorScore.FactorExpressionHash,
-			table.FactorScore.Date,
-			table.FactorScore.TickerID,
-		).
-		DO_UPDATE(
-			postgres.SET(
-				table.FactorScore.UpdatedAt.SET(table.FactorScore.EXCLUDED.UpdatedAt),
-			),
-		)
-	_, err := query.Exec(h.Db)
-	if err != nil {
-		return fmt.Errorf("failed to create factor scores in db: %w", err)
+
+	batchSize := 5000
+
+	for start := 0; start < len(in); start += batchSize {
+		end := start + batchSize
+		if end > len(in) {
+			end = len(in)
+		}
+
+		batch := in[start:end]
+		query := table.FactorScore.INSERT(table.FactorScore.MutableColumns).
+			MODELS(batch).
+			ON_CONFLICT(
+				table.FactorScore.FactorExpressionHash,
+				table.FactorScore.Date,
+				table.FactorScore.TickerID,
+			).
+			DO_UPDATE(
+				postgres.SET(
+					table.FactorScore.UpdatedAt.SET(table.FactorScore.EXCLUDED.UpdatedAt),
+				),
+			)
+		_, err := query.Exec(h.Db)
+		if err != nil {
+			return fmt.Errorf("failed to create factor scores in db: %w", err)
+		}
 	}
 
 	return nil
