@@ -261,7 +261,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	}
 	profile.Add("finished helper info")
 
-	priceCache, err := h.PriceService.LoadCache(universeSymbols, in.BacktestStart, in.BacktestEnd)
+	priceCache, err := h.PriceService.LoadCache(in.RoTx, universeSymbols, in.BacktestStart, in.BacktestEnd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate price cache: %w", err)
 	}
