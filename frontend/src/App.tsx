@@ -17,7 +17,7 @@ export interface FactorData {
   data: Record<string, BacktestSnapshot>,
 }
 
-export const endpoint = "localhost:3000";
+export const endpoint = "http://localhost:3009";
 
 export interface BenchmarkData {
   symbol: string,

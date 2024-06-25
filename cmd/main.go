@@ -1,7 +1,6 @@
 package main
 
 import (
-	"alpha/api"
 	"alpha/internal"
 	"alpha/internal/app"
 	"alpha/internal/domain"
@@ -50,32 +49,7 @@ func roTx(dbConn *sql.DB) (*sql.Tx, error) {
 
 func main() {
 	// ingestFundamentals("AAPL")
-	ap()
-}
-
-func ap() {
-	dbConn, err := New()
-	if err != nil {
-		log.Fatal(err)
-	}
-	apiHandler := api.ApiHandler{
-		BenchmarkHandler: internal.BenchmarkHandler{
-			PriceRepository: repository.AdjustedPriceRepositoryHandler{},
-		},
-		BacktestHandler: app.BacktestHandler{
-			PriceRepository: repository.AdjustedPriceRepositoryHandler{},
-			FactorMetricsHandler: internal.FactorMetricsHandler{
-				AdjustedPriceRepository:     repository.AdjustedPriceRepositoryHandler{},
-				AssetFundamentalsRepository: repository.AssetFundamentalsRepositoryHandler{},
-			},
-			UniverseRepository: repository.UniverseRepositoryHandler{},
-		},
-		Db: dbConn,
-	}
-	err = apiHandler.StartApi(3009)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// ap()
 }
 
 func backtest(tx *sql.Tx) {
