@@ -26,7 +26,7 @@ deploy-fe:
 
 deploy-lambda:
 	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 326651360928.dkr.ecr.us-east-1.amazonaws.com
-	docker build --platform linux/amd64 -t factorbacktest_lambda -f Dockerfile.lambda .
+	docker build --platform linux/arm64 -t factorbacktest_lambda -f Dockerfile.lambda .
 	docker tag factorbacktest_lambda:latest 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest_lambda:latest
 	docker push 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest_lambda:latest
 	aws lambda update-function-configuration --function-name fbTestArm --image-uri 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest_lambda:latest
