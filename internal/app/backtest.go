@@ -138,13 +138,12 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *service.
 }
 
 type ComputeTargetPortfolioInput struct {
-	PriceMap        map[string]float64
-	Date            time.Time
-	PortfolioValue  float64
-	FactorIntensity float64
-	UniverseSymbols []string
-	AssetOptions    internal.AssetSelectionOptions
-	FactorScores    map[string]*float64
+	PriceMap         map[string]float64
+	Date             time.Time
+	PortfolioValue   float64
+	UniverseSymbols  []string
+	FactorScores     map[string]*float64
+	TargetNumTickers int
 }
 
 type ComputeTargetPortfolioResponse struct {
@@ -157,26 +156,19 @@ type ComputeTargetPortfolioResponse struct {
 // Computes what the portfolio should hold on a given day, given the
 // strategy (equation and universe) and value of current holdings
 func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
-	symbols := []string{}
-	if in.AssetOptions.Mode == internal.AssetSelectionMode_AnchorPortfolio {
-		for symbol := range in.AssetOptions.AnchorPortfolioWeights {
-			symbols = append(symbols, symbol)
-		}
-	} else {
-		symbols = in.UniverseSymbols
+	if in.TargetNumTickers < 3 {
+		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
 	}
-
+	symbols := in.UniverseSymbols
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("cannot compute target portfolio with 0 asset universe")
 	}
 
 	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
-		Date:                  in.Date,
-		FactorScoresBySymbol:  in.FactorScores,
-		FactorIntensity:       in.FactorIntensity,
-		AssetSelectionOptions: in.AssetOptions,
+		Date:                 in.Date,
+		FactorScoresBySymbol: in.FactorScores,
+		NumTickers:           in.TargetNumTickers,
 	}
-
 	newWeights, err := internal.CalculateTargetAssetWeights(computeTargetInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate target asset weights: %w", err)
@@ -187,6 +179,8 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 	targetPortfolio := &domain.Portfolio{
 		Positions: map[string]*domain.Position{},
 	}
+
+	// convert weights into quantities
 	for symbol, weight := range newWeights {
 		price, ok := in.PriceMap[symbol]
 		if !ok {
@@ -242,21 +236,14 @@ type ScnapshotAssetMetrics struct {
 	PriceChangeTilNextResampling *float64 `json:"priceChangeTilNextResampling"`
 }
 
-type FactorOptions struct {
-	Expression string
-	Intensity  float64
-	Name       string
-}
-
 type BacktestInput struct {
-	FactorOptions    FactorOptions
-	BacktestStart    time.Time
-	BacktestEnd      time.Time
-	SamplingInterval time.Duration
-	StartPortfolio   domain.Portfolio
-
-	AnchorPortfolioQuantities map[string]float64
-	AssetOptions              internal.AssetSelectionOptions
+	FactorName        string
+	FactorExpression  string
+	BacktestStart     time.Time
+	BacktestEnd       time.Time
+	RebalanceInterval time.Duration
+	StartingCash      float64
+	NumTickers        int
 }
 
 type BacktestResponse struct {
@@ -279,7 +266,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	// all trading days within the selected window that we need to run a calculation on
 	// this will only contain days that we actually have data for, so if data is old, it
 	// will not include recent days
-	tradingDays, err := h.calculateRelevantTradingDays(in.BacktestStart, in.BacktestEnd, in.SamplingInterval)
+	tradingDays, err := h.calculateRelevantTradingDays(in.BacktestStart, in.BacktestEnd, in.RebalanceInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +277,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			inputs = append(inputs, workInput{
 				Symbol:           symbol,
 				Date:             tradingDay,
-				FactorExpression: in.FactorOptions.Expression,
+				FactorExpression: in.FactorExpression,
 			})
 		}
 	}
@@ -311,27 +298,11 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	fmt.Println("scores calculated in", time.Since(x).Seconds())
 	profile.Add("finished scores")
 
-	// get price on first day? consider removing
-	backtestStartPriceMap, err := h.PriceRepository.GetMany(universeSymbols, in.BacktestStart)
-	if err != nil {
-		return nil, err
+	startValue := in.StartingCash
+
+	currentPortfolio := domain.Portfolio{
+		Cash: startValue,
 	}
-
-	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.AnchorPortfolioQuantities, backtestStartPriceMap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate anchor portfolio weights: %w", err)
-	}
-
-	in.AssetOptions.AnchorPortfolioWeights = anchorPortfolioWeights
-
-	startValue, err := in.StartPortfolio.TotalValue(backtestStartPriceMap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compute start value: %w", err)
-	} else if startValue == 0 {
-		return nil, fmt.Errorf("cannot backtest portfolio with 0 total value")
-	}
-
-	currentPortfolio := *in.StartPortfolio.DeepCopy()
 	out := []BacktestSample{}
 
 	profile.Add("finished backtest setup")
@@ -357,13 +328,12 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		}
 
 		computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
-			Date:            t,
-			FactorIntensity: in.FactorOptions.Intensity,
-			FactorScores:    factorScoresByDay[t],
-			AssetOptions:    in.AssetOptions,
-			PortfolioValue:  currentPortfolioValue,
-			PriceMap:        priceMap,
-			UniverseSymbols: universeSymbols,
+			Date:             t,
+			TargetNumTickers: in.NumTickers,
+			FactorScores:     factorScoresByDay[t],
+			PortfolioValue:   currentPortfolioValue,
+			PriceMap:         priceMap,
+			UniverseSymbols:  universeSymbols,
 		})
 		if err != nil {
 			// TODO figure out what to do here. should
@@ -402,7 +372,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
 	}
 
-	snapshots, err := toSnapshots(out, priceCache, h.Db)
+	snapshots, err := toSnapshots(out, priceCache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute snapshots: %w", err)
 	}
@@ -413,7 +383,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	}, nil
 }
 
-func toSnapshots(result []BacktestSample, priceCache *service.PriceCache, db *sql.DB) (map[string]BacktestSnapshot, error) {
+func toSnapshots(result []BacktestSample, priceCache *service.PriceCache) (map[string]BacktestSnapshot, error) {
 	snapshots := map[string]BacktestSnapshot{}
 
 	for i, r := range result {

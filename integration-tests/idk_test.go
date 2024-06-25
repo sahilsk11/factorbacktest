@@ -165,31 +165,22 @@ func Test_backtestFlow(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	numSymbols := 3
 	userID := uuid.NewString()
 	startTime := time.Now()
 	request := api.BacktestRequest{
 		FactorOptions: struct {
-			Expression string  "json:\"expression\""
-			Intensity  float64 "json:\"intensity\""
-			Name       string  "json:\"name\""
+			Expression string "json:\"expression\""
+			Name       string "json:\"name\""
 		}{
 			Expression: "pricePercentChange(\n  nDaysAgo(7),\n  currentDate\n) ",
-			Intensity:  0.75,
 			Name:       "7_day_momentum",
 		},
 		BacktestStart:        "2020-01-10",
 		BacktestEnd:          "2020-12-31",
 		SamplingIntervalUnit: "weekly",
-		AssetSelectionMode:   "NUM_SYMBOLS",
 		StartCash:            10000,
-		AnchorPortfolioQuantities: map[string]float64{
-			"AAPL":  10,
-			"MSFT":  10,
-			"GOOGL": 8,
-		},
-		NumSymbols: &numSymbols,
-		UserID:     &userID,
+		NumSymbols:           3,
+		UserID:               &userID,
 	}
 	response := api.BacktestResponse{}
 	err = hitEndpoint("backtest", http.MethodPost, request, &response)
