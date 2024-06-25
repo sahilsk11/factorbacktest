@@ -95,7 +95,6 @@ func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	if _, ok := pr.prices[symbol]; ok {
 		if price, ok := pr.prices[symbol][date.Format(time.DateOnly)]; ok {
 			pr.ReadMutex.RUnlock()
-			fmt.Println("hit")
 			return price, nil
 		}
 	}
