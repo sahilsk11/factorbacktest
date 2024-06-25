@@ -149,7 +149,7 @@ export function Nav({ setShowHelpModal, setShowContactModal }: {
 }) {
   return <>
     <div className='nav'>
-      <h4 className='nav-title'>factorbacktest.net</h4>
+      <h4 className='nav-title' onClick={() => window.location.href = "/"}>factorbacktest.net</h4>
       <div className='nav-element-container'>
         <div className='nav-element-wrapper'>
           <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>

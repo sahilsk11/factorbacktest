@@ -51,12 +51,20 @@ interface CouponPaymentOnDate {
   totalAmount: number;
 }
 
+interface BondLadderOnDate {
+  date: Date;
+  dateStr: string;
+  timeTillExpiration: number[];
+  unit: string;
+}
+
 interface BacktestBondPortfolioResult {
   couponPayments: CouponPaymentOnDate[];
   portfolioReturn: BondPortfolioReturn[];
   interestRates: InterestRatesOnDate[];
   metrics: Metrics;
   bondStreams: string[][];
+  bondLadder: BondLadderOnDate[];
 }
 
 interface InterestRatesOnDate {
@@ -213,6 +221,7 @@ export function BondBuilder() {
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
           <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
+          <BondLadderChart bondLadder={bondBacktestData?.bondLadder} />
           <BondPortfolioPerformanceChart
             portfolioReturns={bondBacktestData?.portfolioReturn}
             bondStreams={bondBacktestData?.bondStreams}
@@ -292,7 +301,9 @@ function CouponPaymentChart({
           width: "100%",
           height: "100%"
         }} />
+
     </div>
+    <hr style={{ border: "0.5px solid #d6d6d6", width: "90%" }} />
   </>
 }
 
@@ -320,16 +331,13 @@ function BondPortfolioPerformanceChart({
     return null;
   }
 
-  const datasets: ChartDataset<"line", (number | null)[]>[] = [{
-    label: "Aggregate Portfolio",
-    data: portfolioReturns.map(e => 100 * e.returnSinceInception),
-  }];
+  const datasets: ChartDataset<"line", (number | null)[]>[] = [];
 
   let streamData: number[][] = [];
   bondStreams.forEach(_ => {
     streamData.push([]);
   })
-  console.log(streamData);
+
   portfolioReturns.forEach(dataOnDay => {
     const bondReturns = dataOnDay.bondReturns;
     Object.keys(bondReturns).forEach(id => {
@@ -346,9 +354,16 @@ function BondPortfolioPerformanceChart({
     }
     datasets.push(newDataset);
   })
+  datasets.push({
+    label: "Aggregate Portfolio",
+    data: portfolioReturns.map(e => 100 * e.returnSinceInception),
+  })
   const options: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
+    plugins: {
+      legend: {},
+    },
     scales: {
       y: {
         title: {
@@ -376,6 +391,7 @@ function BondPortfolioPerformanceChart({
         }}
       />
     </div>
+    <hr style={{ border: "0.5px solid #d6d6d6", width: "90%" }} />
   </>
 }
 
@@ -444,5 +460,61 @@ function InterestRateChart({ interestRates }: {
         }}
       />
     </div>
+  </>
+}
+
+function BondLadderChart({ bondLadder }: {
+  bondLadder: BondLadderOnDate[] | undefined
+}) {
+
+  if (!bondLadder || bondLadder.length === 0) {
+    return null;
+  }
+
+  const streams: number[][] = bondLadder[0].timeTillExpiration.map(_ => []);
+  const names = ['A', 'B', 'C']
+
+  bondLadder.forEach(dataOnDate => {
+    dataOnDate.timeTillExpiration.forEach((time, i) => {
+      streams[i].push(time)
+    })
+  })
+
+  const datasets: ChartDataset<"line", (number | null)[]>[] = streams.map((stream, i) => ({
+    label: "Bond Set " + names[i],
+    data: stream,
+  }))
+  const options: ChartOptions<"line"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        suggestedMax: 1,
+        title: {
+          display: true,
+          text: `Time until Expiration (${bondLadder[0].unit}s)`, // Y-axis label
+        },
+      },
+    }
+  }
+  const data: ChartData<"line", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
+    labels: bondLadder.map(e => e.dateStr),
+    datasets,
+  };
+
+  return <>
+    <div className='backtest-chart-wrapper'>
+      <Line
+        options={options}
+        data={data}
+        updateMode='resize'
+
+        style={{
+          width: "100%",
+          height: "100%"
+        }}
+      />
+    </div>
+    <hr style={{ border: "0.5px solid #d6d6d6", width: "90%" }} />
   </>
 }

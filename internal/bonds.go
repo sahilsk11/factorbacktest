@@ -39,7 +39,7 @@ type BondService struct {
 
 func (b Bond) currentValue(t time.Time, interestRates domain.InterestRateMap) float64 {
 	hoursTillExpiration := b.Expiration.Sub(t).Hours()
-	monthsTillExpiration := int(hoursTillExpiration/730 + 0.005)
+	monthsTillExpiration := int(hoursTillExpiration/720 + 0.005)
 	if monthsTillExpiration <= 0 {
 		return b.ParValue
 	}
@@ -233,12 +233,20 @@ type Metrics struct {
 	MaximumDrawdown float64 `json:"maxDrawdown"`
 }
 
+type BondLadderOnDate struct {
+	Date                     time.Time `json:"date"`
+	DateStr                  string    `json:"dateStr"`
+	LadderTimeTillExpiration []float64 `json:"timeTillExpiration"`
+	Unit                     string    `json:"unit"`
+}
+
 type BacktestBondPortfolioResult struct {
 	CouponPayments  []CouponPaymentOnDate `json:"couponPayments"`
 	PortfolioReturn []BondPortfolioReturn `json:"portfolioReturn"`
 	InterestRates   []InterestRatesOnDate `json:"interestRates"`
 	Metrics         Metrics               `json:"metrics"`
 	BondStreams     [][]string            `json:"bondStreams"`
+	BondLadder      []BondLadderOnDate    `json:"bondLadder"`
 }
 
 func (b BondService) BacktestBondPortfolio(
@@ -248,8 +256,6 @@ func (b BondService) BacktestBondPortfolio(
 	start time.Time,
 	end time.Time,
 ) (*BacktestBondPortfolioResult, error) {
-	granularityDays := 15
-
 	current := start
 	bp, err := b.ConstructBondPortfolio(tx, start, durations, startingAmount)
 	if err != nil {
@@ -260,11 +266,13 @@ func (b BondService) BacktestBondPortfolio(
 
 	portfolioReturns := []BondPortfolioReturn{}
 	interestRatesOnDate := []InterestRatesOnDate{}
+	bondLadderOnDates := []BondLadderOnDate{}
 
 	dates := []time.Time{}
 	for !current.After(end) {
 		dates = append(dates, current)
-		current = current.AddDate(0, 0, granularityDays)
+		// make granularity one month
+		current = current.AddDate(0, 1, 0)
 	}
 	interestRatesForBacktest, err := b.InterestRateRepository.GetRatesOnDates(dates, tx)
 	if err != nil {
@@ -311,6 +319,19 @@ func (b BondService) BacktestBondPortfolio(
 			BondReturns:          bondReturns,
 		}
 
+		ladderTimes := make([]float64, len(bp.TargetDurationMonths))
+		for _, bond := range bp.Bonds {
+			timeUntilExpiration := bond.Expiration.Sub(date).Hours() / (24 * 365)
+			streamIndex := getBondStreamIndex(bond.ID, bp.BondStreams)
+			ladderTimes[streamIndex] = timeUntilExpiration
+		}
+		bondLadderOnDates = append(bondLadderOnDates, BondLadderOnDate{
+			Date:                     date,
+			DateStr:                  dateStr,
+			LadderTimeTillExpiration: ladderTimes,
+			Unit:                     "year",
+		})
+
 		portfolioReturns = append(portfolioReturns, todayReturn)
 	}
 
@@ -318,6 +339,14 @@ func (b BondService) BacktestBondPortfolio(
 	if err != nil {
 		return nil, err
 	}
+	couponPayments = append([]CouponPaymentOnDate{
+		{
+			BondPayments: map[uuid.UUID]float64{},
+			DateReceived: start,
+			DateStr:      start.Format(time.DateOnly),
+			TotalAmount:  0,
+		},
+	}, couponPayments...)
 
 	metrics, err := computeMetrics(bp.Bonds, bp.CouponPayments, portfolioReturns)
 	if err != nil {
@@ -338,6 +367,7 @@ func (b BondService) BacktestBondPortfolio(
 		InterestRates:   interestRatesOnDate,
 		Metrics:         *metrics,
 		BondStreams:     bondStreams,
+		BondLadder:      bondLadderOnDates,
 	}, nil
 }
 
