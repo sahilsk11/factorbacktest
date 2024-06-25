@@ -37,21 +37,6 @@ func TestGetYieldCurve(t *testing.T) {
 			cmp.Diff(
 				&InterestRateMap{
 					Rates: expected,
-					SortedKeys: []int{
-						1,
-						2,
-						3,
-						4,
-						6,
-						12,
-						24,
-						36,
-						60,
-						84,
-						120,
-						240,
-						360,
-					},
 				},
 				response,
 				cmp.Comparer(func(i, j float64) bool {
