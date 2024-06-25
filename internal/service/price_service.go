@@ -61,12 +61,19 @@ func (c stdevCache) get(symbol string, start, end time.Time) (float64, bool) {
 	return 0, false
 }
 
+type cacheMiss struct {
+	Symbol string
+	Date   time.Time
+}
 type PriceCache struct {
 	prices             map[string]map[string]float64
 	stdevs             *stdevCache
 	tradingDays        []time.Time
 	adjPriceRepository repository.AdjustedPriceRepository
 	ReadMutex          *sync.RWMutex
+
+	priceMisses []cacheMiss
+	stdevMisses []cacheMiss
 }
 
 func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
@@ -88,6 +95,7 @@ func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	if _, ok := pr.prices[symbol]; ok {
 		if price, ok := pr.prices[symbol][date.Format(time.DateOnly)]; ok {
 			pr.ReadMutex.RUnlock()
+			fmt.Println("hit")
 			return price, nil
 		}
 	}
@@ -186,28 +194,7 @@ func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end ti
 		return result, nil
 	}
 
-	// fmt.Printf("stdev cache miss %s %s-%s\n", symbol, start.Format(time.DateOnly), end.Format(time.DateOnly))
-
-	priceModels, err := pr.adjPriceRepository.List([]string{symbol}, start, end)
-	if err != nil {
-		return 0, err
-	}
-
-	intradayChanges := make([]float64, len(priceModels)-1)
-	for i := 1; i < len(priceModels); i++ {
-		intradayChanges[i-1] = percentChange(
-			priceModels[i].Price,
-			priceModels[i-1].Price,
-		)
-	}
-
-	stdev, err := stats.StandardDeviationSample(intradayChanges)
-	if err != nil {
-		return 0, err
-	}
-	magicNumber := math.Sqrt(252)
-
-	return stdev * magicNumber, nil
+	return 0, fmt.Errorf("stdev cache miss %s %s to %s", symbol, start.Format(time.DateOnly), end.Format(time.DateOnly))
 }
 
 func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository) PriceService {
