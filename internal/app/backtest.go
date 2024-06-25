@@ -58,7 +58,7 @@ func (h BacktestHandler) preloadData(in []workInput) (*internal.PriceCache, erro
 }
 
 func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal.PriceCache, in []workInput) (map[time.Time]map[string]*float64, error) {
-	numGoroutines := 1
+	numGoroutines := 10
 
 	type result struct {
 		Date             time.Time
@@ -86,7 +86,7 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal
 			return nil, err
 		}
 		defer tx.Rollback()
-		pr.Tx = tx
+		// pr.Tx = tx
 		go func() {
 			for {
 				select {
@@ -272,6 +272,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 	err = h.PriceService.UpdatePricesIfNeeded(ctx, tx, universeSymbols)
 	if err != nil {
 		return nil, err
@@ -280,6 +281,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	if err != nil {
 		return nil, err
 	}
+	profile.Add("finished updating prices (if needed)")
 
 	// all trading days within the selected window that we need to run a calculation on
 	// this will only contain days that we actually have data for, so if data is old, it
@@ -305,6 +307,8 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	if err != nil {
 		return nil, fmt.Errorf("failed to preload data: %w", err)
 	}
+
+	profile.Add("finished preloading prices")
 
 	x := time.Now()
 	factorScoresByDay, err := h.calculateFactorScores(ctx, priceCache, inputs)
