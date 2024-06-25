@@ -40,3 +40,9 @@ export interface BacktestResponse {
   factorName: string;
   backtestSnapshots: Record<string, BacktestSnapshot>;
 }
+
+export interface ContactRequest {
+  userID?: string | null;
+  replyEmail?: string | null;
+  content: string;
+}
