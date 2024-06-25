@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
-import { BacktestRequest, BacktestResponse } from './models';
+import { BacktestRequest, BacktestResponse, FactorOptions } from './models';
 
 
 export default function FactorForm({
@@ -14,14 +14,12 @@ export default function FactorForm({
   takenNames: string[];
   appendFactorData: (newFactorData: FactorData) => void;
 }) {
-  const [factorOptions, setFactorOptions] = useState({
-    expression: `pricePercentChange(
-      addDate(currentDate, 0, 0, -7),
-      currentDate
-) `,
-    intensity: 0.75,
-    name: "7_day_rolling_price_momentum"
-  });
+  const [factorExpression, setFactorExpression] = useState("");
+
+  const [factorIntensity, setFactorIntensity] = useState(0.75);
+
+  const [factorName, setFactorName] = useState("7_day_rolling_price_momentum");
+
   const [backtestStart, setBacktestStart] = useState("2020-01-02");
   const [backtestEnd, setBacktestEnd] = useState("2022-01-01");
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
@@ -39,7 +37,7 @@ export default function FactorForm({
 
   let found = false;
   names.forEach(n => {
-    if (n === factorOptions.name) {
+    if (n === factorName) {
       found = true;
     }
   })
@@ -64,7 +62,11 @@ export default function FactorForm({
     setLoading(true);
 
     const data: BacktestRequest = {
-      factorOptions,
+      factorOptions: {
+        expression: factorExpression,
+        name: factorName,
+        intensity: factorIntensity,
+      } as FactorOptions,
       backtestStart,
       backtestEnd,
       samplingIntervalUnit,
@@ -90,7 +92,7 @@ export default function FactorForm({
           setErr("No backtest results were calculated");
           return;
         }
-        setNames([...names, factorOptions.name])
+        setNames([...names, factorName])
         const fd: FactorData = {
           name: data.factorOptions.name,
           data: result.backtestSnapshots,
@@ -119,21 +121,14 @@ export default function FactorForm({
           <input style={{ width: "250px" }} required
             id="factor-name"
             type="text"
-            value={factorOptions.name}
+            value={factorName}
             onChange={(e) =>
-              setFactorOptions({ ...factorOptions, name: e.target.value })
+              setFactorName(e.target.value)
             }
           />
         </div>
         <div className='form-element'>
-          <label>Factor Expression</label>
-          <textarea required
-            style={{ height: "150px", width: "250px" }}
-            value={factorOptions.expression}
-            onChange={(e) =>
-              setFactorOptions({ ...factorOptions, expression: e.target.value })
-            }
-          />
+          <FactorExpressionInput factorExpression={factorExpression} setFactorExpression={setFactorExpression} />
         </div>
 
         <div className='form-element'>
@@ -177,10 +172,10 @@ export default function FactorForm({
           <input
             min={1}
             max={100}
-            style={{width: "80px"}}
+            style={{ width: "80px" }}
             type="number"
             value={numSymbols}
-            onChange={(e) => (parseInt(e.target.value) <= 100) ? setNumSymbols(parseInt(e.target.value)): null}
+            onChange={(e) => (parseInt(e.target.value) <= 100) ? setNumSymbols(parseInt(e.target.value)) : null}
           />
         </div> : null}
 
@@ -196,9 +191,8 @@ export default function FactorForm({
           <label>Starting Cash</label>
           $ <input
             id="cash"
-            // type="number"
             value={cash.toLocaleString()}
-            style={{paddingLeft: "5px"}}
+            style={{ paddingLeft: "5px" }}
             onChange={(e) => {
               let x = e.target.value.replace(/,/g, '')
               if (x.length === 0) {
@@ -214,9 +208,9 @@ export default function FactorForm({
           <label>Intensity</label>
           <input
             type="number"
-            value={factorOptions.intensity}
+            value={factorIntensity}
             onChange={(e) =>
-              setFactorOptions({ ...factorOptions, intensity: parseFloat(e.target.value) })
+              setFactorIntensity(parseFloat(e.target.value))
             }
           />
         </div> : null}
@@ -234,6 +228,107 @@ function Error({ message }: { message: string | null }) {
     <div className='error-container'>
       <h4 style={{ marginBottom: "0px", marginTop: "0px" }}>That's an error.</h4>
       <p>{message}</p>
+    </div>
+  </>
+}
+
+function FactorExpressionInput({ factorExpression, setFactorExpression }: {
+  factorExpression: string;
+  setFactorExpression: Dispatch<SetStateAction<string>>;
+}) {
+  const [gptInput, setGptInput] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedFactor, setSelectedFactor] = useState("momentum");
+
+  const presetMap: Record<string, string> = {
+    "gpt": "",
+    "momentum": `pricePercentChange(
+  nDaysAgo(7),
+  currentDate
+) `,
+    "value": "1/pbRatio(currentDate)",
+    "volatility": "1/stdev(nYearsAgo(1), currentDate)",
+    "size": "1/marketCap(currentDate)"
+  }
+
+  useEffect(() => {
+    setFactorExpression(presetMap[selectedFactor])
+  }, [selectedFactor])
+
+
+
+  const autofillEquation = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await fetch(endpoint + "/constructFactorEquation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ input: gptInput })
+      });
+      setLoading(false);
+      if (response.ok) {
+        const result = await response.json()
+        if (result.error.length == 0) {
+          setFactorExpression(result.factorExpression)
+        } else {
+          setErr(result.error + " - " + result.reason);
+        }
+      } else {
+        const j = await response.json()
+        setErr(j.error + " - " + j.reason);
+        console.error("Error submitting data:", response.status);
+      }
+    } catch (error) {
+      setLoading(false)
+      setErr((error as Error).message)
+      console.error("Error:", error);
+    }
+  }
+
+  return <>
+    <div>
+      <label>Factor Expression</label>
+      <p className='label-subtext'>Higher scoring assets will have a larger allocation in the portfolio.</p>
+
+      <select
+        onChange={(e) => setSelectedFactor(e.target.value)}
+        style={{fontSize: "13px"}}
+      >
+        <option value="momentum">Momentum (price trending up)</option>
+        <option value="value">Value (undervalued relative to price)</option>
+        <option value="size">Size (smaller assets by market cap)</option>
+        <option value="volatility">Volatility (low risk assets)</option>
+        <option value="gpt">Describe factor in English (ChatGPT)</option>
+      </select>
+      {selectedFactor === "gpt" ? <>
+        <p style={{ marginTop: "5px" }} className='label-subtext'>Uses ChatGPT API to convert factor description to equation.</p>
+        <div className='gpt-input-wrapper'>
+          <textarea
+            style={{
+              width: "250px",
+              height: "30px",
+              fontSize: "13px"
+            }}
+            placeholder='small cap, undervalued, and price going up'
+            value={gptInput}
+            onChange={(e) => setGptInput(e.target.value)}
+          />
+          <button className='gpt-submit' onClick={(e) => autofillEquation(e)}>➜</button>
+        </div>
+      </> : null}
+
+      <p style={{ marginTop: "5px" }} className='label-subtext'>Or enter equation manually.</p>
+      <textarea required
+        style={{ height: "80px", width: "250px", fontSize: "13px" }}
+        value={factorExpression}
+        onChange={(e) =>
+          setFactorExpression(e.target.value)
+        }
+      />
     </div>
   </>
 }
