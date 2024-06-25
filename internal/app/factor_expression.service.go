@@ -222,11 +222,9 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 
 	fmt.Printf("adding %d scores to db\n", len(addManyInput))
 
-	if false {
-		err = h.FactorScoreRepository.AddMany(addManyInput)
-		if err != nil {
-			return nil, err
-		}
+	err = h.FactorScoreRepository.AddMany(addManyInput)
+	if err != nil {
+		return nil, err
 	}
 	endSpan()
 
