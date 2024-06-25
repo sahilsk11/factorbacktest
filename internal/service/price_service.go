@@ -229,7 +229,7 @@ func UpdateUniversePrices(
 	})
 
 	symbols := []string{}
-	for _, a := range assets[:10] {
+	for _, a := range assets {
 		symbols = append(symbols, a.Symbol)
 	}
 
