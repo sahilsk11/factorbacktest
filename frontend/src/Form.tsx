@@ -2,48 +2,7 @@ import { useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
-
-interface FactorOptions {
-  expression: string;
-  intensity: number;
-  name: string;
-}
-
-interface BacktestRequest {
-  factorOptions: FactorOptions;
-  backtestStart: string;
-  backtestEnd: string;
-  samplingIntervalUnit: string;
-  assetSelectionMode: string;
-  startCash: number;
-  anchorPortfolioQuantities: Record<string, number>;
-  numSymbols?: number;
-}
-
-export interface Trade {
-  action: string;
-  quantity: number;
-  symbol: string;
-  price: number;
-}
-
-export interface BacktestSnapshot {
-  valuePercentChange: number;
-  value: number;
-  date: string;
-  assetMetrics: Record<string, SnapshotAssetMetrics>;
-}
-
-export interface SnapshotAssetMetrics {
-  assetWeight: number;
-  factorScore: number;
-  priceChangeTilNextResampling?: number | null;
-}
-
-interface BacktestResponse {
-  factorName: string;
-  backtestSnapshots: Record<string, BacktestSnapshot>;
-}
+import { BacktestRequest, BacktestResponse } from './models';
 
 export default function FactorForm({
   takenNames,
@@ -75,6 +34,10 @@ export default function FactorForm({
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+  const userID = urlParams.get('userID') || urlParams.get('id');
+
   let found = false;
   names.forEach(n => {
     if (n === factorOptions.name) {
@@ -103,6 +66,7 @@ export default function FactorForm({
       anchorPortfolioQuantities: JSON.parse(startPortfolio),
       assetSelectionMode,
       numSymbols,
+      userID
     };
 
     try {

@@ -1,5 +1,5 @@
 import { FactorData } from "./App";
-import { BacktestSnapshot } from "./Form";
+import { BacktestSnapshot } from "./models";
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
