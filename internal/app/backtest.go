@@ -67,6 +67,9 @@ func (h BacktestHandler) CalculateFactorScores(ctx context.Context, in []workInp
 						h.FactorMetricsHandler,
 						input.Date,
 					)
+					if err != nil {
+						err = fmt.Errorf("failed to evalate expression for %s on %s: %w", input.Symbol, input.Date.Format("2006-01-02"), err)
+					}
 					resultCh <- result{
 						ExpressionResult: res,
 						Symbol:           input.Symbol,
