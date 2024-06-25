@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"context"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
 	"fmt"
@@ -26,7 +28,7 @@ type PriceRetriever interface {
 type FactorMetricCalculations interface {
 	Price(pr PriceRetriever, symbol string, date time.Time) (float64, error)
 	PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error)
-	AnnualizedStdevOfDailyReturns(symbol string, start, end time.Time) (float64, error)
+	AnnualizedStdevOfDailyReturns(ctx context.Context, symbol string, start, end time.Time) (float64, error)
 	MarketCap(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PbRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
@@ -76,7 +78,7 @@ func (h *DryRunFactorMetricsHandler) PricePercentChange(pr PriceRetriever, symbo
 	return 1, nil
 }
 
-func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(symbol string, start, end time.Time) (float64, error) {
+func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
 	current := start
 	for current.Before(end) {
 		key := fmt.Sprintf("price/%s/%s", current.Format(time.DateOnly), symbol)
@@ -123,11 +125,31 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
-func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(symbol string, start, end time.Time) (float64, error) {
+// super hacky but because we can't control the direct caller of the metrics
+// functions, we can't set the parent span correctly. so just create it here
+// def one of those things I will look back and hate - sry
+func (h factorMetricsHandler) createProfile(ctx context.Context, funcName string) (*domain.Profile, func()) {
+	profile, _ := domain.GetProfile(ctx)
+	newSpan, endSpan := profile.StartNewSpan(funcName)
+	newProfile, endProfile := newSpan.NewSubProfile()
+	end := func() {
+		endSpan()
+		endProfile()
+	}
+	return newProfile, end
+}
+
+func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
+	profile, endProfile := h.createProfile(ctx, "AnnualizedStdevOfDailyReturns")
+	defer endProfile()
+
+	_, endSpan := profile.StartNewSpan("listing prices")
 	priceModels, err := h.AdjustedPriceRepository.List([]string{symbol}, start, end)
 	if err != nil {
 		return 0, err
 	}
+	endSpan()
+	_, endSpan = profile.StartNewSpan("converting to percent change")
 	intradayChanges := make([]float64, len(priceModels)-1)
 	for i := 1; i < len(priceModels); i++ {
 		intradayChanges[i-1] = percentChange(
@@ -135,7 +157,10 @@ func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(symbol string, start
 			priceModels[i-1].Price,
 		)
 	}
+	endSpan()
 
+	_, endSpan = profile.StartNewSpan("calculating stdev")
+	defer endSpan()
 	stdev, err := stats.StandardDeviationSample(intradayChanges)
 	if err != nil {
 		return 0, err

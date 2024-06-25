@@ -15,23 +15,26 @@ type latencyTrackingRepositoryHandler struct {
 }
 
 type LatencyTrackingRepository interface {
-	Add(lt domain.PerformanceProfile, requestID *uuid.UUID) error
+	Add(lt domain.Profile, requestID *uuid.UUID) error
 }
 
 func NewLatencyTrackingRepository(db *sql.DB) LatencyTrackingRepository {
 	return latencyTrackingRepositoryHandler{db}
 }
 
-func (h latencyTrackingRepositoryHandler) Add(lt domain.PerformanceProfile, requestID *uuid.UUID) error {
+func (h latencyTrackingRepositoryHandler) Add(lt domain.Profile, requestID *uuid.UUID) error {
 	bytes, err := lt.ToJsonBytes()
 	if err != nil {
 		return err
+	}
+	if lt.TotalMs == nil {
+		return fmt.Errorf("cannot add profile to db - profile was not ended")
 	}
 
 	m := model.LatencyTracking{
 		ProcessingTimes:   string(bytes),
 		RequestID:         requestID,
-		TotalProcessingMs: lt.TotalMs,
+		TotalProcessingMs: *lt.TotalMs,
 	}
 	query := table.LatencyTracking.INSERT(table.LatencyTracking.MutableColumns).MODEL(m)
 

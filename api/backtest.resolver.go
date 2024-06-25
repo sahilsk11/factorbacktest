@@ -42,9 +42,8 @@ type BacktestResponse struct {
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
-	performanceProfile := domain.NewPeformanceProfile()
-	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
-	performanceProfile.Add("initialized")
+	profile, endProfile := domain.NewProfile()
+	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
 	var requestBody BacktestRequest
 
@@ -121,24 +120,26 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		AssetUniverse:     assetUniverse,
 	}
 
-	performanceProfile.Add("starting backtest")
+	backtestSpan, endSpan := profile.StartNewSpan("running backtest")
 
-	result, err := h.BacktestHandler.Backtest(ctx, backtestInput)
+	result, err := h.BacktestHandler.Backtest(domain.NewCtxWithSubProfile(ctx, backtestSpan), backtestInput)
 	if err != nil {
 		returnErrorJson(fmt.Errorf("failed to run backtest: %w", err), c)
 		return
 	}
-	performanceProfile.Add("finished backtest")
+	endSpan()
 
 	responseJson := BacktestResponse{
 		FactorName: backtestInput.FactorName,
 		Snapshots:  result.Snapshots,
 	}
 
-	performanceProfile.Add("finished formatting")
-	performanceProfile.End()
-
-	h.LatencencyTrackingRepository.Add(*performanceProfile, requestId)
+	endProfile()
+	err = h.LatencencyTrackingRepository.Add(*profile, requestId)
+	if err != nil {
+		returnErrorJson(err, c)
+		return
+	}
 
 	c.JSON(200, responseJson)
 }
