@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -76,6 +77,7 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 
 func (m ApiHandler) StartApi(port int) error {
 	router := m.InitializeRouterEngine()
+	fmt.Println("starting api version " + os.Getenv("commit_hash"))
 	return router.Run(fmt.Sprintf(":%d", port))
 }
 
@@ -152,6 +154,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	}
 
 	start := time.Now().UTC()
+	commit := os.Getenv("commit_hash")
 	req, err := m.ApiRequestRepository.Add(m.Db, model.APIRequest{
 		UserID:      userID,
 		IPAddress:   strPtr(ctx.ClientIP()),
@@ -159,6 +162,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		Route:       ctx.Request.URL.Path,
 		RequestBody: requestBody,
 		StartTs:     start,
+		Version:     &commit,
 	})
 	if err != nil {
 		log.Println(err)
