@@ -7,10 +7,12 @@ import (
 	"alpha/internal/repository"
 	"database/sql"
 	"log"
+
+	_ "github.com/lib/pq"
 )
 
 func New() (*sql.DB, error) {
-	connStr := "postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable"
+	connStr := "postgresql://postgres:postgres@docker.for.mac.localhost:5440/postgres?sslmode=disable"
 	dbConn, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err

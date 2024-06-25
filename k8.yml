@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alpha-backend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alpha-backend
+  template:
+    metadata:
+      labels:
+        app: alpha-backend
+    spec:
+      containers:
+      - name: alpha-backend-container
+        image: 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest:latest:latest
+        ports:
+        - containerPort: 3009

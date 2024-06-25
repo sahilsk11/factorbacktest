@@ -90,7 +90,7 @@ export default function BenchmarkManager({
   };
 
   return (
-    <div style={{display: "none"}}>
+    <div style={{display: "block"}}>
       <h2>Benchmark Manager</h2>
       <div>
         <input
