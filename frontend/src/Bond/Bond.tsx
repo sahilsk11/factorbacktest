@@ -25,6 +25,7 @@ import "./bond.css"
 import { Bar, Line } from 'react-chartjs-2';
 import { Nav, endpoint, getCookie, getOrCreateUserID } from '../App';
 import { ContactModal, HelpModal } from '../Modals';
+import { Error } from '../Form';
 
 
 ChartJS.register(
@@ -65,28 +66,43 @@ function BondBuilderForm(
   const [backtestEnd, setBacktestEnd] = useState("2024-01-01");
   const [startCash, setStartCash] = useState(1000000);
   const [selectedDuration, updateSelectedDuration] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
 
 
+  useEffect(() => {
+    submit();
+  }, []);
+
   const submit = async () => {
     setLoading(true);
-    const response = await fetch(endpoint + "/backtestBondPortfolio", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        backtestStart,
-        backtestEnd,
-        durationKey: selectedDuration,
-        startCash
+
+    try {
+      const response = await fetch(endpoint + "/backtestBondPortfolio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          backtestStart,
+          backtestEnd,
+          durationKey: selectedDuration,
+          startCash
+        })
       })
-    })
-    if (response.ok) {
-      const result: BacktestBondPortfolioResult = await response.json()
-      updateBondBacktestData(result);
+      if (response.ok) {
+        const result: BacktestBondPortfolioResult = await response.json()
+        updateBondBacktestData(result);
+        setLoading(false);
+      } else {
+        setLoading(false);
+        const j = await response.json()
+        setErr(j.error)
+      }
+    } catch (error) {
       setLoading(false);
+      setErr((error as Error).message);
     }
   }
 
@@ -155,6 +171,8 @@ function BondBuilderForm(
             submit();
           }} style={{ fontSize: "13px", width: "110px", height: "35px" }}>Run Backtest</button>
         }
+
+        <Error message={err} />
       </form>
     </div>
   </>
