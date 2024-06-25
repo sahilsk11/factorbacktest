@@ -37,6 +37,15 @@ const App = () => {
   })
   const { min: minFactorDate, max: maxFactorDate } = minMaxDates(factorData);
 
+  useEffect(() => {
+    if (factorData.length > 0) {
+      updateInspectFactorDataIndex(factorData.length - 1);
+      const d = factorData[factorData.length - 1].data;
+      const key = Object.keys(d).reduce((a, b) => (a > b ? b : a));
+      updateInspectFactorDataDate(key);
+    }
+  }, [factorData])
+
   return <>
 
     <div className="centered-container">
