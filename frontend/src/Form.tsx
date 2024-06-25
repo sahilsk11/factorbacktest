@@ -205,7 +205,7 @@ export default function FactorForm({
         <div className='form-element'>
           <label>Backtest Range</label>
           <input
-            min={'2018-01-01'}
+            min={'2010-01-01'}
             max={backtestEnd > maxDate ? maxDate : backtestEnd}
             required
             type="date"
