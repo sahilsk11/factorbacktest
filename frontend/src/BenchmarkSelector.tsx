@@ -1,12 +1,11 @@
 import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
-import {
-  BacktestSample,
-  BacktestResponse,
-  BenchmarkData,
-  DatasetInfo
-} from './models';
 import { enumerateDates } from './util';
+
+export interface BenchmarkData {
+  symbol: string;
+  data: Record<string, number>;
+}
 
 export default function BenchmarkManager({
   minDate,

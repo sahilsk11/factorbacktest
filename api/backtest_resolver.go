@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -30,15 +31,24 @@ type backtestRequest struct {
 	NumSymbols                *int               `json:"numSymbols"`
 }
 
-type backtestSample struct {
-	ValuePercentChange float64 `json:"valuePercentChange"`
-	Value              float64 `json:"value"`
-	Date               string  `json:"date"`
+type Trade struct {
+	Action   string  `json:"action"`
+	Quantity float64 `json:"quantity"`
+	Symbol   string  `json:"symbol"`
+	Price    float64 `json:"price"`
+}
+
+type backtestSnapshot struct {
+	ValuePercentChange float64            `json:"valuePercentChange"`
+	Value              float64            `json:"value"`
+	Date               string             `json:"date"`
+	AssetWeights       map[string]float64 `json:"assetWeights"`
+	Trades             []Trade            `json:"trades"`
 }
 
 type backtestResponse struct {
-	FactorName      string                    `json:"factorName"`
-	BacktestSamples map[string]backtestSample `json:"backtestSamples"`
+	FactorName string                      `json:"factorName"`
+	Snapshots  map[string]backtestSnapshot `json:"backtestSnapshots"`
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
@@ -88,7 +98,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	startPortfolio := domain.Portfolio{
 		Cash: requestBody.StartCash,
 	}
-	startPortfolio.Cash = 100000
 	if *assetSelectionMode == internal.AssetSelectionMode_AnchorPortfolio {
 		startPortfolio.Positions = domain.PositionsFromQuantity(requestBody.AnchorPortfolioQuantities)
 	}
@@ -118,26 +127,47 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	samples := map[string]backtestSample{
+	snapshots := map[string]backtestSnapshot{
 		result[0].Date.Format("2006-01-02"): {
 			ValuePercentChange: 0,
 			Value:              result[0].TotalValue,
 			Date:               result[0].Date.Format("2006-01-02"),
+			AssetWeights:       result[0].AssetWeights,
+			Trades:             proposedTradesToApiTrades(result[0].ProposedTrades),
 		},
 	}
 
 	for _, r := range result[1:] {
-		samples[r.Date.Format("2006-01-02")] = backtestSample{
+		snapshots[r.Date.Format("2006-01-02")] = backtestSnapshot{
 			ValuePercentChange: 100 * (r.TotalValue - result[0].TotalValue) / result[0].TotalValue,
 			Value:              r.TotalValue,
 			Date:               r.Date.Format("2006-01-02"),
+			AssetWeights:       r.AssetWeights,
+			Trades:             proposedTradesToApiTrades(r.ProposedTrades),
 		}
 	}
 
 	responseJson := backtestResponse{
-		FactorName:      backtestInput.FactorOptions.Name,
-		BacktestSamples: samples,
+		FactorName: backtestInput.FactorOptions.Name,
+		Snapshots:  snapshots,
 	}
 
 	c.JSON(200, responseJson)
+}
+
+func proposedTradesToApiTrades(trades []domain.ProposedTrade) []Trade {
+	out := make([]Trade, len(trades))
+	for i, t := range trades {
+		action := "BUY"
+		if t.Quantity < 0 {
+			action = "SELL"
+		}
+		out[i] = Trade{
+			Action:   action,
+			Quantity: math.Abs(t.Quantity),
+			Symbol:   t.Symbol,
+			Price:    t.ExpectedPrice,
+		}
+	}
+	return out
 }

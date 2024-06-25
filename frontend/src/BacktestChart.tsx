@@ -22,18 +22,12 @@ import { Line } from 'react-chartjs-2';
 
 import {
   enumerateDates,
-  formatDate,
-  findMinMaxDates,
   minMaxDates,
 } from "./util";
 
-import {
-  BacktestSample,
-  BacktestResponse,
-  BenchmarkData,
-  DatasetInfo
-} from './models';
+
 import { FactorData } from './App';
+import { BenchmarkData } from './BenchmarkSelector';
 
 ChartJS.register(
   CategoryScale,
@@ -78,7 +72,7 @@ export default function BacktestChart({
   factorData.forEach((e: FactorData) => {
     datasets.push({
       label: e.name,
-      data: labels.map(key => e.data.hasOwnProperty(key) ? e.data[key].percentChange : null),
+      data: labels.map(key => e.data.hasOwnProperty(key) ? e.data[key].valuePercentChange : null),
       spanGaps: true,
     })
   })

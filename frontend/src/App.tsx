@@ -4,24 +4,17 @@ import './app.css'
 
 import BacktestChart from './BacktestChart';
 
-import FactorForm from "./Form";
+import FactorForm, { BacktestSnapshot } from "./Form";
 import BenchmarkManager from './BenchmarkSelector';
 
 import { minMaxDates } from './util';
 import InspectFactorData from './InspectFactorData';
 
-export interface Portfolio {
-  totalValue: number,
-  percentChange: number,
-  holdingsWeight: Record<string, number>,
-  cash: number,
-  date: string
-}
 export interface FactorData {
   name: string,
   expression: string,
   // options
-  data: Record<string, Portfolio>,
+  data: Record<string, BacktestSnapshot>,
 }
 
 export interface BenchmarkData {
