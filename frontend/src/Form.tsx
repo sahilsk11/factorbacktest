@@ -20,7 +20,7 @@ export default function FactorForm({
 
   const [factorName, setFactorName] = useState("7_day_rolling_price_momentum");
 
-  const [backtestStart, setBacktestStart] = useState("2020-01-02");
+  const [backtestStart, setBacktestStart] = useState("2020-01-01");
   const [backtestEnd, setBacktestEnd] = useState("2022-01-01");
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
   const [startPortfolio, setStartPortfolio] = useState(`{
@@ -50,10 +50,17 @@ export default function FactorForm({
   }
   const cashInput = document.getElementById("cash");
   if (cash <= 0) {
-    (cashInput as HTMLInputElement)?.setCustomValidity("Please enter more than $0")
+    (cashInput as HTMLInputElement)?.setCustomValidity("Please enter more than $0.")
   } else {
     (cashInput as HTMLInputElement)?.setCustomValidity("")
-
+  }
+  const numSymbolsInput = document.getElementById("num-symbols");
+  if (numSymbols <= 0) {
+    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("Please enter more than 0 assets.")
+  } else if (numSymbols > 100) {
+    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("Please use less than 100 assets.")
+  } else {
+    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("")
   }
 
   const handleSubmit = async (e: any) => {
@@ -158,7 +165,7 @@ export default function FactorForm({
 
         <div className='form-element'>
           <label>Rebalance Interval</label>
-          <p className='label-subtext'>How frequently should we re-evaluate portfolio holdings</p>
+          <p className='label-subtext'>How frequently should we re-evaluate portfolio holdings.</p>
           <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
             <option value="daily">daily</option>
             <option value="weekly">weekly</option>
@@ -176,14 +183,22 @@ export default function FactorForm({
         </div>
         {assetSelectionMode === "NUM_SYMBOLS" ? <div>
           <label>Number of Assets</label>
-          <p className='label-subtext'>How many assets the target portfolio should hold at any time</p>
+          <p className='label-subtext'>How many assets the target portfolio should hold at any time.</p>
           <input
-            min={1}
+            id="num-symbols"
             max={100}
             style={{ width: "80px" }}
-            type="number"
             value={numSymbols}
-            onChange={(e) => (parseInt(e.target.value) <= 100) ? setNumSymbols(parseInt(e.target.value)) : null}
+            onChange={(e) => {
+              let x = e.target.value;
+              if (x.length === 0) {
+                x = "0";
+              }
+              if (!/[^0-9]/.test(x)) {
+                setNumSymbols(parseFloat(x))
+              }
+            }
+            }
           />
         </div> : null}
 
