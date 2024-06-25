@@ -94,6 +94,11 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
+	if backtestEndDate.Before(backtestStartDate) {
+		returnErrorJson(fmt.Errorf("end date cannot be before start date"), c)
+		return
+	}
+
 	samplingInterval := time.Hour * 24
 	if strings.EqualFold(requestBody.SamplingIntervalUnit, "weekly") {
 		samplingInterval *= 7

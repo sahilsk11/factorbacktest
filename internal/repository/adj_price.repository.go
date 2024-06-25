@@ -227,7 +227,7 @@ func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end 
 			),
 		).
 		GROUP_BY(table.AdjustedPrice.Date).
-		HAVING(postgres.COUNT(postgres.String("*")).GT(postgres.Int(10))).
+		HAVING(postgres.COUNT(postgres.String("*")).GT(postgres.Int(3))). // TODO - make this better
 		ORDER_BY(table.AdjustedPrice.Date.ASC())
 
 	q, args := query.Sql()
