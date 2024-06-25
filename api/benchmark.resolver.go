@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +36,7 @@ func (h ApiHandler) benchmark(c *gin.Context) {
 	var requestBody benchmarkRequest
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		returnErrorJson(err, c)
+		returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
 		return
 	}
 

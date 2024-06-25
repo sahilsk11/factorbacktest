@@ -47,6 +47,7 @@ func main() {
 		ContactRepository:      repository.ContactRepositoryHandler{},
 		Db:                     dbConn,
 		GptRepository:          gptRepository,
+		ApiRequestRepository:   repository.ApiRequestRepositoryHandler{},
 	}
 
 	err = apiHandler.StartApi(3009)

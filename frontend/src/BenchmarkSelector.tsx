@@ -9,10 +9,12 @@ export interface BenchmarkData {
 }
 
 export default function BenchmarkManager({
+  userID,
   minDate,
   maxDate,
   updateBenchmarkData
 }: {
+  userID: string;
   minDate: string;
   maxDate: string;
   updateBenchmarkData: Dispatch<SetStateAction<BenchmarkData[]>>
@@ -21,60 +23,63 @@ export default function BenchmarkManager({
   const [selectedBenchmarks, updateSelectedBenchmarks] = useState(["SPY"]);
 
   useEffect(() => {
-    const fetchData = async (symbol: string): Promise<BenchmarkData | null> => {
-      try {
-        let start = minDate === "" ? "2018-01-01" : minDate;
-        let end = maxDate === "" ? "2023-01-01" : maxDate;
-        let granularity = "monthly";
-        if (enumerateDates(start, end).length < 60) {
-          granularity = "daily"
-        }
-        const response = await fetch(
-          endpoint+'/benchmark',
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              symbol,
-              start,
-              end,
-              granularity
-            }),
+    if (userID.length > 0) {
+      const fetchData = async (symbol: string): Promise<BenchmarkData | null> => {
+        try {
+          let start = minDate === "" ? "2018-01-01" : minDate;
+          let end = maxDate === "" ? "2023-01-01" : maxDate;
+          let granularity = "monthly";
+          if (enumerateDates(start, end).length < 60) {
+            granularity = "daily"
           }
-        );
-        const d = await response.json();
+          const response = await fetch(
+            endpoint + '/benchmark',
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                userID,
+                symbol,
+                start,
+                end,
+                granularity
+              }),
+            }
+          );
+          const d = await response.json();
 
-        return {
-          symbol,
-          data: d,
-        } as BenchmarkData;
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-      return null;
-    };
-
-    const fetchDataForSelectedBenchmarks = async () => {
-      const promises = selectedBenchmarks.map(async (b: any) => {
-        return await fetchData(b);
-      });
-
-      const newBenchmarkData = await Promise.all(promises);
-
-      // Filter out null values (failed requests)
-      const filteredBenchmarkData: BenchmarkData[] = [];
-      newBenchmarkData.forEach(data => {
-        if (data !== null) {
-          filteredBenchmarkData.push(data);
+          return {
+            symbol,
+            data: d,
+          } as BenchmarkData;
+        } catch (error) {
+          console.error('Error fetching data:', error);
         }
-      });
-      updateBenchmarkData(filteredBenchmarkData);
-    }
+        return null;
+      };
 
-    fetchDataForSelectedBenchmarks()
-  }, [minDate, maxDate, selectedBenchmarks]);
+      const fetchDataForSelectedBenchmarks = async () => {
+        const promises = selectedBenchmarks.map(async (b: any) => {
+          return await fetchData(b);
+        });
+
+        const newBenchmarkData = await Promise.all(promises);
+
+        // Filter out null values (failed requests)
+        const filteredBenchmarkData: BenchmarkData[] = [];
+        newBenchmarkData.forEach(data => {
+          if (data !== null) {
+            filteredBenchmarkData.push(data);
+          }
+        });
+        updateBenchmarkData(filteredBenchmarkData);
+      }
+
+      fetchDataForSelectedBenchmarks()
+    }
+  }, [userID, minDate, maxDate, selectedBenchmarks]);
 
   const handleAddBenchmark = () => {
     if (newSymbol.trim() !== '') {
@@ -90,7 +95,7 @@ export default function BenchmarkManager({
   };
 
   return (
-    <div style={{display: "none"}}>
+    <div style={{ display: "none" }}>
       <h2>Benchmark Manager</h2>
       <div>
         <input
