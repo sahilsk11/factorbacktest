@@ -52,6 +52,7 @@ function BondBuilderForm(
   const [backtestStart, setBacktestStart] = useState("2020-01-01");
   const [backtestEnd, setBacktestEnd] = useState("2021-01-01");
   const [startCash, setStartCash] = useState(100000);
+  const [selectedDuration, updateSelectedDuration] = useState(0);
 
 
   const submit = async () => {
@@ -63,7 +64,7 @@ function BondBuilderForm(
       body: JSON.stringify({
         backtestStart,
         backtestEnd,
-        durations: [1, 2, 3],
+        durationKey: selectedDuration,
         startCash
       })
     })
@@ -83,12 +84,12 @@ function BondBuilderForm(
       </select>
 
       <label>Bond Ladder Durations</label>
-      <select>
-        <option>1M, 2M, 3M</option>
-        <option>3M, 6M, 1Y</option>
-        <option>1Y, 2Y, 3Y</option>
-        <option>3Y, 5Y, 7Y</option>
-        <option>10Y, 20Y, 30Y</option>
+      <select value={selectedDuration} onChange={e => updateSelectedDuration(parseInt(e.target.value))}>
+        <option value={0}>1M, 2M, 3M</option>
+        <option value={1}>3M, 6M, 1Y</option>
+        <option value={2}>1Y, 2Y, 3Y</option>
+        <option value={3}>3Y, 5Y, 7Y</option>
+        <option value={4}>10Y, 20Y, 30Y</option>
       </select>
 
       <label>Starting Cash</label>

@@ -11,11 +11,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func durationKeyToMonthlyDurations(durationKey int) []int {
+	return map[int][]int{
+		0: {1, 2, 3},
+		1: {3, 6, 9},
+		2: {12, 24, 36},
+		3: {36, 60, 84},
+		4: {120, 240, 360},
+	}[durationKey]
+}
+
 type backtestBondPortfolioRequest struct {
-	BacktestStart string  `json:"backtestStart"`
-	BacktestEnd   string  `json:"backtestEnd"`
-	Durations     []int   `json:"durations"`
-	StartCash     float64 `json:"startCash"`
+	BacktestStart       string  `json:"backtestStart"`
+	BacktestEnd         string  `json:"backtestEnd"`
+	SelectedDurationKey int     `json:"durationKey"`
+	StartCash           float64 `json:"startCash"`
 
 	UserID *string `json:"userID"`
 }
@@ -64,7 +74,7 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 
 	result, err := bs.BacktestBondPortfolio(
 		tx,
-		requestBody.Durations,
+		durationKeyToMonthlyDurations(requestBody.SelectedDurationKey),
 		requestBody.StartCash,
 		backtestStartDate,
 		backtestEndDate,
