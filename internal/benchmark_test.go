@@ -24,7 +24,7 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 					Date:  NewDate(2020, 1, 2),
 				},
 			},
-			t1,
+			// t1,
 			t2,
 			time.Hour*24,
 		)
@@ -42,7 +42,7 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 		)
 	})
 	t.Run("first day missing", func(t *testing.T) {
-		t1 := NewDate(2020, 1, 1)
+		// t1 := NewDate(2020, 1, 1)
 		t2 := NewDate(2020, 1, 2)
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
@@ -55,7 +55,7 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 					Date:  NewDate(2020, 1, 3),
 				},
 			},
-			t1,
+			// t1,
 			NewDate(2020, 1, 2),
 			time.Hour*24,
 		)
@@ -73,7 +73,7 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 	})
 
 	t.Run("include last day", func(t *testing.T) {
-		t1 := NewDate(2020, 1, 1)
+		// t1 := NewDate(2020, 1, 1)
 		t2 := NewDate(2020, 1, 2)
 		t3 := NewDate(2020, 1, 3)
 		out := intraPeriodChangeIterator(
@@ -87,7 +87,7 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 					Date:  NewDate(2020, 1, 3),
 				},
 			},
-			t1,
+			// t1,
 			NewDate(2020, 1, 3),
 			time.Hour*24,
 		)
