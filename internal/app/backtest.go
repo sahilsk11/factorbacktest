@@ -17,7 +17,8 @@ type BacktestHandler struct {
 	FactorMetricsHandler internal.FactorMetricCalculations
 	UniverseRepository   repository.UniverseRepository
 
-	Db *sql.DB
+	Db           *sql.DB
+	PriceService internal.PriceService
 }
 
 type workInput struct {
@@ -26,7 +27,7 @@ type workInput struct {
 	FactorExpression string
 }
 
-func (h BacktestHandler) calculateFactorScores(ctx context.Context, in []workInput) (map[time.Time]map[string]*float64, error) {
+func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr internal.PriceRetriever, in []workInput) (map[time.Time]map[string]*float64, error) {
 	numGoroutines := 10
 
 	type result struct {
@@ -66,6 +67,7 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, in []workInp
 					}
 					res, err := internal.EvaluateFactorExpression(
 						tx,
+						pr,
 						input.FactorExpression,
 						input.Symbol,
 						h.FactorMetricsHandler,
@@ -224,7 +226,8 @@ type BacktestInput struct {
 }
 
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]BacktestSample, error) {
-	profile := internal.GetPerformanceProfile(ctx)
+	profile := internal.GetPerformanceProfile(ctx) // used for profiling API performance
+
 	universe, err := h.UniverseRepository.List(in.RoTx)
 	if err != nil {
 		return nil, err
@@ -234,6 +237,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
+	// get price on first day? consider removing
 	backtestStartPriceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, in.BacktestStart)
 	if err != nil {
 		return nil, err
@@ -256,6 +260,11 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	}
 	profile.Add("finished helper info")
 
+	priceCache, err := h.PriceService.LoadCache(universeSymbols, in.BacktestStart, in.BacktestEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to populate price cache: %w", err)
+	}
+
 	// populate cache
 	_, err = h.PriceRepository.List(in.RoTx, universeSymbols, in.BacktestStart, in.BacktestEnd)
 	if err != nil {
@@ -263,7 +272,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 	}
 
 	x := time.Now()
-	factorScoresByDay, err := h.calculateFactorScores(ctx, inputs)
+	factorScoresByDay, err := h.calculateFactorScores(ctx, priceCache, inputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}

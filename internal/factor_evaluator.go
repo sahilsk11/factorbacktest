@@ -13,6 +13,7 @@ const dateLayout = "2006-01-02"
 
 func constructFunctionMap(
 	tx *sql.Tx,
+	pr PriceRetriever,
 	symbol string,
 	h FactorMetricCalculations,
 	debug FormulaDebugger,
@@ -78,7 +79,7 @@ func constructFunctionMap(
 			if err != nil {
 				return 0, err
 			}
-			p, err := h.Price(tx, symbol, date)
+			p, err := h.Price(pr, symbol, date)
 			if err != nil {
 				return 0, err
 			}
@@ -102,7 +103,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			p, err := h.PricePercentChange(tx, symbol, start, end)
+			p, err := h.PricePercentChange(pr, symbol, start, end)
 			if err != nil {
 				return 0, err
 			}
@@ -181,6 +182,7 @@ type ExpressionResult struct {
 
 func EvaluateFactorExpression(
 	tx *sql.Tx,
+	pr PriceRetriever,
 	expression string,
 	symbol string,
 	factorMetricsHandler FactorMetricCalculations,
@@ -192,7 +194,7 @@ func EvaluateFactorExpression(
 	}
 
 	debug := FormulaDebugger{}
-	functions := constructFunctionMap(tx, symbol, factorMetricsHandler, debug, date)
+	functions := constructFunctionMap(tx, pr, symbol, factorMetricsHandler, debug, date)
 	result, err := eval.Evaluate(expression, variables, functions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate factor expression: %w", err)

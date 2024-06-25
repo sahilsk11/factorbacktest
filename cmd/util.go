@@ -38,18 +38,21 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	}
 	// TODO - possible db leak, since I don't have the defer here
 
+	priceRepository := repository.NewAdjustedPriceRepository()
+
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
-			PriceRepository: repository.NewAdjustedPriceRepository(),
+			PriceRepository: priceRepository,
 		},
 		BacktestHandler: app.BacktestHandler{
 			PriceRepository: repository.NewAdjustedPriceRepository(),
 			FactorMetricsHandler: internal.FactorMetricsHandler{
-				AdjustedPriceRepository:     repository.NewAdjustedPriceRepository(),
+				AdjustedPriceRepository:     priceRepository,
 				AssetFundamentalsRepository: repository.AssetFundamentalsRepositoryHandler{},
 			},
 			UniverseRepository: repository.UniverseRepositoryHandler{},
 			Db:                 dbConn,
+			PriceService:       internal.NewPriceService(dbConn, priceRepository),
 		},
 		UserStrategyRepository: repository.UniverseRepositoryHandler{},
 		ContactRepository:      repository.ContactRepositoryHandler{},

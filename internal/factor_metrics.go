@@ -18,9 +18,13 @@ func (e FactorMetricsMissingDataError) Error() string {
 	return e.Err.Error()
 }
 
+type PriceRetriever interface {
+	Get(symbol string, date time.Time) (float64, error)
+}
+
 type FactorMetricCalculations interface {
-	Price(tx *sql.Tx, symbol string, date time.Time) (float64, error)
-	PricePercentChange(tx *sql.Tx, symbol string, start, end time.Time) (float64, error)
+	Price(pr PriceRetriever, symbol string, date time.Time) (float64, error)
+	PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error)
 	AnnualizedStdevOfDailyReturns(tx *sql.Tx, symbol string, start, end time.Time) (float64, error)
 	MarketCap(tx *sql.Tx, symbol string, date time.Time) (float64, error)
 	PeRatio(tx *sql.Tx, symbol string, date time.Time) (float64, error)
@@ -32,17 +36,17 @@ type FactorMetricsHandler struct {
 	AssetFundamentalsRepository repository.AssetFundamentalsRepository
 }
 
-func (h FactorMetricsHandler) Price(tx *sql.Tx, symbol string, date time.Time) (float64, error) {
-	return h.AdjustedPriceRepository.Get(tx, symbol, date)
+func (h FactorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
+	return pr.Get(symbol, date)
 }
 
-func (h FactorMetricsHandler) PricePercentChange(tx *sql.Tx, symbol string, start, end time.Time) (float64, error) {
-	startPrice, err := h.AdjustedPriceRepository.Get(tx, symbol, start)
+func (h FactorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
+	startPrice, err := pr.Get(symbol, start)
 	if err != nil {
 		return 0, err
 	}
 
-	endPrice, err := h.AdjustedPriceRepository.Get(tx, symbol, end)
+	endPrice, err := pr.Get(symbol, end)
 	if err != nil {
 		return 0, err
 	}
