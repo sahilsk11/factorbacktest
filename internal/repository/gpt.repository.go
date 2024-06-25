@@ -54,6 +54,7 @@ note for all these functions, negative numbers are not allowed, as that would lo
 Respond ONLY IN THE FOLLOWING JSON FORMAT:
 {
 	"factorExpression": <the generated factor equation>,
+	"factorName" <a short, meaningful name used as the title. use underscores instead of spaces and commas>,
 	"error": <if you are unable to generate or the user req is invalid, give a short reason or code>,
 	"reason": <a short description for how you generated the factorExpression, or if there was an error, why the error occurred>
 }
@@ -64,6 +65,7 @@ undervalued stocks
 
 expected response: {
 	"factorExpression": "1/pbRatio(currentDate)",
+	"factorName": "undervalued (P/B ratio)",
 	"error": "",
 	"reason": "A high P/B ratio indicates a stock is overvalued relative to its book value. Taking the inverse of P/B ratio will return a higher score for undervalued stocks."
 }
@@ -75,6 +77,7 @@ type ConstructFactorEquationReponse struct {
 	FactorExpression string `json:"factorExpression"`
 	Reason           string `json:"reason"`
 	Error            string `json:"error"`
+	FactorName       string `json:"factorName"`
 }
 
 func (h gptRepositoryHandler) ConstructFactorEquation(ctx context.Context, description string) (*ConstructFactorEquationReponse, error) {
