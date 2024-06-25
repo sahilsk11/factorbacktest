@@ -70,6 +70,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		returnErrorJson(err, c)
 		return
 	}
+	defer tx.Rollback()
+
 	var requestBody backtestRequest
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
