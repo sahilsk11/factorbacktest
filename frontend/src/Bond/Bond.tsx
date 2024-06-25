@@ -15,10 +15,15 @@ import {
   BubbleDataPoint,
   BarElement,
 } from 'chart.js';
-import { Dispatch, SetStateAction, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import "../form.css";
+import "../app.css";
+import "../backtest-chart.css"
+
 
 import { Bar, Line } from 'react-chartjs-2';
-import { endpoint } from '../App';
+import { Nav, endpoint, getCookie, getOrCreateUserID } from '../App';
+import { ContactModal, HelpModal } from '../Modals';
 
 
 ChartJS.register(
@@ -27,7 +32,7 @@ ChartJS.register(
 );
 
 interface BondPortfolioReturn {
-  date: Date;
+  date: string;
   totalReturn: number;
   bondReturns: { [key: string]: number };
 }
@@ -53,8 +58,11 @@ function BondBuilderForm(
   const [startCash, setStartCash] = useState(1000000);
   const [selectedDuration, updateSelectedDuration] = useState(0);
 
+  const [loading, setLoading] = useState(false);
+
 
   const submit = async () => {
+    setLoading(true);
     const response = await fetch(endpoint + "/backtestBondPortfolio", {
       method: "POST",
       headers: {
@@ -70,80 +78,124 @@ function BondBuilderForm(
     if (response.ok) {
       const result: BacktestBondPortfolioResult = await response.json()
       updateBondBacktestData(result);
+      setLoading(false);
     }
   }
 
   return <>
-    <form>
+    <div className='tile'>
+      <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Bond Ladder</h2>
+      <p className='subtext'>Pick your ladder durations and customize backtest parameters.</p>
 
-      <label>Bond ETF Benchmark</label>
-      <select>
-        <option>BND</option>
-        <option>SHY</option>
-      </select>
+      <form>
+        <label>Bond Ladder Durations</label>
+        <select value={selectedDuration} onChange={e => updateSelectedDuration(parseInt(e.target.value))}>
+          <option value={0}>1M, 2M, 3M</option>
+          {/* <option value={1}>3M, 6M, 1Y</option> */}
+          <option value={2}>1Y, 2Y, 3Y</option>
+          <option value={3}>3Y, 5Y, 7Y</option>
+          <option value={4}>10Y, 20Y, 30Y</option>
+        </select>
 
-      <label>Bond Ladder Durations</label>
-      <select value={selectedDuration} onChange={e => updateSelectedDuration(parseInt(e.target.value))}>
-        <option value={0}>1M, 2M, 3M</option>
-        {/* <option value={1}>3M, 6M, 1Y</option> */}
-        <option value={2}>1Y, 2Y, 3Y</option>
-        <option value={3}>3Y, 5Y, 7Y</option>
-        <option value={4}>10Y, 20Y, 30Y</option>
-      </select>
-
-      <label>Starting Cash</label>
-      $<input
-        value={startCash.toLocaleString()}
-        onChange={(e) => {
-          let x = e.target.value.replace(/,/g, '')
-          if (x.length === 0) {
-            x = "0";
-          }
-          if (!/[^0-9]/.test(x) && x.length < 12) {
-            setStartCash(parseFloat(x))
-          }
-        }}
-      />
-
-      <div className='form-element'>
-        <label>Backtest Range</label>
-        <input
-          min={'2018-01-01'}
-          // max={backtestEnd > maxDate ? maxDate : backtestEnd}
-          required
-          type="date"
-          value={backtestStart}
-          onChange={(e) => setBacktestStart(e.target.value)}
+        <label>Starting Cash</label>
+        <span style={{ fontSize: "14px" }}>$</span> <input
+          value={startCash.toLocaleString()}
+          onChange={(e) => {
+            let x = e.target.value.replace(/,/g, '')
+            if (x.length === 0) {
+              x = "0";
+            }
+            if (!/[^0-9]/.test(x) && x.length < 12) {
+              setStartCash(parseFloat(x))
+            }
+          }}
         />
-        <p style={{ display: "inline" }}> to </p>
-        <input
-          // max={maxDate}
-          required
-          type="date"
-          value={backtestEnd}
-          onChange={(e) => setBacktestEnd(e.target.value)}
-        />
-      </div>
 
-      <br />
-      <br />
-      <button type="submit" onClick={e => {
-        e.preventDefault();
-        submit();
-      }}>Run Backtest</button>
-    </form>
+        <div className='form-element'>
+          <label>Backtest Range</label>
+          <input
+            min={'2018-01-01'}
+            // max={backtestEnd > maxDate ? maxDate : backtestEnd}
+            required
+            type="date"
+            value={backtestStart}
+            onChange={(e) => setBacktestStart(e.target.value)}
+          />
+          <p style={{ display: "inline" }}> to </p>
+          <input
+            // max={maxDate}
+            required
+            type="date"
+            value={backtestEnd}
+            onChange={(e) => setBacktestEnd(e.target.value)}
+          />
+        </div>
+
+        <div className='form-element'>
+          <label>Bond ETF Benchmark</label>
+          <select>
+            <option>BND</option>
+            <option>SHY</option>
+          </select>
+        </div>
+
+        {loading ?
+          <img style={{ width: "40px", marginTop: "20px", marginLeft: "30px" }} src='loading.gif' />
+          :
+          <button type="submit" className='backtest-btn' onClick={e => {
+            e.preventDefault();
+            submit();
+          }} style={{ fontSize: "13px", width: "110px", height: "33px" }}>Run Backtest</button>
+        }
+      </form>
+    </div>
   </>
 }
 
 export function BondBuilder() {
+  const [userID, setUserID] = useState("");
   const [bondBacktestData, updateBondBacktestData] = useState<BacktestBondPortfolioResult | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
 
+  useEffect(() => {
+    if (getCookie("userID") === null) {
+      setShowHelpModal(true);
+    }
+    setUserID(getOrCreateUserID());
+  }, []);
 
   return <>
-    <BondBuilderForm updateBondBacktestData={updateBondBacktestData} />
-    <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
-    <BondPortfolioPerformanceChart returns={bondBacktestData?.returns} />
+    <Nav setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <div className='centered-container' >
+      <div className='container'>
+        <div className="column form-wrapper">
+          <BondBuilderForm updateBondBacktestData={updateBondBacktestData} />
+          <ResultsOverview />
+        </div>
+        <div id="backtest-chart" className="column backtest-chart-container">
+          <CouponPaymentChart couponPayments={bondBacktestData?.couponPayments} />
+          <BondPortfolioPerformanceChart returns={bondBacktestData?.returns} />
+        </div>
+      </div>
+    </div>
+
+    <ContactModal userID={""} show={showContactModal} close={() => setShowContactModal(false)} />
+    <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>;
+}
+
+function ResultsOverview({
+
+}) {
+  return <>
+    <div className='tile' style={{ marginTop: "10px" }}>
+      <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
+      <p className='subtext'>Average Coupon: 4%</p>
+      <p className='subtext'>Effective Duration: 4Y</p>
+      <p className='subtext'>Yield to Worst: -4%</p>
+    </div>
+  </>
 }
 
 
@@ -159,12 +211,40 @@ function CouponPaymentChart({
   const data: ChartData<"bar", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
     labels: couponPayments.map(e => e.dateReceived),
     datasets: [{
-      label: "total",
+      label: "coupon payment",
       data: couponPayments.map(e => e.totalAmount)
     }],
   };
+
+  const options: ChartOptions<"bar"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        title: {
+          display: true,
+          text: 'Coupon Payment ($)', // Y-axis label
+        },
+      },
+    }
+  }
+
   return <>
-    <Bar data={data} />
+    <div className='backtest-chart-wrapper'>
+      <Bar
+        data={data}
+        options={options}
+        updateMode='resize'
+        style={{
+          width: "100%",
+          height: "100%"
+        }} />
+    </div>
   </>
 }
 
@@ -181,13 +261,27 @@ function BondPortfolioPerformanceChart({
     label: "total",
     data: returns.map(e => e.totalReturn),
   }];
-  const options: ChartOptions<"line"> = {}
+  const options: ChartOptions<"line"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+  }
   const data: ChartData<"line", (number | Point | [number, number] | BubbleDataPoint | null)[]> = {
     labels: returns.map(e => e.date),
     datasets,
   };
 
   return <>
-    <Line options={options} data={data} />
+    <div className='backtest-chart-wrapper'>
+      <Line
+        options={options}
+        data={data}
+        updateMode='resize'
+
+        style={{
+          width: "100%",
+          height: "100%"
+        }}
+      />
+    </div>
   </>
 }
