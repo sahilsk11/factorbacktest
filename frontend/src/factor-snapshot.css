@@ -24,6 +24,12 @@
 
 }
 
+@media only screen and (max-width: 600px) {
+  .chart-container {
+    margin-top: 30px;
+  }
+}
+
 .table th,
 .table td {
   border: 1px solid #e0e0e0;

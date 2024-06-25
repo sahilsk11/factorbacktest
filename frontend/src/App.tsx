@@ -63,7 +63,7 @@ const App = () => {
     <Nav setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className="centered-container">
       <div className="container">
-        <div className="column" style={{ "flexGrow": 2, marginRight: "20px" }}>
+        <div className="column form-wrapper">
           <FactorForm
             // set this to the benchmark names that are already in used
             userID={userID}
@@ -78,7 +78,7 @@ const App = () => {
             updateBenchmarkData={updateBenchmarkData}
           />
         </div>
-        <div className="column" style={{ "flexGrow": 4 }}>
+        <div id="backtest-chart" className="column backtest-chart-wrapper">
           <BacktestChart
             benchmarkData={benchmarkData}
             factorData={factorData}
