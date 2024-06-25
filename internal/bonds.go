@@ -80,7 +80,7 @@ func ConstructBondPortfolio(
 	}, nil
 }
 
-func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.InterestRateMap) error {
+func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.InterestRateMap, backtestEnd time.Time) error {
 	outBonds := []Bond{}
 
 	for _, bond := range bp.Bonds {
@@ -91,8 +91,13 @@ func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.I
 			// buy a new bond with max duration
 			// and value of exited bond
 			duration := bp.TargetDurationMonths[len(bp.TargetDurationMonths)-1]
-			rate := interestRates.GetRate(duration)
-			outBonds = append(outBonds, NewBond(value, t, duration, rate))
+
+			if !t.AddDate(0, duration, 0).After(backtestEnd) {
+				rate := interestRates.GetRate(duration)
+				outBonds = append(outBonds, NewBond(value, t, duration, rate))
+			} else {
+				bp.Cash += value
+			}
 		}
 	}
 	sort.Slice(outBonds, func(i, j int) bool {
@@ -110,13 +115,16 @@ func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 			bp.CouponPayments[bond.ID] = []Payment{}
 		}
 
-		// if no values, add if 30 days from start
-		firstPayment := len(bp.CouponPayments[bond.ID]) == 0 && t.Sub(bond.Creation).Hours() >= 730
+		// if no payments and current time is >= 1 month from bond inception
+		firstPayment := len(bp.CouponPayments[bond.ID]) == 0 && !t.Before(bond.Creation.AddDate(0, 1, 0))
+
 		followUpPayment := false
+		// if there's more than one payment, but the last payment was >= 1 month
+		// from today
 		if len(bp.CouponPayments[bond.ID]) > 0 {
 			payments := bp.CouponPayments[bond.ID]
 			lastPayment := payments[len(payments)-1]
-			if t.Sub(lastPayment.Date).Hours() >= 730 {
+			if !t.Before(lastPayment.Date.AddDate(0, 1, 0)) {
 				followUpPayment = true
 			}
 		}
@@ -131,13 +139,13 @@ func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 	}
 }
 
-func (bp *BondPortfolio) Refresh(t time.Time) error {
+func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time) error {
 	interestRates, err := treasury_client.GetInterestRatesOnDay(t)
 	if err != nil {
 		return err
 	}
 	bp.refreshCouponPayments(t)
-	err = bp.refreshBondHoldings(t, *interestRates)
+	err = bp.refreshBondHoldings(t, *interestRates, backtestEnd)
 	if err != nil {
 		return err
 	}
@@ -199,6 +207,8 @@ func BacktestBondPortfolio(
 	start time.Time,
 	end time.Time,
 ) (*BacktestBondPortfolioResult, error) {
+	granularityDays := 1
+
 	current := start
 	bp, err := ConstructBondPortfolio(start, durations, startingAmount)
 	if err != nil {
@@ -210,11 +220,11 @@ func BacktestBondPortfolio(
 	}
 
 	for current.Before(end) {
-		bp.Refresh(current)
+		bp.Refresh(current, end)
 
 		// calculate new value of bond portfolio
 		// track total change from inception?
-		current = current.AddDate(0, 0, 1)
+		current = current.AddDate(0, 0, granularityDays)
 	}
 
 	couponPayments, err := groupCouponPaymentsByDate(bp.CouponPayments)
@@ -254,6 +264,10 @@ func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]Coupon
 			TotalAmount:  totalAmount,
 		})
 	}
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].DateReceived.Before(out[j].DateReceived)
+	})
 
 	return out, nil
 }
