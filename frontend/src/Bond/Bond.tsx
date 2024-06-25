@@ -276,7 +276,7 @@ function ResultsOverview({
       <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
       <p className='subtext'>Average Annual Coupon Rate: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
       <p className='subtext'>Total Coupon Payments: ${numberWithCommas(metrics.totalCoupon)}</p>
-      <p className='subtext'>Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
+      <p className='subtext'>Portfolio Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
       <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown * 100).toFixed(2)}%</p>
     </div>
   </>
