@@ -36,7 +36,7 @@ func TestGetInterestRatesOnDay(t *testing.T) {
 			t,
 			"",
 			cmp.Diff(
-				&domain.InterestRateMap{
+				domain.InterestRateMap{
 					Rates: expected,
 				},
 				response,

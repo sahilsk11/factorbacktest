@@ -6,6 +6,7 @@ import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/service"
 	"fmt"
 	"log"
 
@@ -52,7 +53,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 			),
 			UniverseRepository: repository.UniverseRepositoryHandler{},
 			Db:                 dbConn,
-			PriceService:       internal.NewPriceService(dbConn, priceRepository),
+			PriceService:       service.NewPriceService(dbConn, priceRepository),
 		},
 		UserStrategyRepository: repository.UniverseRepositoryHandler{},
 		ContactRepository:      repository.ContactRepositoryHandler{},

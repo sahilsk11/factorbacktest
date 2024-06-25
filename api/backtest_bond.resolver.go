@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 	"database/sql"
-	"factorbacktest/internal"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/service"
 	"fmt"
 	"time"
 
@@ -80,7 +80,7 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 		return
 	}
 
-	bs := internal.BondService{
+	bs := service.BondService{
 		InterestRateRepository: repository.NewInterestRateRepository(h.Db),
 	}
 
