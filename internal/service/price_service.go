@@ -44,6 +44,7 @@ type PriceCache struct {
 	tradingDays []time.Time
 	// Tx                 *sql.Tx
 	adjPriceRepository repository.AdjustedPriceRepository
+	ReadMutex          *sync.RWMutex
 }
 
 func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
@@ -61,11 +62,14 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	}
 	date = closestTradingDay
 
+	pr.ReadMutex.RLock()
 	if _, ok := pr.cache[symbol]; ok {
-		if _, ok := pr.cache[symbol][date.Format(time.DateOnly)]; ok {
-			return pr.cache[symbol][date.Format(time.DateOnly)], nil
+		if price, ok := pr.cache[symbol][date.Format(time.DateOnly)]; ok {
+			pr.ReadMutex.RUnlock()
+			return price, nil
 		}
 	}
+	pr.ReadMutex.RUnlock()
 
 	// missed l1 cache - check db
 
@@ -73,7 +77,9 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+	pr.ReadMutex.Lock()
 	pr.cache[symbol][date.Format(time.DateOnly)] = price
+	pr.ReadMutex.Unlock()
 
 	// TODO - handle missing here too
 
@@ -119,8 +125,9 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 
 	return &PriceCache{
 		cache:              cache,
-		tradingDays:        nil, // let's try to remove this
+		tradingDays:        nil,
 		adjPriceRepository: h.AdjPriceRepository,
+		ReadMutex:          &sync.RWMutex{},
 	}, nil
 }
 
