@@ -103,11 +103,11 @@ func (bp BondPortfolio) calculateValue(t time.Time, interestRates domain.Interes
 	return total, bondValues
 }
 
-func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.InterestRateMap, backtestEnd time.Time) error {
+func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates domain.InterestRateMap, backtestEnd time.Time) error {
 	outBonds := []Bond{}
 
 	for _, bond := range bp.Bonds {
-		if t.Before(bond.Expiration) {
+		if today.Before(bond.Expiration) {
 			outBonds = append(outBonds, bond)
 		} else {
 			value := bond.ParValue
@@ -115,9 +115,14 @@ func (bp *BondPortfolio) refreshBondHoldings(t time.Time, interestRates domain.I
 			// and value of exited bond
 			duration := bp.TargetDurationMonths[len(bp.TargetDurationMonths)-1]
 
-			if !t.AddDate(0, duration, 0).After(backtestEnd) {
+			// if the bond will expire before the end of the backtest, include it
+			// there's some weird edge cases as we approach end of the backtest,
+			// like should we buy smaller duration?
+			// TODO - consider cycling this bond if it happens to expire before today
+			// which could happen with long duration
+			if !today.AddDate(0, duration, 0).After(backtestEnd) {
 				rate := interestRates.GetRate(duration)
-				outBonds = append(outBonds, NewBond(value, t, duration, rate))
+				outBonds = append(outBonds, NewBond(value, bond.Expiration, duration, rate))
 			} else {
 				bp.Cash += value
 			}
@@ -142,25 +147,28 @@ func (bp *BondPortfolio) refreshCouponPayments(t time.Time) {
 		}
 
 		// if no payments and current time is >= 1 month from bond inception
-		firstPayment := len(bp.CouponPayments[bond.ID]) == 0 && !t.Before(bond.Creation.AddDate(0, 1, 0))
-
-		followUpPayment := false
-		// if there's more than one payment, but the last payment was >= 1 month
-		// from today
-		if len(bp.CouponPayments[bond.ID]) > 0 {
-			payments := bp.CouponPayments[bond.ID]
-			lastPayment := payments[len(payments)-1]
-			if !t.Before(lastPayment.Date.AddDate(0, 1, 0)) {
-				followUpPayment = true
-			}
-		}
-
-		if firstPayment || followUpPayment {
+		addFirstPayment := len(bp.CouponPayments[bond.ID]) == 0 && !t.Before(bond.Creation.AddDate(0, 1, 0))
+		if addFirstPayment {
 			bp.CouponPayments[bond.ID] = append(bp.CouponPayments[bond.ID], Payment{
-				Date:   t,
+				Date:   bond.Creation.AddDate(0, 1, 0),
 				Amount: paymentAmount,
 			})
-			// bp.Cash += paymentAmount
+		}
+
+		morePayments := true
+
+		for len(bp.CouponPayments[bond.ID]) > 0 && morePayments {
+			payments := bp.CouponPayments[bond.ID]
+			lastPayment := payments[len(payments)-1]
+			// if the most recent payment was > 30 days ago, add a payment
+			if !t.Before(lastPayment.Date.AddDate(0, 1, 0)) {
+				bp.CouponPayments[bond.ID] = append(bp.CouponPayments[bond.ID], Payment{
+					Date:   lastPayment.Date.AddDate(0, 1, 0),
+					Amount: paymentAmount,
+				})
+			} else {
+				morePayments = false
+			}
 		}
 	}
 }
@@ -223,7 +231,7 @@ func (b BondService) BacktestBondPortfolio(
 	start time.Time,
 	end time.Time,
 ) (*BacktestBondPortfolioResult, error) {
-	granularityDays := 1
+	granularityDays := 15
 
 	current := start
 	bp, err := b.ConstructBondPortfolio(tx, start, durations, startingAmount)
