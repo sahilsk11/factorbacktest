@@ -31,7 +31,7 @@ deploy-lambda:
 	docker tag factorbacktest_lambda:latest 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest_lambda:latest
 	docker push 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest_lambda:latest
 	aws lambda update-function-code --region us-east-1 --function-name fbTestArm --image-uri 326651360928.dkr.ecr.us-east-1.amazonaws.com/factorbacktest_lambda:latest
-	aws lambda update-function-configuration --region us-east-1 --function-name fbTestArm --environment "Variables={commit_hash=$(git rev-parse --short HEAD),GIN_MODE=release}"
+	aws lambda update-function-configuration --region us-east-1 --function-name fbTestArm --environment "Variables={commit_hash=$(shell git rev-parse --short HEAD),GIN_MODE=release}"
 
 deploy:
 	make deploy-be;
