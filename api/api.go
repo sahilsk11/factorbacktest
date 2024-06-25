@@ -20,13 +20,14 @@ import (
 )
 
 type ApiHandler struct {
-	Db                     *sql.DB
-	BacktestHandler        app.BacktestHandler
-	BenchmarkHandler       internal.BenchmarkHandler
-	UserStrategyRepository repository.UserStrategyRepository
-	ContactRepository      repository.ContactRepository
-	GptRepository          repository.GptRepository
-	ApiRequestRepository   repository.ApiRequestRepository
+	Db                           *sql.DB
+	BacktestHandler              app.BacktestHandler
+	BenchmarkHandler             internal.BenchmarkHandler
+	UserStrategyRepository       repository.UserStrategyRepository
+	ContactRepository            repository.ContactRepository
+	GptRepository                repository.GptRepository
+	ApiRequestRepository         repository.ApiRequestRepository
+	LatencencyTrackingRepository repository.LatencyTrackingRepository
 }
 
 func int64Ptr(i int64) *int64 {
@@ -158,6 +159,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		log.Println(err)
 	}
 
+	ctx.Set("requestID", req.RequestID.String())
 	ctx.Next()
 
 	if req != nil {
@@ -170,6 +172,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 			log.Println(err)
 		}
 	}
+
 }
 
 func GetUserIDUrlParam(ctx *gin.Context) *uuid.UUID {
