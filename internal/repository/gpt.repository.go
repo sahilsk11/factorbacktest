@@ -84,7 +84,7 @@ another example. user says:
 assets that are generally trending up (over 1yr, 3mo) but dipped in the last 7 days
 
 expected response: {
-	"factorExpression": "-pricePercentChange(subNDays(7), currentDate) * 0.6 + pricePercentChange(subNMonths(3), currentDate) * 0.3 + pricePercentChange(subNYears(1), currentDate) * 0.1",
+	"factorExpression": "-pricePercentChange(nDaysAgo(7), currentDate) * 0.6 + pricePercentChange(nMonthsAgo(3), currentDate) * 0.3 + pricePercentChange(nYearsAgo(1), currentDate) * 0.1",
 	"factorName": "trending_up_recent_drop",
 	"error": "",
 	"reason": "Linearly combine negative change in the last 7 days (recent drop) and longer term momentum"

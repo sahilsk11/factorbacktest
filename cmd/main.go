@@ -42,8 +42,9 @@ func NewTx() (*sql.Tx, error) {
 func main() {
 	// internal.IngestPrices()
 	// gpt()
-	ingestUniverseFundamentals()
+	// ingestUniverseFundamentals()
 	// ingestFundamentals("AAPL")
+	updateUniversePrices()
 }
 
 func backtest(tx *sql.Tx) {
@@ -201,6 +202,11 @@ func updateUniversePrices() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = internal.IngestPrices(tx, "SPY", repository.NewAdjustedPriceRepository())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		log.Fatal(err)
