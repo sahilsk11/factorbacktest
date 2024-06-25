@@ -48,10 +48,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	performanceProfile := domain.NewPeformanceProfile()
 	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
 	performanceProfile.Add("initialized")
-	defer func() {
-		performanceProfile.End()
-		performanceProfile.Print()
-	}()
 
 	tx, err := h.Db.BeginTx(
 		ctx,
