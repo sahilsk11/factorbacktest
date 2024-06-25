@@ -58,9 +58,19 @@ type Payment struct {
 
 type BondPortfolio struct {
 	Bonds                []Bond
+	BondStreams          []map[uuid.UUID]struct{} // array of sets of IDS [{A, B, C}, {D, E, F}]
 	Cash                 float64
 	TargetDurationMonths []int
 	CouponPayments       map[uuid.UUID][]Payment
+}
+
+func getBondStreamIndex(bondID uuid.UUID, streams []map[uuid.UUID]struct{}) int {
+	for i := 0; i < len(streams); i++ {
+		if _, ok := streams[i][bondID]; ok {
+			return i
+		}
+	}
+	panic(fmt.Sprintf("could not identify stream for %s", bondID.String()))
 }
 
 func (b BondService) ConstructBondPortfolio(
@@ -75,11 +85,17 @@ func (b BondService) ConstructBondPortfolio(
 	}
 	bonds := []Bond{}
 	remainingCash := amountInvested
-	for _, duration := range targetDurationMonths {
+	streams := make([]map[uuid.UUID]struct{}, len(targetDurationMonths))
+	for i, duration := range targetDurationMonths {
 		amount := amountInvested / float64(len(targetDurationMonths))
 		rate := interestRates.GetRate(duration)
-		bonds = append(bonds, NewBond(amount, startDate, duration, rate))
+		bond := NewBond(amount, startDate, duration, rate)
+		bonds = append(bonds, bond)
+		streams[i] = map[uuid.UUID]struct{}{
+			bond.ID: {},
+		}
 		remainingCash -= amount
+
 	}
 
 	return &BondPortfolio{
@@ -87,6 +103,7 @@ func (b BondService) ConstructBondPortfolio(
 		Cash:                 remainingCash,
 		TargetDurationMonths: targetDurationMonths,
 		CouponPayments:       map[uuid.UUID][]Payment{},
+		BondStreams:          streams,
 	}, nil
 }
 
@@ -110,26 +127,17 @@ func (bp *BondPortfolio) refreshBondHoldings(today time.Time, interestRates doma
 		} else {
 			value := bond.ParValue
 			// buy a new bond with max duration
-			// and value of exited bond
 			duration := bp.TargetDurationMonths[len(bp.TargetDurationMonths)-1]
 			newBondInceptionDate := bond.Expiration // buy the day the old expires
+			streamID := getBondStreamIndex(bond.ID, bp.BondStreams)
 
-			// if the bond will expire before the end of the backtest, include it
-			// there's some weird edge cases as we approach end of the backtest,
-			// like should we buy smaller duration?
 			// TODO - consider cycling this bond if it happens to expire before today
 			// which could happen with long duration
-			// expiration := newBondInceptionDate.AddDate(0, duration, 0)
 
-			// removed logic to only reinvest if expires
-			// before backtest end
-
-			// if !expiration.After(backtestEnd) {
 			rate := interestRates.GetRate(duration)
-			outBonds = append(outBonds, NewBond(value, newBondInceptionDate, duration, rate))
-			// } else {
-			// 	bp.Cash += value
-			// }
+			newBond := NewBond(value, newBondInceptionDate, duration, rate)
+			bp.BondStreams[streamID][newBond.ID] = struct{}{}
+			outBonds = append(outBonds, newBond)
 		}
 	}
 	sort.Slice(outBonds, func(i, j int) bool {
@@ -219,6 +227,7 @@ type BacktestBondPortfolioResult struct {
 	PortfolioReturn []BondPortfolioReturn `json:"portfolioReturn"`
 	InterestRates   []InterestRatesOnDate `json:"interestRates"`
 	Metrics         Metrics               `json:"metrics"`
+	BondStreams     [][]string            `json:"bondStreams"`
 }
 
 func (b BondService) BacktestBondPortfolio(
@@ -285,7 +294,7 @@ func (b BondService) BacktestBondPortfolio(
 			Date:                 date,
 			DateStr:              date.Format(time.DateOnly),
 			ReturnSinceInception: (totalValueOnDay - startingAmount) / startingAmount,
-			BondReturns:          bondValuesOnDay,
+			BondReturns:          bondReturns,
 		}
 
 		portfolioReturns = append(portfolioReturns, todayReturn)
@@ -301,11 +310,20 @@ func (b BondService) BacktestBondPortfolio(
 		return nil, err
 	}
 
+	bondStreams := make([][]string, len(bp.BondStreams))
+	for index, ids := range bp.BondStreams {
+		bondStreams[index] = []string{}
+		for id := range ids {
+			bondStreams[index] = append(bondStreams[index], id.String())
+		}
+	}
+
 	return &BacktestBondPortfolioResult{
 		CouponPayments:  couponPayments,
 		PortfolioReturn: portfolioReturns,
 		InterestRates:   interestRatesOnDate,
 		Metrics:         *metrics,
+		BondStreams:     bondStreams,
 	}, nil
 }
 
