@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -40,6 +41,8 @@ func strPtr(s string) *string {
 
 func (m ApiHandler) StartApi(port int) error {
 	router := gin.Default()
+
+	router.Use(blockBots)
 	router.Use(cors.Default())
 	router.Use(m.logRequestMiddlware)
 
@@ -68,10 +71,17 @@ func returnErrorJsonCode(err error, c *gin.Context, code int) {
 	})
 }
 
-func authMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+func blockBots(c *gin.Context) {
+	clientIP := c.ClientIP()
+	blockedIps := []string{"172.31.45.22"}
+	for _, ip := range blockedIps {
+		if ip == clientIP {
+			c.JSON(http.StatusForbidden, gin.H{"message": "Access denied"})
+			c.Abort()
+			return
+		}
 	}
+	c.Next()
 }
 
 type responseBodyWriter struct {
