@@ -20,13 +20,13 @@ func (e FactorMetricsMissingDataError) Error() string {
 }
 
 type PriceRetriever interface {
-	Get(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
+	Get(symbol string, date time.Time) (float64, error)
 }
 
 type FactorMetricCalculations interface {
-	Price(tx qrm.Queryable, pr PriceRetriever, symbol string, date time.Time) (float64, error)
-	PricePercentChange(tx qrm.Queryable, pr PriceRetriever, symbol string, start, end time.Time) (float64, error)
-	AnnualizedStdevOfDailyReturns(tx qrm.Queryable, symbol string, start, end time.Time) (float64, error)
+	Price(pr PriceRetriever, symbol string, date time.Time) (float64, error)
+	PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error)
+	AnnualizedStdevOfDailyReturns(symbol string, start, end time.Time) (float64, error)
 	MarketCap(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PbRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
@@ -53,7 +53,7 @@ type DryRunFactorMetricsHandler struct {
 	Data map[string]service.LoadPriceCacheInput
 }
 
-func (h *DryRunFactorMetricsHandler) Price(tx qrm.Queryable, pr PriceRetriever, symbol string, date time.Time) (float64, error) {
+func (h *DryRunFactorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
 	key := fmt.Sprintf("price/%s/%s", date.Format(time.DateOnly), symbol)
 	h.Data[key] = service.LoadPriceCacheInput{
 		Date:   date,
@@ -62,7 +62,7 @@ func (h *DryRunFactorMetricsHandler) Price(tx qrm.Queryable, pr PriceRetriever, 
 	return 0, nil
 }
 
-func (h *DryRunFactorMetricsHandler) PricePercentChange(tx qrm.Queryable, pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
+func (h *DryRunFactorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
 	key := fmt.Sprintf("price/%s/%s", start.Format(time.DateOnly), symbol)
 	h.Data[key] = service.LoadPriceCacheInput{
 		Date:   start,
@@ -76,7 +76,7 @@ func (h *DryRunFactorMetricsHandler) PricePercentChange(tx qrm.Queryable, pr Pri
 	return 1, nil
 }
 
-func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(tx qrm.Queryable, symbol string, start, end time.Time) (float64, error) {
+func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(symbol string, start, end time.Time) (float64, error) {
 	current := start
 	for current.Before(end) {
 		key := fmt.Sprintf("price/%s/%s", current.Format(time.DateOnly), symbol)
@@ -101,17 +101,17 @@ func (h *DryRunFactorMetricsHandler) PbRatio(tx qrm.Queryable, symbol string, da
 	return 1, nil
 }
 
-func (h factorMetricsHandler) Price(tx qrm.Queryable, pr PriceRetriever, symbol string, date time.Time) (float64, error) {
-	return pr.Get(tx, symbol, date)
+func (h factorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
+	return pr.Get(symbol, date)
 }
 
-func (h factorMetricsHandler) PricePercentChange(tx qrm.Queryable, pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
-	startPrice, err := pr.Get(tx, symbol, start)
+func (h factorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
+	startPrice, err := pr.Get(symbol, start)
 	if err != nil {
 		return 0, err
 	}
 
-	endPrice, err := pr.Get(tx, symbol, end)
+	endPrice, err := pr.Get(symbol, end)
 	if err != nil {
 		return 0, err
 	}
@@ -123,8 +123,8 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
-func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(tx qrm.Queryable, symbol string, start, end time.Time) (float64, error) {
-	priceModels, err := h.AdjustedPriceRepository.List(tx, []string{symbol}, start, end)
+func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(symbol string, start, end time.Time) (float64, error) {
+	priceModels, err := h.AdjustedPriceRepository.List([]string{symbol}, start, end)
 	if err != nil {
 		return 0, err
 	}
@@ -151,7 +151,7 @@ func (h factorMetricsHandler) MarketCap(tx qrm.Queryable, symbol string, date ti
 		return 0, FactorMetricsMissingDataError{err}
 	}
 
-	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
+	price, err := h.AdjustedPriceRepository.Get(symbol, date)
 	if err != nil {
 		return 0, err
 	}
@@ -163,7 +163,7 @@ func (h factorMetricsHandler) MarketCap(tx qrm.Queryable, symbol string, date ti
 }
 
 func (h factorMetricsHandler) PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
-	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
+	price, err := h.AdjustedPriceRepository.Get(symbol, date)
 	if err != nil {
 		return 0, err
 	}
@@ -181,7 +181,7 @@ func (h factorMetricsHandler) PeRatio(tx qrm.Queryable, symbol string, date time
 }
 
 func (h factorMetricsHandler) PbRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
-	price, err := h.AdjustedPriceRepository.Get(tx, symbol, date)
+	price, err := h.AdjustedPriceRepository.Get(symbol, date)
 	if err != nil {
 		return 0, err
 	}

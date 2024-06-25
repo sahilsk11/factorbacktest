@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"factorbacktest/internal"
@@ -48,19 +47,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	performanceProfile := domain.NewPeformanceProfile()
 	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
 	performanceProfile.Add("initialized")
-
-	tx, err := h.Db.BeginTx(
-		ctx,
-		&sql.TxOptions{
-			Isolation: sql.LevelReadCommitted,
-			ReadOnly:  true,
-		},
-	)
-	if err != nil {
-		returnErrorJson(fmt.Errorf("failed to create transaction: %w", err), c)
-		return
-	}
-	defer tx.Rollback()
 
 	var requestBody BacktestRequest
 
@@ -135,7 +121,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 
 	backtestInput := app.BacktestInput{
-		RoTx: tx,
 		FactorOptions: app.FactorOptions{
 			Expression: requestBody.FactorOptions.Expression,
 			Intensity:  requestBody.FactorOptions.Intensity,

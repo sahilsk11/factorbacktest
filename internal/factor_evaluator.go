@@ -81,7 +81,7 @@ func constructFunctionMap(
 			if err != nil {
 				return 0, err
 			}
-			p, err := h.Price(db, pr, symbol, date)
+			p, err := h.Price(pr, symbol, date)
 			if err != nil {
 				return 0, err
 			}
@@ -105,7 +105,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			p, err := h.PricePercentChange(db, pr, symbol, start, end)
+			p, err := h.PricePercentChange(pr, symbol, start, end)
 			if err != nil {
 				return 0, err
 			}
@@ -130,7 +130,7 @@ func constructFunctionMap(
 				return 0, err
 			}
 
-			p, err := h.AnnualizedStdevOfDailyReturns(db, symbol, start, end)
+			p, err := h.AnnualizedStdevOfDailyReturns(symbol, start, end)
 			if err != nil {
 				return 0, err
 			}

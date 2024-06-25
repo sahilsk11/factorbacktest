@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
-	"github.com/go-jet/jet/v2/qrm"
 )
 
 type PriceCache map[string]map[time.Time]float64
@@ -46,14 +45,14 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
-	Get(qrm.Queryable, string, time.Time) (float64, error)
-	GetMany(qrm.Queryable, []string, time.Time) (map[string]float64, error)
-	List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
-	ListTradingDays(tx *sql.DB, start, end time.Time) ([]time.Time, error)
-	LatestPrices(tx qrm.Queryable, symbols []string) ([]domain.AssetPrice, error)
+	Get(string, time.Time) (float64, error)
+	GetMany([]string, time.Time) (map[string]float64, error)
+	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
+	ListTradingDays(start, end time.Time) ([]time.Time, error)
+	LatestPrices(symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
-	ListFromSet(tx qrm.Queryable, set []ListFromSetInput) ([]domain.AssetPrice, error)
+	ListFromSet(set []ListFromSetInput) ([]domain.AssetPrice, error)
 }
 
 type ListFromSetInput struct {
@@ -61,14 +60,16 @@ type ListFromSetInput struct {
 	Date   time.Time
 }
 
-func NewAdjustedPriceRepository() AdjustedPriceRepository {
+func NewAdjustedPriceRepository(db *sql.DB) AdjustedPriceRepository {
 	return &adjustedPriceRepositoryHandler{
+		Db:         db,
 		PriceCache: make(PriceCache),
 		ReadMutex:  &sync.RWMutex{},
 	}
 }
 
 type adjustedPriceRepositoryHandler struct {
+	Db         *sql.DB
 	PriceCache PriceCache
 	ReadMutex  *sync.RWMutex
 	days       []time.Time
@@ -94,7 +95,7 @@ func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 	return nil
 }
 
-func (h adjustedPriceRepositoryHandler) Get(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
+func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (float64, error) {
 	if pc := h.GetFromPriceCache(symbol, date); pc != nil {
 		return *pc, nil
 	}
@@ -116,7 +117,7 @@ func (h adjustedPriceRepositoryHandler) Get(tx qrm.Queryable, symbol string, dat
 		LIMIT(1)
 
 	results := []model.AdjustedPrice{}
-	err := query.Query(tx, &results)
+	err := query.Query(h.Db, &results)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query price for %s on %v: %w", symbol, date, err)
 	}
@@ -130,7 +131,7 @@ func (h adjustedPriceRepositoryHandler) Get(tx qrm.Queryable, symbol string, dat
 }
 
 // assumes input date is a trading day
-func (h adjustedPriceRepositoryHandler) GetMany(tx qrm.Queryable, symbols []string, date time.Time) (map[string]float64, error) {
+func (h adjustedPriceRepositoryHandler) GetMany(symbols []string, date time.Time) (map[string]float64, error) {
 	cachedResults := map[string]float64{}
 	symbolSet := map[string]bool{}
 	postgresStr := []postgres.Expression{}
@@ -160,7 +161,7 @@ func (h adjustedPriceRepositoryHandler) GetMany(tx qrm.Queryable, symbols []stri
 			).
 			ORDER_BY(table.AdjustedPrice.Date.DESC())
 
-		err := query.Query(tx, &res)
+		err := query.Query(h.Db, &res)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query prices for %d symbols on date %v: %w", len(postgresStr), date, err)
 		}
@@ -178,7 +179,7 @@ func (h adjustedPriceRepositoryHandler) GetMany(tx qrm.Queryable, symbols []stri
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error) {
 	minDate := postgres.DateT(start)
 	maxDate := postgres.DateT(end)
 	symbolsFilter := []postgres.Expression{}
@@ -197,7 +198,7 @@ func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string,
 		ORDER_BY(table.AdjustedPrice.Date.ASC())
 
 	result := []model.AdjustedPrice{}
-	err := query.Query(db, &result)
+	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list prices for %v: %w", symbols, err)
 	}
@@ -215,7 +216,7 @@ func (h adjustedPriceRepositoryHandler) List(db qrm.Queryable, symbols []string,
 	return out, nil
 }
 
-func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.DB, start, end time.Time) ([]time.Time, error) {
+func (h *adjustedPriceRepositoryHandler) ListTradingDays(start, end time.Time) ([]time.Time, error) {
 	minDate := postgres.DateT(start)
 	maxDate := postgres.DateT(end)
 	// use range so we can do t-3 for weekends or holidays
@@ -232,7 +233,7 @@ func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.DB, start, end 
 
 	q, args := query.Sql()
 
-	rows, err := tx.Query(q, args...)
+	rows, err := h.Db.Query(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list trading days: %w", err)
 	}
@@ -251,7 +252,7 @@ func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.DB, start, end 
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) LatestPrices(tx qrm.Queryable, symbols []string) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) LatestPrices(symbols []string) ([]domain.AssetPrice, error) {
 	out := []domain.AssetPrice{}
 	for _, s := range symbols {
 		query := table.AdjustedPrice.SELECT(table.AdjustedPrice.AllColumns).
@@ -259,7 +260,7 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(tx qrm.Queryable, symbols [
 			ORDER_BY(table.AdjustedPrice.Date.DESC()).
 			LIMIT(1)
 		model := model.AdjustedPrice{}
-		err := query.Query(tx, &model)
+		err := query.Query(h.Db, &model)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get latest price for %s: %w", s, err)
 		}
@@ -273,7 +274,7 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(tx qrm.Queryable, symbols [
 	return out, nil
 }
 
-func (h adjustedPriceRepositoryHandler) ListFromSet(tx qrm.Queryable, set []ListFromSetInput) ([]domain.AssetPrice, error) {
+func (h adjustedPriceRepositoryHandler) ListFromSet(set []ListFromSetInput) ([]domain.AssetPrice, error) {
 	expressions := []postgres.BoolExpression{}
 	symbolRanges := map[string]*struct {
 		min time.Time
@@ -318,7 +319,7 @@ func (h adjustedPriceRepositoryHandler) ListFromSet(tx qrm.Queryable, set []List
 		))
 
 	results := []model.AdjustedPrice{}
-	err := query.Query(tx, &results)
+	err := query.Query(h.Db, &results)
 	if err != nil {
 		return nil, err
 	}

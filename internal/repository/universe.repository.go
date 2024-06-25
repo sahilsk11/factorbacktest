@@ -1,23 +1,28 @@
 package repository
 
 import (
+	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	. "factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
-
-	"github.com/go-jet/jet/v2/qrm"
 )
 
 type UniverseRepository interface {
-	List(db qrm.Queryable) ([]model.Universe, error)
+	List() ([]model.Universe, error)
 }
 
-type UniverseRepositoryHandler struct{}
+type universeRepositoryHandler struct {
+	Db *sql.DB
+}
 
-func (h UniverseRepositoryHandler) List(tx qrm.Queryable) ([]model.Universe, error) {
+func NewUniverseRepository(db *sql.DB) UniverseRepository {
+	return universeRepositoryHandler{Db: db}
+}
+
+func (h universeRepositoryHandler) List() ([]model.Universe, error) {
 	query := Universe.SELECT(Universe.AllColumns)
 	result := []model.Universe{}
-	err := query.Query(tx, &result)
+	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get universe symbols: %w", err)
 	}
