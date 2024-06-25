@@ -3,7 +3,48 @@ import "./modals.css";
 import { ContactRequest } from "./models";
 import { endpoint } from "./App";
 
-export function Modal({ userID, show, close }: {
+export function HelpModal({ show, close }: {
+  show: boolean;
+  close: () => void;
+}) {
+  console.log(show)
+  if (!show) return null;
+
+  const handleOverlayClick = (e: any) => {
+    if (e.target.id === "help-modal") {
+      close();
+    }
+  };
+
+  return (
+    <div id="help-modal" className="modal" onClick={handleOverlayClick}>
+      <div className="modal-content help-modal">
+        <span onClick={() => close()} className="close" id="closeModalBtn">&times;</span>
+        <h2 style={{ marginBottom: "40px" }}>Welcome!</h2>
+        <div className="help-text-container">
+          <ul>
+            <li>
+              <p className="help-text">FactorBacktest.net allows you to rapidly test factor-based investment strategies.</p>
+            </li>
+            <li>
+              <p className="help-text">Define your strategy equation, set backtest parameters, and narrow your asset selection pool. Hit the <button className="demo-backtest-btn">Run Backtest</button> button on the left to test your first strategy!</p>
+            </li>
+            <li>
+              <p className="help-text">The performance chart shows adjusted returns, accounting for splits, dividends, etc. Click on any datapoint to view what the strategy did on that day.</p>
+              <img className="help-gif" style={{ width: "100%" }} src="./dots.gif" />
+            </li>
+            <li>
+              <p className="help-text">To view this message again, hit "User Guide" on the top left.</p>
+            </li>
+          </ul>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ContactModal({ userID, show, close }: {
   userID: string;
   show: boolean;
   close: () => void;
@@ -12,23 +53,23 @@ export function Modal({ userID, show, close }: {
   if (!show) return null;
 
   const handleOverlayClick = (e: any) => {
-    if (e.target.id === "modal") {
+    if (e.target.id === "contact-modal") {
       close();
     }
   };
 
   return (
-    <div id="modal" className="modal" onClick={handleOverlayClick}>
+    <div id="contact-modal" className="modal" onClick={handleOverlayClick}>
       <div className="modal-content">
         <span onClick={() => close()} className="close" id="closeModalBtn">&times;</span>
-        <h2 style={{marginBottom: "40px"}}>Contact</h2>
+        <h2 style={{ marginBottom: "40px" }}>Contact</h2>
         <ContactForm userID={userID} />
       </div>
     </div>
   );
 }
 
-function ContactForm({userID}: {
+function ContactForm({ userID }: {
   userID: string;
 }) {
   const [replyEmail, setReplyEmail] = useState<string | null>(null);
@@ -40,7 +81,7 @@ function ContactForm({userID}: {
     e.preventDefault();
 
     try {
-      const response = await fetch(endpoint+"/contact", {
+      const response = await fetch(endpoint + "/contact", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,8 +112,8 @@ function ContactForm({userID}: {
           type="text"
           id="replyEmail"
           name="replyEmail"
-          value={replyEmail ? replyEmail: ""}
-          style={{width: "300px"}}
+          value={replyEmail ? replyEmail : ""}
+          style={{ width: "300px" }}
           onChange={(e) => {
             setSubmitted(false);
             setError(null);
@@ -83,7 +124,7 @@ function ContactForm({userID}: {
       <div>
         <label htmlFor="content">Message</label>
         <textarea
-        style={{width: "400px", height: "100px"}}
+          style={{ width: "400px", height: "100px" }}
           id="content"
           name="content"
           value={content}
@@ -103,7 +144,7 @@ function ContactForm({userID}: {
 
 function Error({ message }: { message: string | null }) {
   return message === null ? null : <>
-    <div style={{margin: "0px auto", marginTop: "30px"}} className='error-container'>
+    <div style={{ margin: "0px auto", marginTop: "30px" }} className='error-container'>
       <h4 style={{ marginBottom: "0px", marginTop: "0px" }}>That's an error.</h4>
       <p>{message}</p>
     </div>

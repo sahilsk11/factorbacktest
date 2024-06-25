@@ -7,7 +7,7 @@ import BenchmarkManager from './BenchmarkSelector';
 import { BacktestSnapshot } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
-import { Modal } from './Modals';
+import { ContactModal, HelpModal } from './Modals';
 
 
 export interface FactorData {
@@ -35,6 +35,9 @@ const App = () => {
 
 
   useEffect(() => {
+    if (getCookie("userID") === null) {
+      setShowHelpModal(true);
+    }
     setUserID(getOrCreateUserID());
   }, []);
 
@@ -91,7 +94,8 @@ const App = () => {
       </div>
     </div>
     <div style={{ height: "100px" }}></div>
-    <Modal userID={userID} show={showContactModal} close={() => {setShowContactModal(false)}} />
+    <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
+    <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
 }
 
@@ -149,7 +153,7 @@ function Nav({ setShowHelpModal, setShowContactModal }: {
           <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>
         </div>
         <div className='nav-element-wrapper'>
-          <p onClick={() => setShowHelpModal(true)}  className='nav-element-text'>How it Works</p>
+          <p onClick={() => setShowHelpModal(true)}  className='nav-element-text'>User Guide</p>
         </div>
       </div>
     </div>
