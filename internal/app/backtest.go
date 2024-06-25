@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"factorbacktest/internal"
-	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
@@ -240,7 +239,7 @@ type BacktestInput struct {
 	RebalanceInterval time.Duration
 	StartingCash      float64
 	NumTickers        int
-	AssetUniverse     model.AssetUniverseName
+	AssetUniverse     string
 }
 
 type BacktestResponse struct {

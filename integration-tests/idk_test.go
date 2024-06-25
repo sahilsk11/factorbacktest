@@ -85,7 +85,7 @@ func seedUniverse(tx *sql.Tx) error {
 	}
 
 	query = table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{
-		AssetUniverseName: model.AssetUniverseName_SpyTop80,
+		AssetUniverseName: "SPY_TOP_80",
 	}).RETURNING(table.AssetUniverse.AllColumns)
 
 	universe := model.AssetUniverse{}
