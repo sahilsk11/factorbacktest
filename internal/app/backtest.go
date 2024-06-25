@@ -47,7 +47,10 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, in []workInp
 	close(inputCh)
 
 	for i := 0; i < numGoroutines; i++ {
-		tx, err := h.Db.Begin()
+		tx, err := h.Db.BeginTx(ctx, &sql.TxOptions{
+			ReadOnly:  true,
+			Isolation: sql.LevelReadCommitted,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -221,6 +224,7 @@ type BacktestInput struct {
 }
 
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]BacktestSample, error) {
+	profile := internal.GetPerformanceProfile(ctx)
 	universe, err := h.UniverseRepository.List(in.RoTx)
 	if err != nil {
 		return nil, err
@@ -250,31 +254,41 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 			})
 		}
 	}
+	profile.Add("finished helper info")
+
+	// populate cache
+	_, err = h.PriceRepository.List(in.RoTx, universeSymbols, in.BacktestStart, in.BacktestEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load price data: %w", err)
+	}
 
 	x := time.Now()
 	factorScoresByDay, err := h.calculateFactorScores(ctx, inputs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
 
 	fmt.Println("scores calculated in", time.Since(x).Seconds())
+	profile.Add("finished scores")
 
 	anchorPortfolioWeights, err := h.calculateAnchorPortfolioWeights(in.RoTx, in.BacktestStart, in.AnchorPortfolioQuantities, backtestStartPriceMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate anchor portfolio weights: %w", err)
 	}
 
 	in.AssetOptions.AnchorPortfolioWeights = anchorPortfolioWeights
 
 	startValue, err := in.StartPortfolio.TotalValue(backtestStartPriceMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute start value: %w", err)
 	} else if startValue == 0 {
 		return nil, fmt.Errorf("cannot backtest portfolio with 0 total value")
 	}
 
 	currentPortfolio := *in.StartPortfolio.DeepCopy()
 	out := []BacktestSample{}
+
+	profile.Add("finished backtest setup")
 
 	for _, t := range tradingDays {
 		// should work on weekends too
@@ -285,7 +299,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		// this is also premature optimization
 		priceMap, err := h.PriceRepository.GetMany(in.RoTx, universeSymbols, t)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get prices on day %v: %w", t, err)
 		}
 
 		currentPortfolioValue, err := currentPortfolio.TotalValue(priceMap)
@@ -329,6 +343,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 		})
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 	}
+	profile.Add("finished daily calcs")
 
 	return out, nil
 }

@@ -58,7 +58,11 @@ type backtestResponse struct {
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
-	ctx := context.Background()
+	performanceProfile := &internal.PerformanceProfile{}
+	ctx := context.WithValue(context.Background(), "performanceProfile", performanceProfile)
+	performanceProfile.Add("initialized")
+	defer func() { performanceProfile.Print() }()
+
 	tx, err := h.Db.BeginTx(
 		ctx,
 		&sql.TxOptions{
@@ -142,11 +146,14 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		},
 	}
 
+	performanceProfile.Add("starting backtest")
+
 	result, err := h.BacktestHandler.Backtest(ctx, backtestInput)
 	if err != nil {
 		returnErrorJson(fmt.Errorf("failed to run backtest: %w", err), c)
 		return
 	}
+	performanceProfile.Add("finished backtest")
 
 	snapshots := map[string]backtestSnapshot{}
 
@@ -186,6 +193,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		FactorName: backtestInput.FactorOptions.Name,
 		Snapshots:  snapshots,
 	}
+
+	performanceProfile.Add("finished formatting")
 
 	c.JSON(200, responseJson)
 }
