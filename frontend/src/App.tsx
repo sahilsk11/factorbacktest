@@ -8,7 +8,7 @@ import FactorForm, { BacktestSnapshot } from "./Form";
 import BenchmarkManager from './BenchmarkSelector';
 
 import { minMaxDates } from './util';
-import InspectFactorData from './InspectFactorData';
+import InspectFactorData from './FactorSnapshot';
 
 export interface FactorData {
   name: string,
@@ -25,8 +25,8 @@ export interface BenchmarkData {
 const App = () => {
   const [factorData, updateFactorData] = useState<FactorData[]>([]);
   const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
-  const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number|null>(null);
-  const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string|null>(null);
+  const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
+  const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
@@ -48,6 +48,11 @@ const App = () => {
               updateFactorData([...factorData, newFactorData])
             }}
           />
+          <BenchmarkManager
+            minDate={minFactorDate}
+            maxDate={maxFactorDate}
+            updateBenchmarkData={updateBenchmarkData}
+          />
         </div>
         <div className="column" style={{ "flexGrow": 4 }}>
           <BacktestChart
@@ -64,11 +69,7 @@ const App = () => {
         </div>
       </div>
     </div>
-    <BenchmarkManager
-      minDate={minFactorDate}
-      maxDate={maxFactorDate}
-      updateBenchmarkData={updateBenchmarkData}
-    />
+
   </>
 }
 

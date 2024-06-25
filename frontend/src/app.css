@@ -3,7 +3,7 @@
   justify-content: space-evenly;
   width: 90%;
   display: 0px auto;
-  align-items: center;
+  align-items: flex-start;
   min-height: 600px;
 }
 
@@ -11,7 +11,7 @@
   padding-top: 60px;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .column {

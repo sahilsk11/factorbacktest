@@ -260,8 +260,9 @@ func (h BacktestHandler) transitionToTarget(
 	for symbol, position := range prevPositions {
 		if _, ok := targetPositions[symbol]; !ok {
 			trades = append(trades, domain.ProposedTrade{
-				Symbol:   symbol,
-				Quantity: -position.Quantity,
+				Symbol:        symbol,
+				Quantity:      -position.Quantity,
+				ExpectedPrice: priceMap[symbol],
 			})
 		}
 	}
