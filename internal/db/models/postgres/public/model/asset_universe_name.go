@@ -13,6 +13,7 @@ type AssetUniverseName string
 
 const (
 	AssetUniverseName_SpyTop80 AssetUniverseName = "SPY_TOP_80"
+	AssetUniverseName_All      AssetUniverseName = "ALL"
 )
 
 func (e *AssetUniverseName) Scan(value interface{}) error {
@@ -29,6 +30,8 @@ func (e *AssetUniverseName) Scan(value interface{}) error {
 	switch enumValue {
 	case "SPY_TOP_80":
 		*e = AssetUniverseName_SpyTop80
+	case "ALL":
+		*e = AssetUniverseName_All
 	default:
 		return errors.New("jet: Invalid scan value '" + enumValue + "' for AssetUniverseName enum")
 	}

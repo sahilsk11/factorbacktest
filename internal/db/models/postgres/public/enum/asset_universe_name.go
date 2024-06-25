@@ -11,6 +11,8 @@ import "github.com/go-jet/jet/v2/postgres"
 
 var AssetUniverseName = &struct {
 	SpyTop80 postgres.StringExpression
+	All      postgres.StringExpression
 }{
 	SpyTop80: postgres.NewEnumValue("SPY_TOP_80"),
+	All:      postgres.NewEnumValue("ALL"),
 }
