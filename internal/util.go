@@ -48,6 +48,7 @@ func LoadSecrets() (*Secrets, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not open secrets.json: %w", err)
 	}
+
 	secrets := Secrets{}
 	err = json.Unmarshal(f, &secrets)
 	if err != nil {

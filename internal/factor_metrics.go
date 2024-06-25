@@ -3,6 +3,7 @@ package internal
 import (
 	"alpha/internal/repository"
 	"database/sql"
+	"fmt"
 	"math"
 	"time"
 
@@ -77,6 +78,9 @@ func (h FactorMetricsHandler) MarketCap(tx *sql.Tx, symbol string, date time.Tim
 	if err != nil {
 		return 0, err
 	}
+	if out.SharesOutstandingBasic == nil {
+		return 0, fmt.Errorf("%s does not have shares on %v", symbol, date)
+	}
 
 	return *out.SharesOutstandingBasic * price, nil
 }
@@ -90,6 +94,9 @@ func (h FactorMetricsHandler) PeRatio(tx *sql.Tx, symbol string, date time.Time)
 	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
 	if err != nil {
 		return 0, err
+	}
+	if out.EpsBasic == nil {
+		return 0, fmt.Errorf("%s does not have eps on %v", symbol, date)
 	}
 
 	return price / *out.EpsBasic, nil

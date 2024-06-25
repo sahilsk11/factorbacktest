@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type Client struct {
@@ -79,16 +80,27 @@ func (c Client) GetAssetMetrics(symbol string) (*FinancialResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if response.StatusCode != 200 {
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	var responseJson FinancialResponse
 	responseBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("received status code %d and failed to read body: %w", response.StatusCode, err)
+	}
+
+	if response.StatusCode == 429 {
+		fmt.Println("hit rate limit. sleeping...")
+		time.Sleep(60 * time.Second)
+		return c.GetAssetMetrics(symbol)
+	} else if response.StatusCode != 200 {
+		type errResponse struct {
+			Error string `json:"error"`
+		}
+		errJson := errResponse{}
+		err = json.Unmarshal(responseBytes, &errJson)
+		if err != nil {
+			return nil, fmt.Errorf("received status code %d and failed to read error: %w", response.StatusCode, err)
+		}
+		return nil, fmt.Errorf("failed with status code %d: %s", response.StatusCode, errJson.Error)
 	}
 
 	err = json.Unmarshal(responseBytes, &responseJson)
