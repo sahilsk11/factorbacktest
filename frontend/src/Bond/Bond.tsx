@@ -106,6 +106,9 @@ function BondBuilderForm(
     }
   }
 
+  const maxDate = new Date().toISOString().split('T')[0];
+  const minDate = "2000-01-01";
+
   return <>
     <div className='tile'>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Bond Ladder</h2>
@@ -138,8 +141,8 @@ function BondBuilderForm(
         <div className='form-element'>
           <label>Backtest Range</label>
           <input
-            min={'2018-01-01'}
-            // max={backtestEnd > maxDate ? maxDate : backtestEnd}
+            min={minDate}
+            max={backtestEnd > maxDate ? maxDate : backtestEnd}
             required
             type="date"
             value={backtestStart}
@@ -147,7 +150,8 @@ function BondBuilderForm(
           />
           <p style={{ display: "inline" }}> to </p>
           <input
-            // max={maxDate}
+            max={maxDate}
+            min={minDate}
             required
             type="date"
             value={backtestEnd}
