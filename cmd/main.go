@@ -17,9 +17,13 @@ import (
 )
 
 func New() (*sql.DB, error) {
-	connStr := "user=postgres password=dVucP6jSZqx7yyPOsz1v host=alpha.cuutadkicrvi.us-east-2.rds.amazonaws.com port=5432 dbname=postgres"
 
-	dbConn, err := sql.Open("postgres", connStr)
+	secrets, err := internal.LoadSecrets()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbConn, err := sql.Open("postgres", secrets.Db.ToConnectionStr())
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
