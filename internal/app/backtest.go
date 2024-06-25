@@ -27,8 +27,8 @@ type workInput struct {
 	FactorExpression string
 }
 
-func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr internal.PriceRetriever, in []workInput) (map[time.Time]map[string]*float64, error) {
-	numGoroutines := 10
+func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr *internal.PriceCache, in []workInput) (map[time.Time]map[string]*float64, error) {
+	numGoroutines := 1
 
 	type result struct {
 		Date             time.Time
@@ -56,6 +56,7 @@ func (h BacktestHandler) calculateFactorScores(ctx context.Context, pr internal.
 			return nil, err
 		}
 		defer tx.Rollback()
+		pr.Tx = tx
 		go func() {
 			for {
 				select {
@@ -299,7 +300,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) ([]Back
 
 	profile.Add("finished backtest setup")
 
-	const errThreshold = 0.75
+	const errThreshold = 0.1
 	backtestErrors := []error{}
 
 	for _, t := range tradingDays {

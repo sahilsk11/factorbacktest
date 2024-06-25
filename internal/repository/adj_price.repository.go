@@ -107,11 +107,15 @@ func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time
 		ORDER_BY(AdjustedPrice.Date.DESC()).
 		LIMIT(1)
 
-	result := model.AdjustedPrice{}
-	err := query.Query(tx, &result)
+	results := []model.AdjustedPrice{}
+	err := query.Query(tx, &results)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query price for %s on %v: %w", symbol, date, err)
 	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no results for %s on %v", symbol, date)
+	}
+	result := results[0]
 
 	h.AddToPriceCache(symbol, date, result.Price)
 	return result.Price, nil

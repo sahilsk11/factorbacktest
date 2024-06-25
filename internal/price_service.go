@@ -30,7 +30,7 @@ type priceCache map[string]map[time.Time]float64
 type PriceCache struct {
 	cache              priceCache
 	tradingDays        []time.Time
-	tx                 *sql.Tx
+	Tx                 *sql.Tx
 	adjPriceRepository repository.AdjustedPriceRepository
 }
 
@@ -56,7 +56,7 @@ func (pr PriceCache) Get(symbol string, date time.Time) (float64, error) {
 
 	// missed l1 cache - check db
 
-	price, err := pr.adjPriceRepository.Get(pr.tx, symbol, date)
+	price, err := pr.adjPriceRepository.Get(pr.Tx, symbol, date)
 	if err != nil {
 		return 0, err
 	}
@@ -92,12 +92,16 @@ func (h priceServiceHandler) LoadCache(symbols []string, start time.Time, end ti
 
 	cache := make(priceCache)
 	for _, p := range prices {
+		if _, ok := cache[p.Symbol]; !ok {
+			cache[p.Symbol] = make(map[time.Time]float64)
+		}
 		cache[p.Symbol][p.Date] = p.Price
 	}
 
 	return &PriceCache{
 		cache:       cache,
 		tradingDays: tradingDays,
-		tx:          tx,
+		// Tx:                 tx,
+		adjPriceRepository: h.AdjPriceRepository,
 	}, nil
 }
