@@ -6,7 +6,7 @@ import InspectFactorData from './FactorSnapshot';
 import BenchmarkManager from './BenchmarkSelector';
 import { BacktestSnapshot } from "./models";
 import { minMaxDates } from './util';
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 
 export interface FactorData {
@@ -31,9 +31,7 @@ const App = () => {
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
 
   useEffect(() => {
-    const queryString = window.location.search;
-    const urlParams = new URLSearchParams(queryString);
-    setUserID(urlParams.get('userID') || urlParams.get('id') || uuidv4())
+    setUserID(getOrCreateUserID());
   }, []);
 
   let takenNames: string[] = [];
@@ -95,6 +93,40 @@ const App = () => {
 export default App;
 
 
+function getCookie(cookieName: string) {
+  const name = cookieName + "=";
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookieArray = decodedCookie.split(';');
 
+  for (let i = 0; i < cookieArray.length; i++) {
+    let cookie = cookieArray[i];
+    while (cookie.charAt(0) === ' ') {
+      cookie = cookie.substring(1);
+    }
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length, cookie.length);
+    }
+  }
+  return null; // Cookie not found
+}
 
+function setCookie(cookieName: string, cookieValue: string) {
+  const date = new Date();
+  date.setTime(date.getTime() + (900 * 24 * 60 * 60 * 1000));
+  const expires = "expires=" + date.toUTCString();
+  document.cookie = cookieName + "=" + cookieValue + "; " + expires;
+}
 
+function getOrCreateUserID(): string {
+  const cookieUserID = getCookie("userID")
+  if (cookieUserID !== null) {
+    return cookieUserID;
+  }
+
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+  const newUserID = urlParams.get('userID') || urlParams.get('id') || uuidv4();
+  setCookie("userID", newUserID);
+
+  return newUserID;
+}
