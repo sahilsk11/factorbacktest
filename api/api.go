@@ -53,6 +53,14 @@ func (m ApiHandler) StartApi(port int) error {
 	router.POST("/benchmark", m.benchmark)
 	router.POST("/contact", m.contact)
 	router.POST("/constructFactorEquation", m.constructFactorEquation)
+	router.GET("/usageStats", func(ctx *gin.Context) {
+		result, err := repository.GetUsageStats(m.Db)
+		if err != nil {
+			returnErrorJson(err, ctx)
+			return
+		}
+		ctx.JSON(200, result)
+	})
 
 	return router.Run(fmt.Sprintf(":%d", port))
 }
@@ -98,33 +106,41 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: ctx.Writer}
 	ctx.Writer = w
 
-	body, err := ctx.GetRawData()
-	if err != nil {
-		log.Println(fmt.Errorf("failed to get raw data: %w", err))
-	}
-	ctx.Request.Body = io.NopCloser(bytes.NewReader(body))
+	method := ctx.Request.Method
 
-	type userIdBody struct {
-		UserID uuid.UUID `json:"userID"`
-	}
-
-	reqBody := userIdBody{}
-	err = json.Unmarshal(body, &reqBody)
-	if err != nil {
-		log.Println(fmt.Errorf("failed to get req body: %w", err))
-	}
+	var requestBody *string
 	var userID *uuid.UUID
-	if reqBody.UserID != uuid.Nil {
-		userID = &reqBody.UserID
+
+	if method == "POST" {
+		body, err := ctx.GetRawData()
+		if err != nil {
+			log.Println(fmt.Errorf("failed to get raw data: %w", err))
+		}
+		ctx.Request.Body = io.NopCloser(bytes.NewReader(body))
+		requestBody = strPtr(string(body))
+
+		type userIdBody struct {
+			UserID uuid.UUID `json:"userID"`
+		}
+
+		reqBody := userIdBody{}
+		err = json.Unmarshal(body, &reqBody)
+		if err != nil {
+			log.Println(fmt.Errorf("failed to get req body: %w", err))
+		}
+
+		if reqBody.UserID != uuid.Nil {
+			userID = &reqBody.UserID
+		}
 	}
 
 	start := time.Now().UTC()
 	req, err := m.ApiRequestRepository.Add(m.Db, model.APIRequest{
 		UserID:      userID,
 		IPAddress:   strPtr(ctx.ClientIP()),
-		Method:      ctx.Request.Method,
+		Method:      method,
 		Route:       ctx.Request.URL.Path,
-		RequestBody: strPtr(string(body)),
+		RequestBody: requestBody,
 		StartTs:     start,
 	})
 	if err != nil {
