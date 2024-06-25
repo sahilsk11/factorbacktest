@@ -1,6 +1,5 @@
 export interface FactorOptions {
   expression: string;
-  intensity: number;
   name: string;
 }
 
@@ -9,11 +8,10 @@ export interface BacktestRequest {
   backtestStart: string;
   backtestEnd: string;
   samplingIntervalUnit: string;
-  assetSelectionMode: string;
   startCash: number;
-  anchorPortfolioQuantities: Record<string, number>;
   numSymbols?: number;
   userID?: string | null;
+  assetUniverse?: string | null;
 }
 
 export interface Trade {
