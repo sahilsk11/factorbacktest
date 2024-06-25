@@ -161,7 +161,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
-	profile.Add("finished scores")
 
 	startValue := in.StartingCash
 
@@ -169,8 +168,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		Cash: startValue,
 	}
 	out := []BacktestSample{}
-
-	profile.Add("finished backtest setup")
 
 	const errThreshold = 0.1
 	backtestErrors := []error{}
