@@ -306,7 +306,7 @@ function CouponPaymentChart({
   const names = ['A', 'B', 'C']
   streamData.forEach((stream, i) => {
     datasets.push({
-      label: "Bond Set " + names[i],
+      label: "Bond Series " + names[i],
       data: stream,
       borderColor: colors[names[i]].borderColor,
       backgroundColor: colors[names[i]].backgroundColor,
@@ -411,7 +411,7 @@ function BondPortfolioPerformanceChart({
   streamData.forEach((stream, i) => {
     const names = ['A', 'B', 'C']
     const newDataset: ChartDataset<"line", (number | null)[]> = {
-      label: "Bond Set " + names[i],
+      label: "Bond Series " + names[i],
       data: stream,
       borderColor: colors[names[i]].borderColor,
       backgroundColor: colors[names[i]].backgroundColor,
@@ -560,7 +560,7 @@ function BondLadderChart({ bondLadder }: {
   })
 
   const datasets: ChartDataset<"line", (number | null)[]>[] = streams.map((stream, i) => ({
-    label: "Bond Set " + names[i],
+    label: "Bond Series " + names[i],
     data: stream,
     borderColor: colors[names[i]].borderColor,
     backgroundColor: colors[names[i]].backgroundColor,
@@ -585,7 +585,7 @@ function BondLadderChart({ bondLadder }: {
 
   return <>
     <h4 className='chart-title'>Bond Ladder</h4>
-    <p className='chart-description'>Three bonds are initially purchased based on the given starting duration (such as 1Y, 2Y, 3Y). When a bond matures, a new bond is purchased to replace it at the current market interest rates. Each bond and the subsequent bonds that replace them are referenced here as a "bond set."</p>
+    <p className='chart-description'>Three bonds are initially purchased based on the given starting duration (such as 1Y, 2Y, 3Y). When a bond matures, a new bond is purchased to replace it at the current market interest rates. Each bond and the subsequent bonds that replace them are referenced here as a "bond series."</p>
     <div className='backtest-chart-wrapper'>
 
 
