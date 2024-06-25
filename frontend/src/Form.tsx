@@ -3,6 +3,9 @@ import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
 import { BacktestRequest, BacktestResponse, FactorOptions } from './models';
+import { AiOutlineQuestionCircle } from 'react-icons/ai';
+import { Tooltip as ReactTooltip } from 'react-tooltip';
+import 'react-tooltip/dist/react-tooltip.css'
 
 
 export default function FactorForm({
@@ -212,7 +215,7 @@ export default function FactorForm({
         </div> : null}
         <div>
           <label>Starting Cash</label>
-          <span style={{fontSize: "14px"}}>$</span> <input
+          <span style={{ fontSize: "14px" }}>$</span> <input
             id="cash"
             value={cash.toLocaleString()}
             style={{ paddingLeft: "5px" }}
@@ -233,7 +236,7 @@ export default function FactorForm({
           <select>
             <option value="daily">SPY Top 80 Holdings</option>
           </select>
-        </div> 
+        </div>
         {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
           <label>Intensity</label>
           <input
@@ -345,8 +348,29 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
 
   return <>
     <div>
-      <label>Factor Expression</label>
-      <p className='label-subtext'>Higher scoring assets will have a larger allocation in the portfolio.</p>
+
+      <label style={{ position: "relative", width: "fit-content" }}>Factor Expression
+        {/* <a
+        data-tooltip-id="my-tfooltip"
+        data-tooltip-content="The equation that will be run on every asset in the universe, on every rebalance date. Higher scoring assets will have a larger allocation in the portfolio."
+        data-tooltip-place="bottom"
+        style={{
+          paddingLeft: "0px",
+          marginTop: "2px",
+          height: "100%",
+          // fontSize
+          position: "absolute",
+          "right": "-18px",
+          top: "-0.5px",
+          fontSize: "14px"
+        }}
+      >
+        <AiOutlineQuestionCircle style={{}} className="question-icon" />
+      </a> */}
+      </label>
+
+      <ReactTooltip style={{ fontSize: "12px", maxWidth: "220px" }} id="my-tfooltip" />
+      <p className='label-subtext' style={{ maxWidth: "380px" }}>Select predefined factors or create your own.</p>
 
       <select
         onChange={(e) => setSelectedFactor(e.target.value)}
@@ -356,7 +380,7 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
         <option value="value">Value (undervalued relative to price)</option>
         <option value="size">Size (smaller assets by market cap)</option>
         <option value="volatility">Volatility (low risk assets)</option>
-        <option value="gpt">Describe factor in English (ChatGPT)</option>
+        <option value="gpt">Describe factor in words (ChatGPT)</option>
       </select>
       {selectedFactor === "gpt" ? <>
         <p style={{ marginTop: "5px" }} className='label-subtext'>Uses ChatGPT API to convert factor description to equation.</p>
@@ -364,8 +388,8 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
           <textarea
             style={{
               width: "250px",
-              height: "38px",
-              fontSize: "14px"
+              height: "33px",
+              fontSize: "13px"
             }}
             placeholder='small cap, undervalued, and price going up'
             value={gptInput}
@@ -375,10 +399,11 @@ function FactorExpressionInput({ userID, factorExpression, setFactorExpression, 
         </div>
       </> : null}
 
-      {selectedFactor === "gpt" && gptInput.length > 0 ?
-        <p style={{ marginTop: "5px", maxWidth: "300px" }} className='label-subtext'>ChatGPT may determine incorrect equations. Be sure to double check and modify if necessary.</p>
+      {selectedFactor === "gpt" ?
+        <p style={{ marginTop: "5px", maxWidth: "380px" }} className='label-subtext'>ChatGPT may determine incorrect equations. Be sure to double check and modify if necessary. <br /> <br />The equation applied to all assets, on each rebalance date. Higher scoring assets will have a larger allocation in the portfolio.</p>
         :
-        <p style={{ marginTop: "5px" }} className='label-subtext'>Or enter equation manually.</p>}
+        <p className='label-subtext' style={{ maxWidth: "380px", marginTop: "5px" }}>The equation applied to all assets, on each rebalance date. Higher scoring assets will have a larger allocation in the portfolio.</p>
+      }
       <textarea required
         style={{ height: "80px", width: "250px", fontSize: "13px" }}
         value={factorExpression}
