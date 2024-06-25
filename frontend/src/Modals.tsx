@@ -33,7 +33,7 @@ export function HelpModal({ show, close }: {
               <img className="help-gif" style={{ width: "100%" }} src="./dots.gif" />
             </li>
             <li>
-              <p className="help-text">To view this message again, hit "User Guide" on the top left.</p>
+              <p className="help-text">To view this message again, hit "User Guide" on the top right.</p>
             </li>
           </ul>
         </div>

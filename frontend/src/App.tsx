@@ -94,7 +94,7 @@ const App = () => {
         </div>
       </div>
     </div>
-    <div style={{ height: "100px" }}></div>
+    <div style={{ height: "30px" }}></div>
     <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
     <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
