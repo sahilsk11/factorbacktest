@@ -289,62 +289,55 @@ func Test_computeMetrics(t *testing.T) {
 	})
 
 	t.Run("compute stdev", func(t *testing.T) {
-		portfolioValues := []BondPortfolioValue{
+		portfolioValues := []BondPortfolioReturn{
 			{
-				Date:       time.Time{},
-				DateStr:    "",
-				TotalValue: 100,
-				BondValues: map[uuid.UUID]float64{},
+				Date:                 time.Time{},
+				DateStr:              "",
+				ReturnSinceInception: 0,
 			},
 			{
-				Date:       time.Time{},
-				DateStr:    "",
-				TotalValue: 105,
-				BondValues: map[uuid.UUID]float64{},
+				Date:                 time.Time{},
+				DateStr:              "",
+				ReturnSinceInception: 0.05,
 			},
 			{
-				Date:       time.Time{},
-				DateStr:    "",
-				TotalValue: 130,
-				BondValues: map[uuid.UUID]float64{},
+				Date:                 time.Time{},
+				DateStr:              "",
+				ReturnSinceInception: 0.3,
 			},
 		}
 		metrics, err := computeMetrics(nil, nil, portfolioValues)
 		require.NoError(t, err)
 
-		require.InDelta(t, 2.11136, metrics.Stdev, 1e-4)
+		require.InDelta(t, 2.1, metrics.Stdev, 1e-4)
 	})
 
 	t.Run("compute max drawdown", func(t *testing.T) {
-		portfolioValues := []BondPortfolioValue{
+		portfolioValues := []BondPortfolioReturn{
 			{
-				Date:       time.Time{},
-				DateStr:    "",
-				TotalValue: 100,
-				BondValues: map[uuid.UUID]float64{},
+				Date:                 time.Time{},
+				DateStr:              "",
+				ReturnSinceInception: 0,
 			},
 			{
-				Date:       time.Time{},
-				DateStr:    "",
-				TotalValue: 105,
-				BondValues: map[uuid.UUID]float64{},
+				Date:                 time.Time{},
+				DateStr:              "",
+				ReturnSinceInception: 0.05,
 			},
 			{
-				Date:       time.Time{},
-				DateStr:    "",
-				TotalValue: 130,
-				BondValues: map[uuid.UUID]float64{},
+				Date:                 time.Time{},
+				DateStr:              "",
+				ReturnSinceInception: 0.3,
 			},
 			{
-				Date:       time.Time{},
-				DateStr:    "",
-				TotalValue: 110,
-				BondValues: map[uuid.UUID]float64{},
+				Date:                 time.Time{},
+				DateStr:              "",
+				ReturnSinceInception: 0.1,
 			},
 		}
 		metrics, err := computeMetrics(nil, nil, portfolioValues)
 		require.NoError(t, err)
 
-		require.InDelta(t, -0.15384615, metrics.MaximumDrawdown, 1e-4)
+		require.InDelta(t, -0.2, metrics.MaximumDrawdown, 1e-4)
 	})
 }
