@@ -1,6 +1,7 @@
 import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
 import { enumerateDates } from './util';
+import { endpoint } from './App';
 
 export interface BenchmarkData {
   symbol: string;
@@ -22,14 +23,14 @@ export default function BenchmarkManager({
   useEffect(() => {
     const fetchData = async (symbol: string): Promise<BenchmarkData | null> => {
       try {
-        minDate = minDate === "" ? "2018-01-01" : minDate;
-        maxDate = maxDate === "" ? "2023-01-01" : maxDate;
+        let start = minDate === "" ? "2018-01-01" : minDate;
+        let end = maxDate === "" ? "2023-01-01" : maxDate;
         let granularity = "monthly";
         if (enumerateDates(minDate, maxDate).length < 60) {
           granularity = "daily"
         }
         const response = await fetch(
-          'http://localhost:3009/benchmark',
+          endpoint+'/benchmark',
           {
             method: "POST",
             headers: {
@@ -37,8 +38,8 @@ export default function BenchmarkManager({
             },
             body: JSON.stringify({
               symbol,
-              start: minDate,
-              end: maxDate,
+              start,
+              end,
               granularity
             }),
           }
