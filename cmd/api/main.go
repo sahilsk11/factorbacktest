@@ -38,7 +38,8 @@ func main() {
 			},
 			UniverseRepository: repository.UniverseRepositoryHandler{},
 		},
-		Db: dbConn,
+		UserStrategyRepository: repository.UniverseRepositoryHandler{},
+		Db:                     dbConn,
 	}
 	err = apiHandler.StartApi(3009)
 	if err != nil {

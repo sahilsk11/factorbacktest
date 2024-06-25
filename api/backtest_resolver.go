@@ -3,14 +3,21 @@ package api
 import (
 	"alpha/internal"
 	"alpha/internal/app"
+	"alpha/internal/db/models/postgres/public/model"
 	"alpha/internal/domain"
+	"alpha/internal/repository"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 type backtestRequest struct {
@@ -89,6 +96,17 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	assetSelectionMode, err := internal.NewAssetSelectionMode(requestBody.AssetSelectionMode)
 	if err != nil {
 		returnErrorJson(fmt.Errorf("could not parse asset selection mode: %w", err), c)
+		return
+	}
+
+	// ensure the user input is valid
+	err = saveUserStrategy(
+		h.Db,
+		h.UserStrategyRepository,
+		requestBody,
+	)
+	if err != nil {
+		returnErrorJson(err, c)
 		return
 	}
 
@@ -198,4 +216,59 @@ func joinAssetMetrics(
 	}
 
 	return out
+}
+
+func saveUserStrategy(
+	db qrm.Executable,
+	usr repository.UserStrategyRepository,
+	requestBody backtestRequest,
+) error {
+	type strategyInput struct {
+		FactorName                string             `json:"factorName"`
+		FactorExpression          string             `json:"factorExpression"`
+		BacktestStart             string             `json:"backtestStart"`
+		BacktestEnd               string             `json:"backtestEnd"`
+		RebalanceInterval         string             `json:"rebalanceInterval"`
+		AssetSelectionMode        string             `json:"assetSelectionMode"`
+		StartCash                 float64            `json:"startCash"`
+		AnchorPortfolioQuantities map[string]float64 `json:"anchorPortfolio"`
+		NumSymbols                *int               `json:"numSymbols,omitempty"`
+	}
+
+	regex := regexp.MustCompile(`\s+`)
+	cleanedExpression := regex.ReplaceAllString(requestBody.FactorOptions.Expression, "")
+
+	// keep only selected fields bc we don't care about including
+	// factor name and cash in hash
+	si := strategyInput{
+		FactorExpression:          cleanedExpression,
+		BacktestStart:             requestBody.BacktestStart,
+		BacktestEnd:               requestBody.BacktestEnd,
+		RebalanceInterval:         requestBody.SamplingIntervalUnit,
+		AssetSelectionMode:        requestBody.AssetSelectionMode,
+		AnchorPortfolioQuantities: requestBody.AnchorPortfolioQuantities,
+		NumSymbols:                requestBody.NumSymbols,
+	}
+	siBytes, err := json.Marshal(si)
+	if err != nil {
+		return err
+	}
+	siHasher := sha256.New()
+	siHasher.Write(siBytes)
+
+	expressionHasher := sha256.New()
+	expressionHasher.Write([]byte(cleanedExpression))
+
+	si.FactorName = requestBody.FactorOptions.Name
+	si.StartCash = requestBody.StartCash
+
+	err = usr.Add(db, model.UserStrategy{
+		StrategyInput:        string(siBytes),
+		StrategyInputHash:    hex.EncodeToString(siHasher.Sum(nil)),
+		FactorExpressionHash: hex.EncodeToString(expressionHasher.Sum(nil)),
+	})
+
+	fmt.Println("strat written")
+
+	return err
 }
