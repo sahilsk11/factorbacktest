@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"factorbacktest/api"
 	"factorbacktest/internal"
+	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
@@ -200,11 +201,11 @@ func Test_backtestFlow(t *testing.T) {
 		t,
 		"",
 		cmp.Diff(
-			api.BacktestSnapshot{
+			app.BacktestSnapshot{
 				ValuePercentChange: 33.6989043,
 				Value:              13369.89043,
 				Date:               "2020-12-29",
-				AssetMetrics: map[string]api.ScnapshotAssetMetrics{
+				AssetMetrics: map[string]app.ScnapshotAssetMetrics{
 					"AAPL": {
 						AssetWeight:                  0.1253766234821042,
 						FactorScore:                  2.2169708025194654,
