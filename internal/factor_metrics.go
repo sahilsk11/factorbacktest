@@ -21,13 +21,9 @@ func (e FactorMetricsMissingDataError) Error() string {
 	return e.Err.Error()
 }
 
-type PriceRetriever interface {
-	Get(symbol string, date time.Time) (float64, error)
-}
-
 type FactorMetricCalculations interface {
-	Price(pr PriceRetriever, symbol string, date time.Time) (float64, error)
-	PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error)
+	Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error)
+	PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error)
 	AnnualizedStdevOfDailyReturns(ctx context.Context, symbol string, start, end time.Time) (float64, error)
 	MarketCap(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
@@ -55,7 +51,7 @@ type DryRunFactorMetricsHandler struct {
 	Data map[string]service.LoadPriceCacheInput
 }
 
-func (h *DryRunFactorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
+func (h *DryRunFactorMetricsHandler) Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error) {
 	key := fmt.Sprintf("price/%s/%s", date.Format(time.DateOnly), symbol)
 	h.Data[key] = service.LoadPriceCacheInput{
 		Date:   date,
@@ -64,7 +60,7 @@ func (h *DryRunFactorMetricsHandler) Price(pr PriceRetriever, symbol string, dat
 	return 0, nil
 }
 
-func (h *DryRunFactorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
+func (h *DryRunFactorMetricsHandler) PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
 	key := fmt.Sprintf("price/%s/%s", start.Format(time.DateOnly), symbol)
 	h.Data[key] = service.LoadPriceCacheInput{
 		Date:   start,
@@ -103,11 +99,11 @@ func (h *DryRunFactorMetricsHandler) PbRatio(tx qrm.Queryable, symbol string, da
 	return 1, nil
 }
 
-func (h factorMetricsHandler) Price(pr PriceRetriever, symbol string, date time.Time) (float64, error) {
+func (h factorMetricsHandler) Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error) {
 	return pr.Get(symbol, date)
 }
 
-func (h factorMetricsHandler) PricePercentChange(pr PriceRetriever, symbol string, start, end time.Time) (float64, error) {
+func (h factorMetricsHandler) PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
 	startPrice, err := pr.Get(symbol, start)
 	if err != nil {
 		return 0, err

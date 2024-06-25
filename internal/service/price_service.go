@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
-	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"fmt"
 	"sync"
@@ -26,7 +25,6 @@ trading day, and use that price
 
 type PriceService interface {
 	LoadCache(inputs []LoadPriceCacheInput) (*PriceCache, error)
-	UpdatePricesIfNeeded(ctx context.Context, symbols []string) error
 }
 
 type LoadPriceCacheInput struct {
@@ -129,53 +127,6 @@ func (h priceServiceHandler) LoadCache(inputs []LoadPriceCacheInput) (*PriceCach
 		adjPriceRepository: h.AdjPriceRepository,
 		ReadMutex:          &sync.RWMutex{},
 	}, nil
-}
-
-// UpdatePricesIfNeeded determines if the prices we currently have stored are up to date
-// and fetches + updates prices if they are not
-// Currently not used, since we rely on UpdateUniversePrices
-// TODO - handle stock splits
-func (h priceServiceHandler) UpdatePricesIfNeeded(ctx context.Context, symbols []string) error {
-	// need a better way of handling this too
-	symbols = append(symbols, "SPY")
-
-	latestPrices, err := h.AdjPriceRepository.LatestPrices(symbols)
-	if err != nil {
-		return fmt.Errorf("failed to get latest prices: %w", err)
-	}
-
-	// somehow we need to figure out the real last trading day
-	actualLastTradingDay := time.Now().UTC().AddDate(0, 0, -7)
-	assetsToUpdate := []domain.AssetPrice{}
-	for _, price := range latestPrices {
-		if price.Date.Before(actualLastTradingDay) {
-			assetsToUpdate = append(assetsToUpdate, price)
-		}
-	}
-
-	// update prices
-	fmt.Printf("updating %d assets\n", len(assetsToUpdate))
-
-	tx, err := h.Db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	// i think this should use UpdateUniversePrices
-	// instead
-	for _, s := range assetsToUpdate {
-		err = IngestPrices(tx, s.Symbol, h.AdjPriceRepository, &s.Date)
-		if err != nil {
-			return fmt.Errorf("failed to ingest historical prices for %s: %w", s.Symbol, err)
-		}
-	}
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("failed to commit update prices changes: %w", err)
-	}
-
-	return nil
 }
 
 func IngestPrices(
