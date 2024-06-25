@@ -50,6 +50,7 @@ type AdjustedPriceRepository interface {
 	GetMany(*sql.Tx, []string, time.Time) (map[string]float64, error)
 	List(db qrm.Queryable, symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(tx *sql.Tx, start, end time.Time) ([]time.Time, error)
+	LatestPrices(tx *sql.Tx, symbols []string) ([]domain.AssetPrice, error)
 }
 
 func NewAdjustedPriceRepository() AdjustedPriceRepository {
@@ -91,7 +92,7 @@ func (h adjustedPriceRepositoryHandler) Get(tx *sql.Tx, symbol string, date time
 		return *pc, nil
 	}
 
-	fmt.Println("cache miss", symbol, date)
+	// fmt.Println("cache miss", symbol, date)
 
 	minDate := DateT(date.AddDate(0, 0, -3))
 	maxDate := DateT(date)
@@ -240,5 +241,27 @@ func (h *adjustedPriceRepositoryHandler) ListTradingDays(tx *sql.Tx, start, end 
 	}
 
 	h.days = out
+	return out, nil
+}
+
+func (h adjustedPriceRepositoryHandler) LatestPrices(tx *sql.Tx, symbols []string) ([]domain.AssetPrice, error) {
+	out := []domain.AssetPrice{}
+	for _, s := range symbols {
+		query := AdjustedPrice.SELECT(AdjustedPrice.AllColumns).
+			WHERE(AdjustedPrice.Symbol.EQ(String(s))).
+			ORDER_BY(AdjustedPrice.Date.DESC()).
+			LIMIT(1)
+		model := model.AdjustedPrice{}
+		err := query.Query(tx, &model)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get latest price for %s: %w", s, err)
+		}
+		out = append(out, domain.AssetPrice{
+			Symbol: model.Symbol,
+			Date:   model.Date,
+			Price:  model.Price,
+		})
+	}
+
 	return out, nil
 }
