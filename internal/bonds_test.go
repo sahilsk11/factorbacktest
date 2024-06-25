@@ -254,3 +254,37 @@ func TestBondPortfolio_RefreshBondHoldings(t *testing.T) {
 		)
 	})
 }
+
+func Test_computeMetrics(t *testing.T) {
+	t.Run("compute average coupon rate", func(t *testing.T) {
+		bond := NewBond(100, time.Now(), 1, 0.05)
+		bond1 := NewBond(100, time.Now(), 1, 0.1)
+		bond2 := NewBond(200, time.Now(), 1, 0.1)
+		bonds := []Bond{
+			bond,
+			bond1,
+			bond2,
+		}
+		payments := map[uuid.UUID][]Payment{
+			bond.ID: {
+				{
+					Amount: 5 / 12,
+				},
+			},
+			bond1.ID: {
+				{
+					Amount: 10 / 12,
+				},
+			},
+			bond2.ID: {
+				{
+					Amount: 20 / 12,
+				},
+			},
+		}
+		metrics, err := computeMetrics(bonds, payments, nil)
+		require.NoError(t, err)
+
+		require.Equal(t, 0.0875, metrics.AverageCoupon)
+	})
+}

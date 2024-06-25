@@ -5,10 +5,12 @@ import (
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/montanaflynn/stats"
 )
 
 type Bond struct {
@@ -185,11 +187,11 @@ func (bp *BondPortfolio) Refresh(t time.Time, backtestEnd time.Time, interestRat
 }
 
 type CouponPaymentOnDate struct {
-	BondPayments      map[uuid.UUID]float64 `json:"bondPayments"`
-	DateReceived      time.Time             `json:"date"`
-	AverageCouponRate float64               `json:"averageCoupon"`
-	DateStr           string                `json:"dateString"`
-	TotalAmount       float64               `json:"totalAmount"`
+	BondPayments map[uuid.UUID]float64 `json:"bondPayments"`
+	DateReceived time.Time             `json:"date"`
+	// AverageCouponRate float64               `json:"averageCoupon"`
+	DateStr     string  `json:"dateString"`
+	TotalAmount float64 `json:"totalAmount"`
 }
 
 type BondPortfolioValue struct {
@@ -206,10 +208,17 @@ type InterestRatesOnDate struct {
 	RateByDuration map[int]float64 `json:"rates"`
 }
 
+type Metrics struct {
+	Stdev           float64 `json:"stdev"`
+	AverageCoupon   float64 `json:"averageCoupon"`
+	MaximumDrawdown float64 `json:"maxDrawdown"`
+}
+
 type BacktestBondPortfolioResult struct {
 	CouponPayments  []CouponPaymentOnDate `json:"couponPayments"`
 	PortfolioValues []BondPortfolioValue  `json:"portfolioValues"`
 	InterestRates   []InterestRatesOnDate `json:"interestRates"`
+	Metrics         Metrics               `json:"metrics"`
 }
 
 func (b BondService) BacktestBondPortfolio(
@@ -242,8 +251,6 @@ func (b BondService) BacktestBondPortfolio(
 	}
 	interestRatesOnDate := []InterestRatesOnDate{}
 
-	current = current.AddDate(0, 0, granularityDays)
-
 	dates := []time.Time{}
 	for !current.After(end) {
 		dates = append(dates, current)
@@ -263,6 +270,7 @@ func (b BondService) BacktestBondPortfolio(
 			return nil, fmt.Errorf("missing %s from interest rates", dateStr)
 		}
 
+		// populate historic interest rates
 		rateByDuration := map[int]float64{}
 		for _, duration := range durations {
 			rateByDuration[duration] = interestRates.GetRate(duration)
@@ -285,7 +293,12 @@ func (b BondService) BacktestBondPortfolio(
 		})
 	}
 
-	couponPayments, err := groupCouponPaymentsByDate(bp.Bonds, bp.CouponPayments)
+	couponPayments, err := groupCouponPaymentsByDate(bp.CouponPayments)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics, err := computeMetrics(bp.Bonds, bp.CouponPayments, portfolioValues)
 	if err != nil {
 		return nil, err
 	}
@@ -294,10 +307,11 @@ func (b BondService) BacktestBondPortfolio(
 		CouponPayments:  couponPayments,
 		PortfolioValues: portfolioValues,
 		InterestRates:   interestRatesOnDate,
+		Metrics:         *metrics,
 	}, nil
 }
 
-func groupCouponPaymentsByDate(bonds []Bond, couponPayments map[uuid.UUID][]Payment) ([]CouponPaymentOnDate, error) {
+func groupCouponPaymentsByDate(couponPayments map[uuid.UUID][]Payment) ([]CouponPaymentOnDate, error) {
 	paymentsOnDate := map[string]map[uuid.UUID]float64{}
 	for bondID, payments := range couponPayments {
 		for _, payment := range payments {
@@ -318,17 +332,12 @@ func groupCouponPaymentsByDate(bonds []Bond, couponPayments map[uuid.UUID][]Paym
 		for _, payment := range bondPayments {
 			totalAmount += payment
 		}
-		totalBondParValue := 0.0
-		for _, bond := range bonds {
-			totalBondParValue += bond.ParValue
-		}
 
 		out = append(out, CouponPaymentOnDate{
-			BondPayments:      bondPayments,
-			DateReceived:      date,
-			DateStr:           dateStr,
-			TotalAmount:       totalAmount,
-			AverageCouponRate: totalAmount / totalBondParValue,
+			BondPayments: bondPayments,
+			DateReceived: date,
+			DateStr:      dateStr,
+			TotalAmount:  totalAmount,
 		})
 	}
 
@@ -337,4 +346,58 @@ func groupCouponPaymentsByDate(bonds []Bond, couponPayments map[uuid.UUID][]Paym
 	})
 
 	return out, nil
+}
+
+func computeMetrics(bonds []Bond, couponPayments map[uuid.UUID][]Payment, portfolioValues []BondPortfolioValue) (*Metrics, error) {
+	// average coupon
+	totalCouponPayment := 0.0
+	totalBondParValues := 0.0
+	for bondID, payments := range couponPayments {
+		for _, bond := range bonds {
+			if bond.ID == bondID {
+				for _, p := range payments {
+					totalCouponPayment += p.Amount * 12 // re-annualize values
+					totalBondParValues += bond.ParValue
+				}
+			}
+		}
+	}
+
+	// standard deviation
+	prevValue := portfolioValues[0].TotalValue
+	returns := []float64{}
+	for i := 1; i < len(portfolioValues); i++ {
+		todayValue := portfolioValues[i].TotalValue
+		returns = append(returns, (todayValue-prevValue)/prevValue)
+		prevValue = todayValue
+	}
+	stdev, err := stats.StandardDeviationSample(returns)
+	if err != nil {
+		return nil, err
+	}
+	magicNumber := math.Sqrt(252)
+	stdev *= magicNumber
+	top := portfolioValues[0].TotalValue
+	maxDrawdown := 0.0
+	for i := 1; i < len(portfolioValues); i++ {
+		todayValue := portfolioValues[i].TotalValue
+		if todayValue > top {
+			top = todayValue
+		}
+		drawdown := (todayValue - top) / top
+		if drawdown < maxDrawdown {
+			maxDrawdown = drawdown
+		}
+	}
+
+	averageCoupon := 0.0
+	if totalBondParValues > 0 {
+		averageCoupon = totalCouponPayment / totalBondParValues
+	}
+
+	return &Metrics{
+		AverageCoupon:   averageCoupon,
+		Stdev:           stdev,
+		MaximumDrawdown: maxDrawdown,
+	}, nil
 }
