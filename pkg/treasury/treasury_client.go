@@ -1,11 +1,11 @@
-package interestrate
+package treasury_client
 
 import (
 	"encoding/json"
+	"factorbacktest/internal/domain"
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -27,56 +27,7 @@ func interestRateMonthsFromApi(in string) (int, error) {
 	return months, nil
 }
 
-type InterestRateMap struct {
-	Rates map[int]float64
-}
-
-func (im InterestRateMap) GetRate(monthsOut int) float64 {
-	v, ok := im.Rates[monthsOut]
-	if ok {
-		return v
-	}
-
-	keys := []int{}
-	for k := range im.Rates {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
-
-	// figure out closest values and interpolate
-	if monthsOut < keys[0] {
-		return im.Rates[keys[0]]
-	}
-	if monthsOut > keys[len(keys)-1] {
-		return im.Rates[keys[len(keys)-1]]
-	}
-
-	for i := 0; i < len(keys)-1; i++ {
-		key1 := keys[i]
-		key2 := keys[i+1]
-		if monthsOut > key1 && monthsOut < key2 {
-			return (im.Rates[key1] + im.Rates[key2]) / 2
-		}
-	}
-	panic("unable to compute rate")
-}
-
-/*
-
-{
-	oneMonth: {
-		hoursFromToday: N,
-		rate: K,
-	}
-}
-
-
-
-*/
-
-func GetYieldCurve(date time.Time) (*InterestRateMap, error) {
+func GetInterestRatesOnDay(date time.Time) (*domain.InterestRateMap, error) {
 	client := http.DefaultClient
 
 	keys := []string{
@@ -143,7 +94,7 @@ func GetYieldCurve(date time.Time) (*InterestRateMap, error) {
 		}
 	}
 
-	return &InterestRateMap{
+	return &domain.InterestRateMap{
 		Rates: out,
 	}, nil
 }
