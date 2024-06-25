@@ -132,8 +132,8 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	}
 	close(inputCh)
 
-	span, endSpan := profile.StartNewSpan("evaluate factor expressions")
-	newProfile, endNewProfile := span.NewSubProfile()
+	_, endSpan = profile.StartNewSpan("evaluate factor expressions")
+	// newProfile, endNewProfile := span.NewSubProfile()
 	// i want a list of spans - one for each element in this
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
@@ -186,10 +186,10 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	for res := range resultCh {
 		results = append(results, res)
 		totalMs += float64(res.elapsedMs)
-		newProfile.AddSpan(res.span)
+		// newProfile.AddSpan(res.span)
 	}
 	fmt.Printf("avg score processing: %f\n", totalMs/float64(len(results)))
-	endNewProfile()
+	// endNewProfile()
 	endSpan()
 
 	_, endSpan = profile.StartNewSpan("adding factor scores to db")
