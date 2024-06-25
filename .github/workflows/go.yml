@@ -59,16 +59,31 @@ jobs:
       run: python3 tools/migrations.py up postgres_test
 
     - name: Start App
-      run: export ALPHA_ENV=test && go run cmd/api/main.go &
+      run: |
+        export ALPHA_ENV=test
+        go run cmd/api/main.go > out.log 2>&1 &
+        sleep 1
+        cat out.log
 
     - name: Wait for app to be ready
       run: |
         echo "Waiting for app to be ready..."
+        counter=0
+        max_retries=5
         while ! curl -sSf http://localhost:3009/; do
           echo "Waiting for app..."
           sleep 5
+          counter=$((counter+1))
+          if [ $counter -ge $max_retries ]; then
+            echo "App did not become ready after $max_retries attempts."
+            cat out.log
+            exit 1
+          fi
         done
         echo "App is ready!"
+    
 
     - name: Test
-      run: go test ./...
+      run: |
+        go test ./...
+        cat out.log

@@ -54,9 +54,8 @@ def get_max_migration_num():
   files = os.listdir()
   files = sorted(files)
   last_file = files[-1]
-  x = last_file.split("_")
-  padded_num = x[0].replace("0", "")
-  return int(padded_num)
+  migration_number_str = last_file.split("_")[0]
+  return int(migration_number_str)
 
 def get_migration_sql(num, migration_type):
   filename = get_migration_filename(num, migration_type)

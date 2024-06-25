@@ -40,7 +40,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	// TODO - possible db leak, since I don't have the defer here
 
 	priceRepository := repository.NewAdjustedPriceRepository(dbConn)
-	universeRepository := repository.NewUniverseRepository(dbConn)
+	tickerRepository := repository.NewTickerRepository(dbConn)
 
 	priceService := service.NewPriceService(dbConn, priceRepository)
 
@@ -54,9 +54,9 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 				priceRepository,
 				repository.AssetFundamentalsRepositoryHandler{},
 			),
-			UniverseRepository: universeRepository,
-			Db:                 dbConn,
-			PriceService:       priceService,
+			TickerRepository: tickerRepository,
+			Db:               dbConn,
+			PriceService:     priceService,
 		},
 		UserStrategyRepository:       repository.UserStrategyRepositoryHandler{},
 		ContactRepository:            repository.ContactRepositoryHandler{},
@@ -64,7 +64,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		GptRepository:                gptRepository,
 		ApiRequestRepository:         repository.ApiRequestRepositoryHandler{},
 		LatencencyTrackingRepository: repository.NewLatencyTrackingRepository(dbConn),
-		UniverseRepository:           universeRepository,
+		TickerRepository:             tickerRepository,
 		PriceService:                 priceService,
 		PriceRepository:              priceRepository,
 	}
