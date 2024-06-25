@@ -1,0 +1,171 @@
+import { useState } from 'react';
+
+
+export default function Form({ results, updateResults, selectedBenchmarks }: any) {
+  const [factorOptions, setFactorOptions] = useState({
+    expression: `pricePercentChange(addDate(currentDate, 0, 0, -7),currentDate) `,
+    intensity: 0.75,
+    name: "test"
+  });
+  const [backtestStart, setBacktestStart] = useState("2020-01-02");
+  const [backtestEnd, setBacktestEnd] = useState("2022-01-01");
+  const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
+  const [startPortfolio, setStartPortfolio] = useState(`{
+      "AAPL": 10,
+    "MSFT": 15,
+    "GOOGL": 8
+    }`);
+  const [cash, setCash] = useState(0);
+  const [assetSelectionMode, setAssetSelectionMode] = useState("NUM_SYMBOLS");
+  const [numSymbols, setNumSymbols] = useState(10);
+  const [names, setNames] = useState<string[]>([...selectedBenchmarks]);
+  const [sendEnabled, setSendEnabled] = useState(true);
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    const data = {
+      factorOptions,
+      backtestStart,
+      backtestEnd,
+      samplingIntervalUnit,
+      cash,
+      anchorPortfolio: JSON.parse(startPortfolio),
+      assetSelectionMode,
+      numSymbols,
+    };
+
+    try {
+      const response = await fetch("http://localhost:3009/backtest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        const result = await response.json()
+        const newResults = [...results, result];
+        setNames([...names, factorOptions.name])
+        updateResults(newResults)
+      } else {
+        console.error("Error submitting data:", response.status);
+      }
+    } catch (error) {
+      alert(error)
+      console.error("Error:", error);
+    }
+  };
+
+  let found = false;
+  names.forEach(n => {
+    if (n === factorOptions.name) {
+      found = true;
+    }
+  })
+  if (found && sendEnabled) {
+    setSendEnabled(false)
+  } else if (!found && !sendEnabled) {
+    setSendEnabled(true)
+  }
+
+
+  return (
+    <div>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Factor Expression:</label>
+          <br />
+          <textarea
+            style={{ height: "100px" }}
+            value={factorOptions.expression}
+            onChange={(e) =>
+              setFactorOptions({ ...factorOptions, expression: e.target.value })
+            }
+          />
+        </div>
+        {found ? <p>this name is already used</p> : null}
+        <div>
+          <label>Factor Name:</label>
+          <input
+            type="text"
+            value={factorOptions.name}
+            onChange={(e) =>
+              setFactorOptions({ ...factorOptions, name: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label>Backtest Start:</label>
+          <input
+            type="date"
+            value={backtestStart}
+            onChange={(e) => setBacktestStart(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Backtest End:</label>
+          <input
+            type="date"
+            value={backtestEnd}
+            onChange={(e) => setBacktestEnd(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Sampling Interval Unit:</label>
+          <input
+            type="text"
+            value={samplingIntervalUnit}
+            onChange={(e) => setSamplingIntervalUnit(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label>Asset Selection Mode:</label>
+          <input
+            type="text"
+            value={assetSelectionMode}
+            onChange={(e) => setAssetSelectionMode(e.target.value)}
+          />
+        </div>
+        {assetSelectionMode === "NUM_SYMBOLS" ? <div>
+          <label>Num Symbols:</label>
+          <input
+            type="number"
+            value={numSymbols}
+            onChange={(e) => setNumSymbols(parseInt(e.target.value))}
+          />
+        </div> : null}
+
+        {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
+          <label>Start Portfolio:</label>
+          <br />
+          <textarea
+            value={startPortfolio}
+            onChange={(e) => setStartPortfolio(e.target.value)}
+            style={{ height: "100px" }}
+          />
+        </div> : null}
+        {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
+          <label>Intensity:</label>
+          <input
+            type="number"
+            value={factorOptions.intensity}
+            onChange={(e) =>
+              setFactorOptions({ ...factorOptions, intensity: parseFloat(e.target.value) })
+            }
+          />
+        </div> : null}
+        {assetSelectionMode === "ANCHOR_PORTFOLIO" ? <div>
+          <label>Cash:</label>
+          <input
+            type="number"
+            value={cash}
+            onChange={(e) => setCash(parseFloat(e.target.value))}
+          />
+        </div> : null}
+        <button disabled={!sendEnabled} type="submit">Submit</button>
+      </form>
+    </div>
+  );
+}
