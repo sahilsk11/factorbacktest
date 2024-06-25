@@ -6,6 +6,7 @@ import InspectFactorData from './FactorSnapshot';
 import BenchmarkManager from './BenchmarkSelector';
 import { BacktestSnapshot } from "./models";
 import { minMaxDates } from './util';
+import {v4 as uuidv4} from 'uuid';
 
 
 export interface FactorData {
@@ -23,10 +24,17 @@ export interface BenchmarkData {
 }
 
 const App = () => {
+  const [userID, setUserID] = useState("");
   const [factorData, updateFactorData] = useState<FactorData[]>([]);
   const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
   const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    setUserID(urlParams.get('userID') || urlParams.get('id') || uuidv4())
+  }, []);
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
@@ -53,6 +61,7 @@ const App = () => {
         <div className="column" style={{ "flexGrow": 2, marginRight: "20px" }}>
           <FactorForm
             // set this to the benchmark names that are already in used
+            userID={userID}
             takenNames={takenNames}
             appendFactorData={(newFactorData: FactorData) => {
               updateFactorData([...factorData, newFactorData])

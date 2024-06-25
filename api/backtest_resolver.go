@@ -258,9 +258,11 @@ func saveUserStrategy(
 	}
 	siHasher := sha256.New()
 	siHasher.Write(siBytes)
+	siHash := hex.EncodeToString(siHasher.Sum(nil))
 
 	expressionHasher := sha256.New()
 	expressionHasher.Write([]byte(cleanedExpression))
+	expressionHash := hex.EncodeToString(expressionHasher.Sum(nil))
 
 	// rewrite the saved JSON, including the ignored fields
 	si.FactorName = requestBody.FactorOptions.Name
@@ -272,8 +274,8 @@ func saveUserStrategy(
 
 	in := model.UserStrategy{
 		StrategyInput:        string(siBytes),
-		StrategyInputHash:    hex.EncodeToString(siHasher.Sum(nil)),
-		FactorExpressionHash: hex.EncodeToString(expressionHasher.Sum(nil)),
+		StrategyInputHash:    siHash,
+		FactorExpressionHash: expressionHash,
 	}
 
 	if requestBody.UserID != nil {
