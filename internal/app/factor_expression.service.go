@@ -87,35 +87,36 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 
 	// if we have any of the inputs stored already, load them and remove
 	// from the inputs list
-	_, endSpan := profile.StartNewSpan("get precomputed scores")
-	precomputedScores, err := h.getPrecomputedScores(&inputs)
-	if err != nil {
-		return nil, err
-	}
-	numFound := 0
-	numErrors := 0
-	for date, valuesOnDate := range precomputedScores {
-		scoresOnDate := map[string]*float64{}
-		errList := []error{}
-		for symbol, score := range valuesOnDate {
-			if score.Error != nil {
-				errList = append(errList, errors.New(*score.Error))
-			} else {
-				scoresOnDate[symbol] = score.Score
+	if false {
+		_, endSpan := profile.StartNewSpan("get precomputed scores")
+		precomputedScores, err := h.getPrecomputedScores(&inputs)
+		if err != nil {
+			return nil, err
+		}
+		numFound := 0
+		numErrors := 0
+		for date, valuesOnDate := range precomputedScores {
+			scoresOnDate := map[string]*float64{}
+			errList := []error{}
+			for symbol, score := range valuesOnDate {
+				if score.Error != nil {
+					errList = append(errList, errors.New(*score.Error))
+				} else {
+					scoresOnDate[symbol] = score.Score
+				}
 			}
+			out[date] = &ScoresResultsOnDay{
+				SymbolScores: scoresOnDate,
+				Errors:       []error{},
+			}
+			numFound += len(valuesOnDate)
+			numErrors += len(errList)
 		}
-		out[date] = &ScoresResultsOnDay{
-			SymbolScores: scoresOnDate,
-			Errors:       []error{},
-		}
-		numFound += len(valuesOnDate)
-		numErrors += len(errList)
+		endSpan()
+
+		fmt.Printf("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
 	}
-	endSpan()
-
-	fmt.Printf("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
-
-	_, endSpan = profile.StartNewSpan("load price cache")
+	_, endSpan := profile.StartNewSpan("load price cache")
 	cache, err := h.loadPriceCache(ctx, inputs)
 	if err != nil {
 		return nil, err

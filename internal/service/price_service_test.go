@@ -1,5 +1,12 @@
 package service
 
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
 // import (
 // 	"database/sql"
 // 	"factorbacktest/internal/domain"
@@ -105,3 +112,81 @@ package service
 // 		require.Equal(t, float64(1), price)
 // 	})
 // }
+
+func Test_fillPriceCacheGaps(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		cache := map[string]map[string]float64{
+			"AAPL": {
+				"2020-01-02": 100,
+			},
+		}
+
+		inputs := []LoadPriceCacheInput{
+			{
+				Date:   time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC),
+				Symbol: "AAPL",
+			},
+		}
+		fillPriceCacheGaps(inputs, cache)
+
+		require.Equal(t, map[string]map[string]float64{
+			"AAPL": {
+				"2020-01-02": 100,
+				"2020-01-03": 100,
+			},
+		}, cache)
+	})
+
+	t.Run("value does not exist", func(t *testing.T) {
+		cache := map[string]map[string]float64{
+			"AAPL": {
+				"2020-01-02": 100,
+			},
+		}
+
+		inputs := []LoadPriceCacheInput{
+			{
+				Date:   time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+				Symbol: "AAPL",
+			},
+		}
+		fillPriceCacheGaps(inputs, cache)
+
+		require.Equal(t, map[string]map[string]float64{
+			"AAPL": {
+				"2020-01-02": 100,
+			},
+		}, cache)
+	})
+}
+
+func Test_constructMinMaxMap(t *testing.T) {
+	t.Run("only price inputs", func(t *testing.T) {
+		t1 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		t2 := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+		inputs := []LoadPriceCacheInput{
+			{
+				Date:   t1,
+				Symbol: "AAPL",
+			},
+			{
+				Date:   t2,
+				Symbol: "AAPL",
+			},
+		}
+		stdevInputs := []LoadStdevCacheInput{}
+
+		min, max, mp := constructMinMaxMap(inputs, stdevInputs)
+
+		require.NotNil(t, min)
+		require.NotNil(t, max)
+		require.Equal(t, t1, *min)
+		require.Equal(t, t2, *max)
+		require.Equal(t, map[string]*minMax{
+			"AAPL": {
+				min: &t1,
+				max: &t2,
+			},
+		}, mp)
+	})
+}
