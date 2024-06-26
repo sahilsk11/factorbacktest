@@ -82,6 +82,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	if len(inputs) == 0 {
 		return nil, fmt.Errorf("cannot calculate factor scores with 0 inputs")
 	}
+	fmt.Printf("computing %d scores\n", len(inputs))
 
 	out := map[time.Time]*ScoresResultsOnDay{}
 

@@ -15,6 +15,20 @@ export function enumerateDates(startDateStr: string, endDateStr: string) {
   return dates;
 }
 
+export function daysBetweenDates(date1: string, date2: string): number {
+  // Convert both dates to Date objects
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+
+  // Calculate the time difference in milliseconds
+  const timeDiff = Math.abs(d2.getTime() - d1.getTime());
+
+  // Convert time difference from milliseconds to days
+  const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+  return daysDiff;
+}
+
 export function formatDate(date: Date) {
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');

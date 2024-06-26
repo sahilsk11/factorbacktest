@@ -5,7 +5,7 @@ import "./app.css";
 import { BacktestRequest, BacktestResponse, FactorOptions } from './models';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
-import { enumerateDates } from './util';
+import { daysBetweenDates } from './util';
 
 function todayAsString() {
   const today = new Date();
@@ -168,7 +168,15 @@ export default function FactorForm({
   const maxDate = new Date().toISOString().split('T')[0];
   let numComputations = 0;
   if (backtestStart <= backtestEnd && backtestEnd <= maxDate) {
-    numComputations = enumerateDates(backtestStart, backtestEnd).length * 80 * 4 / 7 / rebalanceDuration;
+    const numAssets = {
+      "SPY_TOP_100": 100,
+      "SPY_TOP_300": 300,
+      "PRIME_FINTECH_INDEX": 50,
+      "ALL": 450
+    }[assetUniverse];
+    if (numAssets !== undefined) {
+      numComputations = numAssets * daysBetweenDates(backtestStart, backtestEnd) / rebalanceDuration / 4;
+    }
   }
 
   return (
