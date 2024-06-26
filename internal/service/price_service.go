@@ -71,7 +71,6 @@ type PriceCache struct {
 	stdevs             *stdevCache
 	tradingDays        []time.Time
 	adjPriceRepository repository.AdjustedPriceRepository
-	ReadMutex          *sync.RWMutex
 
 	priceMisses []cacheMiss
 	stdevMisses []cacheMiss
@@ -80,33 +79,16 @@ type PriceCache struct {
 // Get retrieves the price for an asset on the given day
 // it uses the preloaded price cache, or retrieves from db
 func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
-	pr.ReadMutex.RLock()
 	if _, ok := pr.prices[symbol]; ok {
 		if price, ok := pr.prices[symbol][date.Format(time.DateOnly)]; ok {
-			pr.ReadMutex.RUnlock()
 			return price, nil
 		}
 	}
-	pr.ReadMutex.RUnlock()
 
-	fmt.Printf("price cache miss %s %s\n", symbol, date.Format(time.DateOnly))
+	// todo - restore the l2 get here, once we have a way of marking
+	// something as known missing
 
-	// once we're confident in this, we make this return an error
-	// if not found
-
-	// missed l1 cache - check db
-
-	price, err := pr.adjPriceRepository.Get(symbol, date)
-	if err != nil {
-		return 0, err
-	}
-	pr.ReadMutex.Lock()
-	pr.prices[symbol][date.Format(time.DateOnly)] = price
-	pr.ReadMutex.Unlock()
-
-	// TODO - handle missing here too
-
-	return price, nil
+	return 0, fmt.Errorf("price cache miss %s %s\n", symbol, date.Format(time.DateOnly))
 }
 
 func percentChange(end, start float64) float64 {
@@ -229,7 +211,6 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 			},
 			tradingDays:        []time.Time{},
 			adjPriceRepository: h.AdjPriceRepository,
-			ReadMutex:          &sync.RWMutex{},
 		}, nil
 	}
 
@@ -274,7 +255,6 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		stdevs:             stdevCache,
 		tradingDays:        tradingDays,
 		adjPriceRepository: h.AdjPriceRepository,
-		ReadMutex:          &sync.RWMutex{},
 	}, nil
 }
 
