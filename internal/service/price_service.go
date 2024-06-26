@@ -157,7 +157,17 @@ func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[
 		if !ok {
 			continue
 		}
-		if returns[0].date.After(in.Start) || returns[len(returns)-1].date.Before(in.End) {
+		bufferedStart := in.Start.AddDate(0, 0, 7)
+		bufferedEnd := in.End.AddDate(0, 0, -7)
+		if returns[0].date.After(bufferedStart) || returns[len(returns)-1].date.Before(bufferedEnd) {
+			// fmt.Printf(
+			// 	"skipping stdev for %s between %s and %s %s - %s\n",
+			// 	in.Symbol,
+			// 	in.Start.Format(time.DateOnly),
+			// 	in.End.Format(time.DateOnly),
+			// 	returns[0].date.Format(time.DateOnly),
+			// 	returns[len(returns)-1].date.Format(time.DateOnly),
+			// )
 			continue
 		}
 		data := []float64{}
