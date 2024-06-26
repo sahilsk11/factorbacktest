@@ -96,7 +96,7 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
-func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput, tradingDays []time.Time) (*stdevCache, error) {
+func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput, tradingDays []time.Time) (*stdevCache, error) {
 	// profile, endProfile := domain.GetProfile(ctx)
 	// defer endProfile()
 	f := time.Now()
@@ -122,59 +122,121 @@ func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []
 		c[symbol][start][end] = v
 	}
 
-	total := int64(0)
-	total1 := int64(0)
-	total2 := int64(0)
-	for _, in := range stdevInputs {
-		intradayChanges := []float64{}
-		relevantTradingDays := []time.Time{}
-		skip := false
-		x := time.Now()
-		for _, t := range tradingDays {
-			if (t.Equal(in.Start) || t.After(in.Start)) && (t.Equal(in.End) || t.Before(in.End)) {
-				relevantTradingDays = append(relevantTradingDays, t)
-			}
-		}
-		total += time.Since(x).Milliseconds()
+	type returnOnDay struct {
+		date time.Time
+		ret  float64
+	}
 
-		y := time.Now()
-		for i := 1; i < len(relevantTradingDays); i++ {
-			startPrice, ok := get(in.Symbol, relevantTradingDays[i-1])
-			if !ok {
-				skip = true
-				continue
-				// return nil, fmt.Errorf("missing price in cache for %s on %v", in.Symbol, relevantTradingDays[i-1])
-			}
-			endPrice, ok := get(in.Symbol, relevantTradingDays[i])
-			if !ok {
-				skip = true
-				continue
-				// return nil, fmt.Errorf("missing price in cache for %s on %v", in.Symbol, relevantTradingDays[i])
-			}
-			intradayChanges = append(intradayChanges, percentChange(
-				endPrice,
-				startPrice,
-			))
+	returnsBySymbol := map[string][]returnOnDay{}
+
+	for symbol, minMax := range minMaxMap {
+		if _, ok := returnsBySymbol[symbol]; !ok {
+			returnsBySymbol[symbol] = []returnOnDay{}
 		}
-		total1 += time.Since(y).Milliseconds()
-		if skip {
+		for i := 1; i < len(tradingDays); i++ {
+			t := tradingDays[i]
+			if (t.Equal(*minMax.min) || t.After(*minMax.min)) && (t.Equal(*minMax.max) || t.Before(*minMax.max)) {
+				newPrice, ok := get(symbol, t)
+				if !ok {
+					continue
+				}
+				oldPrice, ok := get(symbol, tradingDays[i-1])
+				if !ok {
+					continue
+				}
+				returnsBySymbol[symbol] = append(returnsBySymbol[symbol], returnOnDay{
+					date: t,
+					ret:  percentChange(newPrice, oldPrice),
+				})
+			}
+		}
+	}
+
+	for _, in := range stdevInputs {
+		returns, ok := returnsBySymbol[in.Symbol]
+		if !ok {
 			continue
 		}
-
-		z := time.Now()
-		stdev, err := stats.StandardDeviationSample(intradayChanges)
-		if err != nil {
-			return nil, err
+		if returns[0].date.After(in.Start) || returns[len(returns)-1].date.Before(in.End) {
+			continue
 		}
-		total2 += time.Since(z).Milliseconds()
+		data := []float64{}
+		for _, ret := range returns {
+			t := ret.date
+			if (t.Equal(in.Start) || t.After(in.Start)) && (t.Equal(in.End) || t.Before(in.End)) {
+				data = append(data, ret.ret)
+			}
+		}
+		stdev, err := stats.StandardDeviationSample(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate stdev for %s between %s and %s: %w", in.Symbol, in.Start.Format(time.DateOnly), in.End.Format(time.DateOnly), err)
+		}
 		magicNumber := math.Sqrt(252)
-
 		set(in.Symbol, in.Start, in.End, stdev*magicNumber)
 	}
 
-	fmt.Printf("processed %d stdev inputs, relevant trading days took %d\n", len(stdevInputs), total)
-	fmt.Printf("processed %d stdev inputs, loop took %d\n", len(stdevInputs), total1)
-	fmt.Printf("processed %d stdev inputs, stdevs took %d\n", len(stdevInputs), total2)
+	// total := int64(0)
+	// total1 := int64(0)
+	// total2 := int64(0)
+
+	// total3 := int64(0)
+
+	// for _, in := range stdevInputs {
+	// 	intradayChanges := []float64{}
+	// 	relevantTradingDays := []time.Time{}
+	// 	skip := false
+
+	// 	x := time.Now()
+	// 	for _, t := range tradingDays {
+	// 		if (t.Equal(in.Start) || t.After(in.Start)) && (t.Equal(in.End) || t.Before(in.End)) {
+	// 			relevantTradingDays = append(relevantTradingDays, t)
+	// 		}
+	// 	}
+	// 	total += time.Since(x).Nanoseconds()
+
+	// 	y := time.Now()
+	// 	for i := 1; i < len(relevantTradingDays); i++ {
+	// 		startPrice, ok := get(in.Symbol, relevantTradingDays[i-1])
+	// 		if !ok {
+	// 			skip = true
+	// 			break
+	// 			// return nil, fmt.Errorf("missing price in cache for %s on %v", in.Symbol, relevantTradingDays[i-1])
+	// 		}
+	// 		endPrice, ok := get(in.Symbol, relevantTradingDays[i])
+	// 		if !ok {
+	// 			skip = true
+	// 			break
+	// 			// return nil, fmt.Errorf("missing price in cache for %s on %v", in.Symbol, relevantTradingDays[i])
+	// 		}
+	// 		intradayChanges = append(intradayChanges, percentChange(
+	// 			endPrice,
+	// 			startPrice,
+	// 		))
+	// 	}
+	// 	total1 += time.Since(y).Nanoseconds()
+	// 	if skip {
+	// 		total3 += time.Since(fjr).Nanoseconds()
+
+	// 		continue
+	// 	}
+
+	// 	z := time.Now()
+	// 	stdev, err := stats.StandardDeviationSample(intradayChanges)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	total2 += time.Since(z).Nanoseconds()
+	// 	magicNumber := math.Sqrt(252)
+
+	// 	set(in.Symbol, in.Start, in.End, stdev*magicNumber)
+	// 	total3 += time.Since(fjr).Nanoseconds()
+	// }
+	// fmt.Printf("loop took %d ms\n", time.Since(fjreo).Milliseconds())
+
+	// fmt.Printf("processed %d stdev inputs, relevant trading days took %d\n", len(stdevInputs), total/1e6)
+	// fmt.Printf("processed %d stdev inputs, loop took %d\n", len(stdevInputs), total1/1e6)
+	// fmt.Printf("processed %d stdev inputs, stdevs took %d\n", len(stdevInputs), total2/1e6)
+	// fmt.Printf("processed %d stdev inputs, fre took %d\n", len(stdevInputs), total3/1e6)
 
 	fmt.Printf("stdev thing took %d ms\n", time.Since(f).Milliseconds())
 
@@ -277,7 +339,7 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 	endNewSpan()
 
 	_, endNewSpan = newProfile.StartNewSpan("populating stdev cache")
-	stdevCache, err := stdevsFromPriceMap(cache, stdevInputs, tradingDays)
+	stdevCache, err := stdevsFromPriceMap(minMaxMap, cache, stdevInputs, tradingDays)
 	if err != nil {
 		return nil, err
 	}

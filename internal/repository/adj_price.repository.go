@@ -279,8 +279,15 @@ type GetManyInput struct {
 func (h adjustedPriceRepositoryHandler) GetMany(inputs []GetManyInput) ([]domain.AssetPrice, error) {
 	ctx := context.Background()
 
-	// TODO - is it really better to do this instead
+	// TODO:
+	// is it really better to do this instead
 	// of passing individual dates?
+	//
+	// also this function looks like it's async,
+	// but it's not! turns out making async/batch
+	// made the latency 5x. clearly this function
+	// needs additional instrumentation
+
 	expressions := []postgres.BoolExpression{}
 
 	type workResult struct {
@@ -302,11 +309,11 @@ func (h adjustedPriceRepositoryHandler) GetMany(inputs []GetManyInput) ([]domain
 		return nil, fmt.Errorf("no prices to include")
 	}
 
-	batchSize := 10
+	batchSize := 10000
 	inputCh := make(chan []postgres.BoolExpression, len(inputs))
 	resultCh := make(chan workResult, len(inputs))
 
-	numGoroutines := 10
+	numGoroutines := 1
 	var wg sync.WaitGroup
 	for start := 0; start < len(expressions); start += batchSize {
 		end := start + batchSize
