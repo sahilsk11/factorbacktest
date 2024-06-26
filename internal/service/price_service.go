@@ -99,6 +99,7 @@ func percentChange(end, start float64) float64 {
 func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput, tradingDays []time.Time) (*stdevCache, error) {
 	// profile, endProfile := domain.GetProfile(ctx)
 	// defer endProfile()
+	f := time.Now()
 
 	c := map[string]map[time.Time]map[time.Time]float64{}
 
@@ -111,16 +112,32 @@ func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []
 		return 0, false
 	}
 
-	fmt.Printf("%d stdev inputs\n", len(stdevInputs))
+	set := func(symbol string, start, end time.Time, v float64) {
+		if _, ok := c[symbol]; !ok {
+			c[symbol] = map[time.Time]map[time.Time]float64{}
+		}
+		if _, ok := c[symbol][start]; !ok {
+			c[symbol][start] = map[time.Time]float64{}
+		}
+		c[symbol][start][end] = v
+	}
+
+	total := int64(0)
+	total1 := int64(0)
+	total2 := int64(0)
 	for _, in := range stdevInputs {
 		intradayChanges := []float64{}
 		relevantTradingDays := []time.Time{}
 		skip := false
+		x := time.Now()
 		for _, t := range tradingDays {
 			if (t.Equal(in.Start) || t.After(in.Start)) && (t.Equal(in.End) || t.Before(in.End)) {
 				relevantTradingDays = append(relevantTradingDays, t)
 			}
 		}
+		total += time.Since(x).Milliseconds()
+
+		y := time.Now()
 		for i := 1; i < len(relevantTradingDays); i++ {
 			startPrice, ok := get(in.Symbol, relevantTradingDays[i-1])
 			if !ok {
@@ -139,28 +156,27 @@ func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []
 				startPrice,
 			))
 		}
+		total1 += time.Since(y).Milliseconds()
 		if skip {
 			continue
 		}
 
+		z := time.Now()
 		stdev, err := stats.StandardDeviationSample(intradayChanges)
 		if err != nil {
 			return nil, err
 		}
+		total2 += time.Since(z).Milliseconds()
 		magicNumber := math.Sqrt(252)
-
-		set := func(symbol string, start, end time.Time, v float64) {
-			if _, ok := c[symbol]; !ok {
-				c[symbol] = map[time.Time]map[time.Time]float64{}
-			}
-			if _, ok := c[symbol][start]; !ok {
-				c[symbol][start] = map[time.Time]float64{}
-			}
-			c[symbol][start][end] = v
-		}
 
 		set(in.Symbol, in.Start, in.End, stdev*magicNumber)
 	}
+
+	fmt.Printf("processed %d stdev inputs, relevant trading days took %d\n", len(stdevInputs), total)
+	fmt.Printf("processed %d stdev inputs, loop took %d\n", len(stdevInputs), total1)
+	fmt.Printf("processed %d stdev inputs, stdevs took %d\n", len(stdevInputs), total2)
+
+	fmt.Printf("stdev thing took %d ms\n", time.Since(f).Milliseconds())
 
 	return &stdevCache{
 		cache: c,

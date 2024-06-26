@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
@@ -276,13 +277,16 @@ type GetManyInput struct {
 }
 
 func (h adjustedPriceRepositoryHandler) GetMany(inputs []GetManyInput) ([]domain.AssetPrice, error) {
-	// finds the min and max dates required
-	// priceChange(t-100, t) would require
-	// price from way before, so min trading date
-	// isn't enough
+	ctx := context.Background()
+
 	// TODO - is it really better to do this instead
 	// of passing individual dates?
 	expressions := []postgres.BoolExpression{}
+
+	type workResult struct {
+		models []model.AdjustedPrice
+		err    error
+	}
 
 	for _, in := range inputs {
 		expressions = append(
@@ -294,29 +298,72 @@ func (h adjustedPriceRepositoryHandler) GetMany(inputs []GetManyInput) ([]domain
 			),
 		)
 	}
-
 	if len(expressions) == 0 {
 		return nil, fmt.Errorf("no prices to include")
 	}
 
-	query := table.AdjustedPrice.SELECT(table.AdjustedPrice.AllColumns).
-		WHERE(postgres.OR(
-			expressions...,
-		))
+	batchSize := 10
+	inputCh := make(chan []postgres.BoolExpression, len(inputs))
+	resultCh := make(chan workResult, len(inputs))
 
-	results := []model.AdjustedPrice{}
-	err := query.Query(h.Db, &results)
-	if err != nil {
-		return nil, err
+	numGoroutines := 10
+	var wg sync.WaitGroup
+	for start := 0; start < len(expressions); start += batchSize {
+		end := start + batchSize
+		if end > len(expressions) {
+			end = len(expressions)
+		}
+		expr := expressions[start:end]
+
+		wg.Add(1)
+		inputCh <- expr
+	}
+	close(inputCh)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case input, ok := <-inputCh:
+					if !ok {
+						return
+					}
+
+					query := table.AdjustedPrice.SELECT(table.AdjustedPrice.AllColumns).
+						WHERE(postgres.OR(input...))
+
+					results := []model.AdjustedPrice{}
+					err := query.Query(h.Db, &results)
+					resultCh <- workResult{
+						models: results,
+						err:    err,
+					}
+
+					wg.Done()
+				}
+			}
+		}()
 	}
 
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
 	out := []domain.AssetPrice{}
-	for _, price := range results {
-		out = append(out, domain.AssetPrice{
-			Symbol: price.Symbol,
-			Price:  price.Price,
-			Date:   price.Date,
-		})
+	for result := range resultCh {
+		if result.err != nil {
+			return nil, result.err
+		}
+		for _, m := range result.models {
+			out = append(out, domain.AssetPrice{
+				Symbol: m.Symbol,
+				Price:  m.Price,
+				Date:   m.Date,
+			})
+		}
 	}
 
 	return out, nil
