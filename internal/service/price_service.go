@@ -97,6 +97,9 @@ func percentChange(end, start float64) float64 {
 }
 
 func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput, tradingDays []time.Time) (*stdevCache, error) {
+	// profile, endProfile := domain.GetProfile(ctx)
+	// defer endProfile()
+
 	c := map[string]map[time.Time]map[time.Time]float64{}
 
 	get := func(symbol string, t time.Time) (float64, bool) {
@@ -108,12 +111,13 @@ func stdevsFromPriceMap(priceCache map[string]map[string]float64, stdevInputs []
 		return 0, false
 	}
 
+	fmt.Printf("%d stdev inputs\n", len(stdevInputs))
 	for _, in := range stdevInputs {
 		intradayChanges := []float64{}
 		relevantTradingDays := []time.Time{}
 		skip := false
 		for _, t := range tradingDays {
-			if t.Equal(in.Start) || t.After(in.Start) || t.Equal(in.End) || t.After(in.End) {
+			if (t.Equal(in.Start) || t.After(in.Start)) && (t.Equal(in.End) || t.Before(in.End)) {
 				relevantTradingDays = append(relevantTradingDays, t)
 			}
 		}
@@ -239,7 +243,9 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 	// in the cache with the most recent value
 
 	// this is fine - just load everything we definitely know into the cache
-	_, endSpan = profile.StartNewSpan("filling price cache")
+	span, endSpan := profile.StartNewSpan("filling price cache")
+	newProfile, endNewProfile := span.NewSubProfile()
+	_, endNewSpan := newProfile.StartNewSpan("loading values from query result")
 	cache := make(map[string]map[string]float64)
 	for _, p := range prices {
 		if _, ok := cache[p.Symbol]; !ok {
@@ -247,14 +253,20 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 		}
 		cache[p.Symbol][p.Date.Format(time.DateOnly)] = p.Price
 	}
+	endNewSpan()
 
 	// can we also fill anything that was asked for in the cache
+	_, endNewSpan = newProfile.StartNewSpan("filling price cache gaps")
 	fillPriceCacheGaps(inputs, cache)
+	endNewSpan()
 
+	_, endNewSpan = newProfile.StartNewSpan("populating stdev cache")
 	stdevCache, err := stdevsFromPriceMap(cache, stdevInputs, tradingDays)
 	if err != nil {
 		return nil, err
 	}
+	endNewSpan()
+	endNewProfile()
 	endSpan()
 
 	return &PriceCache{
