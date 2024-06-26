@@ -197,7 +197,10 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			return nil, fmt.Errorf("failed to calculate portfolio value on %v: %w", t, err)
 		}
 
-		valuesFromDay := factorScoresByDay[t]
+		valuesFromDay, ok := factorScoresByDay[t]
+		if !ok {
+			return nil, fmt.Errorf("failed to retrieve factor score data from %s", t.Format(time.DateOnly))
+		}
 		// scoringErrors := valuesFromDay.errors
 		// backtestErrors = append(backtestErrors, scoringErrors...)
 

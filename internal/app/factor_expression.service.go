@@ -116,8 +116,8 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 
 		fmt.Printf("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
 	}
-	_, endSpan := profile.StartNewSpan("load price cache")
-	cache, err := h.loadPriceCache(ctx, inputs)
+	span, endSpan := profile.StartNewSpan("load price cache")
+	cache, err := h.loadPriceCache(domain.NewCtxWithSubProfile(ctx, span), inputs)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in [
 		}
 	}
 
-	priceCache, err := h.PriceService.LoadPriceCache(dataHandler.Prices, dataHandler.Stdevs)
+	priceCache, err := h.PriceService.LoadPriceCache(ctx, dataHandler.Prices, dataHandler.Stdevs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate price cache: %w", err)
 	}

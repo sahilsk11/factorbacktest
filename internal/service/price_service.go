@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"fmt"
 	"math"
@@ -26,7 +27,7 @@ trading day, and use that price
 */
 
 type PriceService interface {
-	LoadPriceCache(inputs []LoadPriceCacheInput, stdevs []LoadStdevCacheInput) (*PriceCache, error)
+	LoadPriceCache(ctx context.Context, inputs []LoadPriceCacheInput, stdevs []LoadStdevCacheInput) (*PriceCache, error)
 }
 
 type LoadPriceCacheInput struct {
@@ -185,7 +186,9 @@ type minMax struct {
 // LoadPriceCache uses dry-run results to populate prices and stdevs
 // it's expected to populate results for all days in the inputs, even
 // if they are non-trading days
-func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*PriceCache, error) {
+func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*PriceCache, error) {
+	profile, endProfile := domain.GetProfile(ctx)
+	defer endProfile()
 	absMin, absMax, minMaxMap := constructMinMaxMap(inputs, stdevInputs)
 
 	// uhh so the getInput technically tells us which date the equation will
@@ -214,12 +217,14 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		}, nil
 	}
 
+	_, endSpan := profile.StartNewSpan("get many query")
 	// TODO - we're gonna have lots of stdev values in this
 	// if we decide to optimize, we should remove them
 	prices, err := h.AdjPriceRepository.GetMany(getInputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
+	endSpan()
 
 	// super random, no idea what this represents
 	tradingDays, err := h.AdjPriceRepository.ListTradingDays(*absMin, *absMax)
@@ -234,6 +239,7 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 	// in the cache with the most recent value
 
 	// this is fine - just load everything we definitely know into the cache
+	_, endSpan = profile.StartNewSpan("filling price cache")
 	cache := make(map[string]map[string]float64)
 	for _, p := range prices {
 		if _, ok := cache[p.Symbol]; !ok {
@@ -249,6 +255,7 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 	if err != nil {
 		return nil, err
 	}
+	endSpan()
 
 	return &PriceCache{
 		prices:             cache,
