@@ -91,6 +91,9 @@ func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 
 	fmt.Printf("price cache miss %s %s\n", symbol, date.Format(time.DateOnly))
 
+	// once we're confident in this, we make this return an error
+	// if not found
+
 	// missed l1 cache - check db
 
 	price, err := pr.adjPriceRepository.Get(symbol, date)
