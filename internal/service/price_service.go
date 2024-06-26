@@ -78,18 +78,18 @@ type PriceCache struct {
 
 func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	// find the relevant trading day for the price
-	closestTradingDay := date
-	for i := 0; i < len(pr.tradingDays)-1; i++ {
-		if pr.tradingDays[i+1].After(date) {
-			closestTradingDay = pr.tradingDays[i]
-			break
-		}
-	}
-	// if the trading dates given do not include the given date, then just use original date
-	if pr.tradingDays == nil || pr.tradingDays[0].After(date) || pr.tradingDays[len(pr.tradingDays)-1].Before(date) {
-		closestTradingDay = date
-	}
-	date = closestTradingDay
+	// closestTradingDay := date
+	// for i := 0; i < len(pr.tradingDays)-1; i++ {
+	// 	if pr.tradingDays[i+1].After(date) {
+	// 		closestTradingDay = pr.tradingDays[i]
+	// 		break
+	// 	}
+	// }
+	// // if the trading dates given do not include the given date, then just use original date
+	// if pr.tradingDays == nil || pr.tradingDays[0].After(date) || pr.tradingDays[len(pr.tradingDays)-1].Before(date) {
+	// 	closestTradingDay = date
+	// }
+	// date = closestTradingDay
 
 	pr.ReadMutex.RLock()
 	if _, ok := pr.prices[symbol]; ok {
@@ -100,7 +100,7 @@ func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 	}
 	pr.ReadMutex.RUnlock()
 
-	// fmt.Printf("price cache miss %s %s\n", symbol, date.Format(time.DateOnly))
+	fmt.Printf("price cache miss %s %s\n", symbol, date.Format(time.DateOnly))
 
 	// missed l1 cache - check db
 
@@ -203,58 +203,26 @@ func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepo
 	}
 }
 
+type minMax struct {
+	min *time.Time
+	max *time.Time
+}
+
 // LoadPriceCache uses dry-run results to populate prices and stdevs
 func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*PriceCache, error) {
-	type minMax struct {
-		min *time.Time
-		max *time.Time
-	}
-	var (
-		absMin *time.Time
-		absMax *time.Time
-	)
-	minMaxMap := map[string]*minMax{}
-	for _, in := range inputs {
-		if _, ok := minMaxMap[in.Symbol]; !ok {
-			minMaxMap[in.Symbol] = &minMax{}
-		}
-		mp := minMaxMap[in.Symbol]
-		if mp.min == nil || in.Date.Before(*mp.min) {
-			mp.min = &in.Date
-		}
-		if mp.max == nil || in.Date.After(*mp.max) {
-			mp.max = &in.Date
-		}
-		if absMin == nil || in.Date.Before(*absMin) {
-			absMin = &in.Date
-		}
-		if absMax == nil || in.Date.Before(*absMax) {
-			absMax = &in.Date
-		}
-	}
-	for _, in := range stdevInputs {
-		if _, ok := minMaxMap[in.Symbol]; !ok {
-			minMaxMap[in.Symbol] = &minMax{}
-		}
-		mp := minMaxMap[in.Symbol]
-		if mp.min == nil || in.Start.Before(*mp.min) {
-			mp.min = &in.Start
-		}
-		if mp.max == nil || in.End.After(*mp.max) {
-			mp.max = &in.End
-		}
-		if absMin == nil || in.Start.Before(*absMin) {
-			absMin = &in.Start
-		}
-		if absMax == nil || in.End.Before(*absMax) {
-			absMax = &in.End
-		}
-	}
+	absMin, absMax, minMaxMap := constructMinMaxMap(inputs, stdevInputs)
+
+	// uhh so the getInput technically tells us which date the equation will
+	// want to fetch on, but if it's not on a trading day, we're kinda fucked?
+	// i think we should just do like 7 days before absMin so we have the price
+	// on the requested day...
+	// i.e. on day 1 of backtest, do (priceChange(n-1, n)) on a Monday and suddenly we
+	// need to fetch price from the like prev Friday
 	getInputs := []repository.GetManyInput{}
 	for symbol, minMaxValues := range minMaxMap {
 		getInputs = append(getInputs, repository.GetManyInput{
 			Symbol:  symbol,
-			MinDate: *minMaxValues.min,
+			MinDate: (*minMaxValues.min).AddDate(0, 0, -7),
 			MaxDate: *minMaxValues.max,
 		})
 	}
@@ -271,12 +239,6 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		}, nil
 	}
 
-	// super random, no idea what this represents
-	tradingDays, err := h.AdjPriceRepository.ListTradingDays(*absMin, *absMax)
-	if err != nil {
-		return nil, err
-	}
-
 	// TODO - we're gonna have lots of stdev values in this
 	// if we decide to optimize, we should remove them
 	prices, err := h.AdjPriceRepository.GetMany(getInputs)
@@ -284,6 +246,19 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
 
+	// super random, no idea what this represents
+	tradingDays, err := h.AdjPriceRepository.ListTradingDays(*absMin, *absMax)
+	if err != nil {
+		return nil, err
+	}
+
+	// when constructing the cache, let's load values into non-trading days?
+	// TODO - when doing n-anything ago, we need to be certain about using
+	// real days or trading days
+	// either way, i think we should populate non-trading day values
+	// in the cache with the most recent value
+
+	// this is fine - just load everything we definitely know into the cache
 	cache := make(map[string]map[string]float64)
 	for _, p := range prices {
 		if _, ok := cache[p.Symbol]; !ok {
@@ -291,6 +266,9 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		}
 		cache[p.Symbol][p.Date.Format(time.DateOnly)] = p.Price
 	}
+
+	// can we also fill anything that was asked for in the cache
+	fillPriceCacheGaps(inputs, cache)
 
 	stdevCache, err := stdevsFromPriceMap(cache, stdevInputs, tradingDays)
 	if err != nil {
@@ -304,6 +282,85 @@ func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevI
 		adjPriceRepository: h.AdjPriceRepository,
 		ReadMutex:          &sync.RWMutex{},
 	}, nil
+}
+
+func constructMinMaxMap(inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*time.Time, *time.Time, map[string]*minMax) {
+	var (
+		absMin *time.Time
+		absMax *time.Time
+	)
+
+	minMaxMap := map[string]*minMax{}
+	for _, in := range inputs {
+		date := in.Date
+
+		if _, ok := minMaxMap[in.Symbol]; !ok {
+			minMaxMap[in.Symbol] = &minMax{}
+		}
+
+		mp := minMaxMap[in.Symbol]
+		if mp.min == nil || in.Date.Before(*mp.min) {
+			mp.min = &date
+		}
+		if mp.max == nil || in.Date.After(*mp.max) {
+			mp.max = &date
+		}
+		if absMin == nil || in.Date.Before(*absMin) {
+			absMin = &date
+		}
+		if absMax == nil || in.Date.After(*absMax) {
+			absMax = &date
+		}
+	}
+	for _, in := range stdevInputs {
+		if _, ok := minMaxMap[in.Symbol]; !ok {
+			minMaxMap[in.Symbol] = &minMax{}
+		}
+		mp := minMaxMap[in.Symbol]
+		start := in.Start
+		end := in.End
+		if mp.min == nil || in.Start.Before(*mp.min) {
+			mp.min = &start
+		}
+		if mp.max == nil || in.End.After(*mp.max) {
+			mp.max = &end
+		}
+		if absMin == nil || in.Start.Before(*absMin) {
+			absMin = &start
+		}
+		if absMax == nil || in.End.After(*absMax) {
+			absMax = &end
+		}
+	}
+
+	return absMin, absMax, minMaxMap
+}
+
+func fillPriceCacheGaps(inputs []LoadPriceCacheInput, cache map[string]map[string]float64) {
+	for _, in := range inputs {
+		// if we have no data on the symbol, skip
+		// but this should be super rare and we should
+		// mark as missing
+		if symbolCache, ok := cache[in.Symbol]; ok {
+			mostRecentDate := in.Date
+
+			newPrice, found := symbolCache[in.Date.Format(time.DateOnly)]
+			numTries := 0
+
+			// instead of doing this linear scan, we could binary search
+			// for the most recent date
+			for !found && numTries < 7 {
+
+				mostRecentDate = mostRecentDate.AddDate(0, 0, -1)
+				newPrice, found = symbolCache[mostRecentDate.Format(time.DateOnly)]
+				numTries++
+			}
+
+			if found && numTries > 0 {
+				symbolCache[in.Date.Format(time.DateOnly)] = newPrice
+			}
+		}
+	}
 }
 
 func IngestPrices(

@@ -52,7 +52,7 @@ type AdjustedPriceRepository interface {
 	LatestPrices(symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
-	GetMany(set []GetManyInput) ([]domain.AssetPrice, error)
+	GetMany([]GetManyInput) ([]domain.AssetPrice, error)
 }
 
 func NewAdjustedPriceRepository(db *sql.DB) AdjustedPriceRepository {
