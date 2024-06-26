@@ -141,7 +141,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	} else if len(tickers) == 0 {
 		return nil, fmt.Errorf("no tickers found")
 	}
-
 	universeSymbols := []string{}
 	for _, u := range tickers {
 		universeSymbols = append(universeSymbols, u.Symbol)
