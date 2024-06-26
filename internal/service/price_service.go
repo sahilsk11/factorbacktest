@@ -65,6 +65,7 @@ type cacheMiss struct {
 	Symbol string
 	Date   time.Time
 }
+
 type PriceCache struct {
 	prices             map[string]map[string]float64
 	stdevs             *stdevCache
@@ -76,21 +77,9 @@ type PriceCache struct {
 	stdevMisses []cacheMiss
 }
 
+// Get retrieves the price for an asset on the given day
+// it uses the preloaded price cache, or retrieves from db
 func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
-	// find the relevant trading day for the price
-	// closestTradingDay := date
-	// for i := 0; i < len(pr.tradingDays)-1; i++ {
-	// 	if pr.tradingDays[i+1].After(date) {
-	// 		closestTradingDay = pr.tradingDays[i]
-	// 		break
-	// 	}
-	// }
-	// // if the trading dates given do not include the given date, then just use original date
-	// if pr.tradingDays == nil || pr.tradingDays[0].After(date) || pr.tradingDays[len(pr.tradingDays)-1].Before(date) {
-	// 	closestTradingDay = date
-	// }
-	// date = closestTradingDay
-
 	pr.ReadMutex.RLock()
 	if _, ok := pr.prices[symbol]; ok {
 		if price, ok := pr.prices[symbol][date.Format(time.DateOnly)]; ok {
@@ -209,6 +198,8 @@ type minMax struct {
 }
 
 // LoadPriceCache uses dry-run results to populate prices and stdevs
+// it's expected to populate results for all days in the inputs, even
+// if they are non-trading days
 func (h priceServiceHandler) LoadPriceCache(inputs []LoadPriceCacheInput, stdevInputs []LoadStdevCacheInput) (*PriceCache, error) {
 	absMin, absMax, minMaxMap := constructMinMaxMap(inputs, stdevInputs)
 
