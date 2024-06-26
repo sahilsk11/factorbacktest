@@ -193,34 +193,35 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	// endNewProfile()
 	endSpan()
 
-	if false {
-		_, endSpan = profile.StartNewSpan("adding factor scores to db")
-		addManyInput := []*model.FactorScore{}
-		for _, res := range results {
-			if _, ok := out[res.Date]; !ok {
-				out[res.Date] = &ScoresResultsOnDay{
-					SymbolScores: map[string]*float64{},
-					Errors:       []error{},
-				}
+	_, endSpan = profile.StartNewSpan("adding factor scores to db")
+	addManyInput := []*model.FactorScore{}
+	for _, res := range results {
+		if _, ok := out[res.Date]; !ok {
+			out[res.Date] = &ScoresResultsOnDay{
+				SymbolScores: map[string]*float64{},
+				Errors:       []error{},
 			}
-
-			m := &model.FactorScore{
-				TickerID:             res.Ticker.TickerID,
-				FactorExpressionHash: internal.HashFactorExpression(factorExpression),
-				Date:                 res.Date,
-			}
-
-			if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
-				out[res.Date].Errors = append(out[res.Date].Errors, res.Err)
-				errString := res.Err.Error()
-				m.Error = &errString
-			} else if res.Err == nil {
-				out[res.Date].SymbolScores[res.Ticker.Symbol] = &res.ExpressionResult.Value
-				m.Score = &res.ExpressionResult.Value
-			}
-
-			addManyInput = append(addManyInput, m)
 		}
+
+		m := &model.FactorScore{
+			TickerID:             res.Ticker.TickerID,
+			FactorExpressionHash: internal.HashFactorExpression(factorExpression),
+			Date:                 res.Date,
+		}
+
+		if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
+			out[res.Date].Errors = append(out[res.Date].Errors, res.Err)
+			errString := res.Err.Error()
+			m.Error = &errString
+		} else if res.Err == nil {
+			out[res.Date].SymbolScores[res.Ticker.Symbol] = &res.ExpressionResult.Value
+			m.Score = &res.ExpressionResult.Value
+		}
+
+		addManyInput = append(addManyInput, m)
+	}
+
+	if false {
 
 		fmt.Printf("adding %d scores to db\n", len(addManyInput))
 
