@@ -1,0 +1,1 @@
+drop view asset_universe_size;

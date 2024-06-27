@@ -19,6 +19,7 @@ type assetUniverseTable struct {
 	//Columns
 	AssetUniverseID   postgres.ColumnString
 	AssetUniverseName postgres.ColumnString
+	DisplayName       postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -51,8 +52,9 @@ func newAssetUniverseTableImpl(schemaName, tableName, alias string) assetUnivers
 	var (
 		AssetUniverseIDColumn   = postgres.StringColumn("asset_universe_id")
 		AssetUniverseNameColumn = postgres.StringColumn("asset_universe_name")
-		allColumns              = postgres.ColumnList{AssetUniverseIDColumn, AssetUniverseNameColumn}
-		mutableColumns          = postgres.ColumnList{AssetUniverseNameColumn}
+		DisplayNameColumn       = postgres.StringColumn("display_name")
+		allColumns              = postgres.ColumnList{AssetUniverseIDColumn, AssetUniverseNameColumn, DisplayNameColumn}
+		mutableColumns          = postgres.ColumnList{AssetUniverseNameColumn, DisplayNameColumn}
 	)
 
 	return assetUniverseTable{
@@ -61,6 +63,7 @@ func newAssetUniverseTableImpl(schemaName, tableName, alias string) assetUnivers
 		//Columns
 		AssetUniverseID:   AssetUniverseIDColumn,
 		AssetUniverseName: AssetUniverseNameColumn,
+		DisplayName:       DisplayNameColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

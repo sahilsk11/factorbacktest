@@ -69,6 +69,7 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 		}
 		ctx.JSON(200, result)
 	})
+	router.GET("/assetUniverses", m.getAssetUniverses)
 
 	router.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
 	router.POST("/updatePrices", m.updatePrices)

@@ -7,12 +7,8 @@
 
 package model
 
-import (
-	"github.com/google/uuid"
-)
-
-type AssetUniverse struct {
-	AssetUniverseID   uuid.UUID `sql:"primary_key"`
-	AssetUniverseName string
-	DisplayName       string
+type AssetUniverseSize struct {
+	DisplayName       *string
+	AssetUniverseName *string
+	NumAssets         *int64
 }

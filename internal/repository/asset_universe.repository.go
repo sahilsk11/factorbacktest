@@ -5,6 +5,7 @@ import (
 	"errors"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/db/models/postgres/public/view"
 	"fmt"
 
 	"github.com/go-jet/jet/v2/postgres"
@@ -12,6 +13,7 @@ import (
 )
 
 type AssetUniverseRepository interface {
+	GetAssetUniverses() ([]model.AssetUniverseSize, error)
 	GetAssets(string) ([]model.Ticker, error)
 	AddAssets(tx *sql.Tx, universe model.AssetUniverse, tickers []model.Ticker) error
 	GetOrCreate(tx *sql.Tx, name string) (*model.AssetUniverse, error)
@@ -25,6 +27,16 @@ func NewAssetUniverseRepository(db *sql.DB) AssetUniverseRepository {
 	return assetUniverseRepositoryHandler{
 		Db: db,
 	}
+}
+
+func (h assetUniverseRepositoryHandler) GetAssetUniverses() ([]model.AssetUniverseSize, error) {
+	query := view.AssetUniverseSize.SELECT(view.AssetUniverseSize.AllColumns)
+	out := []model.AssetUniverseSize{}
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (h assetUniverseRepositoryHandler) GetAssets(name string) ([]model.Ticker, error) {

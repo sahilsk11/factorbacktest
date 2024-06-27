@@ -3,6 +3,12 @@ export interface FactorOptions {
   name: string;
 }
 
+export interface GetAssetUniversesResponse {
+  displayName: string;
+  code: string;
+  numAssets: number;
+};
+
 export interface BacktestRequest {
   factorOptions: FactorOptions;
   backtestStart: string;

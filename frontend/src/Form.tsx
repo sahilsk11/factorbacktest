@@ -2,7 +2,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
-import { BacktestRequest, BacktestResponse, FactorOptions } from './models';
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions } from './models';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
@@ -44,14 +44,45 @@ export default function FactorForm({
   const [backtestStart, setBacktestStart] = useState(eightWeeksAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("weekly");
-  
+
   const [cash, setCash] = useState(10_000);
 
   const [numSymbols, setNumSymbols] = useState(10);
   const [names, setNames] = useState<string[]>([...takenNames]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [assetUniverse, setAssetUniverse] = useState('SPY_TOP_100');
+  const [assetUniverse, setAssetUniverse] = useState<string>("--");
+  const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
+
+  const getUniverses = async () => {
+    try {
+      const response = await fetch(endpoint + "/assetUniverses");
+      if (response.ok) {
+        const results: GetAssetUniversesResponse[] = await response.json()
+        if (Object.keys(results).length === 0) {
+          setErr("No universes results were retrieved");
+          return;
+        }
+        setAssetUniverses(results);
+      } else {
+        const j = await response.json()
+        setErr(j.error)
+        console.error("Error submitting data:", response.status);
+      }
+    } catch (error) {
+      setLoading(false)
+      setErr((error as Error).message)
+      console.error("Error:", error);
+    }
+  };
+
+  useEffect(() => {
+    getUniverses()
+  }, []);
+  
+  let assetUniverseSelectOptions = assetUniverses.map(u => {
+    return <option value={u.code}>{u.displayName}</option>
+  })
 
   let found = false;
   let nextNum = 1;
@@ -61,12 +92,12 @@ export default function FactorForm({
       const match = n.match(/\((\d+)\)/);
       if (match) {
         const number = parseInt(match[1], 10);
-        nextNum = Math.max(number+1, nextNum)
+        nextNum = Math.max(number + 1, nextNum)
       }
     }
   })
 
-  const updateName = (newName:string) => {
+  const updateName = (newName: string) => {
     setFactorName(newName + "_" + samplingIntervalUnit)
   }
 
@@ -168,13 +199,9 @@ export default function FactorForm({
   const maxDate = new Date().toISOString().split('T')[0];
   let numComputations = 0;
   if (backtestStart <= backtestEnd && backtestEnd <= maxDate) {
-    const numAssets = {
-      "SPY_TOP_100": 100,
-      "SPY_TOP_300": 300,
-      "PRIME_FINTECH_INDEX": 50,
-      "ALL": 450
-    }[assetUniverse];
-    if (numAssets !== undefined) {
+    const assetDetails = assetUniverses.find(e => e.code === assetUniverse)
+    if (assetDetails) {
+      const numAssets = assetDetails.numAssets;
       numComputations = numAssets * daysBetweenDates(backtestStart, backtestEnd) / rebalanceDuration / 4;
     }
   }
@@ -235,7 +262,7 @@ export default function FactorForm({
           </select>
         </div>
 
-        
+
         <div>
           <label>Number of Assets</label>
           <p className='label-subtext'>How many assets the target portfolio should hold at any time.</p>
@@ -278,13 +305,10 @@ export default function FactorForm({
           <label>Asset Universe</label>
           <p className='label-subtext'>The pool of assets that are eligible for the target portfolio.</p>
           <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
-            <option value="SPY_TOP_100">SPY Top 100 Holdings</option>
-            <option value="SPY_TOP_300">SPY Top 300 Holdings</option>
-            <option value="F-PRIME_FINTECH_INDEX">F-Prime Fintech Index</option>
-            <option value="ALL">All</option>
+            {assetUniverseSelectOptions}
           </select>
         </div>
-        
+
         {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className='label-subtext'>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
 
         {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className='backtest-btn' type="submit">Run Backtest</button>}
