@@ -79,7 +79,12 @@ export default function FactorForm({
   useEffect(() => {
     getUniverses()
   }, []);
-  
+  useEffect(() => {
+    if (assetUniverses.length > 0) {
+      setAssetUniverse(assetUniverses[0].code)
+    }
+  }, [assetUniverses]);
+
   let assetUniverseSelectOptions = assetUniverses.map(u => {
     return <option value={u.code}>{u.displayName}</option>
   })
