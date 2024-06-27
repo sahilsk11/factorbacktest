@@ -1,0 +1,1 @@
+drop view api_request_latency;
