@@ -38,7 +38,7 @@ export default function FactorForm({
   const [factorName, setFactorName] = useState("7_day_momentum_weekly");
   const [backtestStart, setBacktestStart] = useState(twoYearsAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
-  const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("weekly");
+  const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
 
   const [cash, setCash] = useState(10_000);
 
