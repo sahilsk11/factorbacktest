@@ -27,19 +27,40 @@ export interface BenchmarkData {
 
 const App = () => {
   const [userID, setUserID] = useState("");
-  const [factorData, updateFactorData] = useState<FactorData[]>([]);
-  const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
-  const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
-  const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
   useEffect(() => {
-    if (getCookie("userID") === null) {
-      setShowHelpModal(true);
-    }
+    // if (getCookie("userID") === null) {
+    //   setShowHelpModal(true);
+    // }
     setUserID(getOrCreateUserID());
   }, []);
+
+
+
+  return <>
+    <div className='bond-ad' onClick={() => { window.location.href = "/bonds" }}>
+      <p className='bond-ad-text'><b>Bond Ladder Backtesting is Live →</b></p>
+    </div>
+    <Nav showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <div className="centered-container">
+      <FactorBacktestMain userID={userID} />
+    </div>
+
+    <StatsFooter userID={userID} />
+    <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
+    <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
+  </>
+}
+
+function FactorBacktestMain({ userID }: {
+  userID: string
+}) {
+  const [factorData, updateFactorData] = useState<FactorData[]>([]);
+  const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
+  const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
+  const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
@@ -59,49 +80,70 @@ const App = () => {
     }
   }, [factorData])
 
-  return <>
-    <div className='bond-ad' onClick={() => {window.location.href="/bonds"}}>
-    <p className='bond-ad-text'><b>Bond Ladder Backtesting is Live →</b></p>
-    </div>
-    <Nav showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
-    <div className="centered-container">
-      <div className="container">
-        <div className="column form-wrapper">
-          <FactorForm
-            // set this to the benchmark names that are already in used
-            userID={userID}
-            takenNames={takenNames}
-            appendFactorData={(newFactorData: FactorData) => {
-              updateFactorData([...factorData, newFactorData])
-            }}
-          />
-          <BenchmarkManager
-            userID={userID}
-            minDate={minFactorDate}
-            maxDate={maxFactorDate}
-            updateBenchmarkData={updateBenchmarkData}
-          />
-        </div>
-        <div id="backtest-chart" className="column backtest-chart-container">
-          <BacktestChart
-            benchmarkData={benchmarkData}
-            factorData={factorData}
-            updateInspectFactorDataIndex={updateInspectFactorDataIndex}
-            updateInspectFactorDataDate={updateInspectFactorDataDate}
-          />
-          <InspectFactorData
-            fdIndex={inspectFactorDataIndex}
-            fdDate={inspectFactorDataDate}
-            factorData={factorData}
-          />
-        </div>
+  const classicView = (
+    <>
+      <div className="column form-wrapper">
+        <FactorForm
+          // set this to the benchmark names that are already in used
+          userID={userID}
+          takenNames={takenNames}
+          appendFactorData={(newFactorData: FactorData) => {
+            updateFactorData([...factorData, newFactorData])
+          }}
+        />
+        <BenchmarkManager
+          userID={userID}
+          minDate={minFactorDate}
+          maxDate={maxFactorDate}
+          updateBenchmarkData={updateBenchmarkData}
+        />
       </div>
-    </div>
+      <div id="backtest-chart" className="column backtest-chart-container">
+        <BacktestChart
+          benchmarkData={benchmarkData}
+          factorData={factorData}
+          updateInspectFactorDataIndex={updateInspectFactorDataIndex}
+          updateInspectFactorDataDate={updateInspectFactorDataDate}
+        />
+        <InspectFactorData
+          fdIndex={inspectFactorDataIndex}
+          fdDate={inspectFactorDataDate}
+          factorData={factorData}
+        />
+      </div>
+    </>
+  )
 
-    <StatsFooter userID={userID} />
-    <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
-    <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
-  </>
+  return (
+    <div className="container">
+      {false ? <div className='tile verbose-builder'>
+
+        <div style={{ textAlign: "center" }}>
+          <h2>Factor Backtest</h2>
+          <p>Create and backtest factor-based investment strategies.</p>
+        </div>
+
+
+        <div className='container'>
+          <div className='column'>
+
+            <p>What: Select asset universe</p>
+            <p>When: How often to re-evaluate and rebalance holdings</p>
+            <p>When: How often to re-evaluate and rebalance holdings</p>
+            <p>When: range</p>
+
+          </div>
+          <div className='column'>
+            <p>how: what strategy do you want to use?</p>
+            <p>Advanced: start cash and num assets</p>
+
+          </div>
+        </div>
+
+        <button>backtest</button>
+      </div> : classicView }
+    </div >
+  );
 }
 
 export default App;
