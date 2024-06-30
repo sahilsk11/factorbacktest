@@ -16,16 +16,11 @@ function todayAsString() {
   return `${year}-${month}-${day}`;
 }
 
-function eightWeeksAgoAsString() {
+function twoYearsAgoAsString() {
   const today = new Date();
-  const eightWeeksAgo = new Date(today);
-
-  // Subtract 8 weeks (56 days) from today's date
-  eightWeeksAgo.setDate(today.getDate() - 56);
-
-  const year = eightWeeksAgo.getFullYear();
-  const month = String(eightWeeksAgo.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
-  const day = String(eightWeeksAgo.getDate()).padStart(2, '0');
+  const year = today.getFullYear() - 2;
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
+  const day = String(today.getDate()).padStart(2, '0');
 
   return `${year}-${month}-${day}`;
 }
@@ -41,7 +36,7 @@ export default function FactorForm({
 }) {
   const [factorExpression, setFactorExpression] = useState("");
   const [factorName, setFactorName] = useState("7_day_momentum_weekly");
-  const [backtestStart, setBacktestStart] = useState(eightWeeksAgoAsString());
+  const [backtestStart, setBacktestStart] = useState(twoYearsAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("weekly");
 
