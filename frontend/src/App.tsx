@@ -116,7 +116,7 @@ function FactorBacktestMain({ userID }: {
 
   return (
     <div className="container">
-      {false ? <div className='tile verbose-builder'>
+      {true ? <div className='tile verbose-builder'>
 
         <div style={{ textAlign: "center" }}>
           <h2>Factor Backtest</h2>
