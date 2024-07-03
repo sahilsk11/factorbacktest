@@ -1,6 +1,8 @@
 package api
 
 import (
+	"sort"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,6 +29,10 @@ func (h ApiHandler) getAssetUniverses(c *gin.Context) {
 			NumAssets:   int(*universe.NumAssets),
 		})
 	}
+	sortUniverses(out)
+
+	// handle sorting of ALL differently - add after to ensure it's
+	// always at the end
 	out = append(out, getAssetUniversesResponse{
 		DisplayName: "All",
 		Code:        "ALL",
@@ -34,4 +40,29 @@ func (h ApiHandler) getAssetUniverses(c *gin.Context) {
 	})
 
 	c.JSON(200, out)
+}
+
+func sortUniverses(universes []getAssetUniversesResponse) {
+	idealCodeOrder := []string{
+		"SPY_TOP_80",
+		"SPY_TOP_100",
+		"SPY_TOP_300",
+		"F-PRIME_FINTECH_INDEX",
+	}
+	sort.Slice(universes, func(i, j int) bool {
+		// if not found, stick it at the end
+		ithIndex := len(universes) + 1
+		jthIndex := len(universes) + 1
+		for _, u := range universes {
+			for i, s := range idealCodeOrder {
+				if s == u.Code {
+					ithIndex = i
+				}
+				if s == u.Code {
+					jthIndex = i
+				}
+			}
+		}
+		return ithIndex < jthIndex
+	})
 }
