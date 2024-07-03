@@ -90,6 +90,7 @@ function FactorBacktestMain({ userID }: {
           appendFactorData={(newFactorData: FactorData) => {
             updateFactorData([...factorData, newFactorData])
           }}
+          fullscreenView={false}
         />
         <BenchmarkManager
           userID={userID}
@@ -116,7 +117,7 @@ function FactorBacktestMain({ userID }: {
 
   return (
     <div className="container">
-      {true ? <div className='tile verbose-builder'>
+      {false ? <div className='tile verbose-builder'>
 
         <div style={{ textAlign: "center" }}>
           <h2>Factor Backtest</h2>

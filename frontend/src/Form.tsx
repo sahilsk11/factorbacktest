@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
@@ -28,11 +28,13 @@ function twoYearsAgoAsString() {
 export default function FactorForm({
   userID,
   takenNames,
-  appendFactorData
+  appendFactorData,
+  fullscreenView,
 }: {
   userID: string,
   takenNames: string[];
   appendFactorData: (newFactorData: FactorData) => void;
+  fullscreenView: boolean,
 }) {
   const [factorExpression, setFactorExpression] = useState("");
   const [factorName, setFactorName] = useState("7_day_momentum_weekly");
@@ -210,6 +212,94 @@ export default function FactorForm({
     (numSymbolsInput as HTMLInputElement)?.setCustomValidity("")
   }
 
+  const props:FormViewProps = {
+    handleSubmit,
+    factorName,
+    setFactorName,
+    userID,
+    factorExpression,
+    setFactorExpression,
+    updateName,
+    maxDate,
+    backtestStart,
+    setBacktestStart,
+    backtestEnd,
+    setBacktestEnd,
+    samplingIntervalUnit,
+    setSamplingIntervalUnit,
+    numSymbols,
+    setNumSymbols,
+    cash,
+    setCash,
+    assetUniverse,
+    setAssetUniverse,
+    assetUniverseSelectOptions,
+    numComputations,
+    loading,
+    err
+  }
+
+  return <ClassicFormView props={props} />
+}
+
+interface FormViewProps {
+  handleSubmit: (e: any) => Promise<void>,
+  factorName: string,
+  setFactorName: Dispatch<SetStateAction<string>>,
+  userID: string,
+  factorExpression: string,
+  setFactorExpression: Dispatch<SetStateAction<string>>,
+  updateName: (newName: string) => void,
+  maxDate: string,
+  backtestStart: string,
+  setBacktestStart: Dispatch<SetStateAction<string>>,
+  backtestEnd: string,
+  setBacktestEnd: Dispatch<SetStateAction<string>>,
+  samplingIntervalUnit: string,
+  setSamplingIntervalUnit: Dispatch<SetStateAction<string>>,
+  numSymbols: number,
+  setNumSymbols: Dispatch<SetStateAction<number>>,
+  cash: number,
+  setCash: Dispatch<SetStateAction<number>>,
+  assetUniverse: string,
+  setAssetUniverse: Dispatch<SetStateAction<string>>,
+  assetUniverseSelectOptions: JSX.Element[],
+  numComputations: number,
+  loading: boolean,
+  err: string | null,
+}
+
+function ClassicFormView({
+  props
+}: {
+  props: FormViewProps
+}) {
+  const {
+    handleSubmit,
+    factorName,
+    setFactorName,
+    userID,
+    factorExpression,
+    setFactorExpression,
+    updateName,
+    maxDate,
+    backtestStart,
+    setBacktestStart,
+    backtestEnd,
+    setBacktestEnd,
+    samplingIntervalUnit,
+    setSamplingIntervalUnit,
+    numSymbols,
+    setNumSymbols,
+    cash,
+    setCash,
+    assetUniverse,
+    setAssetUniverse,
+    assetUniverseSelectOptions,
+    numComputations,
+    loading,
+    err
+  } = props;
   return (
     <div className='tile'>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
