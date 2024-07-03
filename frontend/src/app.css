@@ -148,3 +148,9 @@
   margin-top: 0px;
   font-size: 13px;
 }
+
+.verbose-builder {
+  width: 80%;
+  margin: 0px auto;
+  height: 70vh;
+}
