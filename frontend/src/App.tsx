@@ -114,19 +114,22 @@ function FactorBacktestMain({ userID, user }: {
     }
   }, [factorData])
 
+  const useVerboseBuilder = factorData.length === 0;
+
+  const formComponent = <FactorForm
+    // set this to the benchmark names that are already in used
+    userID={userID}
+    takenNames={takenNames}
+    appendFactorData={(newFactorData: FactorData) => {
+      updateFactorData([...factorData, newFactorData])
+    }}
+    fullscreenView={useVerboseBuilder}
+  />
+
   const classicView = (
     <>
       <div className={`${styles.column} ${styles.form_wrapper}`}>
-        <FactorForm
-          user={user}
-          // set this to the benchmark names that are already in used
-          userID={userID}
-          takenNames={takenNames}
-          appendFactorData={(newFactorData: FactorData) => {
-            updateFactorData([...factorData, newFactorData])
-          }}
-          fullscreenView={false}
-        />
+        {formComponent}
         <BenchmarkManager
           user={user}
           userID={userID}
@@ -151,34 +154,10 @@ function FactorBacktestMain({ userID, user }: {
     </>
   )
 
+
   return (
-    <div className={styles.container}>
-      {false ? <div className={`${styles.tile} ${styles.verbose_builder}`}>
-
-        <div style={{ textAlign: "center" }}>
-          <h2>Factor Backtest</h2>
-          <p>Create and backtest factor-based investment strategies.</p>
-        </div>
-
-
-        <div className={styles.container}>
-          <div className={styles.column}>
-
-            <p>What: Select asset universe</p>
-            <p>When: How often to re-evaluate and rebalance holdings</p>
-            <p>When: How often to re-evaluate and rebalance holdings</p>
-            <p>When: range</p>
-
-          </div>
-          <div className={styles.column}>
-            <p>how: what strategy do you want to use?</p>
-            <p>Advanced: start cash and num assets</p>
-
-          </div>
-        </div>
-
-        <button>backtest</button>
-      </div> : classicView}
+    <div className="container">
+      {useVerboseBuilder ? formComponent : classicView}
     </div >
   );
 }
