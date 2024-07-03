@@ -53,14 +53,12 @@ func sortUniverses(universes []getAssetUniversesResponse) {
 		// if not found, stick it at the end
 		ithIndex := len(universes) + 1
 		jthIndex := len(universes) + 1
-		for _, u := range universes {
-			for i, s := range idealCodeOrder {
-				if s == u.Code {
-					ithIndex = i
-				}
-				if s == u.Code {
-					jthIndex = i
-				}
+		for x, s := range idealCodeOrder {
+			if s == universes[i].Code {
+				ithIndex = x
+			}
+			if s == universes[j].Code {
+				jthIndex = x
 			}
 		}
 		return ithIndex < jthIndex
