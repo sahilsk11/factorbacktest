@@ -115,21 +115,6 @@ export default function FactorForm({
     updateName(name);
   }, [samplingIntervalUnit])
 
-  const cashInput = document.getElementById("cash");
-  if (cash <= 0) {
-    (cashInput as HTMLInputElement)?.setCustomValidity("Please enter more than $0.")
-  } else {
-    (cashInput as HTMLInputElement)?.setCustomValidity("")
-  }
-  const numSymbolsInput = document.getElementById("num-symbols");
-  if (numSymbols <= 0) {
-    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("Please enter more than 0 assets.")
-  } else if (numSymbols > 100) {
-    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("Please use less than 100 assets.")
-  } else {
-    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("")
-  }
-
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setErr(null);
@@ -196,14 +181,33 @@ export default function FactorForm({
     case "yearly": rebalanceDuration = 365; break;
   }
 
+  const numAssetsInSelectedUniverse = assetUniverses.find(
+    e => e.code === assetUniverse)?.numAssets;
+
+
   const maxDate = new Date().toISOString().split('T')[0];
   let numComputations = 0;
   if (backtestStart <= backtestEnd && backtestEnd <= maxDate) {
-    const assetDetails = assetUniverses.find(e => e.code === assetUniverse)
-    if (assetDetails) {
-      const numAssets = assetDetails.numAssets;
-      numComputations = numAssets * daysBetweenDates(backtestStart, backtestEnd) / rebalanceDuration / 4;
+    if (numAssetsInSelectedUniverse) {
+      // const numAssets = assetDetails.numAssets;
+      numComputations = numAssetsInSelectedUniverse * daysBetweenDates(backtestStart, backtestEnd) / rebalanceDuration / 4;
     }
+  }
+
+  // TODO - attach these to the form inputs instead
+  const cashInput = document.getElementById("cash");
+  if (cash <= 0) {
+    (cashInput as HTMLInputElement)?.setCustomValidity("Please enter more than $0.")
+  } else {
+    (cashInput as HTMLInputElement)?.setCustomValidity("")
+  }
+  const numSymbolsInput = document.getElementById("num-symbols");
+  if (numSymbols <= 2) {
+    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("Please enter more than 2 assets.")
+  } else if (numSymbols > (numAssetsInSelectedUniverse || 100)) {
+    (numSymbolsInput as HTMLInputElement)?.setCustomValidity(`Please use less than ${(numAssetsInSelectedUniverse || 100)} assets.`)
+  } else {
+    (numSymbolsInput as HTMLInputElement)?.setCustomValidity("")
   }
 
   return (
@@ -268,9 +272,10 @@ export default function FactorForm({
           <p className='label-subtext'>How many assets the target portfolio should hold at any time.</p>
           <input
             id="num-symbols"
-            max={100}
+            // max={numAssetsInSelectedUniverse}
             style={{ width: "80px" }}
             value={numSymbols}
+            // min={3}
             onChange={(e) => {
               let x = e.target.value;
               if (x.length === 0) {
