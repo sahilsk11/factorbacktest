@@ -90,7 +90,6 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 
 func (m ApiHandler) StartApi(port int) error {
 	router := m.InitializeRouterEngine()
-	fmt.Println("starting api version " + os.Getenv("commit_hash"))
 	return router.Run(fmt.Sprintf(":%d", port))
 }
 
@@ -165,7 +164,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	if method == "GET" {
 		userID = GetUserIDUrlParam(ctx)
 	}
-	fmt.Println("wot")
+
 	var userAccountID *uuid.UUID
 	if id, ok := ctx.Get("userAccountID"); ok {
 		if idStr, ok := id.(string); ok {
@@ -231,7 +230,6 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 	}
 
 	c.Set("userAccountID", user.UserAccountID.String())
-	fmt.Println("set user account id", user.UserAccountID.String())
 
 	c.Next()
 }
