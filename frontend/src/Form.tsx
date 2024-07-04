@@ -460,9 +460,8 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
       </div>
 
       <div className='container'>
-        <form onSubmit={handleSubmit} style={{display:"contents"}}>
+        <form onSubmit={handleSubmit} style={{ display: "contents" }}>
           <div className='column'>
-            <p>What: Select asset universe</p>
             <div className='form-element'>
               <label>Asset Universe</label>
               <p className='label-subtext'>The pool of assets that are eligible for the target portfolio.</p>
@@ -470,9 +469,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
                 {assetUniverseSelectOptions}
               </select>
             </div>
-            <p>When: How often to re-evaluate and rebalance holdings</p>
-            <p>When: How often to re-evaluate and rebalance holdings</p>
-            <p>When: range</p>
+
             <div className='form-element'>
               <label>Backtest Range</label>
               <input
@@ -504,29 +501,6 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
               </select>
             </div>
 
-          </div>
-          <div className='column'>
-            <p>how: what strategy do you want to use?</p>
-            <div className='form-element'>
-              <label>Factor Name</label>
-              <input style={{ width: "250px" }} required
-                id="factor-name"
-                type="text"
-                value={factorName}
-                onChange={(e) =>
-                  setFactorName(e.target.value)
-                }
-              />
-            </div>
-            <div className='form-element'>
-              <FactorExpressionInput
-                userID={userID}
-                factorExpression={factorExpression}
-                setFactorExpression={setFactorExpression}
-                updateName={updateName}
-              />
-            </div>
-            <p>Advanced: start cash and num assets</p>
             <div>
               <label>Number of Assets</label>
               <p className='label-subtext'>How many assets the target portfolio should hold at any time.</p>
@@ -566,6 +540,30 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
                 }}
               />
             </div>
+
+          </div>
+          <div className='column'>
+            <div className='form-element'>
+              <label>Factor Name</label>
+              <input style={{ width: "250px" }} required
+                id="factor-name"
+                type="text"
+                value={factorName}
+                onChange={(e) =>
+                  setFactorName(e.target.value)
+                }
+              />
+            </div>
+            <div className='form-element'>
+              <FactorExpressionInput
+                userID={userID}
+                factorExpression={factorExpression}
+                setFactorExpression={setFactorExpression}
+                updateName={updateName}
+              />
+            </div>
+
+
             {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className='label-subtext'>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
 
             {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className='backtest-btn' type="submit">Run Backtest</button>}
