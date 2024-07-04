@@ -9,7 +9,7 @@ import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
 import { ContactModal, HelpModal } from './Modals';
 import StatsFooter from './Footer';
-import { GoogleLogin, GoogleOAuthProvider, googleLogout, useGoogleLogin } from '@react-oauth/google';
+import { googleLogout, useGoogleLogin } from '@react-oauth/google';
 
 
 export interface FactorData {
@@ -26,6 +26,24 @@ export interface BenchmarkData {
   data: Record<string, number>
 }
 
+async function isValidUser(user: GoogleAuthUser) {
+  const url = "https://www.googleapis.com/oauth2/v1/userinfo?access_token=" + user.accessToken;
+
+  try {
+    const response = await fetch(url);
+
+    // Check if the response is OK (status code 200)
+    if (response.ok) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.error("Error checking access token:", error);
+    return false;
+  }
+}
+
 const App = () => {
   // legacy token that identifies unique user
   const [userID, setUserID] = useState("");
@@ -35,11 +53,24 @@ const App = () => {
   // google auth user
   const [user, setUser] = useState<GoogleAuthUser | null>(null);
 
+  async function updateUserFromCookie() {
+    const accessToken = getCookie("googleAuthAccessToken");
+    if (accessToken) {
+      const tmpUser = {
+        accessToken
+      } as GoogleAuthUser;
+      if (await isValidUser(tmpUser)) {
+        setUser(tmpUser);
+      }
+    }
+  }
+
   useEffect(() => {
     // if (getCookie("userID") === null) {
     //   setShowHelpModal(true);
     // }
     setUserID(getOrCreateUserID());
+    updateUserFromCookie()
   }, []);
 
   return <>
@@ -203,6 +234,13 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
 }) {
   const login = useGoogleLogin({
     onSuccess: (codeResponse) => {
+      // console.log(codeResponse)
+      const date = new Date();
+      date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
+      const expires = "expires=" + date.toUTCString();
+
+      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires;
+
       setUser({
         accessToken: codeResponse.access_token
       } as GoogleAuthUser)
@@ -220,6 +258,8 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
     }} className='nav-element-text'>Logout</p>
   )
 
+  // TODO - should probably use a proper nav component
+  // that handles a dropdown and nav stuff
   return <>
     <div className='nav'>
       <h4 className='nav-title' onClick={() => window.location.href = "/"}>factorbacktest.net</h4>
@@ -231,7 +271,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
           <div className='nav-element-wrapper'>
             <p onClick={() => setShowHelpModal(true)} className='nav-element-text'>User Guide</p>
           </div>
-          <div className='nav-element-wrapper'>
+          <div style={{ width: "70px" }} className='nav-element-wrapper'>
             {authTab}
           </div>
         </div>
