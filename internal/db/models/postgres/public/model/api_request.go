@@ -13,15 +13,16 @@ import (
 )
 
 type APIRequest struct {
-	RequestID    uuid.UUID `sql:"primary_key"`
-	UserID       *uuid.UUID
-	IPAddress    *string
-	Method       string
-	Route        string
-	RequestBody  *string
-	StartTs      time.Time
-	DurationMs   *int64
-	StatusCode   *int32
-	ResponseBody *string
-	Version      *string
+	RequestID     uuid.UUID `sql:"primary_key"`
+	UserID        *uuid.UUID
+	IPAddress     *string
+	Method        string
+	Route         string
+	RequestBody   *string
+	StartTs       time.Time
+	DurationMs    *int64
+	StatusCode    *int32
+	ResponseBody  *string
+	Version       *string
+	UserAccountID *uuid.UUID
 }

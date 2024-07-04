@@ -26,6 +26,7 @@ import { Bar, Line } from 'react-chartjs-2';
 import { Nav, endpoint, getCookie, getOrCreateUserID } from '../App';
 import { ContactModal, HelpModal } from '../Modals';
 import { Error } from '../Form';
+import { GoogleAuthUser } from '../models';
 
 const colors: Record<string, { borderColor: string, backgroundColor: string }> = {
   "C": {
@@ -95,10 +96,12 @@ interface InterestRatesOnDate {
 function BondBuilderForm(
   {
     updateBondBacktestData,
-    userID
+    userID,
+    user,
   }: {
     updateBondBacktestData: Dispatch<SetStateAction<BacktestBondPortfolioResult | null>>;
     userID: string;
+    user: GoogleAuthUser | null,
   }
 ) {
   const [backtestStart, setBacktestStart] = useState("2020-01");
@@ -123,7 +126,8 @@ function BondBuilderForm(
       const response = await fetch(endpoint + "/backtestBondPortfolio", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Authorization": user ? "Bearer " + user.accessToken : ""
         },
         body: JSON.stringify({
           backtestStart,
@@ -226,7 +230,13 @@ function BondBuilderForm(
   </>
 }
 
-export function BondBuilder() {
+export function BondBuilder({
+  user,
+  setUser,
+}: {
+  user: GoogleAuthUser | null,
+  setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
+}) {
   const [userID, setUserID] = useState("");
   const [bondBacktestData, updateBondBacktestData] = useState<BacktestBondPortfolioResult | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -240,11 +250,11 @@ export function BondBuilder() {
   }, []);
 
   return <>
-    <Nav showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className='centered-container' >
       <div className='container'>
         <div className="column form-wrapper">
-          <BondBuilderForm userID={userID} updateBondBacktestData={updateBondBacktestData} />
+          <BondBuilderForm user={user} userID={userID} updateBondBacktestData={updateBondBacktestData} />
           <ResultsOverview metrics={bondBacktestData?.metrics} />
         </div>
         <div id="backtest-chart" className="column backtest-chart-container">
@@ -262,7 +272,7 @@ export function BondBuilder() {
       </div>
     </div>
 
-    <ContactModal userID={""} show={showContactModal} close={() => setShowContactModal(false)} />
+    <ContactModal user={user} userID={""} show={showContactModal} close={() => setShowContactModal(false)} />
     <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>;
 }

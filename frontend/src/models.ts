@@ -3,6 +3,10 @@ export interface FactorOptions {
   name: string;
 }
 
+export interface GoogleAuthUser {
+  accessToken: string;
+}
+
 export interface GetAssetUniversesResponse {
   displayName: string;
   code: string;

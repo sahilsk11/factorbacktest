@@ -2,6 +2,7 @@ import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
 import { enumerateDates } from './util';
 import { endpoint } from './App';
+import { GoogleAuthUser } from './models';
 
 export interface BenchmarkData {
   symbol: string;
@@ -12,12 +13,14 @@ export default function BenchmarkManager({
   userID,
   minDate,
   maxDate,
-  updateBenchmarkData
+  updateBenchmarkData,
+  user,
 }: {
   userID: string;
   minDate: string;
   maxDate: string;
-  updateBenchmarkData: Dispatch<SetStateAction<BenchmarkData[]>>
+  updateBenchmarkData: Dispatch<SetStateAction<BenchmarkData[]>>,
+  user: GoogleAuthUser | null,
 }) {
   const [newSymbol, setNewSymbol] = useState('');
   const [selectedBenchmarks, updateSelectedBenchmarks] = useState(["SPY"]);
@@ -37,7 +40,8 @@ export default function BenchmarkManager({
             {
               method: "POST",
               headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Authorization": user ? "Bearer "+user.accessToken : "" 
               },
               body: JSON.stringify({
                 userID,

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "./modals.css";
-import { ContactRequest } from "./models";
+import { ContactRequest, GoogleAuthUser } from "./models";
 import { endpoint } from "./App";
 
 export function HelpModal({ show, close }: {
@@ -44,10 +44,11 @@ export function HelpModal({ show, close }: {
   );
 }
 
-export function ContactModal({ userID, show, close }: {
+export function ContactModal({ userID, show, close, user }: {
   userID: string;
   show: boolean;
   close: () => void;
+  user: GoogleAuthUser | null,
 }) {
   if (!show) return null;
 
@@ -62,14 +63,15 @@ export function ContactModal({ userID, show, close }: {
       <div className="modal-content">
         <span onClick={() => close()} className="close" id="closeModalBtn">&times;</span>
         <h2 style={{ marginBottom: "40px" }}>Contact</h2>
-        <ContactForm userID={userID} />
+        <ContactForm userID={userID} user={user} />
       </div>
     </div>
   );
 }
 
-function ContactForm({ userID }: {
+function ContactForm({ userID, user }: {
   userID: string;
+  user: GoogleAuthUser | null;
 }) {
   const [replyEmail, setReplyEmail] = useState<string | null>(null);
   const [content, setMessageContent] = useState<string>("");
@@ -84,6 +86,7 @@ function ContactForm({ userID }: {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          "Authorization": user ? "Bearer "+user.accessToken : "" 
         },
         body: JSON.stringify({
           userID,
