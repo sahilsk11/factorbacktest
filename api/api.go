@@ -9,11 +9,13 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
+	googleauth "factorbacktest/pkg/google-auth"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -34,6 +36,7 @@ type ApiHandler struct {
 	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
 	AssetUniverseRepository      repository.AssetUniverseRepository
+	UserAccountRepository        repository.UserAccountRepository
 }
 
 func int64Ptr(i int64) *int64 {
@@ -50,7 +53,14 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 	router := gin.Default()
 
 	router.Use(blockBots)
-	router.Use(cors.Default())
+	router.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"https://factorbacktest.net",
+		},
+		AllowHeaders: []string{"Authorization", "Content-Type"},
+	}))
+	router.Use(m.getGoogleAuthMiddleware)
 	router.Use(m.logRequestMiddlware)
 
 	router.GET("/", func(ctx *gin.Context) {
@@ -155,17 +165,27 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	if method == "GET" {
 		userID = GetUserIDUrlParam(ctx)
 	}
+	fmt.Println("wot")
+	var userAccountID *uuid.UUID
+	if id, ok := ctx.Get("userAccountID"); ok {
+		if idStr, ok := id.(string); ok {
+			if uid, err := uuid.Parse(idStr); err == nil {
+				userAccountID = &uid
+			}
+		}
+	}
 
 	start := time.Now().UTC()
 	commit := os.Getenv("commit_hash")
 	req, err := m.ApiRequestRepository.Add(m.Db, model.APIRequest{
-		UserID:      userID,
-		IPAddress:   strPtr(ctx.ClientIP()),
-		Method:      method,
-		Route:       ctx.Request.URL.Path,
-		RequestBody: requestBody,
-		StartTs:     start,
-		Version:     &commit,
+		UserID:        userID,
+		IPAddress:     strPtr(ctx.ClientIP()),
+		Method:        method,
+		Route:         ctx.Request.URL.Path,
+		RequestBody:   requestBody,
+		StartTs:       start,
+		Version:       &commit,
+		UserAccountID: userAccountID,
 	})
 	if err != nil {
 		log.Println(err)
@@ -185,6 +205,35 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		}
 	}
 
+}
+
+func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
+	jwt := c.GetHeader("Authorization")
+	if jwt == "" {
+		c.Next()
+		return
+	}
+	if !strings.HasPrefix(jwt, "Bearer ") {
+		c.AbortWithStatusJSON(403, map[string]string{"error": "misformatted auth"})
+		return
+	}
+	jwt = jwt[len("Bearer "):]
+	userDetails, err := googleauth.GetUserDetails(jwt)
+	if err != nil {
+		c.AbortWithStatusJSON(403, map[string]string{"error": fmt.Sprintf("failed google auth: %s", err.Error())})
+		return
+	}
+
+	user, err := m.UserAccountRepository.GetOrCreate(*userDetails)
+	if err != nil {
+		c.AbortWithStatusJSON(500, map[string]string{"error": fmt.Sprintf("failed create user: %s", err.Error())})
+		return
+	}
+
+	c.Set("userAccountID", user.UserAccountID.String())
+	fmt.Println("set user account id", user.UserAccountID.String())
+
+	c.Next()
 }
 
 func GetUserIDUrlParam(ctx *gin.Context) *uuid.UUID {

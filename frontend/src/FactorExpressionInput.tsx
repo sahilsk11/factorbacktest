@@ -3,12 +3,14 @@ import { endpoint } from "./App";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import Editor, { loader } from '@monaco-editor/react';
 import { languages } from 'monaco-editor';
+import { GoogleAuthUser } from './models';
 
-export function FactorExpressionInput({ userID, factorExpression, setFactorExpression, updateName }: {
+export function FactorExpressionInput({ user, userID, factorExpression, setFactorExpression, updateName }: {
   userID: string;
   factorExpression: string;
   setFactorExpression: Dispatch<SetStateAction<string>>;
   updateName: (arg: string) => void;
+  user: GoogleAuthUser | null
 }) {
   const [gptInput, setGptInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -80,7 +82,8 @@ export function FactorExpressionInput({ userID, factorExpression, setFactorExpre
       const response = await fetch(endpoint + "/constructFactorEquation", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Authorization": user ? "Bearer "+user.accessToken : ""
         },
         body: JSON.stringify({ input: gptInput, userID })
       });

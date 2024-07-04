@@ -4,11 +4,12 @@ import BacktestChart from './BacktestChart';
 import FactorForm from "./Form";
 import InspectFactorData from './FactorSnapshot';
 import BenchmarkManager from './BenchmarkSelector';
-import { BacktestSnapshot } from "./models";
+import { BacktestSnapshot, GoogleAuthUser } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
 import { ContactModal, HelpModal } from './Modals';
 import StatsFooter from './Footer';
+import { GoogleLogin, GoogleOAuthProvider, googleLogout, useGoogleLogin } from '@react-oauth/google';
 
 
 export interface FactorData {
@@ -26,9 +27,13 @@ export interface BenchmarkData {
 }
 
 const App = () => {
+  // legacy token that identifies unique user
   const [userID, setUserID] = useState("");
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+
+  // google auth user
+  const [user, setUser] = useState<GoogleAuthUser | null>(null);
 
   useEffect(() => {
     // if (getCookie("userID") === null) {
@@ -37,25 +42,24 @@ const App = () => {
     setUserID(getOrCreateUserID());
   }, []);
 
-
-
   return <>
     <div className='bond-ad' onClick={() => { window.location.href = "/bonds" }}>
       <p className='bond-ad-text'><b>Bond Ladder Backtesting is Live →</b></p>
     </div>
-    <Nav showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <Nav loggedIn={user !== null} setUser={setUser} showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className="centered-container">
-      <FactorBacktestMain userID={userID} />
+      <FactorBacktestMain userID={userID} user={user} />
     </div>
 
-    <StatsFooter userID={userID} />
-    <ContactModal userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
+    <StatsFooter user={user} userID={userID} />
+    <ContactModal user={user} userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
     <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
 }
 
-function FactorBacktestMain({ userID }: {
+function FactorBacktestMain({ userID, user }: {
   userID: string
+  user: GoogleAuthUser | null
 }) {
   const [factorData, updateFactorData] = useState<FactorData[]>([]);
   const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
@@ -84,6 +88,7 @@ function FactorBacktestMain({ userID }: {
     <>
       <div className="column form-wrapper">
         <FactorForm
+          user={user}
           // set this to the benchmark names that are already in used
           userID={userID}
           takenNames={takenNames}
@@ -93,6 +98,7 @@ function FactorBacktestMain({ userID }: {
           fullscreenView={false}
         />
         <BenchmarkManager
+          user={user}
           userID={userID}
           minDate={minFactorDate}
           maxDate={maxFactorDate}
@@ -142,7 +148,7 @@ function FactorBacktestMain({ userID }: {
         </div>
 
         <button>backtest</button>
-      </div> : classicView }
+      </div> : classicView}
     </div >
   );
 }
@@ -188,12 +194,32 @@ export function getOrCreateUserID(): string {
   return newUserID;
 }
 
-export function Nav({ setShowHelpModal, setShowContactModal, showLinks }: {
+export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser, loggedIn }: {
   showLinks: boolean;
   setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
-
+  setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
+  loggedIn: boolean;
 }) {
+  const login = useGoogleLogin({
+    onSuccess: (codeResponse) => {
+      setUser({
+        accessToken: codeResponse.access_token
+      } as GoogleAuthUser)
+    },
+    onError: (error) => console.log('Login Failed:', error)
+  });
+
+  const authTab = !loggedIn ? (
+    <p onClick={() => login()} className='nav-element-text'>Login</p>
+  ) : (
+    <p onClick={() => {
+      googleLogout();
+      setUser(null);
+      console.log("logout")
+    }} className='nav-element-text'>Logout</p>
+  )
+
   return <>
     <div className='nav'>
       <h4 className='nav-title' onClick={() => window.location.href = "/"}>factorbacktest.net</h4>
@@ -204,6 +230,9 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks }: {
           </div>
           <div className='nav-element-wrapper'>
             <p onClick={() => setShowHelpModal(true)} className='nav-element-text'>User Guide</p>
+          </div>
+          <div className='nav-element-wrapper'>
+            {authTab}
           </div>
         </div>
         : null}

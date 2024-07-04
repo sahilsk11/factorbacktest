@@ -2,7 +2,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import "./form.css";
 import "./app.css";
-import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions } from './models';
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser } from './models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
@@ -30,7 +30,9 @@ export default function FactorForm({
   takenNames,
   appendFactorData,
   fullscreenView,
+  user,
 }: {
+  user: GoogleAuthUser | null,
   userID: string,
   takenNames: string[];
   appendFactorData: (newFactorData: FactorData) => void;
@@ -53,7 +55,11 @@ export default function FactorForm({
 
   const getUniverses = async () => {
     try {
-      const response = await fetch(endpoint + "/assetUniverses");
+      const response = await fetch(endpoint + "/assetUniverses", {
+        headers: {
+          "Authorization": user ? "Bearer "+user.accessToken : "" 
+        }
+      });
       if (response.ok) {
         const results: GetAssetUniversesResponse[] = await response.json()
         if (Object.keys(results).length === 0) {
@@ -82,8 +88,9 @@ export default function FactorForm({
     }
   }, [assetUniverses]);
 
+  let i = 0;
   let assetUniverseSelectOptions = assetUniverses.map(u => {
-    return <option value={u.code}>{u.displayName}</option>
+    return <option key={i++} value={u.code}>{u.displayName}</option>
   })
 
   let found = false;
@@ -236,7 +243,8 @@ export default function FactorForm({
     assetUniverseSelectOptions,
     numComputations,
     loading,
-    err
+    err,
+    user,
   }
 
   return <ClassicFormView props={props} />
@@ -267,6 +275,7 @@ interface FormViewProps {
   numComputations: number,
   loading: boolean,
   err: string | null,
+  user: GoogleAuthUser | null,
 }
 
 function ClassicFormView({
@@ -298,7 +307,8 @@ function ClassicFormView({
     assetUniverseSelectOptions,
     numComputations,
     loading,
-    err
+    err,
+    user,
   } = props;
   return (
     <div className='tile'>
@@ -322,6 +332,7 @@ function ClassicFormView({
             factorExpression={factorExpression}
             setFactorExpression={setFactorExpression}
             updateName={updateName}
+            user={user}
           />
         </div>
 

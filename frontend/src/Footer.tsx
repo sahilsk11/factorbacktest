@@ -2,15 +2,20 @@ import React, { useEffect, useState } from "react";
 import "./app.css";
 import "./footer.css";
 import { endpoint } from "./App";
+import { GoogleAuthUser } from "./models";
 
-export default function StatsFooter({ userID }: { userID: string }) {
+export default function StatsFooter({ userID, user }: { userID: string, user: GoogleAuthUser | null }) {
   const [uniqueUsers, setUniqueUsers] = useState<number | null>(null);
   const [backtests, setBacktests] = useState<number | null>(null);
   const [strategies, setStrategies] = useState<number | null>(null);
 
   async function getStats() {
     try {
-      const response = await fetch(endpoint + "/usageStats?id=" + userID);
+      const response = await fetch(endpoint + "/usageStats?id=" + userID, {
+        headers: {
+          "Authorization": user ? "Bearer " + user.accessToken : ""
+        }
+      });
       const responseJson = await response.json()
       setUniqueUsers(responseJson.uniqueUsers)
       setBacktests(responseJson.backtests)
@@ -22,7 +27,7 @@ export default function StatsFooter({ userID }: { userID: string }) {
 
   useEffect(() => {
     getStats();
-  }, [userID]);
+  }, []);
 
   return <>
     <div className="footer">
