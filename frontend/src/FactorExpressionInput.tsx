@@ -4,6 +4,7 @@ import { Tooltip as ReactTooltip } from 'react-tooltip';
 import Editor, { loader } from '@monaco-editor/react';
 import { languages } from 'monaco-editor';
 import { GoogleAuthUser } from './models';
+import formStyles from './Form.module.css'
 
 export function FactorExpressionInput({ user, userID, factorExpression, setFactorExpression, updateName }: {
   userID: string;
@@ -142,7 +143,7 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
       </label>
 
       <ReactTooltip style={{ fontSize: "12px", maxWidth: "220px" }} id="my-tfooltip" />
-      <p className='label-subtext'>Select predefined factors or create your own.</p>
+      <p className={formStyles.label_subtext}>Select predefined factors or create your own.</p>
 
       <select
         onChange={(e) => setSelectedFactor(e.target.value)}
@@ -156,8 +157,8 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
         <option value="gpt">Describe factor in words (ChatGPT)</option>
       </select>
       {selectedFactor === "gpt" ? <>
-        <p style={{ marginTop: "5px" }} className='label-subtext'>Uses ChatGPT API to convert factor description to equation.</p>
-        <div className='gpt-input-wrapper'>
+        <p style={{ marginTop: "5px" }} className={formStyles.label_subtext}>Uses ChatGPT API to convert factor description to equation.</p>
+        <div className={formStyles.gpt_input_wrapper}>
           <textarea
             id="gpt-input"
             style={{
@@ -169,14 +170,14 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
             placeholder='small cap, undervalued, and price going up'
             value={gptInput}
             onChange={(e) => setGptInput(e.target.value)} />
-          <button className='gpt-submit' onClick={(e) => autofillEquation(e)}>➜</button>
+          <button className={formStyles.gpt_submit} onClick={(e) => autofillEquation(e)}>➜</button>
         </div>
       </> : null}
 
       {selectedFactor === "gpt" ?
-        <p style={{ marginTop: "5px", maxWidth: "380px" }} className='label-subtext'>ChatGPT may determine incorrect equations. Be sure to double check and modify if necessary. <br /> <br />The equation applied to all assets, on each rebalance date. Higher scoring assets will have a larger allocation in the portfolio.</p>
+        <p style={{ marginTop: "5px", maxWidth: "380px" }} className={formStyles.label_subtext}>ChatGPT may determine incorrect equations. Be sure to double check and modify if necessary. <br /> <br />The equation applied to all assets, on each rebalance date. Higher scoring assets will have a larger allocation in the portfolio.</p>
         :
-        <p className='label-subtext' style={{ maxWidth: "380px", marginTop: "5px" }}>The equation applied to all assets, on each rebalance date. Higher scoring assets will have a larger allocation in the portfolio.</p>}
+        <p className={formStyles.label_subtext} style={{ maxWidth: "380px", marginTop: "5px" }}>The equation applied to all assets, on each rebalance date. Higher scoring assets will have a larger allocation in the portfolio.</p>}
 
       {true ? <ExpressionEditor factorExpression={factorExpression} setFactorExpression={setFactorExpression} /> : <textarea required
         style={{ height: "80px", width: "250px", fontSize: "13px" }}

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import './app.css'
 import BacktestChart from './BacktestChart';
 import FactorForm from "./Form";
 import InspectFactorData from './FactorSnapshot';
@@ -9,8 +8,8 @@ import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
 import { ContactModal, HelpModal } from './Modals';
 import StatsFooter from './Footer';
-import { googleLogout, useGoogleLogin } from '@react-oauth/google';
-
+import { Nav } from './Nav';
+import styles from './App.module.css'
 
 export interface FactorData {
   name: string,
@@ -74,11 +73,11 @@ const App = () => {
   }, []);
 
   return <>
-    <div className='bond-ad' onClick={() => { window.location.href = "/bonds" }}>
-      <p className='bond-ad-text'><b>Bond Ladder Backtesting is Live →</b></p>
+    <div className={styles.bond_ad} onClick={() => { window.location.href = "/bonds" }}>
+      <p className={styles.bond_ad_text}><b>Bond Ladder Backtesting is Live →</b></p>
     </div>
     <Nav loggedIn={user !== null} setUser={setUser} showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
-    <div className="centered-container">
+    <div className={styles.centered_container}>
       <FactorBacktestMain userID={userID} user={user} />
     </div>
 
@@ -117,7 +116,7 @@ function FactorBacktestMain({ userID, user }: {
 
   const classicView = (
     <>
-      <div className="column form-wrapper">
+      <div className={`${styles.column} ${styles.form_wrapper}`}>
         <FactorForm
           user={user}
           // set this to the benchmark names that are already in used
@@ -136,7 +135,7 @@ function FactorBacktestMain({ userID, user }: {
           updateBenchmarkData={updateBenchmarkData}
         />
       </div>
-      <div id="backtest-chart" className="column backtest-chart-container">
+      <div id="backtest-chart" className={`${styles.column} ${styles.backtest_chart_container}`}>
         <BacktestChart
           benchmarkData={benchmarkData}
           factorData={factorData}
@@ -153,8 +152,8 @@ function FactorBacktestMain({ userID, user }: {
   )
 
   return (
-    <div className="container">
-      {false ? <div className='tile verbose-builder'>
+    <div className={styles.container}>
+      {false ? <div className={`${styles.tile} ${styles.verbose_builder}`}>
 
         <div style={{ textAlign: "center" }}>
           <h2>Factor Backtest</h2>
@@ -162,8 +161,8 @@ function FactorBacktestMain({ userID, user }: {
         </div>
 
 
-        <div className='container'>
-          <div className='column'>
+        <div className={styles.container}>
+          <div className={styles.column}>
 
             <p>What: Select asset universe</p>
             <p>When: How often to re-evaluate and rebalance holdings</p>
@@ -171,7 +170,7 @@ function FactorBacktestMain({ userID, user }: {
             <p>When: range</p>
 
           </div>
-          <div className='column'>
+          <div className={styles.column}>
             <p>how: what strategy do you want to use?</p>
             <p>Advanced: start cash and num assets</p>
 
@@ -225,57 +224,3 @@ export function getOrCreateUserID(): string {
   return newUserID;
 }
 
-export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser, loggedIn }: {
-  showLinks: boolean;
-  setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
-  loggedIn: boolean;
-}) {
-  const login = useGoogleLogin({
-    onSuccess: (codeResponse) => {
-      // console.log(codeResponse)
-      const date = new Date();
-      date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
-      const expires = "expires=" + date.toUTCString();
-
-      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires;
-
-      setUser({
-        accessToken: codeResponse.access_token
-      } as GoogleAuthUser)
-    },
-    onError: (error) => console.log('Login Failed:', error)
-  });
-
-  const authTab = !loggedIn ? (
-    <p onClick={() => login()} className='nav-element-text'>Login</p>
-  ) : (
-    <p onClick={() => {
-      googleLogout();
-      setUser(null);
-      console.log("logout")
-    }} className='nav-element-text'>Logout</p>
-  )
-
-  // TODO - should probably use a proper nav component
-  // that handles a dropdown and nav stuff
-  return <>
-    <div className='nav'>
-      <h4 className='nav-title' onClick={() => window.location.href = "/"}>factorbacktest.net</h4>
-      {showLinks ?
-        <div className='nav-element-container'>
-          <div className='nav-element-wrapper'>
-            <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>
-          </div>
-          <div className='nav-element-wrapper'>
-            <p onClick={() => setShowHelpModal(true)} className='nav-element-text'>User Guide</p>
-          </div>
-          <div style={{ width: "70px" }} className='nav-element-wrapper'>
-            {authTab}
-          </div>
-        </div>
-        : null}
-    </div>
-  </>
-}

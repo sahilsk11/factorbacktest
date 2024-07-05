@@ -11,3 +11,28 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* override bootstrap */
+
+*,
+*::before,
+*::after {
+  box-sizing: content-box; /* Resetting to default */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  margin-bottom: 0.5rem; /* You can adjust this value to your preference */
+  font-family: inherit;
+  font-weight: bold; /* or normal, depending on default */
+  line-height: normal; /* or inherit, depending on default */
+  color: inherit;
+  font-size: initial; /* Reset to browser default size */
+}
+
+/* Reset paragraph margins */
+p {
+  margin-top: 0;
+  margin-bottom: 1rem; /* You can adjust this value to your preference */
+  font-size: initial; /* Reset to browser default size */
+}
