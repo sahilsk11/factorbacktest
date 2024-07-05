@@ -49,16 +49,19 @@ select {
   cursor: pointer;
 }
 
-.error_container {
-  margin-top: 20px;
+.error_wrapper {
+  background-color: #ec6363;
+  display: block;
+  border-radius: 7px;
   padding-left: 15px;
   padding-right: 15px;
   padding-top: 15px;
   padding-bottom: 5px;
-  background-color: #ec6363;
-  display: block;
+}
+
+.error_container {
+  margin-top: 20px;
   width: 80%;
-  border-radius: 7px;
 }
 
 .label_subtext {
@@ -141,9 +144,18 @@ text-align: center;
   display: block;
   margin: 0px auto;
   margin-top: 50px;
+  min-height: 40px;
 }
 
 .verbose_backtest_btn {
   margin: 0px auto;
   display: block;
+}
+
+.verbose_error_container {
+  margin: 0px auto;
+  display: block;
+  width: 200px;
+  margin-top: 10px;
+  text-align: center;
 }

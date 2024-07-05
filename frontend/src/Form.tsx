@@ -420,7 +420,9 @@ function ClassicFormView({
 
         {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className={formStyles.backtest_btn} type="submit">Run Backtest</button>}
 
-        <Error message={err} />
+        <div className={formStyles.error_container}>
+          <Error message={err} />
+        </div>
       </form>
     </div>
   );
@@ -459,10 +461,11 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
   const loadingIcon = <img
     style={{
       width: "40px",
-      marginTop: "20px",
-      marginLeft: "40px",
+      margin: "0px auto",
+      display: "block",
     }}
     src='loading.gif'
+    alt='loading...'
   />
 
   const buttons = <>
@@ -576,7 +579,9 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
 
           {loading ? loadingIcon : buttons}
 
-          {/* <Error message={err} /> */}
+          <div className={formStyles.verbose_error_container}>
+            <Error message={err} />
+          </div>
         </div>
 
       </form>
@@ -586,7 +591,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
 
 export function Error({ message }: { message: string | null }) {
   return message === null ? null : <>
-    <div className={formStyles.error_container}>
+    <div className={formStyles.error_wrapper}>
       <h4 style={{ marginBottom: "0px", marginTop: "0px" }}>That's an error.</h4>
       <p>{message}</p>
     </div>
