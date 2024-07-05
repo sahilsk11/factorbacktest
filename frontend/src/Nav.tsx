@@ -44,7 +44,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
         googleLogout();
         setUser(null);
         console.log("logout");
-      }} style={{fontSize:"14px"}}>
+      }} style={{ fontSize: "14px" }}>
         Logout
       </NavDropdown.Item>
     </NavDropdown>
@@ -53,7 +53,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
   return <>
     <Navbar data-bs-theme="dark" bg="dark" expand="sm" className={`${styles.nav} bg-body-tertiary `}>
       <Container>
-        <Navbar.Brand href="/">factorbacktest.net</Navbar.Brand>
+        <Navbar.Brand style={{ fontSize: "16px", fontWeight:"500" }} href="/">factorbacktest.net</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <BootstrapNav className="ms-auto">

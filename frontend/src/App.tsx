@@ -157,7 +157,7 @@ function FactorBacktestMain({ userID, user }: {
 
 
   return (
-    <div className="container">
+    <div className={styles.my_container}>
       {useVerboseBuilder ? formComponent : classicView}
     </div >
   );

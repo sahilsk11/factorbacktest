@@ -252,7 +252,7 @@ export function BondBuilder({
   return <>
     <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className={appStyle.centered_container} >
-      <div className={appStyle.container}>
+      <div className={appStyle.my_container}>
         <div className={`${appStyle.column} ${appStyle.form_wrapper}`}>
           <BondBuilderForm user={user} userID={userID} updateBondBacktestData={updateBondBacktestData} />
           <ResultsOverview metrics={bondBacktestData?.metrics} />

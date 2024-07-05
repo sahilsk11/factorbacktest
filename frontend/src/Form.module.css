@@ -1,16 +1,19 @@
 .label {
- font-weight: bold;
- display: block;
- margin-top: 13px;
- font-size: 14px;
+  font-weight: bold;
+  display: block;
+  margin-top: 13px;
+  font-size: 14px;
 }
 
-textarea, input {
+textarea,
+input {
   font-family: inherit;
 }
 
 
-input, select, textarea {
+input,
+select,
+textarea {
   margin-top: 4px;
   padding: 4px;
   padding-left: 8px;
@@ -95,4 +98,47 @@ input:placeholder-shown {
 .gpt_input_wrapper {
   display: flex;
   align-items: center;
+}
+
+.verbose_builder {
+  margin: 0px auto;
+}
+
+.verbose_builder_subtitle {
+  font-size: 13px;
+  margin-top: 10px;
+  color: gray;
+  margin-bottom: 25px;
+}
+
+.verbose_container {
+  width: 800px;
+}
+
+.verbose_column_container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.verbose_column {
+  /* border: 1px solid blue; */
+  width: 45%;
+}
+
+.verbose_inner_column_wrapper {
+  /* margin: 0px auto; */
+  /* width: 400px; */
+  width: fit-content;
+  border: 1px solid black
+}
+
+.verbose_button_container {
+  display: block;
+  margin: 0px auto;
+  margin-top: 50px;
+}
+
+.verbose_backtest_btn {
+  margin: 0px auto;
+  display: block;
 }

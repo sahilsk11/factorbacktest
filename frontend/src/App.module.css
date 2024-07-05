@@ -1,12 +1,19 @@
-.container {
+.my_container {
   display: flex;
   justify-content: space-between;
   width: 95%;
   display: 0px auto;
   align-items: flex-start;
-  min-height: 600px;
+  /* min-height: 600px; */
   max-width: 2000px;
   margin: 0px;
+  /* border: 1px solid red; */
+}
+
+.centered_container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .column {
@@ -17,6 +24,7 @@
   justify-content: center;
   height: 100%;
   width: 100%;
+  border: 1px solid blue;
 }
 
 .form_wrapper {
@@ -44,7 +52,7 @@
 }
 
 @media only screen and (max-width: 600px) {
-  .container {
+  .my_container {
     display: block;
   }
 
@@ -67,11 +75,7 @@
   }
 }
 
-.centered_container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-}
+
 
 .subtext {
   font-size: 13px;
@@ -147,10 +151,4 @@
   padding-top: 7px;
   margin-top: 0px;
   font-size: 13px;
-}
-
-.verbose_builder {
-  width: 80%;
-  margin: 0px auto;
-  height: 70vh;
 }
