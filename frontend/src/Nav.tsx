@@ -51,7 +51,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
   );
 
   return <>
-    <Navbar data-bs-theme="dark" bg="dark" expand="md" className={`${styles.nav} bg-body-tertiary `}>
+    <Navbar data-bs-theme="dark" bg="dark" expand="sm" className={`${styles.nav} bg-body-tertiary `}>
       <Container>
         <Navbar.Brand href="/">factorbacktest.net</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
