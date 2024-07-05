@@ -8,7 +8,7 @@
   overflow: scroll;
 }
 
-.modal-content {
+.modal_content {
   position: relative;
   display: block;
   margin: 0px auto;
@@ -25,7 +25,7 @@
   overflow: scroll;
 }
 
-.help-modal {
+.help_modal {
   margin-top: 2%;
   max-width: 700px;
   width: 70%;
@@ -43,14 +43,14 @@
   cursor: pointer;
 }
 
-.help-gif {
+.help_gif {
   margin-top: 20px;
   margin-bottom: 20px;
   width: 100%;
   max-width: 600px;
 }
 
-.contact-btn {
+.contact_btn {
   margin-top: 20px;
   width: 100px;
   height: 28px;
@@ -64,30 +64,26 @@
   font-weight: bold;
 }
 
-.contact-btn:hover {
+.contact_btn:hover {
   background-color: rgb(22, 22, 22);
   box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
   transform: translate(0px, -0.5px);
   cursor: pointer;
 }
 
-.help-text-container {
+.help_text_container {
   width: 100%;
   display: block;
   margin: 0px auto;
 }
 
-li {
-  color: rgb(72, 72, 72);
-}
-
-.help-text {
+.help_text {
   text-align: left;
   color: rgb(72, 72, 72);
   font-size: 15px;
 }
 
-.demo-backtest-btn {
+.demo_backtest_btn {
   width: 090px;
   height: 25px;
   background-color: rgb(48, 46, 55);
@@ -101,7 +97,7 @@ li {
   margin-top: 10px;
 }
 
-.mobile-close-btn {
+.mobile_close_btn {
   display: none;
   margin: 0px auto;
   text-align: center;
@@ -119,46 +115,38 @@ li {
   margin-bottom: 20px;
 }
 
-.contact-form-email-input {
+.contact_form_email_input {
   width: 90%;
   max-width: 300px;
 }
 
-.contact-form-message-input {
+.contact_form_message_input {
   width: 90%;
   max-width: 400px;
   height: 100px;
 }
 
-.modal-title {
+.modal_title {
   margin-top: 40px;
 }
 
 @media only screen and (max-width: 600px) {
-  .demo-backtest-btn {
+  .demo_backtest_btn {
     margin-top: 3px;
     font-size: 10px;
   }
 
-  .modal-content {
+  .modal_content {
     width: 80%;
     margin-top: 20%;
     margin-bottom: 20px;
   }
 
-  .help-modal {
+  .help_modal {
     margin-top: 10%;
   }
 
-  li {
-    list-style-type: none;
-  }
-
-  ul {
-    padding-left: 0px;
-  }
-
-  .mobile-close-btn {
+  .mobile_close_btn {
     display: block;
   }
 }

@@ -31,52 +31,46 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
   });
 
   const authTab = !loggedIn ? (
-    <p onClick={() => login()} className='nav-element-text'>Login</p>
+    <BootstrapNav.Link onClick={() => login()}>Login</BootstrapNav.Link>
+
   ) : (
-    <p onClick={() => {
-      googleLogout();
-      setUser(null);
-      console.log("logout");
-    }} className='nav-element-text'>Logout</p>
+    // <p onClick={() => {
+    //   googleLogout();
+    //   setUser(null);
+    //   console.log("logout");
+    // }} className='nav-element-text'>Logout</p>
+    <NavDropdown title="Account" id="basic-nav-dropdown">
+      {/* <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
+      <NavDropdown.Item href="#action/3.2">
+        Another action
+      </NavDropdown.Item>
+      <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item> */}
+      {/* <NavDropdown.Divider /> */}
+      <NavDropdown.Item onClick={() => {
+        googleLogout();
+        setUser(null);
+        console.log("logout");
+      }}>
+        Logout
+      </NavDropdown.Item>
+    </NavDropdown>
   );
 
   return <>
-    <Navbar data-bs-theme="dark" bg="dark" expand="md" className={`bg-body-tertiary ${styles.nav}`}>
+    <Navbar data-bs-theme="dark" bg="dark" expand="md" className={`${styles.nav} bg-body-tertiary `}>
       <Container>
-        <Navbar.Brand href="#home">factorbacktest.net</Navbar.Brand>
+        <Navbar.Brand href="/">factorbacktest.net</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <BootstrapNav className="ms-auto">
-            <BootstrapNav.Link href="#home">Home</BootstrapNav.Link>
-            <BootstrapNav.Link href="#link">Link</BootstrapNav.Link>
-            <NavDropdown title="Dropdown" id="basic-nav-dropdown">
-              <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
-              <NavDropdown.Item href="#action/3.2">
-                Another action
-              </NavDropdown.Item>
-              <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item>
-              <NavDropdown.Divider />
-              <NavDropdown.Item href="#action/3.4">
-                Separated link
-              </NavDropdown.Item>
-            </NavDropdown>
-          </BootstrapNav>
-        </Navbar.Collapse>
-        {/* <Navbar.Brand href="/">factorbacktest.net</Navbar.Brand> */}
+            <BootstrapNav.Link onClick={() => setShowContactModal(true)}>Contact</BootstrapNav.Link>
 
-        {/* {showLinks ?
-          <div className='nav-element-container'>
-            <div className='nav-element-wrapper'>
-              <p onClick={() => setShowContactModal(true)} className='nav-element-text'>Contact</p>
-            </div>
-            <div className='nav-element-wrapper'>
-              <p onClick={() => setShowHelpModal(true)} className='nav-element-text'>User Guide</p>
-            </div>
-            <div style={{ width: "70px" }} className='nav-element-wrapper'>
-              {authTab}
-            </div>
-          </div>
-          : null} */}
+            <BootstrapNav.Link onClick={() => setShowHelpModal(true)}>User Guide</BootstrapNav.Link>
+            {authTab}
+
+          </BootstrapNav>
+
+        </Navbar.Collapse>
       </Container>
     </Navbar>
   </>;

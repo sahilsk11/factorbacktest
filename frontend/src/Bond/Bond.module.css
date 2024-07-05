@@ -10,8 +10,9 @@
 }
 
 .chart_seperator {
-  border: 0.5px solid #d6d6d6;
+  border: 0.5px solid #838383;
   width: 90%;
+  margin: 0px auto;
   margin-bottom: 20px;;
   margin-top: 20px;
 }

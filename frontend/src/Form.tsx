@@ -316,7 +316,7 @@ function ClassicFormView({
       <p className={appStyles.subtext}>Define your quantitative strategy and customize backtest parameters.</p>
       <form onSubmit={handleSubmit}>
         <div className={formStyles.form_element}>
-          <label>Factor Name</label>
+          <label className={formStyles.label}>Factor Name</label>
           <input style={{ width: "250px" }} required
             id="factor-name"
             type="text"
@@ -337,7 +337,7 @@ function ClassicFormView({
         </div>
 
         <div className={formStyles.form_element}>
-          <label>Backtest Range</label>
+          <label className={formStyles.label}>Backtest Range</label>
           <input
             min={'2010-01-01'}
             max={backtestEnd > maxDate ? maxDate : backtestEnd}
@@ -357,7 +357,7 @@ function ClassicFormView({
         </div>
 
         <div className={formStyles.form_element}>
-          <label>Rebalance Interval</label>
+          <label className={formStyles.label}>Rebalance Interval</label>
           <p className={formStyles.label_subtext}>How frequently should we re-evaluate portfolio holdings.</p>
           <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
             <option value="daily">daily</option>
@@ -369,7 +369,7 @@ function ClassicFormView({
 
 
         <div>
-          <label>Number of Assets</label>
+          <label className={formStyles.label}>Number of Assets</label>
           <p className={formStyles.label_subtext}>How many assets the target portfolio should hold at any time.</p>
           <input
             id="num-symbols"
@@ -391,7 +391,7 @@ function ClassicFormView({
         </div>
 
         <div>
-          <label>Starting Cash</label>
+          <label className={formStyles.label}>Starting Cash</label>
           <span style={{ fontSize: "14px" }}>$</span> <input
             id="cash"
             value={cash.toLocaleString()}
@@ -408,7 +408,7 @@ function ClassicFormView({
           />
         </div>
         <div className={formStyles.form_element}>
-          <label>Asset Universe</label>
+          <label className={formStyles.label}>Asset Universe</label>
           <p className={formStyles.label_subtext}>The pool of assets that are eligible for the target portfolio.</p>
           <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
             {assetUniverseSelectOptions}

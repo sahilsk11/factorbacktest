@@ -122,7 +122,7 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
   return <>
     <div>
 
-      <label style={{ position: "relative", width: "fit-content" }}>Factor Expression
+      <label className={formStyles.label} style={{ position: "relative", width: "fit-content" }}>Factor Expression
         {/* <a
         data-tooltip-id="my-tfooltip"
         data-tooltip-content="The equation that will be run on every asset in the universe, on every rebalance date. Higher scoring assets will have a larger allocation in the portfolio."
