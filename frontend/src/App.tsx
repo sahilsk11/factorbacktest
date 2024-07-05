@@ -118,6 +118,7 @@ function FactorBacktestMain({ userID, user }: {
 
   const formComponent = <FactorForm
     // set this to the benchmark names that are already in used
+    user={user}
     userID={userID}
     takenNames={takenNames}
     appendFactorData={(newFactorData: FactorData) => {
