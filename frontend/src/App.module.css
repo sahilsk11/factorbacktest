@@ -62,7 +62,8 @@
   }
 
   .tile {
-    width: 90%;
+    margin: 0px auto;
+    width: 100%;
     padding-left: 20px;
   }
 

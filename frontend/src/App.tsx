@@ -114,7 +114,7 @@ function FactorBacktestMain({ userID, user }: {
     }
   }, [factorData])
 
-  const useVerboseBuilder = factorData.length === 0;
+  const useVerboseBuilder = factorData.length === 0 && window.innerWidth > 767;
 
   const formComponent = <FactorForm
     // set this to the benchmark names that are already in used

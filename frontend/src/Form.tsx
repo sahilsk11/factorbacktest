@@ -426,6 +426,7 @@ function ClassicFormView({
   );
 }
 
+// responsive but not ready for mobile
 function VerboseFormView({ props }: { props: FormViewProps }) {
   const {
     handleSubmit,
