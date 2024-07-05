@@ -44,7 +44,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
         googleLogout();
         setUser(null);
         console.log("logout");
-      }}>
+      }} style={{fontSize:"14px"}}>
         Logout
       </NavDropdown.Item>
     </NavDropdown>
