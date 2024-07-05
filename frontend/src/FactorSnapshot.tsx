@@ -45,7 +45,7 @@ export default function InspectFactorData({
     <div style={{ margin: "0px auto", display: "block" }}>
       <h3 style={{ marginBottom: "0px", marginTop: "0px" }}>Factor Snapshot</h3>
       <i><p className={appStyles.subtext}>What did "{fdDetails.name}" look like on {fdDate}?</p></i>
-      <div className={appStyles.container} style={{ marginTop: "30px", width: "100%", minHeight: "0px", alignItems: "center" }}>
+      <div className={appStyles.my_container} style={{ marginTop: "30px", width: "100%", minHeight: "0px", alignItems: "center" }}>
         <div className={appStyles.column} style={{ "flexGrow": 5, maxWidth: "600px" }}>
           <AssetAllocationTable snapshot={fdData} />
         </div>

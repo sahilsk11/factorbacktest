@@ -14,12 +14,12 @@ code {
 
 /* override bootstrap */
 
-*,
+/* *,
 *::before,
 *::after {
   box-sizing: content-box;
   /* Resetting to default */
-}
+/*} */
 
 label {
   display: initial;
