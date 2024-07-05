@@ -32,13 +32,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
 
   const authTab = !loggedIn ? (
     <BootstrapNav.Link onClick={() => login()}>Login</BootstrapNav.Link>
-
   ) : (
-    // <p onClick={() => {
-    //   googleLogout();
-    //   setUser(null);
-    //   console.log("logout");
-    // }} className='nav-element-text'>Logout</p>
     <NavDropdown title="Account" id="basic-nav-dropdown">
       {/* <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
       <NavDropdown.Item href="#action/3.2">
