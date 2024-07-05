@@ -6,6 +6,7 @@ import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOpt
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
+import { Col, Container, Row } from 'react-bootstrap';
 
 function todayAsString() {
   const today = new Date();
@@ -471,134 +472,113 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
     </button>
   </>
   return (
-    <div style={{ margin: "0px auto" }} className={appStyles.tile}>
-      <div className={formStyles.verbose_container}>
-        <div id="button-container" style={{ textAlign: "center" }}>
-          <h2 style={{ marginBottom: "0px" }}>Factor Backtest</h2>
-          <p className={formStyles.verbose_builder_subtitle}>Create and backtest factor-based investment strategies.</p>
-        </div>
+    <div className={`${appStyles.tile} ${formStyles.verbose_tile}`}>
+      <div className={formStyles.verbose_heading_container}>
+        <h2 style={{ marginBottom: "0px" }}>Factor Backtest</h2>
+        <p className={formStyles.verbose_builder_subtitle}>Create and backtest factor-based investment strategies.</p>
+      </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "contents" }}>
-          <div style={{ margin: "0px auto" }} className={formStyles.verbose_column_container}>
-
-            <div className={formStyles.verbose_column}>
-              {/* <div className={formStyles.verbose_inner_column_wrapper}> */}
-              <div className={formStyles.form_element}>
-                <label className={formStyles.label}>Asset Universe</label>
-                <p className={formStyles.label_subtext}>The pool of assets that are eligible for the target portfolio.</p>
-                <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
-                  {assetUniverseSelectOptions}
-                </select>
-              </div>
-
-              <div className={formStyles.form_element}>
-                <label className={formStyles.label}>Backtest Range</label>
-                <input
-                  min={'2010-01-01'}
-                  max={backtestEnd > maxDate ? maxDate : backtestEnd}
-                  required
-                  type="date"
-                  value={backtestStart}
-                  onChange={(e) => setBacktestStart(e.target.value)}
-                />
-                <p style={{ display: "inline" }}> to </p>
-                <input
-                  max={maxDate}
-                  required
-                  type="date"
-                  value={backtestEnd}
-                  onChange={(e) => setBacktestEnd(e.target.value)}
-                />
-              </div>
-
-              <div className={formStyles.form_element}>
-                <label className={formStyles.label}>Rebalance Interval</label>
-                <p className={formStyles.label_subtext}>How frequently should we re-evaluate portfolio holdings.</p>
-                <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
-                  <option value="daily">daily</option>
-                  <option value="weekly">weekly</option>
-                  <option value="monthly">monthly</option>
-                  <option value="yearly">yearly</option>
-                </select>
-              </div>
-
-              <div className={formStyles.form_element}>
-                <label className={formStyles.label}>Number of Assets</label>
-                <p className={formStyles.label_subtext}>How many assets the target portfolio should hold at any time.</p>
-                <input
-                  id="num-symbols"
-                  // max={numAssetsInSelectedUniverse}
-                  style={{ width: "80px" }}
-                  value={numSymbols}
-                  // min={3}
-                  onChange={(e) => {
-                    let x = e.target.value;
-                    if (x.length === 0) {
-                      x = "0";
-                    }
-                    if (!/[^0-9]/.test(x)) {
-                      setNumSymbols(parseFloat(x))
-                    }
-                  }
-                  }
-                />
-              </div>
-
-              {/* <div className={formStyles.form_element}>
-                  <label className={formStyles.label}>Starting Cash</label>
-                  <span style={{ fontSize: "14px" }}>$</span> <input
-                    id="cash"
-                    value={cash.toLocaleString()}
-                    style={{ paddingLeft: "5px" }}
+      <form onSubmit={handleSubmit} style={{ display: "contents" }}>
+        <Container>
+          <Row>
+            <Col md={6}>
+              <div className={formStyles.verbose_inner_column_wrapper}>
+                <div className={formStyles.form_element}>
+                  <label className={formStyles.label}>Asset Universe</label>
+                  <p className={formStyles.label_subtext}>The pool of assets that are eligible for the target portfolio.</p>
+                  <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
+                    {assetUniverseSelectOptions}
+                  </select>
+                </div>
+                <div className={formStyles.form_element}>
+                  <label className={formStyles.label}>Backtest Range</label>
+                  <input
+                    min={'2010-01-01'}
+                    max={backtestEnd > maxDate ? maxDate : backtestEnd}
+                    required
+                    type="date"
+                    value={backtestStart}
+                    onChange={(e) => setBacktestStart(e.target.value)}
+                  />
+                  <p style={{ display: "inline" }}> to </p>
+                  <input
+                    max={maxDate}
+                    required
+                    type="date"
+                    value={backtestEnd}
+                    onChange={(e) => setBacktestEnd(e.target.value)}
+                  />
+                </div>
+                <div className={formStyles.form_element}>
+                  <label className={formStyles.label}>Rebalance Interval</label>
+                  <p className={formStyles.label_subtext}>How frequently should we re-evaluate portfolio holdings.</p>
+                  <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
+                    <option value="daily">daily</option>
+                    <option value="weekly">weekly</option>
+                    <option value="monthly">monthly</option>
+                    <option value="yearly">yearly</option>
+                  </select>
+                </div>
+                <div className={formStyles.form_element}>
+                  <label className={formStyles.label}>Number of Assets</label>
+                  <p className={formStyles.label_subtext}>How many assets the target portfolio should hold at any time.</p>
+                  <input
+                    id="num-symbols"
+                    // max={numAssetsInSelectedUniverse}
+                    style={{ width: "80px" }}
+                    value={numSymbols}
+                    // min={3}
                     onChange={(e) => {
-                      let x = e.target.value.replace(/,/g, '')
+                      let x = e.target.value;
                       if (x.length === 0) {
                         x = "0";
                       }
-                      if (!/[^0-9]/.test(x) && x.length < 12) {
-                        setCash(parseFloat(x))
+                      if (!/[^0-9]/.test(x)) {
+                        setNumSymbols(parseFloat(x))
                       }
-                    }}
+                    }
+                    }
                   />
-                </div> */}
-              {/* </div> */}
-            </div>
-            <div className={formStyles.verbose_column}>
-              {/* <div className={formStyles.verbose_inner_column_wrapper}> */}
-              <div className={formStyles.form_element}>
-                <label className={formStyles.label}>Strategy Name</label>
-                <input style={{ width: "250px" }} required
-                  id="factor-name"
-                  type="text"
-                  value={factorName}
-                  onChange={(e) =>
-                    setFactorName(e.target.value)
-                  }
-                />
+                </div>
+
               </div>
-              <div className={formStyles.form_element}>
-                <FactorExpressionInput
-                  user={user}
-                  userID={userID}
-                  factorExpression={factorExpression}
-                  setFactorExpression={setFactorExpression}
-                  updateName={updateName}
-                />
+            </Col>
+            <Col md={6}>
+              <div className={formStyles.verbose_inner_column_wrapper}>
+                <div className={formStyles.form_element}>
+                  <label className={formStyles.label}>Strategy Name</label>
+                  <input style={{ width: "250px" }} required
+                    id="factor-name"
+                    type="text"
+                    value={factorName}
+                    onChange={(e) =>
+                      setFactorName(e.target.value)
+                    }
+                  />
+                </div>
+                <div className={formStyles.form_element}>
+                  <FactorExpressionInput
+                    user={user}
+                    userID={userID}
+                    factorExpression={factorExpression}
+                    setFactorExpression={setFactorExpression}
+                    updateName={updateName}
+                  />
+                </div>
               </div>
+            </Col>
+          </Row>
+        </Container>
 
-              {/* </div> */}
-            </div>
-          </div>
+        <div className={formStyles.verbose_button_container}>
+          {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className={formStyles.label_subtext}>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
 
-          <div className={formStyles.verbose_button_container}>
-            {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className={formStyles.label_subtext}>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
+          {loading ? loadingIcon : buttons}
 
-            {loading ? loadingIcon : buttons}
+          {/* <Error message={err} /> */}
+        </div>
 
-            {/* <Error message={err} /> */}
-          </div>
-        </form>
-      </div>
+      </form>
     </div>
   );
 }

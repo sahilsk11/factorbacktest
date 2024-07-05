@@ -111,25 +111,30 @@ input:placeholder-shown {
   margin-bottom: 25px;
 }
 
-.verbose_container {
-  width: 800px;
+.verbose_heading_container {
+text-align: center;
 }
 
-.verbose_column_container {
-  display: flex;
-  justify-content: space-between;
+@media only screen and (max-width: 600px) {
+  .verbose_heading_container {
+    display: none;
+  }
+  .verbose_tile {
+    width: 95%;
+    padding-left: 0px;
+  }
 }
 
-.verbose_column {
-  /* border: 1px solid blue; */
-  width: 45%;
+.verbose_tile {
+  margin: 0px auto;
 }
+
 
 .verbose_inner_column_wrapper {
   /* margin: 0px auto; */
   /* width: 400px; */
-  width: fit-content;
-  border: 1px solid black
+  /* width: fit-content; */
+  /* border: 1px solid black */
 }
 
 .verbose_button_container {

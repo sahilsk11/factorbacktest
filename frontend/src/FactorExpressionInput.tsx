@@ -219,7 +219,7 @@ function ExpressionEditor({ factorExpression, setFactorExpression }: {
   }, []);
 
   return (
-    <div style={{ height: "150px", width: "300px", border: "0.5px solid rgba(63, 63, 63, 0.4)", resize: "both", overflow: "scroll" }}>
+    <div style={{ height: "150px", width: "300px", border: "0.5px solid rgba(63, 63, 63, 0.4)", resize: "both", overflow: "scroll", maxWidth: "100%" }}>
       <Editor
         height="100%"
         options={{
