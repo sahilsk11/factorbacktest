@@ -16,14 +16,14 @@ import {
   BarElement,
 } from 'chart.js';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import "../form.css";
-import "../app.css";
-import "../backtest-chart.css"
-import "./bond.css"
+import formStyle from "../Form.module.css";
+import appStyle from "../App.module.css";
+import bondStyle from "./Bond.module.css"
 
 
 import { Bar, Line } from 'react-chartjs-2';
-import { Nav, endpoint, getCookie, getOrCreateUserID } from '../App';
+import { endpoint, getCookie, getOrCreateUserID } from '../App';
+import { Nav } from '../Nav';
 import { ContactModal, HelpModal } from '../Modals';
 import { Error } from '../Form';
 import { GoogleAuthUser } from '../models';
@@ -156,12 +156,12 @@ function BondBuilderForm(
   const minDate = "2000-01-01";
 
   return <>
-    <div className='tile'  >
+    <div className={appStyle.tile}  >
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Bond Ladder</h2>
-      <p className='subtext'>Pick your ladder durations and customize backtest parameters.</p>
+      <p className={appStyle.subtext}>Pick your ladder durations and customize backtest parameters.</p>
 
       <form>
-        <label>Bond Ladder Durations</label>
+        <label className={formStyle.label}>Bond Ladder Durations</label>
         <select value={selectedDuration} onChange={e => updateSelectedDuration(parseInt(e.target.value))}>
           <option value={0}>1M, 2M, 3M</option>
           {/* <option value={1}>3M, 6M, 1Y</option> */}
@@ -170,7 +170,7 @@ function BondBuilderForm(
           <option value={4}>10Y, 20Y, 30Y</option>
         </select>
 
-        <label>Starting Cash</label>
+        <label className={formStyle.label}>Starting Cash</label>
         <span style={{ fontSize: "14px" }}>$</span> <input
           value={startCash.toLocaleString()}
           onChange={(e) => {
@@ -184,8 +184,8 @@ function BondBuilderForm(
           }}
         />
 
-        <div className='form-element'>
-          <label>Backtest Range</label>
+        <div className={formStyle.form_element}>
+          <label className={formStyle.label}>Backtest Range</label>
           <input
             min={minDate}
             max={backtestEnd > maxDate ? maxDate : backtestEnd}
@@ -207,8 +207,8 @@ function BondBuilderForm(
           />
         </div>
 
-        {/* <div className='form-element'>
-          <label>Bond ETF Benchmark</label>
+        {/* <div className={styles.form-element}>
+          <label className={formStyle.label}>Bond ETF Benchmark</label>
           <select>
             <option>BND</option>
             <option>SHY</option>
@@ -218,7 +218,7 @@ function BondBuilderForm(
         {loading ?
           <img style={{ width: "40px", marginTop: "20px", marginLeft: "30px" }} src='loading.gif' />
           :
-          <button type="submit" className='backtest-btn' onClick={e => {
+          <button type="submit" className={formStyle.backtest_btn} onClick={e => {
             e.preventDefault();
             submit();
           }} style={{ fontSize: "13px", width: "120px", height: "35px" }}>Run Backtest</button>
@@ -251,13 +251,13 @@ export function BondBuilder({
 
   return <>
     <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
-    <div className='centered-container' >
-      <div className='container'>
-        <div className="column form-wrapper">
+    <div className={appStyle.centered_container} >
+      <div className={appStyle.container}>
+        <div className={`${appStyle.column} ${appStyle.form_wrapper}`}>
           <BondBuilderForm user={user} userID={userID} updateBondBacktestData={updateBondBacktestData} />
           <ResultsOverview metrics={bondBacktestData?.metrics} />
         </div>
-        <div id="backtest-chart" className="column backtest-chart-container">
+        <div id="backtest-chart" className={`${appStyle.column} ${appStyle.backtest_chart_container}`}>
           <CouponPaymentChart
             couponPayments={bondBacktestData?.couponPayments}
             bondStreams={bondBacktestData?.bondStreams}
@@ -289,12 +289,12 @@ function ResultsOverview({
     return Math.floor(x + 0.05).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
   return <>
-    <div className='tile' style={{ marginTop: "10px", marginBottom: "20px" }}>
+    <div className={appStyle.tile} style={{ marginTop: "10px", marginBottom: "20px" }}>
       <h4 style={{ textAlign: "left", margin: "0px" }}>Portfolio at a Glance</h4>
-      <p className='subtext'>Average Annual Coupon Rate: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
-      <p className='subtext'>Total Coupon Payments: ${numberWithCommas(metrics.totalCoupon)}</p>
-      <p className='subtext'>Portfolio Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
-      <p className='subtext'>Maximum Drawdown: {(metrics.maxDrawdown * 100).toFixed(2)}%</p>
+      <p className={appStyle.subtext}>Average Annual Coupon Rate: {(metrics.averageCoupon * 100).toFixed(2)}%</p>
+      <p className={appStyle.subtext}>Total Coupon Payments: ${numberWithCommas(metrics.totalCoupon)}</p>
+      <p className={appStyle.subtext}>Portfolio Standard Deviation: {(metrics.stdev * 100).toFixed(2)}%</p>
+      <p className={appStyle.subtext}>Maximum Drawdown: {(metrics.maxDrawdown * 100).toFixed(2)}%</p>
     </div>
   </>
 }
@@ -358,9 +358,9 @@ function CouponPaymentChart({
   }
 
   return <>
-    <h4 className='chart-title'>Coupon Payments</h4>
-    <p className='chart-description'>Every month, bonds issue payments to holders. The coupon rate is based on interest rates when the bond was purchased.</p>
-    <div className='backtest-chart-wrapper'>
+    <h4 className={bondStyle.chart_title}>Coupon Payments</h4>
+    <p className={bondStyle.chart_description}>Every month, bonds issue payments to holders. The coupon rate is based on interest rates when the bond was purchased.</p>
+    <div className={bondStyle.backtest_chart_wrapper}>
 
       <Bar
         data={data}
@@ -372,7 +372,7 @@ function CouponPaymentChart({
         }} />
 
     </div>
-    <hr className="chart-seperator" />
+    <hr className={bondStyle.chart_seperator} />
   </>
 }
 
@@ -452,13 +452,13 @@ function BondPortfolioPerformanceChart({
   };
 
   return <>
-    <h4 className='chart-title'>Market Value Fluctuation</h4>
-    <p className='chart-description'>If a bond needs to be liquidated at any time, it will be sold at market price. The market price may be higher or lower than the initial purchase price, depending on current interest rates.
+    <h4 className={bondStyle.chart_title}>Market Value Fluctuation</h4>
+    <p className={bondStyle.chart_description}>If a bond needs to be liquidated at any time, it will be sold at market price. The market price may be higher or lower than the initial purchase price, depending on current interest rates.
       <br />
       <br />
       Bonds will regress back to the purchase (par) price as they near maturity. This means bonds with longer durations are subject to more volatility than those with shorter durations.
     </p>
-    <div className='backtest-chart-wrapper'>
+    <div className={bondStyle.backtest_chart_wrapper}>
 
       <Line
         options={options}
@@ -471,7 +471,7 @@ function BondPortfolioPerformanceChart({
         }}
       />
     </div>
-    <hr className="chart-seperator" />
+    <hr className={bondStyle.chart_seperator} />
   </>
 }
 
@@ -531,9 +531,9 @@ function InterestRateChart({ interestRates }: {
   };
 
   return <>
-    <h4 className='chart-title'>Interest Rates</h4>
-    <p className='chart-description'>Our simplified bond market assumes US T-bills are the only securities available. Interest rates sourced from <a style={{ color: "black" }} href="https://www.ustreasuryyieldcurve.com/" target='_blank'>here</a>.</p>
-    <div className='backtest-chart-wrapper'>
+    <h4 className={bondStyle.chart_title}>Interest Rates</h4>
+    <p className={bondStyle.chart_description}>Our simplified bond market assumes US T-bills are the only securities available. Interest rates sourced from <a style={{ color: "black" }} href="https://www.ustreasuryyieldcurve.com/" target='_blank'>here</a>.</p>
+    <div className={bondStyle.backtest_chart_wrapper}>
 
       <Line
         options={options}
@@ -591,9 +591,9 @@ function BondLadderChart({ bondLadder }: {
   };
 
   return <>
-    <h4 className='chart-title'>Bond Ladder</h4>
-    <p className='chart-description'>Three bonds are initially purchased based on the given starting duration (such as 1Y, 2Y, 3Y). When a bond matures, a new bond is purchased to replace it at the current market interest rates. Each bond and the subsequent bonds that replace them are referenced here as a "bond series."</p>
-    <div className='backtest-chart-wrapper'>
+    <h4 className={bondStyle.chart_title}>Bond Ladder</h4>
+    <p className={bondStyle.chart_description}>Three bonds are initially purchased based on the given starting duration (such as 1Y, 2Y, 3Y). When a bond matures, a new bond is purchased to replace it at the current market interest rates. Each bond and the subsequent bonds that replace them are referenced here as a "bond series."</p>
+    <div className={bondStyle.backtest_chart_wrapper}>
 
 
       <Line
@@ -607,6 +607,6 @@ function BondLadderChart({ bondLadder }: {
         }}
       />
     </div>
-    <hr className="chart-seperator" />
+    <hr className={bondStyle.chart_seperator} />
   </>
 }

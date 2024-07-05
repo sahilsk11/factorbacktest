@@ -11,3 +11,104 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* override bootstrap */
+
+*,
+*::before,
+*::after {
+  box-sizing: content-box;
+  /* Resetting to default */
+}
+
+label {
+  display: initial;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  /* You can adjust this value to your preference */
+  font-family: inherit;
+  font-weight: bold;
+  /* or normal, depending on default */
+  line-height: normal;
+  /* or inherit, depending on default */
+  color: inherit;
+  font-size: initial;
+  /* Reset to browser default size */
+}
+
+/* Reset paragraph margins */
+p {
+  margin-top: 13px;
+  margin-bottom: 13px;
+  /* You can adjust this value to your preference */
+  font-size: initial;
+  /* Reset to browser default size */
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: initial;
+}
+
+h2 {
+  display: block;
+  font-size: 1.5em;
+  margin-block-start: 0.83em;
+  margin-block-end: 0.83em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  font-weight: bold;
+  unicode-bidi: isolate;
+}
+h3 {
+  font-size: 1.17em;
+}
+h5 {
+  display: block;
+  font-size: 0.83em;
+  margin-block-start: 1.67em;
+  margin-block-end: 1.67em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  font-weight: bold;
+  unicode-bidi: isolate;
+}
+
+body {
+  margin: initial;
+  /* Resets to browser default */
+  /* font-family: initial; Resets to browser default */
+  font-size: initial;
+  /* Resets to browser default */
+  font-weight: initial;
+  /* Resets to browser default */
+  line-height: initial;
+  /* Resets to browser default */
+  color: initial;
+  /* Resets to browser default */
+  text-align: initial;
+  /* Resets to browser default */
+  background-color: initial;
+  /* Resets to browser default */
+  -webkit-text-size-adjust: auto;
+  /* Resets to browser default */
+  -webkit-tap-highlight-color: initial;
+  /* Resets to browser default */
+}
+
+hr {
+  color: initial;
+  margin: initial;
+}

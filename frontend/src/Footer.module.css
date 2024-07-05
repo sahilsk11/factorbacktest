@@ -6,7 +6,7 @@
   margin-top: 50px;
 }
 
-.footer-text-wrapper {
+.footer_text_wrapper {
   margin-left: calc(2.5% + 30px);
   padding-top: 30px;
   padding-bottom: 25px;
@@ -17,7 +17,7 @@ ul {
   margin: 0px;
 }
 
-.footer-stat {
+.footer_stat {
   color: rgb(235, 235, 235);
   font-weight: 500;
   list-style-type: none;

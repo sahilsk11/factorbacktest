@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
-import "./app.css";
-import "./footer.css";
+import { useEffect, useState } from "react";
+import footerStyles from  "./Footer.module.css";
 import { endpoint } from "./App";
 import { GoogleAuthUser } from "./models";
 
@@ -30,14 +29,14 @@ export default function StatsFooter({ userID, user }: { userID: string, user: Go
   }, []);
 
   return <>
-    <div className="footer">
-      <div className="footer-text-wrapper">
+    <div className={footerStyles.footer}>
+      <div className={footerStyles.footer_text_wrapper}>
         <ul>
-          {/* <li className="footer-stat">Launch Date: 09/12/2023</li> */}
-          <li className="footer-stat">Unique Users: {uniqueUsers}</li>
-          <li className="footer-stat"># Backtests Run: {backtests}</li>
-          <li className="footer-stat">Distinct Strategies Tested: {strategies}</li>
-          <li className="footer-stat">Made with ❤️ in NYC</li>
+          {/* <li className={appStyles.footer-stat}>Launch Date: 09/12/2023</li> */}
+          <li className={footerStyles.footer_stat}>Unique Users: {uniqueUsers}</li>
+          <li className={footerStyles.footer_stat}># Backtests Run: {backtests}</li>
+          <li className={footerStyles.footer_stat}>Distinct Strategies Tested: {strategies}</li>
+          <li className={footerStyles.footer_stat}>Made with ❤️ in NYC</li>
         </ul>
       </div>
     </div>

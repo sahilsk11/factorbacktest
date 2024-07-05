@@ -8,8 +8,8 @@ import {
   Legend,
   ChartOptions
 } from 'chart.js';
-import "./app.css";
-import "./factor-snapshot.css";
+import appStyles from "./App.module.css";
+import factorSnapshotStyles from "./FactorSnapshot.module.css";
 import { AiOutlineQuestionCircle } from 'react-icons/ai';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
@@ -41,16 +41,16 @@ export default function InspectFactorData({
     return out;
   };
 
-  return <div className="tile fs-container">
+  return <div className={`${appStyles.tile} ${factorSnapshotStyles.fs_container}`}>
     <div style={{ margin: "0px auto", display: "block" }}>
       <h3 style={{ marginBottom: "0px", marginTop: "0px" }}>Factor Snapshot</h3>
-      <i><p className="subtext">What did "{fdDetails.name}" look like on {fdDate}?</p></i>
-      <div className="container" style={{ marginTop: "30px", width: "100%", minHeight: "0px", alignItems: "center" }}>
-        <div className="column" style={{ "flexGrow": 5, maxWidth: "600px" }}>
+      <i><p className={appStyles.subtext}>What did "{fdDetails.name}" look like on {fdDate}?</p></i>
+      <div className={appStyles.container} style={{ marginTop: "30px", width: "100%", minHeight: "0px", alignItems: "center" }}>
+        <div className={appStyles.column} style={{ "flexGrow": 5, maxWidth: "600px" }}>
           <AssetAllocationTable snapshot={fdData} />
         </div>
-        <div className="column" style={{ "flexGrow": 2 }}>
-          <div className="chart-container">
+        <div className={appStyles.column} style={{ "flexGrow": 2 }}>
+          <div className={factorSnapshotStyles.chart_container}>
             <AssetBreakdown assetWeights={snapshotToAssetWeight(fdData)} />
             <h5 style={{ textAlign: "center" }}>Asset Allocation Breakdown</h5>
 
@@ -66,7 +66,7 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
   const sortedSymbols = Object.keys(snapshot.assetMetrics).sort((a, b) => snapshot.assetMetrics[b].assetWeight - snapshot.assetMetrics[a].assetWeight);
   const toolTipMessage = `Indicates asset performance (% return) between the current date (${snapshot.date}) and the next rebalance.`
   return (
-    <table className="table">
+    <table className={factorSnapshotStyles.table}>
       <thead>
         <tr>
           <th>Symbol</th>

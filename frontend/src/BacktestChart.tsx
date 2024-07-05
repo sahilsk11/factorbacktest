@@ -1,5 +1,5 @@
 import { Dispatch } from 'react';
-import "./backtest-chart.css"
+import styles from "./BacktestChart.module.css"
 
 import {
   Chart as ChartJS,
@@ -129,7 +129,7 @@ export default function BacktestChart({
     }
   };
 
-  return <div className='backtest-chart-wrapper'>
+  return <div className={styles.backtest_chart_wrapper}>
     <Line
       options={options}
       data={data}

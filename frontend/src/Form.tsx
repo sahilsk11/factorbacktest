@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
-import "./form.css";
-import "./app.css";
+import formStyles from "./Form.module.css";
+import appStyles from "./App.module.css";
 import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser } from './models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
@@ -311,12 +311,12 @@ function ClassicFormView({
     user,
   } = props;
   return (
-    <div className='tile'>
+    <div className={appStyles.tile}>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
-      <p className='subtext'>Define your quantitative strategy and customize backtest parameters.</p>
+      <p className={appStyles.subtext}>Define your quantitative strategy and customize backtest parameters.</p>
       <form onSubmit={handleSubmit}>
-        <div className='form-element'>
-          <label>Factor Name</label>
+        <div className={formStyles.form_element}>
+          <label className={formStyles.label}>Factor Name</label>
           <input style={{ width: "250px" }} required
             id="factor-name"
             type="text"
@@ -326,7 +326,7 @@ function ClassicFormView({
             }
           />
         </div>
-        <div className='form-element'>
+        <div className={formStyles.form_element}>
           <FactorExpressionInput
             userID={userID}
             factorExpression={factorExpression}
@@ -336,8 +336,8 @@ function ClassicFormView({
           />
         </div>
 
-        <div className='form-element'>
-          <label>Backtest Range</label>
+        <div className={formStyles.form_element}>
+          <label className={formStyles.label}>Backtest Range</label>
           <input
             min={'2010-01-01'}
             max={backtestEnd > maxDate ? maxDate : backtestEnd}
@@ -356,9 +356,9 @@ function ClassicFormView({
           />
         </div>
 
-        <div className='form-element'>
-          <label>Rebalance Interval</label>
-          <p className='label-subtext'>How frequently should we re-evaluate portfolio holdings.</p>
+        <div className={formStyles.form_element}>
+          <label className={formStyles.label}>Rebalance Interval</label>
+          <p className={formStyles.label_subtext}>How frequently should we re-evaluate portfolio holdings.</p>
           <select value={samplingIntervalUnit} onChange={(e) => setSamplingIntervalUnit(e.target.value)}>
             <option value="daily">daily</option>
             <option value="weekly">weekly</option>
@@ -369,8 +369,8 @@ function ClassicFormView({
 
 
         <div>
-          <label>Number of Assets</label>
-          <p className='label-subtext'>How many assets the target portfolio should hold at any time.</p>
+          <label className={formStyles.label}>Number of Assets</label>
+          <p className={formStyles.label_subtext}>How many assets the target portfolio should hold at any time.</p>
           <input
             id="num-symbols"
             // max={numAssetsInSelectedUniverse}
@@ -391,7 +391,7 @@ function ClassicFormView({
         </div>
 
         <div>
-          <label>Starting Cash</label>
+          <label className={formStyles.label}>Starting Cash</label>
           <span style={{ fontSize: "14px" }}>$</span> <input
             id="cash"
             value={cash.toLocaleString()}
@@ -407,17 +407,17 @@ function ClassicFormView({
             }}
           />
         </div>
-        <div className='form-element'>
-          <label>Asset Universe</label>
-          <p className='label-subtext'>The pool of assets that are eligible for the target portfolio.</p>
+        <div className={formStyles.form_element}>
+          <label className={formStyles.label}>Asset Universe</label>
+          <p className={formStyles.label_subtext}>The pool of assets that are eligible for the target portfolio.</p>
           <select value={assetUniverse} onChange={(e) => setAssetUniverse(e.target.value)}>
             {assetUniverseSelectOptions}
           </select>
         </div>
 
-        {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className='label-subtext'>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
+        {numComputations > 10_000 ? <p style={{ marginTop: "5px" }} className={formStyles.label_subtext}>This backtest range + rebalance combination requires {numComputations.toLocaleString('en-US', { style: 'decimal' }).split('.')[0]} computations and may take up to {Math.floor(numComputations / 10000) * 10} seconds.</p> : null}
 
-        {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className='backtest-btn' type="submit">Run Backtest</button>}
+        {loading ? <img style={{ width: "40px", marginTop: "20px", marginLeft: "40px" }} src='loading.gif' /> : <button className={formStyles.backtest_btn} type="submit">Run Backtest</button>}
 
         <Error message={err} />
       </form>
@@ -427,7 +427,7 @@ function ClassicFormView({
 
 export function Error({ message }: { message: string | null }) {
   return message === null ? null : <>
-    <div className='error-container'>
+    <div className={formStyles.error_container}>
       <h4 style={{ marginBottom: "0px", marginTop: "0px" }}>That's an error.</h4>
       <p>{message}</p>
     </div>

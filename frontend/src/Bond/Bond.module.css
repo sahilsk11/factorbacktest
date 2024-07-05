@@ -1,22 +1,23 @@
-.backtest-chart-wrapper {
+.backtest_chart_wrapper {
   height: 40vh;
   min-height: 280px;
 }
 
-.chart-title {
+.chart_title {
   margin: 0px;
   margin-left: 10px;
   margin-bottom: 8px;
 }
 
-.chart-seperator {
-  border: 0.5px solid #d6d6d6;
+.chart_seperator {
+  border: 0.5px solid #838383;
   width: 90%;
+  margin: 0px auto;
   margin-bottom: 20px;;
   margin-top: 20px;
 }
 
-.chart-description {
+.chart_description {
   margin-top: 0px;
   margin-left: 10px;
   font-size: 13px;

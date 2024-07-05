@@ -9,7 +9,7 @@
   text-align: left;
 }
 
-.fs-container {
+.fs_container {
   margin: 0px auto;
   width: 90%;
   margin-top: 30px;
@@ -20,7 +20,7 @@
   right: 0;
 }
 
-.chart-container {
+.chart_container {
   width: 90%;
   max-width: 200px;
   display: block;
@@ -29,7 +29,7 @@
 }
 
 @media only screen and (max-width: 600px) {
-  .chart-container {
+  .chart_container {
     margin-top: 30px;
   }
 }
