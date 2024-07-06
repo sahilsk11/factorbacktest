@@ -187,7 +187,7 @@ function setCookie(cookieName: string, cookieValue: string) {
   const date = new Date();
   date.setTime(date.getTime() + (900 * 24 * 60 * 60 * 1000));
   const expires = "expires=" + date.toUTCString();
-  document.cookie = cookieName + "=" + cookieValue + "; " + expires;
+  document.cookie = cookieName + "=" + cookieValue + "; " + expires + ";SameSite=Strict;Secure;HttpOnly";
 }
 
 export function getOrCreateUserID(): string {
