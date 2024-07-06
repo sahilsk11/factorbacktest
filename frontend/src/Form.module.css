@@ -103,6 +103,13 @@ input:placeholder-shown {
   align-items: center;
 }
 
+.bookmark_container {
+  width: fit-content;
+  position: absolute;
+  right: 23px;
+  top: 23px;
+}
+
 .verbose_builder {
   margin: 0px auto;
 }

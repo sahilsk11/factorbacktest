@@ -1,8 +1,8 @@
 import { FactorData } from './App';
 
 export function enumerateDates(startDateStr: string, endDateStr: string) {
-  const startDate = new Date(startDateStr+ "T00:00:00");
-  const endDate = new Date(endDateStr+ "T00:00:00");
+  const startDate = new Date(startDateStr + "T00:00:00");
+  const endDate = new Date(endDateStr + "T00:00:00");
 
   const dates: string[] = [];
   const currentDate = new Date(startDate);
@@ -37,7 +37,7 @@ export function formatDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export const minMaxDates = (factorData:FactorData[]): {min: string; max:string} => {
+export const minMaxDates = (factorData: FactorData[]): { min: string; max: string } => {
   let min = "";
   let max = ""
 
@@ -52,5 +52,5 @@ export const minMaxDates = (factorData:FactorData[]): {min: string; max:string} 
     })
   })
 
-  return {min, max};
+  return { min, max };
 }

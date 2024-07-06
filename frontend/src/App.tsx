@@ -47,7 +47,7 @@ const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Di
     </div>
     <Nav loggedIn={user !== null} setUser={setUser} showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className={styles.centered_container}>
-      <FactorBacktestMain userID={userID} user={user} />
+      <FactorBacktestMain userID={userID} user={user} setUser={setUser} />
     </div>
 
     <StatsFooter user={user} userID={userID} />
@@ -56,9 +56,10 @@ const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Di
   </>
 }
 
-function FactorBacktestMain({ userID, user }: {
+function FactorBacktestMain({ userID, user, setUser }: {
   userID: string
-  user: GoogleAuthUser | null
+  user: GoogleAuthUser | null,
+  setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
 }) {
   const [factorData, updateFactorData] = useState<FactorData[]>([]);
   const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
@@ -105,6 +106,7 @@ function FactorBacktestMain({ userID, user }: {
     appendFactorData={(newFactorData: FactorData) => {
       updateFactorData([...factorData, newFactorData])
     }}
+    setUser={setUser}
     fullscreenView={useVerboseBuilder}
   />
 

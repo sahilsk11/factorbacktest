@@ -8,6 +8,9 @@ import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
 import { Col, Container, Row } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { FaBookmark, FaRegBookmark } from "react-icons/fa";
+import { Tooltip as ReactTooltip } from 'react-tooltip';
+import { useGoogleLogin } from '@react-oauth/google';
 
 function todayAsString() {
   const today = new Date();
@@ -33,12 +36,14 @@ export default function FactorForm({
   appendFactorData,
   fullscreenView,
   user,
+  setUser,
 }: {
   user: GoogleAuthUser | null,
   userID: string,
   takenNames: string[];
   appendFactorData: (newFactorData: FactorData) => void;
   fullscreenView: boolean,
+  setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
 }) {
   const [factorExpression, setFactorExpression] = useState("");
   const [factorName, setFactorName] = useState("7_day_momentum_weekly");
@@ -247,6 +252,7 @@ export default function FactorForm({
     loading,
     err,
     user,
+    setUser,
   }
 
   return fullscreenView ? <VerboseFormView props={props} /> : <ClassicFormView props={props} />
@@ -278,6 +284,7 @@ interface FormViewProps {
   loading: boolean,
   err: string | null,
   user: GoogleAuthUser | null,
+  setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
 }
 
 function ClassicFormView({
@@ -311,11 +318,13 @@ function ClassicFormView({
     loading,
     err,
     user,
+    setUser,
   } = props;
   return (
-    <div className={appStyles.tile}>
+    <div className={appStyles.tile} style={{position:"relative"}}>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
       <p className={appStyles.subtext}>Define your quantitative strategy and customize backtest parameters.</p>
+      <BookmarkStrategy user={user} setUser={setUser} />
       <form onSubmit={handleSubmit}>
         <div className={formStyles.form_element}>
           <label className={formStyles.label}>Strategy Name</label>
@@ -471,7 +480,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
     alt='loading...'
   />
 
-  const onSubmit = (e:any) => {
+  const onSubmit = (e: any) => {
     navigate("/backtest");
     handleSubmit(e)
   }
@@ -624,4 +633,57 @@ function jumpToAnchorOnSmallScreen(anchorId: string) {
       });
     }
   }
+}
+
+function BookmarkStrategy({user, setUser}:{
+  user: GoogleAuthUser | null;
+  setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
+}) {
+  const [bookmarked, setBookmarked] = useState(false);
+  const toolTipMessage = `Bookmark strategy`;
+
+  const icon = bookmarked ? <FaBookmark size={20} style={{ cursor: "pointer" }} /> : <FaRegBookmark size={20} style={{ cursor: "pointer" }} />
+
+  // todo - centralize this function
+  const login = useGoogleLogin({
+    onSuccess: (codeResponse) => {
+      // console.log(codeResponse)
+      const date = new Date();
+      date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
+      const expires = "expires=" + date.toUTCString();
+
+      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure;HttpOnly";
+
+      setUser({
+        accessToken: codeResponse.access_token
+      } as GoogleAuthUser);
+
+      setBookmarked(!bookmarked)
+    },
+    onError: (error) => console.log('Login Failed:', error)
+  });
+
+  const onClick = () => {
+    if (!user) {
+      login()
+    } else {
+      setBookmarked(!bookmarked)
+    }
+  }
+
+  // backend not ready yet
+  return null;
+
+  return (
+    <div
+      className={formStyles.bookmark_container}
+      data-tooltip-id="bookmark-tooltip"
+      data-tooltip-content={toolTipMessage}
+      data-tooltip-place="bottom"
+      onClick={onClick}
+      >
+      {icon}
+      <ReactTooltip id="bookmark-tooltip" />
+    </div>
+  )
 }
