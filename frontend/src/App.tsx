@@ -10,6 +10,7 @@ import { ContactModal, HelpModal } from './Modals';
 import StatsFooter from './Footer';
 import { Nav } from './Nav';
 import styles from './App.module.css'
+import { useLocation } from 'react-router-dom';
 
 export interface FactorData {
   name: string,
@@ -25,51 +26,19 @@ export interface BenchmarkData {
   data: Record<string, number>
 }
 
-async function isValidUser(user: GoogleAuthUser) {
-  const url = "https://www.googleapis.com/oauth2/v1/userinfo?access_token=" + user.accessToken;
 
-  try {
-    const response = await fetch(url);
 
-    // Check if the response is OK (status code 200)
-    if (response.ok) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    console.error("Error checking access token:", error);
-    return false;
-  }
-}
-
-const App = () => {
+const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;  }) => {
   // legacy token that identifies unique user
   const [userID, setUserID] = useState("");
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
-
-  // google auth user
-  const [user, setUser] = useState<GoogleAuthUser | null>(null);
-
-  async function updateUserFromCookie() {
-    const accessToken = getCookie("googleAuthAccessToken");
-    if (accessToken) {
-      const tmpUser = {
-        accessToken
-      } as GoogleAuthUser;
-      if (await isValidUser(tmpUser)) {
-        setUser(tmpUser);
-      }
-    }
-  }
 
   useEffect(() => {
     // if (getCookie("userID") === null) {
     //   setShowHelpModal(true);
     // }
     setUserID(getOrCreateUserID());
-    updateUserFromCookie()
   }, []);
 
   return <>
@@ -96,6 +65,9 @@ function FactorBacktestMain({ userID, user }: {
   const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
 
+  const location = useLocation();
+  const pathname = location.pathname;
+
   let takenNames: string[] = [];
   factorData.forEach(fd => {
     takenNames.push(fd.name)
@@ -114,7 +86,7 @@ function FactorBacktestMain({ userID, user }: {
     }
   }, [factorData])
 
-  const useVerboseBuilder = factorData.length === 0 && window.innerWidth > 767;
+  const useVerboseBuilder = window.innerWidth > 767 && pathname !== "/backtest";
 
   const formComponent = <FactorForm
     // set this to the benchmark names that are already in used

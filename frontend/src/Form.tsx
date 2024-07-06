@@ -7,6 +7,7 @@ import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
 import { Col, Container, Row } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 
 function todayAsString() {
   const today = new Date();
@@ -458,6 +459,8 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
     err
   } = props;
 
+  const navigate = useNavigate()
+
   const loadingIcon = <img
     style={{
       width: "40px",
@@ -467,6 +470,11 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
     src='loading.gif'
     alt='loading...'
   />
+
+  const onSubmit = (e:any) => {
+    navigate("/backtest");
+    handleSubmit(e)
+  }
 
   const buttons = <>
     <button
@@ -482,7 +490,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
         <p className={formStyles.verbose_builder_subtitle}>Create and backtest factor-based investment strategies.</p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "contents" }}>
+      <form onSubmit={onSubmit} style={{ display: "contents" }}>
         <Container>
           <Row>
             <Col md={6}>
