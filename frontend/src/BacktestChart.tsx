@@ -50,7 +50,7 @@ export default function BacktestChart({
 }: {
   benchmarkData: BenchmarkData[];
   factorData: FactorData[];
-  updateInspectFactorDataIndex: Dispatch<React.SetStateAction<number | null>>;
+  updateInspectFactorDataIndex: (newVal: number) => void;
   updateInspectFactorDataDate: Dispatch<React.SetStateAction<string | null>>;
 }) {
   const datasets: ChartDataset<"line", (number | null)[]>[] = [];

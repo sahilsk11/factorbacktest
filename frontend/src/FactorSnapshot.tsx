@@ -13,22 +13,88 @@ import factorSnapshotStyles from "./FactorSnapshot.module.css";
 import { AiOutlineQuestionCircle } from 'react-icons/ai';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
+import { Nav } from "react-bootstrap";
+import { Dispatch, SetStateAction, useState } from "react";
 
-
-
-
-export default function InspectFactorData({
+export default function Inspector({
   fdIndex,
   fdDate,
-  factorData
+  factorData,
+  updateInspectFactorDataIndex,
+  updateInspectFactorDataDate,
 }: {
   fdIndex: number | null;
   fdDate: string | null;
   factorData: FactorData[];
+  updateInspectFactorDataIndex: (newVal: number) => void;
+  updateInspectFactorDataDate: Dispatch<SetStateAction<string | null>>;
 }) {
+  const [selectedTab, setSelectedTab] = useState<string>("holdings");
+
   if (fdIndex === null || fdDate === null || factorData.length === 0) {
     return null;
   }
+
+  const selectedComponent = {
+    "holdings": <
+      InspectFactorData
+      fdIndex={fdIndex}
+      fdDate={fdDate}
+      factorData={factorData}
+      updateInspectFactorDataIndex={updateInspectFactorDataIndex}
+      updateInspectFactorDataDate={updateInspectFactorDataDate}
+    />,
+    "metrics": <p>coming soon!</p>,
+    "save": <p>coming soon!</p>,
+  }[selectedTab] || null;
+
+  return <div className={`${appStyles.tile} ${factorSnapshotStyles.fs_container}`}>{selectedComponent}</div>
+
+  return (
+    <>
+      <div className={`${appStyles.tile} ${factorSnapshotStyles.fs_container}`}>
+        <Nav variant="underline" activeKey={selectedTab}>
+          <Nav.Item>
+            <Nav.Link onClick={() => setSelectedTab("holdings")} eventKey="holdings">Holdings</Nav.Link>
+          </Nav.Item>
+          {/* <Nav.Item>
+            <Nav.Link eventKey="save">Save Strategy</Nav.Link>
+          </Nav.Item> */}
+          {/* <Nav.Item>
+            <Nav.Link onClick={() => setSelectedTab("metrics")} eventKey="metrics">Performance Metrics</Nav.Link>
+          </Nav.Item> */}
+        </Nav>
+        {selectedComponent}
+      </div>
+    </>
+  )
+}
+
+function InspectFactorData({
+  fdIndex,
+  fdDate,
+  factorData,
+  updateInspectFactorDataIndex,
+  updateInspectFactorDataDate,
+}: {
+  fdIndex: number;
+  fdDate: string;
+  factorData: FactorData[];
+  updateInspectFactorDataIndex: (newVal: number) => void;
+  updateInspectFactorDataDate: Dispatch<SetStateAction<string | null>>;
+}) {
+
+  const strategyNamesSelector = <select value={fdIndex} onChange={(e) => updateInspectFactorDataIndex(Number(e.target.value))}>
+    {factorData.map((fd, i) => <option value={i} key={i}>
+      {fd.name}
+    </option>)}
+  </select>
+
+  const dateSelector = <select value={fdDate} onChange={e => updateInspectFactorDataDate(e.target.value)}>
+    {Object.keys(factorData[fdIndex].data).map((dateStr, i) =>
+      <option value={dateStr} key={i}>{dateStr}</option>
+    )}
+  </select>
 
   const fdDetails = factorData[fdIndex];
   const fdData = fdDetails.data[fdDate];
@@ -41,10 +107,10 @@ export default function InspectFactorData({
     return out;
   };
 
-  return <div className={`${appStyles.tile} ${factorSnapshotStyles.fs_container}`}>
+  return <>
     <div style={{ margin: "0px auto", display: "block" }}>
       <h3 style={{ marginBottom: "0px", marginTop: "0px" }}>Factor Snapshot</h3>
-      <i><p className={appStyles.subtext}>What did "{fdDetails.name}" look like on {fdDate}?</p></i>
+      <i><p className={appStyles.subtext}>What did {strategyNamesSelector} hold on {dateSelector} ?</p></i>
       <div className={appStyles.my_container} style={{ marginTop: "30px", width: "100%", minHeight: "0px", alignItems: "center" }}>
         <div className={appStyles.column} style={{ "flexGrow": 5, maxWidth: "600px" }}>
           <AssetAllocationTable snapshot={fdData} />
@@ -59,7 +125,7 @@ export default function InspectFactorData({
       </div>
     </div>
 
-  </div>
+  </>
 }
 
 const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
@@ -93,7 +159,7 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
         </tr>
       </thead>
       <tbody>
-        {sortedSymbols.map(symbol => <tr>
+        {sortedSymbols.map((symbol, i) => <tr key={i}>
           <td>{symbol}</td>
           <td>{snapshot.assetMetrics[symbol].factorScore < 1e-2 ? snapshot.assetMetrics[symbol].factorScore.toExponential(2) : snapshot.assetMetrics[symbol].factorScore.toFixed(2)}</td>
           <td>{(100 * snapshot.assetMetrics[symbol].assetWeight).toFixed(2)}%</td>

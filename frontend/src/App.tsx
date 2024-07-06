@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import BacktestChart from './BacktestChart';
 import FactorForm from "./Form";
-import InspectFactorData from './FactorSnapshot';
+import Inspector from './FactorSnapshot';
 import BenchmarkManager from './BenchmarkSelector';
 import { BacktestSnapshot, GoogleAuthUser } from "./models";
 import { minMaxDates } from './util';
@@ -28,7 +28,7 @@ export interface BenchmarkData {
 
 
 
-const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;  }) => {
+const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>; }) => {
   // legacy token that identifies unique user
   const [userID, setUserID] = useState("");
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -86,6 +86,15 @@ function FactorBacktestMain({ userID, user }: {
     }
   }, [factorData])
 
+  const updateFdIndex = (newVal: number) => {
+    updateInspectFactorDataIndex(newVal);
+    if (!inspectFactorDataDate || !factorData[newVal].data.hasOwnProperty(inspectFactorDataDate)) {
+      // todo - look for closest date instead of resetting
+      const date = Object.keys(factorData[newVal].data)[0];
+      updateInspectFactorDataDate(date);
+    }
+  }
+
   const useVerboseBuilder = window.innerWidth > 767 && pathname !== "/backtest";
 
   const formComponent = <FactorForm
@@ -115,13 +124,15 @@ function FactorBacktestMain({ userID, user }: {
         <BacktestChart
           benchmarkData={benchmarkData}
           factorData={factorData}
-          updateInspectFactorDataIndex={updateInspectFactorDataIndex}
+          updateInspectFactorDataIndex={updateFdIndex}
           updateInspectFactorDataDate={updateInspectFactorDataDate}
         />
-        <InspectFactorData
+        <Inspector
           fdIndex={inspectFactorDataIndex}
           fdDate={inspectFactorDataDate}
           factorData={factorData}
+          updateInspectFactorDataIndex={updateFdIndex}
+          updateInspectFactorDataDate={updateInspectFactorDataDate}
         />
       </div>
     </>
