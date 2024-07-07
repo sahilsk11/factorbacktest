@@ -671,9 +671,6 @@ function BookmarkStrategy({user, setUser}:{
     }
   }
 
-  // backend not ready yet
-  return null;
-
   return (
     <div
       className={formStyles.bookmark_container}
