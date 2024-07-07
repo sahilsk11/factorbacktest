@@ -2,7 +2,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import formStyles from "./Form.module.css";
 import appStyles from "./App.module.css";
-import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser } from './models';
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest } from './models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
@@ -100,19 +100,6 @@ export default function FactorForm({
     return <option key={i++} value={u.code}>{u.displayName}</option>
   })
 
-  let found = false;
-  let nextNum = 1;
-  names.forEach(n => {
-    if (n.includes(factorName)) {
-      found = true;
-      const match = n.match(/\((\d+)\)/);
-      if (match) {
-        const number = parseInt(match[1], 10);
-        nextNum = Math.max(number + 1, nextNum)
-      }
-    }
-  })
-
   const updateName = (newName: string) => {
     setFactorName(newName + "_" + samplingIntervalUnit)
   }
@@ -136,15 +123,12 @@ export default function FactorForm({
     setErr(null);
     setLoading(true);
 
-    let name = factorName;
-    if (found) {
-      name += " (" + nextNum.toString() + ")"
-    }
+
 
     const data: BacktestRequest = {
       factorOptions: {
         expression: factorExpression,
-        name,
+        name: factorName,
       } as FactorOptions,
       backtestStart,
       backtestEnd,
@@ -159,7 +143,8 @@ export default function FactorForm({
       const response = await fetch(endpoint + "/backtest", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Authorization": user ? "Bearer " + user.accessToken : ""
         },
         body: JSON.stringify(data)
       });
@@ -171,12 +156,31 @@ export default function FactorForm({
           return;
         }
         jumpToAnchorOnSmallScreen("backtest-chart")
-        setNames([...names, data.factorOptions.name])
+
+        let newName = data.factorOptions.name;
+        let found = false;
+        let nextNum = 1;
+        names.forEach(n => {
+          if (n.includes(factorName)) {
+            found = true;
+            const match = n.match(/\((\d+)\)/);
+            if (match) {
+              const number = parseInt(match[1], 10);
+              nextNum = Math.max(number + 1, nextNum)
+            }
+          }
+        })
+        if (found) {
+          newName += " (" + nextNum.toString() + ")"
+        }
+
+        setNames([...names, newName])
         const fd: FactorData = {
-          name: data.factorOptions.name,
+          name: newName,
           data: result.backtestSnapshots,
           expression: data.factorOptions.expression
         } as FactorData;
+
         appendFactorData(fd)
       } else {
         const j = await response.json()
@@ -321,10 +325,10 @@ function ClassicFormView({
     setUser,
   } = props;
   return (
-    <div className={appStyles.tile} style={{position:"relative"}}>
+    <div className={appStyles.tile} style={{ position: "relative" }}>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
       <p className={appStyles.subtext}>Define your quantitative strategy and customize backtest parameters.</p>
-      <BookmarkStrategy user={user} setUser={setUser} />
+      <BookmarkStrategy user={user} setUser={setUser} formProps={props} />
       <form onSubmit={handleSubmit}>
         <div className={formStyles.form_element}>
           <label className={formStyles.label}>Strategy Name</label>
@@ -635,12 +639,77 @@ function jumpToAnchorOnSmallScreen(anchorId: string) {
   }
 }
 
-function BookmarkStrategy({user, setUser}:{
+function BookmarkStrategy({ user, setUser, formProps }: {
   user: GoogleAuthUser | null;
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
+  formProps: FormViewProps,
 }) {
   const [bookmarked, setBookmarked] = useState(false);
   const toolTipMessage = `Bookmark strategy`;
+
+  const updateToLatestState = async () => {
+    const bookmarkRequest: BookmarkStrategyRequest = {
+      expression: formProps.factorExpression,
+      name: formProps.factorName,
+      backtestStart: formProps.backtestStart,
+      backtestEnd: formProps.backtestEnd,
+      rebalanceInterval: formProps.samplingIntervalUnit,
+      numAssets: formProps.numSymbols,
+      assetUniverse: formProps.assetUniverse,
+      bookmark: bookmarked, // this is ignored
+    }
+    try {
+      const response = await fetch(endpoint + "/isStrategyBookmarked", {
+        method: "POST",
+        headers: {
+          "Authorization": user ? "Bearer " + user.accessToken : ""
+        },
+        body: JSON.stringify(bookmarkRequest)
+      });
+      if (!response.ok) {
+        const j = await response.json()
+        alert(j.error)
+        console.error("Error submitting data:", response.status);
+      } else {
+        const j = await response.json()
+        setBookmarked(j["isBookmarked"])
+      }
+    } catch (error) {
+      alert((error as Error).message)
+      console.error("Error:", error);
+    }
+  };
+
+  const updateBookmarked = async (user:GoogleAuthUser, bookmark: boolean) => {
+    setBookmarked(bookmark)
+    const bookmarkRequest: BookmarkStrategyRequest = {
+      expression: formProps.factorExpression,
+      name: formProps.factorName,
+      backtestStart: formProps.backtestStart,
+      backtestEnd: formProps.backtestEnd,
+      rebalanceInterval: formProps.samplingIntervalUnit,
+      numAssets: formProps.numSymbols,
+      assetUniverse: formProps.assetUniverse,
+      bookmark,
+    }
+    try {
+      const response = await fetch(endpoint + "/bookmarkStrategy", {
+        method: "POST",
+        headers: {
+          "Authorization": user ? "Bearer " + user.accessToken : ""
+        },
+        body: JSON.stringify(bookmarkRequest)
+      });
+      if (!response.ok) {
+        const j = await response.json()
+        alert(j.error)
+        console.error("Error submitting data:", response.status);
+      }
+    } catch (error) {
+      alert((error as Error).message)
+      console.error("Error:", error);
+    }
+  };
 
   const icon = bookmarked ? <FaBookmark size={20} style={{ cursor: "pointer" }} /> : <FaRegBookmark size={20} style={{ cursor: "pointer" }} />
 
@@ -652,24 +721,34 @@ function BookmarkStrategy({user, setUser}:{
       date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
       const expires = "expires=" + date.toUTCString();
 
-      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure;HttpOnly";
-
-      setUser({
+      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure";
+      const newUser = {
         accessToken: codeResponse.access_token
-      } as GoogleAuthUser);
+      } as GoogleAuthUser
+      setUser(newUser);
 
-      setBookmarked(!bookmarked)
+      updateBookmarked(newUser, !bookmarked)
     },
     onError: (error) => console.log('Login Failed:', error)
   });
 
-  const onClick = () => {
+  const onClick = async () => {
     if (!user) {
+      // login called setBookmarked
       login()
     } else {
-      setBookmarked(!bookmarked)
+      updateBookmarked(user, !bookmarked)
     }
   }
+
+  useEffect(() => {
+    if (user) {
+      updateToLatestState()
+    }
+    if (!user) {
+      setBookmarked(false)
+    }
+  }, [user, formProps])
 
   return (
     <div
@@ -678,7 +757,7 @@ function BookmarkStrategy({user, setUser}:{
       data-tooltip-content={toolTipMessage}
       data-tooltip-place="bottom"
       onClick={onClick}
-      >
+    >
       {icon}
       <ReactTooltip id="bookmark-tooltip" />
     </div>

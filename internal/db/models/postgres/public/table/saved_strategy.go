@@ -27,6 +27,8 @@ type savedStrategyTable struct {
 	AssetUniverse     postgres.ColumnString
 	Bookmarked        postgres.ColumnBool
 	UserAccountID     postgres.ColumnString
+	CreatedAt         postgres.ColumnTimestampz
+	ModifiedAt        postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -67,8 +69,10 @@ func newSavedStrategyTableImpl(schemaName, tableName, alias string) savedStrateg
 		AssetUniverseColumn     = postgres.StringColumn("asset_universe")
 		BookmarkedColumn        = postgres.BoolColumn("bookmarked")
 		UserAccountIDColumn     = postgres.StringColumn("user_account_id")
-		allColumns              = postgres.ColumnList{SavedStragyIDColumn, StrategyNameColumn, FactorExpressionColumn, BacktestStartColumn, BacktestEndColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, BookmarkedColumn, UserAccountIDColumn}
-		mutableColumns          = postgres.ColumnList{StrategyNameColumn, FactorExpressionColumn, BacktestStartColumn, BacktestEndColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, BookmarkedColumn, UserAccountIDColumn}
+		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
+		ModifiedAtColumn        = postgres.TimestampzColumn("modified_at")
+		allColumns              = postgres.ColumnList{SavedStragyIDColumn, StrategyNameColumn, FactorExpressionColumn, BacktestStartColumn, BacktestEndColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, BookmarkedColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn}
+		mutableColumns          = postgres.ColumnList{StrategyNameColumn, FactorExpressionColumn, BacktestStartColumn, BacktestEndColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, BookmarkedColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn}
 	)
 
 	return savedStrategyTable{
@@ -85,6 +89,8 @@ func newSavedStrategyTableImpl(schemaName, tableName, alias string) savedStrateg
 		AssetUniverse:     AssetUniverseColumn,
 		Bookmarked:        BookmarkedColumn,
 		UserAccountID:     UserAccountIDColumn,
+		CreatedAt:         CreatedAtColumn,
+		ModifiedAt:        ModifiedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

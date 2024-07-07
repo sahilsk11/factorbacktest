@@ -23,4 +23,6 @@ type SavedStrategy struct {
 	AssetUniverse     string
 	Bookmarked        bool
 	UserAccountID     uuid.UUID
+	CreatedAt         time.Time
+	ModifiedAt        time.Time
 }

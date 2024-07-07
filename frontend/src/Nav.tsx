@@ -43,6 +43,9 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
       <NavDropdown.Item onClick={() => {
         googleLogout();
         setUser(null);
+        document.cookie = "googleAuthAccessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure";
+
+
         console.log("logout");
       }} style={{ fontSize: "14px" }}>
         Logout
