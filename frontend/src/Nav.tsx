@@ -21,7 +21,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
       date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
       const expires = "expires=" + date.toUTCString();
 
-      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure;HttpOnly";
+      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure";
 
       setUser({
         accessToken: codeResponse.access_token
