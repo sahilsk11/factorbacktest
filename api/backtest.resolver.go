@@ -109,6 +109,21 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
+	err = h.addNewSavedStrategy(
+		c,
+		requestBody.FactorOptions.Name,
+		requestBody.FactorOptions.Expression,
+		requestBody.SamplingIntervalUnit,
+		assetUniverse,
+		requestBody.NumSymbols,
+		backtestStartDate,
+		backtestEndDate,
+	)
+	if err != nil {
+		returnErrorJson(err, c)
+		return
+	}
+
 	backtestInput := app.BacktestInput{
 		FactorExpression:  requestBody.FactorOptions.Expression,
 		FactorName:        requestBody.FactorOptions.Name,
@@ -205,6 +220,53 @@ func saveUserStrategy(
 	}
 
 	err = usr.Add(db, in)
+	if err != nil {
+		return err
+	}
 
 	return err
+}
+
+func (m ApiHandler) addNewSavedStrategy(
+	c *gin.Context,
+	name string,
+	expression string,
+	rebalanceInterval string,
+	assetUniverse string,
+	numAssets int,
+	start, end time.Time,
+) error {
+	ginUserAccountID, ok := c.Get("userAccountID")
+	if !ok {
+		return nil
+	}
+	userAccountIDStr, ok := ginUserAccountID.(string)
+	if !ok {
+		return fmt.Errorf("misformatted user account id")
+	}
+	if userAccountIDStr == "" {
+		return nil
+	}
+	userAccountID, err := uuid.Parse(userAccountIDStr)
+	if err != nil {
+		return err
+	}
+
+	newModel := model.SavedStrategy{
+		StrategyName:      name,
+		FactorExpression:  expression,
+		BacktestStart:     start,
+		BacktestEnd:       end,
+		RebalanceInterval: rebalanceInterval,
+		NumAssets:         int32(numAssets),
+		AssetUniverse:     assetUniverse,
+		Bookmarked:        false,
+		UserAccountID:     userAccountID,
+	}
+	err = m.SavedStrategyRepository.Add(newModel)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

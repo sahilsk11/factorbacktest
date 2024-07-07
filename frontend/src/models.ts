@@ -54,3 +54,14 @@ export interface ContactRequest {
   replyEmail?: string | null;
   content: string;
 }
+
+export interface BookmarkStrategyRequest {
+  expression: string;
+  name: string;
+  backtestStart: string;
+  backtestEnd: string;
+  rebalanceInterval: string;
+  numAssets: number;
+  assetUniverse: string;
+  bookmark: boolean;
+}

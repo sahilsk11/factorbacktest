@@ -49,6 +49,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	tickerRepository := repository.NewTickerRepository(dbConn)
 	factorScoreRepository := repository.NewFactorScoreRepository(dbConn)
 	userAccountRepository := repository.NewUserAccountRepository(dbConn)
+	savedStrategyRepository := repository.NewSavedStrategyRepository(dbConn)
 
 	priceService := service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
@@ -76,6 +77,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		PriceRepository:              priceRepository,
 		AssetUniverseRepository:      assetUniverseRepository,
 		UserAccountRepository:        userAccountRepository,
+		SavedStrategyRepository:      savedStrategyRepository,
 	}
 
 	return apiHandler, nil
