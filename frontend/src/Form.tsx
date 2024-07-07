@@ -732,9 +732,9 @@ function BookmarkStrategy({ user, setUser, formProps }: {
     onError: (error) => console.log('Login Failed:', error)
   });
 
-  const onClick = async () => {
+  const onClick = () => {
     if (!user) {
-      // login called setBookmarked
+      // login calls updateBookmarked
       login()
     } else {
       updateBookmarked(user, !bookmarked)
