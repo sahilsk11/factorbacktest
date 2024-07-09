@@ -72,6 +72,7 @@ export interface GetSavedStrategiesResponse {
   rebalanceInterval: string;
   bookmarked: boolean;
   createdAt: string;
+  factorExpression: string;
   // modifiedAt?: Date; // Uncomment if needed
 }
 

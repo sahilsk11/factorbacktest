@@ -14,6 +14,7 @@ type getSavedStrategiesResponse struct {
 	RebalanceInterval string    `json:"rebalanceInterval"`
 	Bookmarked        bool      `json:"bookmarked"`
 	CreatedAt         time.Time `json:"createdAt"`
+	FactorExpression  string    `json:"factorExpression"`
 	// ModifiedAt        time.Time
 }
 
@@ -49,6 +50,7 @@ func (m ApiHandler) getSavedStrategies(c *gin.Context) {
 			RebalanceInterval: s.RebalanceInterval,
 			Bookmarked:        s.Bookmarked,
 			CreatedAt:         s.CreatedAt,
+			FactorExpression:  s.FactorExpression,
 		})
 	}
 

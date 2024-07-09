@@ -3,68 +3,34 @@ import { endpoint } from "./App";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import Editor, { loader } from '@monaco-editor/react';
 import { languages } from 'monaco-editor';
-import { GoogleAuthUser } from './models';
+import { GetSavedStrategiesResponse, GoogleAuthUser } from './models';
 import formStyles from './Form.module.css'
 
-export function FactorExpressionInput({ user, userID, factorExpression, setFactorExpression, updateName }: {
+export function FactorExpressionInput({
+  user,
+  userID,
+  factorExpression,
+  setFactorExpression,
+  updateName,
+  gptInput,
+  selectedFactor,
+  setSelectedFactor,
+  setGptInput,
+  savedStrategies,
+}: {
   userID: string;
   factorExpression: string;
   setFactorExpression: Dispatch<SetStateAction<string>>;
   updateName: (arg: string) => void;
-  user: GoogleAuthUser | null
+  user: GoogleAuthUser | null;
+  gptInput: string;
+  selectedFactor: string;
+  setSelectedFactor: Dispatch<SetStateAction<string>>;
+  setGptInput: Dispatch<SetStateAction<string>>;
+  savedStrategies: GetSavedStrategiesResponse[];
 }) {
-  const [gptInput, setGptInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedFactor, setSelectedFactor] = useState("momentum");
-
-  interface selectedFactorDetails {
-    expression: string;
-    factorName: string;
-  }
-
-  const presetMap: Record<string, selectedFactorDetails> = {
-    "gpt": {
-      expression: "",
-      factorName: ""
-    },
-    "momentum": {
-      expression: `pricePercentChange(
-  nDaysAgo(7),
-  currentDate
-)`,
-      factorName: "7_day_momentum"
-    },
-    "value": {
-      expression: "10/pbRatio(currentDate)",
-      factorName: "undervalued_by_pb_ratio"
-    },
-    "volatility": {
-      expression: "1e3/stdev(nYearsAgo(1), currentDate)",
-      factorName: "low_volatility"
-    },
-    "size": {
-      expression: "1e12/marketCap(currentDate)",
-      factorName: "small_cap"
-    },
-    "custom": {
-      expression: `(
-  (
-    pricePercentChange(
-      addDate(currentDate, 0, -6, 0),
-      currentDate
-    ) + pricePercentChange(
-      addDate(currentDate, 0, -12, 0),
-      currentDate
-    ) + pricePercentChange(
-      addDate(currentDate, 0, -18, 0),
-      currentDate
-    )
-  ) / 3
-) / stdev(addDate(currentDate, -3, 0, 0), currentDate)`,
-      factorName: "custom"
-    }
-  };
 
   const gptInputElement = document.getElementById("gpt-input");
 
@@ -77,7 +43,7 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": user ? "Bearer "+user.accessToken : ""
+          "Authorization": user ? "Bearer " + user.accessToken : ""
         },
         body: JSON.stringify({ input: gptInput, userID })
       });
@@ -138,23 +104,13 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
       <ReactTooltip style={{ fontSize: "12px", maxWidth: "220px" }} id="my-tfooltip" />
       <p className={formStyles.label_subtext}>Select predefined factors or create your own.</p>
 
-      <select
-        onChange={(e) => {
-          setSelectedFactor(e.target.value)
-          setFactorExpression(presetMap[e.target.value].expression);
-          if (e.target.value !== "gpt") {
-            updateName(presetMap[e.target.value].factorName);
-          }
-        }}
-        style={{ fontSize: "14px" }}
-      >
-        <option value="momentum">Momentum (price trending up)</option>
-        <option value="value">Value (undervalued relative to price)</option>
-        <option value="size">Size (smaller assets by market cap)</option>
-        <option value="volatility">Volatility (low risk assets)</option>
-        <option value="custom">Custom</option>
-        <option value="gpt">Describe factor in words (ChatGPT)</option>
-      </select>
+      <FactorPresetSelector
+        setSelectedFactor={setSelectedFactor}
+        setFactorExpression={setFactorExpression}
+        updateName={updateName}
+        selectedFactor={selectedFactor}
+        savedStrategies={savedStrategies}
+      />
       {selectedFactor === "gpt" ? <>
         <p style={{ marginTop: "5px" }} className={formStyles.label_subtext}>Uses ChatGPT API to convert factor description to equation.</p>
         <div className={formStyles.gpt_input_wrapper}>
@@ -182,11 +138,106 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
         style={{ height: "80px", width: "250px", fontSize: "13px" }}
         value={factorExpression}
         onChange={(e) => setFactorExpression(e.target.value)} />}
-      
 
-      
+
+
     </div>
   </>;
+}
+
+function FactorPresetSelector({
+  setSelectedFactor,
+  setFactorExpression,
+  updateName,
+  selectedFactor,
+  savedStrategies,
+}: {
+  setSelectedFactor: Dispatch<SetStateAction<string>>,
+  setFactorExpression: Dispatch<SetStateAction<string>>,
+  updateName: (arg: string) => void,
+  selectedFactor: string,
+  savedStrategies: GetSavedStrategiesResponse[],
+}) {
+  interface selectedFactorDetails {
+    expression: string;
+    factorName: string;
+  }
+
+  const presetMap: Record<string, selectedFactorDetails> = {
+    "gpt": {
+      expression: "",
+      factorName: ""
+    },
+    "momentum": {
+      expression: `pricePercentChange(
+  nDaysAgo(7),
+  currentDate
+)`,
+      factorName: "7_day_momentum"
+    },
+    "value": {
+      expression: "10/pbRatio(currentDate)",
+      factorName: "undervalued_by_pb_ratio"
+    },
+    "volatility": {
+      expression: "1e3/stdev(nYearsAgo(1), currentDate)",
+      factorName: "low_volatility"
+    },
+    "size": {
+      expression: "1e12/marketCap(currentDate)",
+      factorName: "small_cap"
+    },
+    "custom": {
+      expression: `(
+  (
+    pricePercentChange(
+      addDate(currentDate, 0, -6, 0),
+      currentDate
+    ) + pricePercentChange(
+      addDate(currentDate, 0, -12, 0),
+      currentDate
+    ) + pricePercentChange(
+      addDate(currentDate, 0, -18, 0),
+      currentDate
+    )
+  ) / 3
+) / stdev(addDate(currentDate, -3, 0, 0), currentDate)`,
+      factorName: "custom"
+    }
+  };
+
+  savedStrategies.forEach(s => presetMap[s.strategyName] = {
+    factorName: s.strategyName,
+    expression: s.factorExpression,
+  })
+
+  const savedOptions = savedStrategies.length > 0 ? <optgroup label="Bookmarked Strategies">
+    {savedStrategies.map((s, i) => <option key={i}>
+      {s.strategyName}
+    </option>)}
+  </optgroup> : null;
+
+  return <select
+    onChange={(e) => {
+      setSelectedFactor(e.target.value);
+      setFactorExpression(presetMap[e.target.value].expression);
+      if (e.target.value !== "gpt") {
+        updateName(presetMap[e.target.value].factorName);
+      }
+    }}
+    value={selectedFactor}
+    style={{ fontSize: "14px" }}
+  >
+    <optgroup label="Common Factors">
+      <option value="momentum">Momentum (price trending up)</option>
+      <option value="value">Value (undervalued relative to price)</option>
+      <option value="size">Size (smaller assets by market cap)</option>
+      <option value="volatility">Volatility (low risk assets)</option>
+    </optgroup>
+    {savedOptions}
+    <option value="custom">Custom</option>
+    <option value="gpt">Describe factor in words (ChatGPT)</option>
+  </select>;
 }
 
 function ExpressionEditor({ factorExpression, setFactorExpression }: {
@@ -320,10 +371,10 @@ export const mathLanguage: languages.IMonarchLanguage = {
       // numbers
       // [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
       [/\d*\d+[eE]([\-+]?\d+)?/, 'number.float'],
-			[/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+      [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
       [/\d+/, 'number'],
       [/-\d+/, 'number'],
-      
+
 
       [/[;,.]/, 'delimiter'],
 

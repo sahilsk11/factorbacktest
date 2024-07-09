@@ -2,12 +2,12 @@ import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import formStyles from "./Form.module.css";
 import appStyles from "./App.module.css";
-import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest } from './models';
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse } from './models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
 import { Col, Container, Row } from 'react-bootstrap';
-import { redirect, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -62,7 +62,29 @@ export default function FactorForm({
   const [loading, setLoading] = useState(false);
   const [assetUniverse, setAssetUniverse] = useState<string>("--");
   const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
-  console.log(factorName)
+  const [savedStrategies, setSavedStrategies] = useState<GetSavedStrategiesResponse[]>([]);
+
+  async function getStrategies() {
+    try {
+      const response = await fetch(endpoint + "/savedStrategies", {
+        headers: {
+          "Authorization": user ? "Bearer " + user.accessToken : ""
+        }
+      });
+      if (!response.ok) {
+        const j = await response.json()
+        alert(j.error)
+        console.error("Error submitting data:", response.status);
+      } else {
+        const j = await response.json() as GetSavedStrategiesResponse[];
+        setSavedStrategies(j.filter(e => e.bookmarked))
+      }
+    } catch (error) {
+      alert((error as Error).message)
+      console.error("Error:", error);
+    }
+  }
+
   const getUniverses = async () => {
     try {
       const response = await fetch(endpoint + "/assetUniverses", {
@@ -92,6 +114,11 @@ export default function FactorForm({
   useEffect(() => {
     getUniverses()
   }, []);
+  useEffect(() => {
+    if (user) {
+      getStrategies()
+    }
+  }, [user]);
   useEffect(() => {
     if (assetUniverses.length > 0) {
       setAssetUniverse(assetUniverses[0].code)
@@ -231,12 +258,23 @@ export default function FactorForm({
     (numSymbolsInput as HTMLInputElement)?.setCustomValidity("")
   }
 
+  // we can't have any components manage shared state
+  // (between verbose and regular view) under this component
+
+  const [gptInput, setGptInput] = useState("");
+  const [selectedFactor, setSelectedFactor] = useState("momentum");
+
   const factorExpressionInput = <FactorExpressionInput
     userID={userID}
     factorExpression={factorExpression}
     setFactorExpression={setFactorExpression}
     updateName={updateName}
     user={user}
+    gptInput={gptInput}
+    selectedFactor={selectedFactor}
+    setSelectedFactor={setSelectedFactor}
+    setGptInput={setGptInput}
+    savedStrategies={savedStrategies}
   />
 
   const props: FormViewProps = {
@@ -411,7 +449,7 @@ function ClassicFormView({
           />
         </div>
 
-        <div>
+        {/* <div>
           <label className={formStyles.label}>Starting Cash</label>
           <span style={{ fontSize: "14px" }}>$</span> <input
             id="cash"
@@ -427,7 +465,7 @@ function ClassicFormView({
               }
             }}
           />
-        </div>
+        </div> */}
         <div className={formStyles.form_element}>
           <label className={formStyles.label}>Asset Universe</label>
           <p className={formStyles.label_subtext}>The pool of assets that are eligible for the target portfolio.</p>
