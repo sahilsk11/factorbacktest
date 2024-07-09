@@ -7,7 +7,7 @@ import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
 import { Col, Container, Row } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { redirect, useNavigate } from 'react-router-dom';
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -45,7 +45,10 @@ export default function FactorForm({
   fullscreenView: boolean,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
 }) {
-  const [factorExpression, setFactorExpression] = useState("");
+  const [factorExpression, setFactorExpression] = useState(`pricePercentChange(
+  nDaysAgo(7),
+  currentDate
+)`);
   const [factorName, setFactorName] = useState("7_day_momentum_weekly");
   const [backtestStart, setBacktestStart] = useState(twoYearsAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
@@ -59,7 +62,7 @@ export default function FactorForm({
   const [loading, setLoading] = useState(false);
   const [assetUniverse, setAssetUniverse] = useState<string>("--");
   const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
-
+  console.log(factorName)
   const getUniverses = async () => {
     try {
       const response = await fetch(endpoint + "/assetUniverses", {
@@ -122,8 +125,6 @@ export default function FactorForm({
     e.preventDefault();
     setErr(null);
     setLoading(true);
-
-
 
     const data: BacktestRequest = {
       factorOptions: {
@@ -230,6 +231,14 @@ export default function FactorForm({
     (numSymbolsInput as HTMLInputElement)?.setCustomValidity("")
   }
 
+  const factorExpressionInput = <FactorExpressionInput
+    userID={userID}
+    factorExpression={factorExpression}
+    setFactorExpression={setFactorExpression}
+    updateName={updateName}
+    user={user}
+  />
+
   const props: FormViewProps = {
     handleSubmit,
     factorName,
@@ -257,6 +266,7 @@ export default function FactorForm({
     err,
     user,
     setUser,
+    factorExpressionInput,
   }
 
   return fullscreenView ? <VerboseFormView props={props} /> : <ClassicFormView props={props} />
@@ -289,6 +299,7 @@ interface FormViewProps {
   err: string | null,
   user: GoogleAuthUser | null,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
+  factorExpressionInput: JSX.Element,
 }
 
 function ClassicFormView({
@@ -323,6 +334,7 @@ function ClassicFormView({
     err,
     user,
     setUser,
+    factorExpressionInput,
   } = props;
   return (
     <div className={appStyles.tile} style={{ position: "relative" }}>
@@ -342,13 +354,7 @@ function ClassicFormView({
           />
         </div>
         <div className={formStyles.form_element}>
-          <FactorExpressionInput
-            userID={userID}
-            factorExpression={factorExpression}
-            setFactorExpression={setFactorExpression}
-            updateName={updateName}
-            user={user}
-          />
+          {factorExpressionInput}
         </div>
 
         <div className={formStyles.form_element}>
@@ -469,10 +475,12 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
     numComputations,
     loading,
     user,
-    err
+    err,
+    factorExpressionInput,
   } = props;
 
-  const navigate = useNavigate()
+  const [clicked, setClicked] = useState(false);
+  const navigate = useNavigate();
 
   const loadingIcon = <img
     style={{
@@ -485,9 +493,15 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
   />
 
   const onSubmit = (e: any) => {
-    navigate("/backtest");
     handleSubmit(e)
+    setClicked(true);
   }
+
+  useEffect(() => {
+    if (!loading && clicked) {
+      navigate("/backtest");
+    }
+  }, [loading, clicked])
 
   const buttons = <>
     <button
@@ -582,13 +596,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
                   />
                 </div>
                 <div className={formStyles.form_element}>
-                  <FactorExpressionInput
-                    user={user}
-                    userID={userID}
-                    factorExpression={factorExpression}
-                    setFactorExpression={setFactorExpression}
-                    updateName={updateName}
-                  />
+                  {factorExpressionInput}
                 </div>
               </div>
             </Col>
@@ -680,7 +688,7 @@ function BookmarkStrategy({ user, setUser, formProps }: {
     }
   };
 
-  const updateBookmarked = async (user:GoogleAuthUser, bookmark: boolean) => {
+  const updateBookmarked = async (user: GoogleAuthUser, bookmark: boolean) => {
     setBookmarked(bookmark)
     const bookmarkRequest: BookmarkStrategyRequest = {
       expression: formProps.factorExpression,

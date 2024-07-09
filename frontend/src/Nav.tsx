@@ -5,6 +5,7 @@ import Container from 'react-bootstrap/Container';
 import BootstrapNav from 'react-bootstrap/Nav';
 import NavDropdown from 'react-bootstrap/NavDropdown';
 import styles from './Nav.module.css';
+import { useNavigate } from "react-router-dom";
 
 
 export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser, loggedIn }: {
@@ -30,6 +31,8 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
     onError: (error) => console.log('Login Failed:', error)
   });
 
+  const navigate = useNavigate()
+
   const authTab = !loggedIn ? (
     <BootstrapNav.Link onClick={() => login()}>Login</BootstrapNav.Link>
   ) : (
@@ -38,7 +41,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
       <NavDropdown.Item href="#action/3.2">
         Another action
       </NavDropdown.Item>*/}
-      <NavDropdown.Item className={styles.nav_link}>
+      <NavDropdown.Item onClick={() => navigate("/invest")} className={styles.nav_link}>
         Invest in Strategy
       </NavDropdown.Item> 
       <NavDropdown.Divider />

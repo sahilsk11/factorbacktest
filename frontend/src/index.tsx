@@ -68,7 +68,7 @@ const AppWrapper = () => {
 }
 
 root.render(
-  <React.StrictMode>
+  // <React.StrictMode>
     <AppWrapper />
-  </React.StrictMode >
+  // </React.StrictMode >
 );
