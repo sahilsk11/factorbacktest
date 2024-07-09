@@ -38,6 +38,7 @@ type ApiHandler struct {
 	AssetUniverseRepository      repository.AssetUniverseRepository
 	UserAccountRepository        repository.UserAccountRepository
 	SavedStrategyRepository      repository.SavedStrategyRepository
+	StrategyInvestmentRepository repository.StrategyInvestmentRepository
 }
 
 func int64Ptr(i int64) *int64 {
@@ -88,6 +89,8 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 	router.POST("/bookmarkStrategy", m.bookmarkStrategy)
 	router.POST("/isStrategyBookmarked", m.isStrategyBookmarked)
 	router.GET("/savedStrategies", m.getSavedStrategies)
+	router.POST("/investInStrategy", m.investInStrategy)
+	router.GET("/activeInvestments", m.getInvestments)
 
 	return router
 }

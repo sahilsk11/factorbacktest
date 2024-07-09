@@ -14,7 +14,7 @@ import (
 
 type StrategyInvestment struct {
 	StrategyInvestmentID uuid.UUID `sql:"primary_key"`
-	AmountDollars        float64
+	AmountDollars        int32
 	StartDate            time.Time
 	SavedStragyID        uuid.UUID
 	UserAccountID        uuid.UUID

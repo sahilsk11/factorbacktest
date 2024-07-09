@@ -74,3 +74,17 @@ export interface GetSavedStrategiesResponse {
   createdAt: string;
   // modifiedAt?: Date; // Uncomment if needed
 }
+
+export interface InvestInStrategyRequest {
+  savedStrategyID: string;
+  amountDollars: number;
+}
+
+export interface GetInvestmentsResponse {
+  strategyInvestmentID: string;
+  amountDollars: number;
+  startDate: string; // Using string to represent ISO 8601 date format
+  savedStrategyID: string;
+  userAccountID: string;
+  createdAt: string; // Using string to represent ISO 8601 date format
+}

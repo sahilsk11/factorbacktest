@@ -18,7 +18,7 @@ type strategyInvestmentTable struct {
 
 	//Columns
 	StrategyInvestmentID postgres.ColumnString
-	AmountDollars        postgres.ColumnFloat
+	AmountDollars        postgres.ColumnInteger
 	StartDate            postgres.ColumnDate
 	SavedStragyID        postgres.ColumnString
 	UserAccountID        postgres.ColumnString
@@ -55,7 +55,7 @@ func newStrategyInvestmentTable(schemaName, tableName, alias string) *StrategyIn
 func newStrategyInvestmentTableImpl(schemaName, tableName, alias string) strategyInvestmentTable {
 	var (
 		StrategyInvestmentIDColumn = postgres.StringColumn("strategy_investment_id")
-		AmountDollarsColumn        = postgres.FloatColumn("amount_dollars")
+		AmountDollarsColumn        = postgres.IntegerColumn("amount_dollars")
 		StartDateColumn            = postgres.DateColumn("start_date")
 		SavedStragyIDColumn        = postgres.StringColumn("saved_stragy_id")
 		UserAccountIDColumn        = postgres.StringColumn("user_account_id")
