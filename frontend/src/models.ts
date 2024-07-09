@@ -65,3 +65,26 @@ export interface BookmarkStrategyRequest {
   assetUniverse: string;
   bookmark: boolean;
 }
+
+export interface GetSavedStrategiesResponse {
+  savedStrategyID: string;
+  strategyName: string;
+  rebalanceInterval: string;
+  bookmarked: boolean;
+  createdAt: string;
+  // modifiedAt?: Date; // Uncomment if needed
+}
+
+export interface InvestInStrategyRequest {
+  savedStrategyID: string;
+  amountDollars: number;
+}
+
+export interface GetInvestmentsResponse {
+  strategyInvestmentID: string;
+  amountDollars: number;
+  startDate: string; // Using string to represent ISO 8601 date format
+  savedStrategyID: string;
+  userAccountID: string;
+  createdAt: string; // Using string to represent ISO 8601 date format
+}
