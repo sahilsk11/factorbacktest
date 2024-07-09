@@ -65,3 +65,12 @@ export interface BookmarkStrategyRequest {
   assetUniverse: string;
   bookmark: boolean;
 }
+
+export interface GetSavedStrategiesResponse {
+  savedStrategyID: string;
+  strategyName: string;
+  rebalanceInterval: string;
+  bookmarked: boolean;
+  createdAt: string;
+  // modifiedAt?: Date; // Uncomment if needed
+}

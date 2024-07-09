@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import 'bootstrap/dist/css/bootstrap.min.css';
+// import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import App, { getCookie } from './App';
 import { BondBuilder } from './Bond/Bond';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleAuthUser } from './models';
+import Invest from './Invest';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -58,6 +59,7 @@ const AppWrapper = () => {
           <Route index element={app} />
           <Route path="backtest" element={app} />
           <Route path="bonds" element={<BondBuilder user={user} setUser={setUser} />} />
+          <Route path="invest" element={<Invest user={user} setUser={setUser} />} />
           <Route path="*" element={<p>not found</p>} />
         </Routes>
       </BrowserRouter>

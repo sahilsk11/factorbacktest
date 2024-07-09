@@ -87,6 +87,7 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 	router.POST("/addAssetsToUniverse", m.addAssetsToUniverse)
 	router.POST("/bookmarkStrategy", m.bookmarkStrategy)
 	router.POST("/isStrategyBookmarked", m.isStrategyBookmarked)
+	router.GET("/savedStrategies", m.getSavedStrategies)
 
 	return router
 }

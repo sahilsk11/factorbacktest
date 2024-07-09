@@ -37,17 +37,16 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
       {/* <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
       <NavDropdown.Item href="#action/3.2">
         Another action
-      </NavDropdown.Item>
-      <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item> */}
-      {/* <NavDropdown.Divider /> */}
+      </NavDropdown.Item>*/}
+      <NavDropdown.Item className={styles.nav_link}>
+        Invest in Strategy
+      </NavDropdown.Item> 
+      <NavDropdown.Divider />
       <NavDropdown.Item onClick={() => {
         googleLogout();
         setUser(null);
         document.cookie = "googleAuthAccessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure";
-
-
-        console.log("logout");
-      }} style={{ fontSize: "14px" }}>
+      }} className={styles.nav_link}>
         Logout
       </NavDropdown.Item>
     </NavDropdown>
