@@ -33,7 +33,7 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
   nDaysAgo(7),
   currentDate
 )`,
-      factorName: "7_day_mogaymentum"
+      factorName: "7_day_momentum"
     },
     "value": {
       expression: "10/pbRatio(currentDate)",

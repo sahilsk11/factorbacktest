@@ -49,7 +49,7 @@ export default function FactorForm({
   nDaysAgo(7),
   currentDate
 )`);
-  const [factorName, setFactorName] = useState("7_day_momentum_weeffrefkly");
+  const [factorName, setFactorName] = useState("7_day_momentum_weekly");
   const [backtestStart, setBacktestStart] = useState(twoYearsAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
@@ -89,11 +89,8 @@ export default function FactorForm({
     }
   };
 
-  useEffect(() => { console.log("here" + factorName) }, [factorName])
-
   useEffect(() => {
     getUniverses()
-    console.log("unmounted mahybe?")
   }, []);
   useEffect(() => {
     if (assetUniverses.length > 0) {
@@ -502,7 +499,6 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
 
   useEffect(() => {
     if (!loading && clicked) {
-      console.log("moving")
       navigate("/backtest");
     }
   }, [loading, clicked])
