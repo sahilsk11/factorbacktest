@@ -33,7 +33,7 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
   nDaysAgo(7),
   currentDate
 )`,
-      factorName: "7_day_momentum"
+      factorName: "7_day_mogaymentum"
     },
     "value": {
       expression: "10/pbRatio(currentDate)",
@@ -65,13 +65,6 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
       factorName: "custom"
     }
   };
-
-  useEffect(() => {
-    setFactorExpression(presetMap[selectedFactor].expression);
-    if (selectedFactor !== "gpt") {
-      updateName(presetMap[selectedFactor].factorName);
-    }
-  }, [selectedFactor]);
 
   const gptInputElement = document.getElementById("gpt-input");
 
@@ -146,7 +139,13 @@ export function FactorExpressionInput({ user, userID, factorExpression, setFacto
       <p className={formStyles.label_subtext}>Select predefined factors or create your own.</p>
 
       <select
-        onChange={(e) => setSelectedFactor(e.target.value)}
+        onChange={(e) => {
+          setSelectedFactor(e.target.value)
+          setFactorExpression(presetMap[e.target.value].expression);
+          if (e.target.value !== "gpt") {
+            updateName(presetMap[e.target.value].factorName);
+          }
+        }}
         style={{ fontSize: "14px" }}
       >
         <option value="momentum">Momentum (price trending up)</option>

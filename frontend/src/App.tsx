@@ -98,22 +98,20 @@ function FactorBacktestMain({ userID, user, setUser }: {
 
   const useVerboseBuilder = window.innerWidth > 767 && pathname !== "/backtest";
 
-  const formComponent = <FactorForm
-    // set this to the benchmark names that are already in used
-    user={user}
-    userID={userID}
-    takenNames={takenNames}
-    appendFactorData={(newFactorData: FactorData) => {
-      updateFactorData([...factorData, newFactorData])
-    }}
-    setUser={setUser}
-    fullscreenView={useVerboseBuilder}
-  />
-
-  const classicView = (
+  return (
     <>
       <div className={`${styles.column} ${styles.form_wrapper}`}>
-        {formComponent}
+        <FactorForm
+          // set this to the benchmark names that are already in used
+          user={user}
+          userID={userID}
+          takenNames={takenNames}
+          appendFactorData={(newFactorData: FactorData) => {
+            updateFactorData([...factorData, newFactorData])
+          }}
+          setUser={setUser}
+          fullscreenView={useVerboseBuilder}
+        />
         <BenchmarkManager
           user={user}
           userID={userID}
@@ -122,30 +120,31 @@ function FactorBacktestMain({ userID, user, setUser }: {
           updateBenchmarkData={updateBenchmarkData}
         />
       </div>
-      <div id="backtest-chart" className={`${styles.column} ${styles.backtest_chart_container}`}>
-        <BacktestChart
-          benchmarkData={benchmarkData}
-          factorData={factorData}
-          updateInspectFactorDataIndex={updateFdIndex}
-          updateInspectFactorDataDate={updateInspectFactorDataDate}
-        />
-        <Inspector
-          fdIndex={inspectFactorDataIndex}
-          fdDate={inspectFactorDataDate}
-          factorData={factorData}
-          updateInspectFactorDataIndex={updateFdIndex}
-          updateInspectFactorDataDate={updateInspectFactorDataDate}
-        />
-      </div>
+      {!useVerboseBuilder ?
+        <div id="backtest-chart" className={`${styles.column} ${styles.backtest_chart_container}`}>
+          <BacktestChart
+            benchmarkData={benchmarkData}
+            factorData={factorData}
+            updateInspectFactorDataIndex={updateFdIndex}
+            updateInspectFactorDataDate={updateInspectFactorDataDate}
+          />
+          <Inspector
+            fdIndex={inspectFactorDataIndex}
+            fdDate={inspectFactorDataDate}
+            factorData={factorData}
+            updateInspectFactorDataIndex={updateFdIndex}
+            updateInspectFactorDataDate={updateInspectFactorDataDate}
+          />
+        </div> : null}
     </>
   )
 
 
-  return (
-    <div className={styles.my_container}>
-      {useVerboseBuilder ? formComponent : classicView}
-    </div >
-  );
+  // return (
+  //   <div className={styles.my_container}>
+  //     {useVerboseBuilder ? formComponent : classicView}
+  //   </div >
+  // );
 }
 
 export default App;
