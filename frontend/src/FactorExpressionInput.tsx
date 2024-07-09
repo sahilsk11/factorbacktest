@@ -5,6 +5,9 @@ import Editor, { loader } from '@monaco-editor/react';
 import { languages } from 'monaco-editor';
 import { GetSavedStrategiesResponse, GoogleAuthUser } from './models';
 import formStyles from './Form.module.css'
+import { FormViewProps } from './Form';
+import { parseDateString } from './util';
+
 
 export function FactorExpressionInput({
   user,
@@ -17,6 +20,7 @@ export function FactorExpressionInput({
   setSelectedFactor,
   setGptInput,
   savedStrategies,
+  formProps,
 }: {
   userID: string;
   factorExpression: string;
@@ -28,6 +32,7 @@ export function FactorExpressionInput({
   setSelectedFactor: Dispatch<SetStateAction<string>>;
   setGptInput: Dispatch<SetStateAction<string>>;
   savedStrategies: GetSavedStrategiesResponse[];
+  formProps: FormViewProps;
 }) {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,6 +115,7 @@ export function FactorExpressionInput({
         updateName={updateName}
         selectedFactor={selectedFactor}
         savedStrategies={savedStrategies}
+        formProps={formProps}
       />
       {selectedFactor === "gpt" ? <>
         <p style={{ marginTop: "5px" }} className={formStyles.label_subtext}>Uses ChatGPT API to convert factor description to equation.</p>
@@ -151,41 +157,49 @@ function FactorPresetSelector({
   updateName,
   selectedFactor,
   savedStrategies,
+  formProps,
 }: {
   setSelectedFactor: Dispatch<SetStateAction<string>>,
   setFactorExpression: Dispatch<SetStateAction<string>>,
   updateName: (arg: string) => void,
   selectedFactor: string,
   savedStrategies: GetSavedStrategiesResponse[],
+  formProps: FormViewProps,
 }) {
   interface selectedFactorDetails {
     expression: string;
     factorName: string;
+    update: () => void;
   }
 
   const presetMap: Record<string, selectedFactorDetails> = {
     "gpt": {
       expression: "",
-      factorName: ""
+      factorName: "",
+      update: () => {},
     },
     "momentum": {
       expression: `pricePercentChange(
   nDaysAgo(7),
   currentDate
 )`,
-      factorName: "7_day_momentum"
+      factorName: "7_day_momentum",
+      update: () => {},
     },
     "value": {
       expression: "10/pbRatio(currentDate)",
-      factorName: "undervalued_by_pb_ratio"
+      factorName: "undervalued_by_pb_ratio",
+      update: () => {},
     },
     "volatility": {
       expression: "1e3/stdev(nYearsAgo(1), currentDate)",
-      factorName: "low_volatility"
+      factorName: "low_volatility",
+      update: () => {},
     },
     "size": {
       expression: "1e12/marketCap(currentDate)",
-      factorName: "small_cap"
+      factorName: "small_cap",
+      update: () => {},
     },
     "custom": {
       expression: `(
@@ -202,13 +216,20 @@ function FactorPresetSelector({
     )
   ) / 3
 ) / stdev(addDate(currentDate, -3, 0, 0), currentDate)`,
-      factorName: "custom"
+      factorName: "custom",
+      update: () => {},
     }
   };
 
   savedStrategies.forEach(s => presetMap[s.strategyName] = {
     factorName: s.strategyName,
     expression: s.factorExpression,
+    update: () => {
+      formProps.setBacktestStart(parseDateString(s.backtestStart))
+      formProps.setBacktestEnd(parseDateString(s.backtestEnd))
+      formProps.setAssetUniverse(s.assetUniverse)
+      formProps.setNumSymbols(s.numAssets)
+    },
   })
 
   const savedOptions = savedStrategies.length > 0 ? <optgroup label="Bookmarked Strategies">
@@ -221,6 +242,7 @@ function FactorPresetSelector({
     onChange={(e) => {
       setSelectedFactor(e.target.value);
       setFactorExpression(presetMap[e.target.value].expression);
+      presetMap[e.target.value].update()
       if (e.target.value !== "gpt") {
         updateName(presetMap[e.target.value].factorName);
       }

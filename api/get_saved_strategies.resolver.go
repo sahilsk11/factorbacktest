@@ -16,6 +16,11 @@ type getSavedStrategiesResponse struct {
 	CreatedAt         time.Time `json:"createdAt"`
 	FactorExpression  string    `json:"factorExpression"`
 	// ModifiedAt        time.Time
+
+	BacktestStart time.Time `json:"backtestStart"`
+	BacktestEnd   time.Time `json:"backtestEnd"`
+	NumAssets     int32     `json:"numAssets"`
+	AssetUniverse string    `json:"assetUniverse"`
 }
 
 func (m ApiHandler) getSavedStrategies(c *gin.Context) {
@@ -51,6 +56,10 @@ func (m ApiHandler) getSavedStrategies(c *gin.Context) {
 			Bookmarked:        s.Bookmarked,
 			CreatedAt:         s.CreatedAt,
 			FactorExpression:  s.FactorExpression,
+			BacktestStart:     s.BacktestStart,
+			BacktestEnd:       s.BacktestEnd,
+			NumAssets:         s.NumAssets,
+			AssetUniverse:     s.AssetUniverse,
 		})
 	}
 

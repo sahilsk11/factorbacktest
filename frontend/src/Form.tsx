@@ -264,19 +264,8 @@ export default function FactorForm({
   const [gptInput, setGptInput] = useState("");
   const [selectedFactor, setSelectedFactor] = useState("momentum");
 
-  const factorExpressionInput = <FactorExpressionInput
-    userID={userID}
-    factorExpression={factorExpression}
-    setFactorExpression={setFactorExpression}
-    updateName={updateName}
-    user={user}
-    gptInput={gptInput}
-    selectedFactor={selectedFactor}
-    setSelectedFactor={setSelectedFactor}
-    setGptInput={setGptInput}
-    savedStrategies={savedStrategies}
-  />
-
+  // todo - create a separate object that contains the setters
+  // for all the backtest inputs, and pass that to FactorExpressionInput
   const props: FormViewProps = {
     handleSubmit,
     factorName,
@@ -304,13 +293,34 @@ export default function FactorForm({
     err,
     user,
     setUser,
-    factorExpressionInput,
+    factorExpressionInput: null,
   }
+
+  const factorExpressionInput = <FactorExpressionInput
+    userID={userID}
+    factorExpression={factorExpression}
+    setFactorExpression={setFactorExpression}
+    updateName={updateName}
+    user={user}
+    gptInput={gptInput}
+    selectedFactor={selectedFactor}
+    setSelectedFactor={setSelectedFactor}
+    setGptInput={setGptInput}
+    savedStrategies={savedStrategies}
+
+    // we have to let this guy change all the props in case a
+    // bookmarked strat is selected. do this the lazy way
+    formProps={props}
+  />
+
+  props.factorExpressionInput = factorExpressionInput;
+
+  
 
   return fullscreenView ? <VerboseFormView props={props} /> : <ClassicFormView props={props} />
 }
 
-interface FormViewProps {
+export interface FormViewProps {
   handleSubmit: (e: any) => Promise<void>,
   factorName: string,
   setFactorName: Dispatch<SetStateAction<string>>,
@@ -337,7 +347,7 @@ interface FormViewProps {
   err: string | null,
   user: GoogleAuthUser | null,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
-  factorExpressionInput: JSX.Element,
+  factorExpressionInput: JSX.Element | null,
 }
 
 function ClassicFormView({
@@ -714,14 +724,14 @@ function BookmarkStrategy({ user, setUser, formProps }: {
       });
       if (!response.ok) {
         const j = await response.json()
-        alert(j.error)
+        // alert(j.error)
         console.error("Error submitting data:", response.status);
       } else {
         const j = await response.json()
         setBookmarked(j["isBookmarked"])
       }
     } catch (error) {
-      alert((error as Error).message)
+      // alert((error as Error).message)
       console.error("Error:", error);
     }
   };

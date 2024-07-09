@@ -15,6 +15,10 @@ export function enumerateDates(startDateStr: string, endDateStr: string) {
   return dates;
 }
 
+export function parseDateString(s:string) {
+  return s.substring(0, s.indexOf("T"))
+}
+
 export function daysBetweenDates(date1: string, date2: string): number {
   // Convert both dates to Date objects
   const d1 = new Date(date1);

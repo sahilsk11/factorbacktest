@@ -74,6 +74,10 @@ export interface GetSavedStrategiesResponse {
   createdAt: string;
   factorExpression: string;
   // modifiedAt?: Date; // Uncomment if needed
+  backtestStart: string;
+  backtestEnd: string;
+  numAssets: number;
+  assetUniverse: string;
 }
 
 export interface InvestInStrategyRequest {
