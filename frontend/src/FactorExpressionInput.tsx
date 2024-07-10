@@ -140,10 +140,14 @@ export function FactorExpressionInput({
         :
         <p className={formStyles.label_subtext} style={{ maxWidth: "380px", marginTop: "5px" }}>The equation applied to all assets, on each rebalance date. Higher scoring assets will have a larger allocation in the portfolio.</p>}
 
-      {true ? <ExpressionEditor factorExpression={factorExpression} setFactorExpression={setFactorExpression} /> : <textarea required
-        style={{ height: "80px", width: "250px", fontSize: "13px" }}
-        value={factorExpression}
-        onChange={(e) => setFactorExpression(e.target.value)} />}
+      <ExpressionEditor
+        factorExpression={factorExpression}
+        setFactorExpression={setFactorExpression}
+        onChange={(newVal) => {
+          setSelectedFactor("custom")
+          formProps.updateName("custom")
+        }}
+      />
 
 
 
@@ -176,7 +180,7 @@ function FactorPresetSelector({
     "gpt": {
       expression: "",
       factorName: "",
-      update: () => {},
+      update: () => { },
     },
     "momentum": {
       expression: `pricePercentChange(
@@ -184,22 +188,22 @@ function FactorPresetSelector({
   currentDate
 )`,
       factorName: "7_day_momentum",
-      update: () => {},
+      update: () => { },
     },
     "value": {
       expression: "10/pbRatio(currentDate)",
       factorName: "undervalued_by_pb_ratio",
-      update: () => {},
+      update: () => { },
     },
     "volatility": {
       expression: "1e3/stdev(nYearsAgo(1), currentDate)",
       factorName: "low_volatility",
-      update: () => {},
+      update: () => { },
     },
     "size": {
       expression: "1e12/marketCap(currentDate)",
       factorName: "small_cap",
-      update: () => {},
+      update: () => { },
     },
     "custom": {
       expression: `(
@@ -217,7 +221,7 @@ function FactorPresetSelector({
   ) / 3
 ) / stdev(addDate(currentDate, -3, 0, 0), currentDate)`,
       factorName: "custom",
-      update: () => {},
+      update: () => { },
     }
   };
 
@@ -225,8 +229,8 @@ function FactorPresetSelector({
     factorName: s.strategyName,
     expression: s.factorExpression,
     update: () => {
-      formProps.setBacktestStart(parseDateString(s.backtestStart))
-      formProps.setBacktestEnd(parseDateString(s.backtestEnd))
+      // formProps.setBacktestStart(parseDateString(s.backtestStart))
+      // formProps.setBacktestEnd(parseDateString(s.backtestEnd))
       formProps.setAssetUniverse(s.assetUniverse)
       formProps.setNumSymbols(s.numAssets)
     },
@@ -262,8 +266,9 @@ function FactorPresetSelector({
   </select>;
 }
 
-function ExpressionEditor({ factorExpression, setFactorExpression }: {
+function ExpressionEditor({ factorExpression, setFactorExpression, onChange }: {
   factorExpression: string;
+  onChange: (newVal: string) => void;
   setFactorExpression: Dispatch<SetStateAction<string>>;
 }) {
 
@@ -316,7 +321,13 @@ function ExpressionEditor({ factorExpression, setFactorExpression }: {
         width="100%"
         language="mathLangxx"
         value={factorExpression}
-        onChange={(e) => e ? setFactorExpression(e) : ""}
+        onChange={(e) => {
+          // e ? setFactorExpression(e) : ""
+          if (e) {
+            setFactorExpression(e)
+            onChange(e)
+          }
+        }}
       />
     </div>
 

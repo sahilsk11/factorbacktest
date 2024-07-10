@@ -47,7 +47,7 @@ func (h savedStrategyRepositoryHandler) ListMatchingStrategies(m model.SavedStra
 		SELECT(table.SavedStrategy.AllColumns).
 		WHERE(
 			postgres.AND(
-				table.SavedStrategy.StrategyName.EQ(postgres.String(m.StrategyName)),
+				// table.SavedStrategy.StrategyName.EQ(postgres.String(m.StrategyName)),
 				table.SavedStrategy.FactorExpression.EQ(postgres.String(m.FactorExpression)),
 				// idk how to deal with dates rn
 				// table.SavedStrategy.BacktestStart.EQ(postgres.DateT(m.BacktestStart)),

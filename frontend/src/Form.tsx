@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import formStyles from "./Form.module.css";
 import appStyles from "./App.module.css";
@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { useGoogleLogin } from '@react-oauth/google';
+import modalsStyle from "./Modals.module.css";
 
 function todayAsString() {
   const today = new Date();
@@ -294,6 +295,8 @@ export default function FactorForm({
     user,
     setUser,
     factorExpressionInput: null,
+    getStrategies,
+    setSelectedFactor,
   }
 
   const factorExpressionInput = <FactorExpressionInput
@@ -315,7 +318,7 @@ export default function FactorForm({
 
   props.factorExpressionInput = factorExpressionInput;
 
-  
+
 
   return fullscreenView ? <VerboseFormView props={props} /> : <ClassicFormView props={props} />
 }
@@ -348,6 +351,9 @@ export interface FormViewProps {
   user: GoogleAuthUser | null,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
   factorExpressionInput: JSX.Element | null,
+
+  getStrategies: () => Promise<void>,
+  setSelectedFactor: Dispatch<SetStateAction<string>>,
 }
 
 function ClassicFormView({
@@ -390,20 +396,12 @@ function ClassicFormView({
       <p className={appStyles.subtext}>Define your quantitative strategy and customize backtest parameters.</p>
       <BookmarkStrategy user={user} setUser={setUser} formProps={props} />
       <form onSubmit={handleSubmit}>
-        <div className={formStyles.form_element}>
-          <label className={formStyles.label}>Strategy Name</label>
-          <input style={{ width: "250px" }} required
-            id="factor-name"
-            type="text"
-            value={factorName}
-            onChange={(e) =>
-              setFactorName(e.target.value)
-            }
-          />
-        </div>
+
         <div className={formStyles.form_element}>
           {factorExpressionInput}
         </div>
+
+
 
         <div className={formStyles.form_element}>
           <label className={formStyles.label}>Backtest Range</label>
@@ -501,7 +499,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
   const {
     handleSubmit,
     factorName,
-    setFactorName,
+    // setFactorName,
     userID,
     factorExpression,
     setFactorExpression,
@@ -632,7 +630,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
             </Col>
             <Col md={6}>
               <div className={formStyles.verbose_inner_column_wrapper}>
-                <div className={formStyles.form_element}>
+                {/* <div className={formStyles.form_element}>
                   <label className={formStyles.label}>Strategy Name</label>
                   <input style={{ width: "250px" }} required
                     id="factor-name"
@@ -642,7 +640,7 @@ function VerboseFormView({ props }: { props: FormViewProps }) {
                       setFactorName(e.target.value)
                     }
                   />
-                </div>
+                </div> */}
                 <div className={formStyles.form_element}>
                   {factorExpressionInput}
                 </div>
@@ -702,8 +700,9 @@ function BookmarkStrategy({ user, setUser, formProps }: {
 }) {
   const [bookmarked, setBookmarked] = useState(false);
   const toolTipMessage = `Bookmark strategy`;
+  const [showBookmarkModal, setShowBookmarkModal] = useState(false);
 
-  const updateToLatestState = async () => {
+  const getIsBookmarked: (user: GoogleAuthUser) => Promise<any> = async (user: GoogleAuthUser) => {
     const bookmarkRequest: BookmarkStrategyRequest = {
       expression: formProps.factorExpression,
       name: formProps.factorName,
@@ -728,12 +727,13 @@ function BookmarkStrategy({ user, setUser, formProps }: {
         console.error("Error submitting data:", response.status);
       } else {
         const j = await response.json()
-        setBookmarked(j["isBookmarked"])
+        return j;
       }
     } catch (error) {
       // alert((error as Error).message)
       console.error("Error:", error);
     }
+    return false;
   };
 
   const updateBookmarked = async (user: GoogleAuthUser, bookmark: boolean) => {
@@ -783,39 +783,155 @@ function BookmarkStrategy({ user, setUser, formProps }: {
       } as GoogleAuthUser
       setUser(newUser);
 
-      updateBookmarked(newUser, !bookmarked)
+      figureOutNext(bookmarked, newUser)
+
     },
     onError: (error) => console.log('Login Failed:', error)
   });
+
+  // they clicked when the state was X, so probably need to toggle
+  async function figureOutNext(currentBookmarkState: boolean, user: GoogleAuthUser) {
+    const response = await getIsBookmarked(user);
+    const actualState = response.isBookmarked;
+    const name = response.name;
+    if (actualState !== true && actualState !== false) {
+      // TODO - how the f
+      return
+    }
+    // it wasn't saved before, they don't have it saved
+    // pop open modal and go through confirmation process
+    // the modal will need to update bookmarked, once
+    // they add name etc
+    if (!currentBookmarkState && !actualState) {
+      setShowBookmarkModal(true)
+      // formProps.setSelectedFactor(name)
+      return
+    }
+    // if it wasn't flagged before, but they're actually
+    // saved, just update it
+    // it should be rare for it to be bookmarked
+    // but not actually saved
+    if (currentBookmarkState != actualState) {
+      setBookmarked(actualState)
+      if (actualState) {
+        // formProps.setSelectedFactor(name)
+      }
+      return
+    }
+    // no drama - just remove the bookmark
+    if (currentBookmarkState && actualState) {
+      setBookmarked(false)
+      updateBookmarked(user, false)
+    }
+  }
 
   const onClick = () => {
     if (!user) {
       // login calls updateBookmarked
       login()
     } else {
-      updateBookmarked(user, !bookmarked)
+      // updateBookmarked(user, !bookmarked)
+      figureOutNext(bookmarked, user)
     }
   }
 
   useEffect(() => {
     if (user) {
-      updateToLatestState()
-    }
-    if (!user) {
+      // we might wanna change this - 
+      // basically triggers every time the form
+      // input changes to figure out if it's bookmarked
+      getIsBookmarked(user).then(resp => {
+        // console.log(resp)
+        setBookmarked(resp.isBookmarked)
+        // formProps.setSelectedFactor(resp.name)
+      })
+    } else {
       setBookmarked(false)
     }
   }, [user, formProps])
 
   return (
-    <div
-      className={formStyles.bookmark_container}
-      data-tooltip-id="bookmark-tooltip"
-      data-tooltip-content={toolTipMessage}
-      data-tooltip-place="bottom"
-      onClick={onClick}
-    >
-      {icon}
-      <ReactTooltip id="bookmark-tooltip" />
-    </div>
+    <>
+      <div
+        className={formStyles.bookmark_container}
+        data-tooltip-id="bookmark-tooltip"
+        data-tooltip-content={toolTipMessage}
+        data-tooltip-place="bottom"
+        onClick={onClick}
+      >
+        {icon}
+        <ReactTooltip id="bookmark-tooltip" />
+      </div>
+      <BookmarkModal
+        show={showBookmarkModal}
+        close={() => setShowBookmarkModal(false)}
+        factorName={formProps.factorName}
+        setFactorName={formProps.setFactorName}
+        // updateName={formProps.updateName}
+        bookmarkStategy={async () => {
+          if (user) {
+            setBookmarked(true)
+            await updateBookmarked(user, true)
+            await formProps.getStrategies();
+            // console.log(fa)
+            formProps.setSelectedFactor(formProps.factorName)
+          } else {
+            // should be impossible
+            alert("must be logged in")
+          }
+        }}
+      />
+    </>
   )
+}
+
+function BookmarkModal({
+  show,
+  close,
+  factorName,
+  setFactorName,
+  bookmarkStategy,
+  // onSubmit,
+}: {
+  show: boolean;
+  close: () => void;
+  factorName: string,
+  setFactorName: React.Dispatch<SetStateAction<string>>;
+  bookmarkStategy: () => void;
+  // user: GoogleAuthUser | null,
+  // onSubmit: () => Promise<void>
+}) {
+  if (!show) return null;
+
+  const handleOverlayClick = (e: any) => {
+    if (e.target.id === "contact-modal") {
+      close();
+    }
+  };
+
+  return (
+    <div id="contact-modal" className={modalsStyle.modal} onClick={handleOverlayClick}>
+      <div className={modalsStyle.modal_content}>
+        <span onClick={() => close()} className={modalsStyle.close} id="closeModalBtn">&times;</span>
+        <h2 style={{ marginBottom: "40px" }}>Bookmark Strategy</h2>
+        <form onSubmit={() => {
+          bookmarkStategy();
+          close();
+        }}>
+          <div>
+            <label className={formStyles.label}>Strategy Name</label>
+            <input
+              type="text"
+              value={factorName}
+              className={modalsStyle.contact_form_email_input}
+              onChange={(e) => {
+                setFactorName(e.target.value)
+              }}
+            />
+          </div>
+          <button className={formStyles.backtest_btn} type='submit'>Submit</button>
+        </form>
+      </div>
+    </div>
+  );
 }

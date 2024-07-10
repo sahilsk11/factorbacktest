@@ -6,6 +6,7 @@
   height: 100%;
   background-color: rgba(0, 0, 0, 0.3);
   overflow: scroll;
+  z-index: 99;
 }
 
 .modal_content {
