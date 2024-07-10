@@ -37,8 +37,14 @@ type BacktestRequest struct {
 }
 
 type BacktestResponse struct {
-	FactorName string                          `json:"factorName"`
-	Snapshots  map[string]app.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
+	FactorName     string                          `json:"factorName"`
+	Snapshots      map[string]app.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
+	LatestHoldings LatestHoldings                  `json:"latestHoldings"`
+}
+
+type LatestHoldings struct {
+	Date   time.Time                           `json:"date"`
+	Assets map[string]app.SnapshotAssetMetrics `json:"assets"`
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
@@ -147,6 +153,10 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	responseJson := BacktestResponse{
 		FactorName: backtestInput.FactorName,
 		Snapshots:  result.Snapshots,
+		LatestHoldings: LatestHoldings{
+			Date:   result.LatestHoldings.Date,
+			Assets: result.LatestHoldings.Assets,
+		},
 	}
 
 	endProfile()

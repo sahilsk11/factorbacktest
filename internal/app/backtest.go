@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"factorbacktest/internal"
+	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
@@ -102,13 +103,13 @@ type BacktestSample struct {
 }
 
 type BacktestSnapshot struct {
-	ValuePercentChange float64                          `json:"valuePercentChange"`
-	Value              float64                          `json:"value"`
-	Date               string                           `json:"date"`
-	AssetMetrics       map[string]ScnapshotAssetMetrics `json:"assetMetrics"`
+	ValuePercentChange float64                         `json:"valuePercentChange"`
+	Value              float64                         `json:"value"`
+	Date               string                          `json:"date"`
+	AssetMetrics       map[string]SnapshotAssetMetrics `json:"assetMetrics"`
 }
 
-type ScnapshotAssetMetrics struct {
+type SnapshotAssetMetrics struct {
 	AssetWeight                  float64  `json:"assetWeight"`
 	FactorScore                  float64  `json:"factorScore"`
 	PriceChangeTilNextResampling *float64 `json:"priceChangeTilNextResampling"`
@@ -128,6 +129,7 @@ type BacktestInput struct {
 type BacktestResponse struct {
 	BacktestSamples []BacktestSample
 	Snapshots       map[string]BacktestSnapshot
+	LatestHoldings  LatestHoldings
 }
 
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*BacktestResponse, error) {
@@ -255,10 +257,58 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	}
 	endSpan()
 
+	latestHoldings, err := getLatestHoldings(ctx, h, universeSymbols, tickers, in)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BacktestResponse{
 		BacktestSamples: out,
 		Snapshots:       snapshots,
+		LatestHoldings:  *latestHoldings,
 	}, nil
+}
+
+type LatestHoldings struct {
+	Date   time.Time
+	Assets map[string]SnapshotAssetMetrics
+}
+
+func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols []string, tickers []model.Ticker, in BacktestInput) (*LatestHoldings, error) {
+	latestTradingDay, err := h.PriceRepository.LatestTradingDay()
+	if err != nil {
+		return nil, err
+	}
+
+	pm, err := h.PriceRepository.GetManyOnDay(universeSymbols, *latestTradingDay)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get prices on day %v: %w", latestTradingDay, err)
+	}
+	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScores(ctx, []time.Time{*latestTradingDay}, tickers, in.FactorExpression)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
+	}
+	scoreResults := factorScoresOnLatestDay[*latestTradingDay]
+	computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+		Date:             *latestTradingDay,
+		TargetNumTickers: in.NumTickers,
+		FactorScores:     scoreResults.SymbolScores,
+		PortfolioValue:   1000,
+		PriceMap:         pm,
+	})
+	out := LatestHoldings{
+		Date:   *latestTradingDay,
+		Assets: map[string]SnapshotAssetMetrics{},
+	}
+
+	for symbol := range computeTargetPortfolioResponse.FactorScores {
+		out.Assets[symbol] = SnapshotAssetMetrics{
+			AssetWeight: computeTargetPortfolioResponse.AssetWeights[symbol],
+			FactorScore: computeTargetPortfolioResponse.FactorScores[symbol],
+		}
+	}
+
+	return &out, nil
 }
 
 func toSnapshots(result []BacktestSample, priceMap map[string]map[string]float64) (map[string]BacktestSnapshot, error) {
@@ -301,29 +351,29 @@ func joinAssetMetrics(
 	weights map[string]float64,
 	factorScores map[string]float64,
 	priceChangeTilNextResampling map[string]float64,
-) map[string]ScnapshotAssetMetrics {
-	assetMetrics := map[string]*ScnapshotAssetMetrics{}
+) map[string]SnapshotAssetMetrics {
+	assetMetrics := map[string]*SnapshotAssetMetrics{}
 	for k, v := range weights {
 		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &ScnapshotAssetMetrics{}
+			assetMetrics[k] = &SnapshotAssetMetrics{}
 		}
 		assetMetrics[k].AssetWeight = v
 	}
 	for k, v := range factorScores {
 		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &ScnapshotAssetMetrics{}
+			assetMetrics[k] = &SnapshotAssetMetrics{}
 		}
 		assetMetrics[k].FactorScore = v
 	}
 	for k, v := range priceChangeTilNextResampling {
 		if _, ok := assetMetrics[k]; !ok {
-			assetMetrics[k] = &ScnapshotAssetMetrics{}
+			assetMetrics[k] = &SnapshotAssetMetrics{}
 		}
 		x := v // lol pointer math
 		assetMetrics[k].PriceChangeTilNextResampling = &x
 	}
 
-	out := map[string]ScnapshotAssetMetrics{}
+	out := map[string]SnapshotAssetMetrics{}
 	for k := range assetMetrics {
 		out[k] = *assetMetrics[k]
 	}

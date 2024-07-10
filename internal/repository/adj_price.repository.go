@@ -50,6 +50,7 @@ type AdjustedPriceRepository interface {
 	GetManyOnDay([]string, time.Time) (map[string]float64, error)
 	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(start, end time.Time) ([]time.Time, error)
+	LatestTradingDay() (*time.Time, error)
 	LatestPrices(symbols []string) ([]domain.AssetPrice, error)
 
 	// this is weird
@@ -210,6 +211,33 @@ func (h adjustedPriceRepositoryHandler) List(symbols []string, start, end time.T
 	}
 
 	return out, nil
+}
+
+func (h adjustedPriceRepositoryHandler) LatestTradingDay() (*time.Time, error) {
+	query := table.AdjustedPrice.
+		SELECT(table.AdjustedPrice.Date).
+		GROUP_BY(table.AdjustedPrice.Date).
+		HAVING(postgres.COUNT(postgres.String("*")).GT(postgres.Int(3))). // TODO - make this better
+		ORDER_BY(table.AdjustedPrice.Date.DESC()).
+		LIMIT(1)
+
+	q, args := query.Sql()
+
+	rows, err := h.Db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list trading days: %w", err)
+	}
+
+	for rows.Next() {
+		var d time.Time
+		err := rows.Scan(&d)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		return &d, nil
+	}
+
+	return nil, fmt.Errorf("failed to get trading day")
 }
 
 func (h *adjustedPriceRepositoryHandler) ListTradingDays(start, end time.Time) ([]time.Time, error) {

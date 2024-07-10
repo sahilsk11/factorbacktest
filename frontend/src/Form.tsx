@@ -2,7 +2,7 @@ import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import formStyles from "./Form.module.css";
 import appStyles from "./App.module.css";
-import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse } from './models';
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings } from './models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
@@ -38,6 +38,7 @@ export default function FactorForm({
   fullscreenView,
   user,
   setUser,
+  setLatestHoldings,
 }: {
   user: GoogleAuthUser | null,
   userID: string,
@@ -45,6 +46,7 @@ export default function FactorForm({
   appendFactorData: (newFactorData: FactorData) => void;
   fullscreenView: boolean,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
+  setLatestHoldings: React.Dispatch<React.SetStateAction<LatestHoldings | null>>,
 }) {
   const [factorExpression, setFactorExpression] = useState(`pricePercentChange(
   nDaysAgo(7),
@@ -64,6 +66,7 @@ export default function FactorForm({
   const [assetUniverse, setAssetUniverse] = useState<string>("--");
   const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
   const [savedStrategies, setSavedStrategies] = useState<GetSavedStrategiesResponse[]>([]);
+
 
   async function getStrategies() {
     try {
@@ -211,6 +214,7 @@ export default function FactorForm({
         } as FactorData;
 
         appendFactorData(fd)
+        setLatestHoldings(result.latestHoldings);
       } else {
         const j = await response.json()
         setErr(j.error)
