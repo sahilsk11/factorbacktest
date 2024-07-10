@@ -249,7 +249,7 @@ func Test_backtestFlow(t *testing.T) {
 				ValuePercentChange: 33.6989043,
 				Value:              13369.89043,
 				Date:               "2020-12-29",
-				AssetMetrics: map[string]app.ScnapshotAssetMetrics{
+				AssetMetrics: map[string]app.SnapshotAssetMetrics{
 					"AAPL": {
 						AssetWeight:                  0.1253766234821042,
 						FactorScore:                  2.2169708025194654,
