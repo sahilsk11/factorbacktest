@@ -123,8 +123,8 @@ function Invest({
       <Container style={{ paddingTop: "10px" }}>
         {selector}
 
-        <Row style={{ marginTop: "20px" }}>
-          <Col md={6} style={{ borderRight: "1px solid grey" }}>
+        <Row style={{ marginTop: "10px" }}>
+          <Col md={6} className={factorSnapshotStyles.latest_holdings_container}>
             <p className={factorSnapshotStyles.invest_title}>Latest Holdings</p>
             <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Based on market data from {parseDateString(latestHoldings.date)}</p>
 
@@ -147,7 +147,7 @@ function Invest({
             </table >
 
           </Col>
-          <Col md={6}>
+          <Col md={6} style={{paddingTop:"10px"}}>
             <p className={factorSnapshotStyles.invest_title}>Invest in Strategy</p>
             <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Paper trade or deposit real funds</p>
 

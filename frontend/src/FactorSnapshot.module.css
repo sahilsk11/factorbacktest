@@ -97,3 +97,9 @@
   margin-top: 10px;
   margin-bottom: 10px;
 }
+
+.latest_holdings_container {
+  border-right: 0.5px solid rgb(174, 174, 174);
+  padding-top: 10px;
+  padding-bottom: 20px;
+}
