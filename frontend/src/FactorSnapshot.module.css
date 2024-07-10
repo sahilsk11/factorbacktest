@@ -75,7 +75,7 @@
   margin-bottom: 0px;
 }
 
-.subtext { 
+.subtext {
   font-size: 12px;
   text-align: center;
   margin-top: 5px;
@@ -102,4 +102,10 @@
   border-right: 0.5px solid rgb(174, 174, 174);
   padding-top: 10px;
   padding-bottom: 20px;
+}
+
+@media only screen and (max-width: 767px) {
+  .latest_holdings_container {
+    border-right: none;
+  }
 }
