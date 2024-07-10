@@ -58,7 +58,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
   return <>
     <Navbar data-bs-theme="dark" bg="dark" expand="sm" className={`${styles.nav} bg-body-tertiary `}>
       <Container>
-        <Navbar.Brand style={{ fontSize: "16px", fontWeight:"500" }} href="/">factorbacktest.net</Navbar.Brand>
+        <Navbar.Brand style={{ fontSize: "16px", fontWeight:"500", cursor:"pointer" }} onClick={() => navigate("/")}>factorbacktest.net</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <BootstrapNav className="ms-auto">

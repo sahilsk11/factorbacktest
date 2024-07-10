@@ -81,13 +81,16 @@ func (m ApiHandler) isStrategyBookmarked(c *gin.Context) {
 	}
 
 	saved := false
+	name := ""
 	for _, ex := range existing {
 		if ex.Bookmarked {
+			name = ex.StrategyName
 			saved = true
 		}
 	}
 
-	out := map[string]bool{
+	out := map[string]interface{}{
+		"name":         name,
 		"isBookmarked": saved,
 	}
 

@@ -10,7 +10,7 @@ import { ContactModal, HelpModal } from './Modals';
 import StatsFooter from './Footer';
 import { Nav } from './Nav';
 import styles from './App.module.css'
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export interface FactorData {
   name: string,
@@ -41,6 +41,7 @@ const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Di
     setUserID(getOrCreateUserID());
   }, []);
 
+
   return <>
     <div className={styles.bond_ad} onClick={() => { window.location.href = "/bonds" }}>
       <p className={styles.bond_ad_text}><b>Bond Ladder Backtesting is Live →</b></p>
@@ -68,6 +69,13 @@ function FactorBacktestMain({ userID, user, setUser }: {
 
   const location = useLocation();
   const pathname = location.pathname;
+  const navigate = useNavigate();
+
+  if (pathname === "/" && factorData.length > 0) {
+    navigate("/backtest")
+  } else if (pathname === "/backtest" && factorData.length === 0) {
+    navigate("/")
+  } 
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
