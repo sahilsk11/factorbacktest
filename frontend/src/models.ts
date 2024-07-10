@@ -47,6 +47,12 @@ export interface SnapshotAssetMetrics {
 export interface BacktestResponse {
   factorName: string;
   backtestSnapshots: Record<string, BacktestSnapshot>;
+  latestHoldings: LatestHoldings;
+}
+
+export interface LatestHoldings {
+  date: string;
+  assets: Record<string, SnapshotAssetMetrics>;
 }
 
 export interface ContactRequest {

@@ -3,7 +3,7 @@ import BacktestChart from './BacktestChart';
 import FactorForm from "./Form";
 import Inspector from './FactorSnapshot';
 import BenchmarkManager from './BenchmarkSelector';
-import { BacktestSnapshot, GoogleAuthUser } from "./models";
+import { BacktestSnapshot, GoogleAuthUser, LatestHoldings } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
 import { ContactModal, HelpModal } from './Modals';
@@ -66,6 +66,7 @@ function FactorBacktestMain({ userID, user, setUser }: {
   const [benchmarkData, updateBenchmarkData] = useState<BenchmarkData[]>([]);
   const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
+  const [latestHoldings, setLatestHoldings] = useState<LatestHoldings | null>(null);
 
   const location = useLocation();
   const pathname = location.pathname;
@@ -120,6 +121,7 @@ function FactorBacktestMain({ userID, user, setUser }: {
             }}
             setUser={setUser}
             fullscreenView={useVerboseBuilder}
+            setLatestHoldings={setLatestHoldings}
           />
           <BenchmarkManager
             user={user}
@@ -143,6 +145,8 @@ function FactorBacktestMain({ userID, user, setUser }: {
               factorData={factorData}
               updateInspectFactorDataIndex={updateFdIndex}
               updateInspectFactorDataDate={updateInspectFactorDataDate}
+              user={user}
+              latestHoldings={latestHoldings}
             />
           </div> : null}
       </div>
