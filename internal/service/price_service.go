@@ -154,7 +154,8 @@ func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[
 
 	for _, in := range stdevInputs {
 		returns, ok := returnsBySymbol[in.Symbol]
-		if !ok {
+		// todo - figure out what case would cause no returns
+		if !ok || len(returns) == 0 {
 			continue
 		}
 		bufferedStart := in.Start.AddDate(0, 0, 7)
