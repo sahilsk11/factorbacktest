@@ -1,4 +1,4 @@
-package app
+package l2_service
 
 import (
 	"context"
@@ -8,7 +8,9 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
-	"factorbacktest/internal/service"
+	l1_service "factorbacktest/internal/service/l1"
+
+	// "factorbacktest/internal/service"
 
 	"fmt"
 	"sync"
@@ -20,21 +22,24 @@ type ScoresResultsOnDay struct {
 	Errors       []error
 }
 
+// calculate scores over a range of days
+
 type FactorExpressionService interface {
 	CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error)
+	CalculateFactorScoresOnDay(ctx context.Context, date time.Time, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error)
 }
 
 type factorExpressionServiceHandler struct {
 	Db                    *sql.DB
-	FactorMetricsHandler  internal.FactorMetricCalculations
-	PriceService          service.PriceService
+	FactorMetricsHandler  FactorMetricCalculations
+	PriceService          l1_service.PriceService
 	FactorScoreRepository repository.FactorScoreRepository
 }
 
 func NewFactorExpressionService(
 	db *sql.DB,
-	factorMetricsHandler internal.FactorMetricCalculations,
-	priceService service.PriceService,
+	factorMetricsHandler FactorMetricCalculations,
+	priceService l1_service.PriceService,
 	factorScoreRepository repository.FactorScoreRepository,
 ) FactorExpressionService {
 	return factorExpressionServiceHandler{
@@ -54,13 +59,13 @@ type workInput struct {
 type workResult struct {
 	Date             time.Time
 	Ticker           model.Ticker
-	ExpressionResult *internal.ExpressionResult
+	ExpressionResult *ExpressionResult
 	Err              error
 	elapsedMs        int64
 	span             *domain.Span
 }
 
-// calculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
+// CalculateFactorScores asynchronously processes factor expression calculations for every relevant day in the backtest
 // using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
 // despite using workers, this is still the slowest part of the flow
 func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error) {
@@ -150,7 +155,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 					start := time.Now()
 					span, endSpan := domain.NewSpan(fmt.Sprintf("evaluating expression for %s on %s", input.Ticker.Symbol, input.Date.Format(time.DateOnly)))
 					subProfile, endProfile := span.NewSubProfile()
-					res, err := internal.EvaluateFactorExpression(
+					res, err := EvaluateFactorExpression(
 						context.WithValue(ctx, domain.ContextProfileKey, subProfile),
 						h.Db,
 						cache,
@@ -210,7 +215,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 			Date:                 res.Date,
 		}
 
-		if res.Err != nil && !errors.As(res.Err, &internal.FactorMetricsMissingDataError{}) {
+		if res.Err != nil && !errors.As(res.Err, &FactorMetricsMissingDataError{}) {
 			out[res.Date].Errors = append(out[res.Date].Errors, res.Err)
 			errString := res.Err.Error()
 			m.Error = &errString
@@ -239,13 +244,13 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 // loadPriceCache "dry-runs" the factor expression to determine which dates are needed
 // then loads them into a price cache. it has no concept of trading days, so it
 // may produce cache misses on holidays
-func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in []workInput) (*service.PriceCache, error) {
-	dataHandler := internal.DryRunFactorMetricsHandler{
-		Prices: []service.LoadPriceCacheInput{},
-		Stdevs: []service.LoadStdevCacheInput{},
+func (h factorExpressionServiceHandler) loadPriceCache(ctx context.Context, in []workInput) (*l1_service.PriceCache, error) {
+	dataHandler := DryRunFactorMetricsHandler{
+		Prices: []l1_service.LoadPriceCacheInput{},
+		Stdevs: []l1_service.LoadStdevCacheInput{},
 	}
 	for _, n := range in {
-		_, err := internal.EvaluateFactorExpression(
+		_, err := EvaluateFactorExpression(
 			ctx,
 			nil,
 			nil,
@@ -323,4 +328,16 @@ func removeIndicesInPlace(slice *[]workInput, sortedIndexesToRemove []int) {
 
 	// Slice the original slice to its new size
 	*slice = (*slice)[:j]
+}
+
+func (h factorExpressionServiceHandler) CalculateFactorScoresOnDay(ctx context.Context, date time.Time, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error) {
+	results, err := h.CalculateFactorScores(ctx, []time.Time{date}, tickers, factorExpression)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := results[date]
+	if !ok {
+		return nil, fmt.Errorf("scores missing from result: %w", err)
+	}
+	return r, nil
 }

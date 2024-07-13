@@ -1,9 +1,11 @@
-package internal
+package l2_service
 
 import (
 	"context"
 	"factorbacktest/internal/repository"
-	"factorbacktest/internal/service"
+	l1_service "factorbacktest/internal/service/l1"
+
+	// "factorbacktest/internal/service"
 	"fmt"
 	"time"
 
@@ -19,9 +21,9 @@ func (e FactorMetricsMissingDataError) Error() string {
 }
 
 type FactorMetricCalculations interface {
-	Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error)
-	PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error)
-	AnnualizedStdevOfDailyReturns(ctx context.Context, pr *service.PriceCache, symbol string, start, end time.Time) (float64, error)
+	Price(pr *l1_service.PriceCache, symbol string, date time.Time) (float64, error)
+	PricePercentChange(pr *l1_service.PriceCache, symbol string, start, end time.Time) (float64, error)
+	AnnualizedStdevOfDailyReturns(ctx context.Context, pr *l1_service.PriceCache, symbol string, start, end time.Time) (float64, error)
 	MarketCap(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
 	PbRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error)
@@ -42,24 +44,24 @@ func NewFactorMetricsHandler(adjPriceRepository repository.AdjustedPriceReposito
 
 type DryRunFactorMetricsHandler struct {
 	// these may contain duplicates
-	Prices []service.LoadPriceCacheInput
-	Stdevs []service.LoadStdevCacheInput
+	Prices []l1_service.LoadPriceCacheInput
+	Stdevs []l1_service.LoadStdevCacheInput
 }
 
-func (h *DryRunFactorMetricsHandler) Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error) {
-	h.Prices = append(h.Prices, service.LoadPriceCacheInput{
+func (h *DryRunFactorMetricsHandler) Price(pr *l1_service.PriceCache, symbol string, date time.Time) (float64, error) {
+	h.Prices = append(h.Prices, l1_service.LoadPriceCacheInput{
 		Date:   date,
 		Symbol: symbol,
 	})
 	return 0, nil
 }
 
-func (h *DryRunFactorMetricsHandler) PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
-	h.Prices = append(h.Prices, service.LoadPriceCacheInput{
+func (h *DryRunFactorMetricsHandler) PricePercentChange(pr *l1_service.PriceCache, symbol string, start, end time.Time) (float64, error) {
+	h.Prices = append(h.Prices, l1_service.LoadPriceCacheInput{
 		Date:   start,
 		Symbol: symbol,
 	})
-	h.Prices = append(h.Prices, service.LoadPriceCacheInput{
+	h.Prices = append(h.Prices, l1_service.LoadPriceCacheInput{
 		Date:   end,
 		Symbol: symbol,
 	})
@@ -67,8 +69,8 @@ func (h *DryRunFactorMetricsHandler) PricePercentChange(pr *service.PriceCache, 
 	return 1, nil
 }
 
-func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
-	h.Stdevs = append(h.Stdevs, service.LoadStdevCacheInput{
+func (h *DryRunFactorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *l1_service.PriceCache, symbol string, start, end time.Time) (float64, error) {
+	h.Stdevs = append(h.Stdevs, l1_service.LoadStdevCacheInput{
 		Start:  start,
 		End:    end,
 		Symbol: symbol,
@@ -88,11 +90,11 @@ func (h *DryRunFactorMetricsHandler) PbRatio(tx qrm.Queryable, symbol string, da
 	return 1, nil
 }
 
-func (h factorMetricsHandler) Price(pr *service.PriceCache, symbol string, date time.Time) (float64, error) {
+func (h factorMetricsHandler) Price(pr *l1_service.PriceCache, symbol string, date time.Time) (float64, error) {
 	return pr.Get(symbol, date)
 }
 
-func (h factorMetricsHandler) PricePercentChange(pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
+func (h factorMetricsHandler) PricePercentChange(pr *l1_service.PriceCache, symbol string, start, end time.Time) (float64, error) {
 	startPrice, err := pr.Get(symbol, start)
 	if err != nil {
 		return 0, err
@@ -110,7 +112,7 @@ func percentChange(end, start float64) float64 {
 	return ((end - start) / end) * 100
 }
 
-func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *service.PriceCache, symbol string, start, end time.Time) (float64, error) {
+func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *l1_service.PriceCache, symbol string, start, end time.Time) (float64, error) {
 	return pr.GetStdev(ctx, symbol, start, end)
 }
 

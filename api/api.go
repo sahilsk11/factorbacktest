@@ -8,7 +8,7 @@ import (
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/repository"
-	"factorbacktest/internal/service"
+	l1_service "factorbacktest/internal/service/l1"
 	googleauth "factorbacktest/pkg/google-auth"
 	"fmt"
 	"io"
@@ -32,7 +32,7 @@ type ApiHandler struct {
 	GptRepository                repository.GptRepository
 	ApiRequestRepository         repository.ApiRequestRepository
 	LatencencyTrackingRepository repository.LatencyTrackingRepository
-	PriceService                 service.PriceService
+	PriceService                 l1_service.PriceService
 	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
 	AssetUniverseRepository      repository.AssetUniverseRepository

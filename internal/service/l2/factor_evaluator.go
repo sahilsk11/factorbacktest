@@ -1,9 +1,10 @@
-package internal
+package l2_service
 
 import (
 	"context"
 	"database/sql"
-	"factorbacktest/internal/service"
+	l1_service "factorbacktest/internal/service/l1"
+
 	"fmt"
 	"math"
 	"time"
@@ -16,7 +17,7 @@ const dateLayout = "2006-01-02"
 func constructFunctionMap(
 	ctx context.Context,
 	db *sql.DB,
-	pr *service.PriceCache,
+	pr *l1_service.PriceCache,
 	symbol string,
 	h FactorMetricCalculations,
 	debug FormulaDebugger,
@@ -186,7 +187,7 @@ type ExpressionResult struct {
 func EvaluateFactorExpression(
 	ctx context.Context,
 	db *sql.DB,
-	pr *service.PriceCache,
+	pr *l1_service.PriceCache,
 	expression string,
 	symbol string,
 	factorMetricsHandler FactorMetricCalculations,
