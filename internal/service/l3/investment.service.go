@@ -23,7 +23,7 @@ type investmentServiceHandler struct {
 	FactorExpressionService l2_service.FactorExpressionService
 }
 
-func (h investmentServiceHandler) GetTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time) (*domain.Portfolio, error) {
+func (h investmentServiceHandler) GetTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time) (map[string]*domain.Position, error) {
 	investmentDetails, err := h.StrategyInvestment.Get(strategyInvestmentID)
 	if err != nil {
 		return nil, err
@@ -67,5 +67,32 @@ func (h investmentServiceHandler) GetTargetPortfolio(ctx context.Context, strate
 		return nil, err
 	}
 
-	return computeTargetPortfolioResponse.TargetPortfolio, nil
+	return computeTargetPortfolioResponse.TargetPortfolio.Positions, nil
+}
+
+func (h investmentServiceHandler) GetAggregrateTargetPortfolio(ctx context.Context, date time.Time) (*domain.Portfolio, error) {
+	// get all active investments
+	investments, err := h.StrategyInvestment.List(repository.StrategyInvestmentListFilter{})
+	if err != nil {
+		return nil, err
+	}
+
+	aggregatePortfolio := domain.NewPortfolio()
+	for _, i := range investments {
+		strategyPortfolio, err := h.GetTargetPortfolio(ctx, i.StrategyInvestmentID, date)
+		if err != nil {
+			return nil, err
+		}
+		for symbol, position := range strategyPortfolio {
+			if _, ok := aggregatePortfolio.Positions[symbol]; !ok {
+				aggregatePortfolio.Positions[symbol] = &domain.Position{
+					Symbol:   symbol,
+					Quantity: 0,
+				}
+			}
+			aggregatePortfolio.Positions[symbol].Quantity += position.Quantity
+		}
+	}
+
+	return aggregatePortfolio, nil
 }
