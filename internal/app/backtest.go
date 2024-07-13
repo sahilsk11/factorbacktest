@@ -296,6 +296,10 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 		PortfolioValue:   1000,
 		PriceMap:         pm,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate target portfolio")
+	}
+
 	out := LatestHoldings{
 		Date:   *latestTradingDay,
 		Assets: map[string]SnapshotAssetMetrics{},
