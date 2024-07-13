@@ -12,7 +12,7 @@ import (
 )
 
 type InvestmentService interface {
-	GetAggregrateTargetPortfolio(date time.Time) (*domain.Portfolio, error)
+	// GetAggregrateTargetPortfolio(date time.Time) (*domain.Portfolio, error)
 }
 
 type investmentServiceHandler struct {
@@ -23,7 +23,7 @@ type investmentServiceHandler struct {
 	FactorExpressionService l2_service.FactorExpressionService
 }
 
-func (h investmentServiceHandler) GetTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time) (map[string]*domain.Position, error) {
+func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time) (map[string]*domain.Position, error) {
 	investmentDetails, err := h.StrategyInvestment.Get(strategyInvestmentID)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (h investmentServiceHandler) GetTargetPortfolio(ctx context.Context, strate
 	return computeTargetPortfolioResponse.TargetPortfolio.Positions, nil
 }
 
-func (h investmentServiceHandler) GetAggregrateTargetPortfolio(ctx context.Context, date time.Time) (*domain.Portfolio, error) {
+func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time) (*domain.Portfolio, error) {
 	// get all active investments
 	investments, err := h.StrategyInvestment.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
@@ -79,7 +79,7 @@ func (h investmentServiceHandler) GetAggregrateTargetPortfolio(ctx context.Conte
 
 	aggregatePortfolio := domain.NewPortfolio()
 	for _, i := range investments {
-		strategyPortfolio, err := h.GetTargetPortfolio(ctx, i.StrategyInvestmentID, date)
+		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date)
 		if err != nil {
 			return nil, err
 		}
@@ -95,4 +95,49 @@ func (h investmentServiceHandler) GetAggregrateTargetPortfolio(ctx context.Conte
 	}
 
 	return aggregatePortfolio, nil
+}
+
+func (h investmentServiceHandler) getCurrentAggregatePortfolio() (*domain.Portfolio, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+// TODO - how should we handle trades where amount < $1
+func (h BacktestHandler) transitionToTarget(
+	currentPortfolio domain.Portfolio,
+	targetPortfolio domain.Portfolio,
+	priceMap map[string]float64,
+) ([]domain.ProposedTrade, error) {
+	trades := []domain.ProposedTrade{}
+	prevPositions := currentPortfolio.Positions
+	targetPositions := targetPortfolio.Positions
+
+	for symbol, position := range targetPositions {
+		diff := position.Quantity
+		prevPosition, ok := prevPositions[symbol]
+		if ok {
+			diff = position.Quantity - prevPosition.Quantity
+		}
+		if diff != 0 {
+			trades = append(trades, domain.ProposedTrade{
+				Symbol:        symbol,
+				Quantity:      diff,
+				ExpectedPrice: priceMap[symbol],
+			})
+		}
+	}
+	for symbol, position := range prevPositions {
+		if _, ok := targetPositions[symbol]; !ok {
+			trades = append(trades, domain.ProposedTrade{
+				Symbol:        symbol,
+				Quantity:      -position.Quantity,
+				ExpectedPrice: priceMap[symbol],
+			})
+		}
+	}
+
+	// we could round all trades up to $1 but
+	// if they have tons of little trades, that
+	// could get expensive
+
+	return trades, nil
 }
