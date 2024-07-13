@@ -21,9 +21,10 @@ type investmentServiceHandler struct {
 	StrategyInvestment      repository.StrategyInvestmentRepository
 	SavedStrategyRepository repository.SavedStrategyRepository
 	FactorExpressionService l2_service.FactorExpressionService
+	TickerRepository        repository.TickerRepository
 }
 
-func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time) (map[string]*domain.Position, error) {
+func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64) (map[string]*domain.Position, error) {
 	investmentDetails, err := h.StrategyInvestment.Get(strategyInvestmentID)
 	if err != nil {
 		return nil, err
@@ -46,11 +47,6 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 		universeSymbols = append(universeSymbols, u.Symbol)
 	}
 
-	pm, err := h.PriceRepository.GetManyOnDay(universeSymbols, date)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get prices on day %v: %w", date, err)
-	}
-
 	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScoresOnDay(ctx, date, universe, savedStrategyDetails.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
@@ -70,7 +66,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 	return computeTargetPortfolioResponse.TargetPortfolio.Positions, nil
 }
 
-func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time) (*domain.Portfolio, error) {
+func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
 	// get all active investments
 	investments, err := h.StrategyInvestment.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
@@ -79,7 +75,7 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 
 	aggregatePortfolio := domain.NewPortfolio()
 	for _, i := range investments {
-		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date)
+		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date, pm)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +98,7 @@ func (h investmentServiceHandler) getCurrentAggregatePortfolio() (*domain.Portfo
 }
 
 // TODO - how should we handle trades where amount < $1
-func (h BacktestHandler) transitionToTarget(
+func transitionToTarget(
 	currentPortfolio domain.Portfolio,
 	targetPortfolio domain.Portfolio,
 	priceMap map[string]float64,
@@ -140,4 +136,35 @@ func (h BacktestHandler) transitionToTarget(
 	// could get expensive
 
 	return trades, nil
+}
+
+func (h investmentServiceHandler) generateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error) {
+	assets, err := h.TickerRepository.List()
+	if err != nil {
+		return nil, err
+	}
+	symbols := []string{}
+	for _, s := range assets {
+		symbols = append(symbols, s.Symbol)
+	}
+
+	pm, err := h.PriceRepository.GetManyOnDay(symbols, date)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get prices on day %v: %w", date, err)
+	}
+
+	currentPortfolio, err := h.getCurrentAggregatePortfolio()
+	if err != nil {
+		return nil, err
+	}
+	targetPortfolio, err := h.getAggregrateTargetPortfolio(ctx, date, pm)
+	if err != nil {
+		return nil, err
+	}
+	proposedTrades, err := transitionToTarget(*currentPortfolio, *targetPortfolio, pm)
+	if err != nil {
+		return nil, err
+	}
+
+	return proposedTrades, nil
 }
