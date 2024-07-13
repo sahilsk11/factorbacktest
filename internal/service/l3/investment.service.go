@@ -24,7 +24,7 @@ type investmentServiceHandler struct {
 	TickerRepository        repository.TickerRepository
 }
 
-func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64) (map[string]*domain.Position, error) {
+func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
 	investmentDetails, err := h.StrategyInvestment.Get(strategyInvestmentID)
 	if err != nil {
 		return nil, err
@@ -32,6 +32,8 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 
 	// TODO - get current value of holdings? or do we want to return as
 	// percent allocations here
+	// we should definitely get current holdings and figure out
+	// value from that
 
 	savedStrategyDetails, err := h.SavedStrategyRepository.Get(investmentDetails.SavedStragyID)
 	if err != nil {
@@ -63,7 +65,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 		return nil, err
 	}
 
-	return computeTargetPortfolioResponse.TargetPortfolio.Positions, nil
+	return computeTargetPortfolioResponse.TargetPortfolio, nil
 }
 
 func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
@@ -79,7 +81,7 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 		if err != nil {
 			return nil, err
 		}
-		for symbol, position := range strategyPortfolio {
+		for symbol, position := range strategyPortfolio.Positions {
 			if _, ok := aggregatePortfolio.Positions[symbol]; !ok {
 				aggregatePortfolio.Positions[symbol] = &domain.Position{
 					Symbol:   symbol,
@@ -88,6 +90,14 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 			}
 			aggregatePortfolio.Positions[symbol].Quantity += position.Quantity
 		}
+
+		// definitely shouldn't be the case, but throw in cash
+		// just in case. we don't do anything with cash, so we
+		// should check this for errors
+		if strategyPortfolio.Cash > 0 {
+			return nil, fmt.Errorf("portfolio %s generated %f cash", i.StrategyInvestmentID, strategyPortfolio.Cash)
+		}
+		// aggregatePortfolio.Cash += strategyPortfolio.Cash
 	}
 
 	return aggregatePortfolio, nil
@@ -138,6 +148,9 @@ func transitionToTarget(
 	return trades, nil
 }
 
+// the way this is set up, i think date would be like, the last
+// trading day? it definitely needs to be a day we have prices
+// for
 func (h investmentServiceHandler) generateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error) {
 	assets, err := h.TickerRepository.List()
 	if err != nil {
@@ -165,6 +178,9 @@ func (h investmentServiceHandler) generateProposedTrades(ctx context.Context, da
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO - verify that after all trades, the accounts
+	// line up with what they should be
 
 	return proposedTrades, nil
 }
