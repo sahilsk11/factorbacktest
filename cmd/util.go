@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"factorbacktest/api"
 	"factorbacktest/internal"
-	"factorbacktest/internal/app"
 	"factorbacktest/internal/repository"
-	"factorbacktest/internal/service"
+	l1_service "factorbacktest/internal/service/l1"
+	l2_service "factorbacktest/internal/service/l2"
+	l3_service "factorbacktest/internal/service/l3"
 	"fmt"
 	"log"
 
@@ -41,7 +42,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 
 	priceRepository := repository.NewAdjustedPriceRepository(dbConn)
 
-	factorMetricsHandler := internal.NewFactorMetricsHandler(
+	factorMetricsHandler := l2_service.NewFactorMetricsHandler(
 		priceRepository,
 		repository.AssetFundamentalsRepositoryHandler{},
 	)
@@ -52,15 +53,15 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	savedStrategyRepository := repository.NewSavedStrategyRepository(dbConn)
 	strategyInvestmentRepository := repository.NewStrategyInvestmentRepository(dbConn)
 
-	priceService := service.NewPriceService(dbConn, priceRepository)
+	priceService := l1_service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
-	factorExpressionService := app.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
+	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
 
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
 		},
-		BacktestHandler: app.BacktestHandler{
+		BacktestHandler: l3_service.BacktestHandler{
 			PriceRepository:         priceRepository,
 			AssetUniverseRepository: assetUniverseRepository,
 			Db:                      dbConn,

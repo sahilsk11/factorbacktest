@@ -8,7 +8,7 @@ import {
   Legend,
   ChartOptions
 } from 'chart.js';
-import appStyles from "./App.module.css";
+import appStyles from "./l3_service.module.css";
 import factorSnapshotStyles from "./FactorSnapshot.module.css";
 import { AiOutlineQuestionCircle } from 'react-icons/ai';
 import { Tooltip as ReactTooltip } from 'react-tooltip';

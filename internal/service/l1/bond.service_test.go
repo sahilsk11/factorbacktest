@@ -1,4 +1,4 @@
-package service
+package l1_service_test
 
 // import (
 // 	"factorbacktest/internal/domain"

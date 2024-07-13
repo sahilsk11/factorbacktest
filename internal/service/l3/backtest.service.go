@@ -1,4 +1,4 @@
-package app
+package l3_service
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
-	"factorbacktest/internal/service"
+	l1_service "factorbacktest/internal/service/l1"
+	l2_service "factorbacktest/internal/service/l2"
 	"fmt"
 	"time"
 )
@@ -17,8 +18,8 @@ type BacktestHandler struct {
 	AssetUniverseRepository repository.AssetUniverseRepository
 
 	Db                      *sql.DB
-	PriceService            service.PriceService
-	FactorExpressionService FactorExpressionService
+	PriceService            l1_service.PriceService
+	FactorExpressionService l2_service.FactorExpressionService
 }
 
 type ComputeTargetPortfolioInput struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"factorbacktest/internal/repository"
-	"factorbacktest/internal/service"
+	l1_service "factorbacktest/internal/service/l1"
 	"fmt"
 	"time"
 
@@ -80,7 +80,7 @@ func (h ApiHandler) backtestBondPortfolio(c *gin.Context) {
 		return
 	}
 
-	bs := service.BondService{
+	bs := l1_service.BondService{
 		InterestRateRepository: repository.NewInterestRateRepository(h.Db),
 	}
 
