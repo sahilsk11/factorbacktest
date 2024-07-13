@@ -14,7 +14,7 @@ import (
 
 type AssetUniverseRepository interface {
 	GetAssetUniverses() ([]model.AssetUniverseSize, error)
-	GetAssets(string) ([]model.Ticker, error)
+	GetAssets(assetUniverseName string) ([]model.Ticker, error)
 	AddAssets(tx *sql.Tx, universe model.AssetUniverse, tickers []model.Ticker) error
 	GetOrCreate(tx *sql.Tx, name string) (*model.AssetUniverse, error)
 }
@@ -39,7 +39,7 @@ func (h assetUniverseRepositoryHandler) GetAssetUniverses() ([]model.AssetUniver
 	return out, nil
 }
 
-func (h assetUniverseRepositoryHandler) GetAssets(name string) ([]model.Ticker, error) {
+func (h assetUniverseRepositoryHandler) GetAssets(assetUniverseName string) ([]model.Ticker, error) {
 	query := postgres.SELECT(table.Ticker.AllColumns).FROM(
 		table.Ticker.
 			INNER_JOIN(
@@ -52,8 +52,8 @@ func (h assetUniverseRepositoryHandler) GetAssets(name string) ([]model.Ticker, 
 			),
 	)
 
-	if name != "ALL" {
-		query = query.WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.String(name)))
+	if assetUniverseName != "ALL" {
+		query = query.WHERE(table.AssetUniverse.AssetUniverseName.EQ(postgres.String(assetUniverseName)))
 	}
 
 	// i don't understand where duplicates are
@@ -62,7 +62,7 @@ func (h assetUniverseRepositoryHandler) GetAssets(name string) ([]model.Ticker, 
 	tickers := []model.Ticker{}
 	err := query.Query(h.Db, &tickers)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query assets from %s: %w", name, err)
+		return nil, fmt.Errorf("failed to query assets from %s: %w", assetUniverseName, err)
 	}
 
 	return tickers, nil
