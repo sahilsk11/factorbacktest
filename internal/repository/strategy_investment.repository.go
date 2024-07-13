@@ -15,7 +15,7 @@ import (
 type StrategyInvestmentRepository interface {
 	Add(si model.StrategyInvestment) (*model.StrategyInvestment, error)
 	Get(id uuid.UUID) (*model.StrategyInvestment, error)
-	List(uuid.UUID) ([]model.StrategyInvestment, error)
+	List(StrategyInvestmentListFilter) ([]model.StrategyInvestment, error)
 }
 
 type strategyInvestmentRepositoryHandler struct {
@@ -64,12 +64,24 @@ func (h strategyInvestmentRepositoryHandler) Get(id uuid.UUID) (*model.StrategyI
 	return &result, nil
 }
 
-func (h strategyInvestmentRepositoryHandler) List(userAccountID uuid.UUID) ([]model.StrategyInvestment, error) {
+type StrategyInvestmentListFilter struct {
+	UserAccountIDs []uuid.UUID
+}
+
+func (h strategyInvestmentRepositoryHandler) List(filter StrategyInvestmentListFilter) ([]model.StrategyInvestment, error) {
 	query := table.StrategyInvestment.
 		SELECT(table.StrategyInvestment.AllColumns).
-		WHERE(
-			table.StrategyInvestment.UserAccountID.EQ(postgres.UUID(userAccountID)),
-		).ORDER_BY(table.StrategyInvestment.CreatedAt.DESC())
+		ORDER_BY(table.StrategyInvestment.CreatedAt.DESC())
+
+	if len(filter.UserAccountIDs) > 0 {
+		ids := []postgres.Expression{}
+		for _, id := range filter.UserAccountIDs {
+			ids = append(ids, postgres.UUID(id))
+		}
+		query = query.WHERE(
+			table.StrategyInvestment.UserAccountID.IN(ids...),
+		)
+	}
 
 	result := []model.StrategyInvestment{}
 	err := query.Query(h.Db, &result)

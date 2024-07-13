@@ -1,6 +1,7 @@
 package api
 
 import (
+	"factorbacktest/internal/repository"
 	"fmt"
 	"time"
 
@@ -35,7 +36,9 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 		return
 	}
 
-	investments, err := m.StrategyInvestmentRepository.List(userAccountID)
+	investments, err := m.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{
+		UserAccountIDs: []uuid.UUID{userAccountID},
+	})
 	if err != nil {
 		returnErrorJson(err, c)
 		return

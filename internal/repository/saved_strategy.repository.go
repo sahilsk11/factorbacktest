@@ -18,6 +18,7 @@ type SavedStrategyRepository interface {
 	ListMatchingStrategies(m model.SavedStrategy) ([]model.SavedStrategy, error)
 	Add(m model.SavedStrategy) error
 	SetBookmarked(savedStrategyID uuid.UUID, bookmarked bool) error
+	Get(uuid.UUID) (*model.SavedStrategy, error)
 }
 
 type savedStrategyRepositoryHandler struct {
@@ -26,6 +27,19 @@ type savedStrategyRepositoryHandler struct {
 
 func NewSavedStrategyRepository(db *sql.DB) SavedStrategyRepository {
 	return savedStrategyRepositoryHandler{db}
+}
+
+func (h savedStrategyRepositoryHandler) Get(id uuid.UUID) (*model.SavedStrategy, error) {
+	query := table.SavedStrategy.SELECT(table.SavedStrategy.AllColumns).
+		WHERE(table.SavedStrategy.SavedStragyID.EQ(postgres.UUID(id)))
+	out := model.SavedStrategy{}
+
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get saved strategy: %w", err)
+	}
+
+	return &out, nil
 }
 
 func (h savedStrategyRepositoryHandler) Add(m model.SavedStrategy) error {

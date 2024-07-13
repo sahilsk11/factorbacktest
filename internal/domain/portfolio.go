@@ -9,6 +9,13 @@ type Portfolio struct {
 	Cash      float64
 }
 
+func NewPortfolio() *Portfolio {
+	return &Portfolio{
+		Positions: map[string]*Position{},
+		Cash:      0,
+	}
+}
+
 func (p Portfolio) DeepCopy() *Portfolio {
 	newPortfolio := &Portfolio{
 		Cash:      p.Cash,

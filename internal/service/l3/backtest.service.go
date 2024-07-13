@@ -34,12 +34,12 @@ type ComputeTargetPortfolioResponse struct {
 	TargetPortfolio *domain.Portfolio
 	AssetWeights    map[string]float64
 	FactorScores    map[string]float64
-	TotalValue      float64
 }
 
 // Computes what the portfolio should hold on a given day, given the
 // strategy (equation and universe) and value of current holdings
-func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
+// TODO - find a better place for this function
+func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
 	if in.TargetNumTickers < 3 {
 		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
 	}
@@ -83,16 +83,13 @@ func (h BacktestHandler) ComputeTargetPortfolio(in ComputeTargetPortfolioInput) 
 	return &ComputeTargetPortfolioResponse{
 		TargetPortfolio: targetPortfolio,
 		AssetWeights:    newWeights,
-		TotalValue:      in.PortfolioValue,
 		FactorScores:    selectedAssetFactorScores,
 	}, nil
 }
 
 type BacktestSample struct {
-	Date           time.Time
-	EndPortfolio   domain.Portfolio
-	TotalValue     float64
-	ProposedTrades []domain.ProposedTrade
+	Date       time.Time
+	TotalValue float64
 	// might be less memory to join these in one map, but
 	// it's also cleaner to have these seperated so i don't
 	// need to define another struct for this, and because
@@ -207,7 +204,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// scoringErrors := valuesFromDay.errors
 		// backtestErrors = append(backtestErrors, scoringErrors...)
 
-		computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+		computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
 			FactorScores:     valuesFromDay.SymbolScores,
@@ -222,22 +219,12 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			continue
 			// return nil, fmt.Errorf("failed to compute target portfolio in backtest on %s: %w", t.Format(time.DateOnly), err)
 		}
-		trades, err := h.transitionToTarget(
-			currentPortfolio,
-			*computeTargetPortfolioResponse.TargetPortfolio,
-			pm,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to transition to target: %w", err)
-		}
 
 		out = append(out, BacktestSample{
-			Date:           t,
-			EndPortfolio:   *computeTargetPortfolioResponse.TargetPortfolio,
-			ProposedTrades: trades,
-			TotalValue:     computeTargetPortfolioResponse.TotalValue,
-			AssetWeights:   computeTargetPortfolioResponse.AssetWeights,
-			FactorScores:   computeTargetPortfolioResponse.FactorScores,
+			Date:         t,
+			TotalValue:   currentPortfolioValue,
+			AssetWeights: computeTargetPortfolioResponse.AssetWeights,
+			FactorScores: computeTargetPortfolioResponse.FactorScores,
 		})
 		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 	}
@@ -290,7 +277,7 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
 	scoreResults := factorScoresOnLatestDay[*latestTradingDay]
-	computeTargetPortfolioResponse, err := h.ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+	computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 		Date:             *latestTradingDay,
 		TargetNumTickers: in.NumTickers,
 		FactorScores:     scoreResults.SymbolScores,
@@ -384,64 +371,6 @@ func joinAssetMetrics(
 	}
 
 	return out
-}
-
-type transitionToTargetResult struct {
-	ProposedTrades []domain.ProposedTrade
-	NewPortfolio   domain.Portfolio
-	NewTotalValue  float64
-}
-
-func (h BacktestHandler) transitionToTarget(
-	currentPortfolio domain.Portfolio,
-	targetPortfolio domain.Portfolio,
-	priceMap map[string]float64,
-) ([]domain.ProposedTrade, error) {
-	trades := []domain.ProposedTrade{}
-	prevPositions := currentPortfolio.Positions
-	targetPositions := targetPortfolio.Positions
-
-	for symbol, position := range targetPositions {
-		diff := position.Quantity
-		prevPosition, ok := prevPositions[symbol]
-		if ok {
-			diff = position.Quantity - prevPosition.Quantity
-		}
-		if diff != 0 {
-			trades = append(trades, domain.ProposedTrade{
-				Symbol:        symbol,
-				Quantity:      diff,
-				ExpectedPrice: priceMap[symbol],
-			})
-		}
-	}
-	for symbol, position := range prevPositions {
-		if _, ok := targetPositions[symbol]; !ok {
-			trades = append(trades, domain.ProposedTrade{
-				Symbol:        symbol,
-				Quantity:      -position.Quantity,
-				ExpectedPrice: priceMap[symbol],
-			})
-		}
-	}
-
-	return trades, nil
-}
-
-func (h BacktestHandler) calculateAnchorPortfolioWeights(
-	anchorPortfolioQuantities map[string]float64,
-	priceMap map[string]float64,
-) (map[string]float64, error) {
-	anchorPortfolioWeights := map[string]float64{}
-	sum := 0.0
-	for symbol, quantity := range anchorPortfolioQuantities {
-		sum += priceMap[symbol] * quantity
-	}
-	for symbol, weight := range anchorPortfolioQuantities {
-		anchorPortfolioWeights[symbol] = priceMap[symbol] * weight / sum
-	}
-
-	return anchorPortfolioWeights, nil
 }
 
 func (h BacktestHandler) calculateRelevantTradingDays(
