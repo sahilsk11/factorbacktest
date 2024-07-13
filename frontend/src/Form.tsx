@@ -1,7 +1,7 @@
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import formStyles from "./Form.module.css";
-import appStyles from "./App.module.css";
+import appStyles from "./l3_service.module.css";
 import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings } from './models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';

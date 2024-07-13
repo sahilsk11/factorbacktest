@@ -71,7 +71,7 @@ jobs:
         counter=0
         max_retries=5
         while ! curl -sSf http://localhost:3009/; do
-          echo "Waiting for app..."
+          echo "Waiting for l3_service..."
           sleep 5
           counter=$((counter+1))
           if [ $counter -ge $max_retries ]; then

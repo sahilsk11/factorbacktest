@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"factorbacktest/api"
 	"factorbacktest/internal"
-	"factorbacktest/internal/app"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l2_service "factorbacktest/internal/service/l2"
+	l3_service "factorbacktest/internal/service/l3"
 	"fmt"
 	"log"
 
@@ -61,7 +61,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
 		},
-		BacktestHandler: app.BacktestHandler{
+		BacktestHandler: l3_service.BacktestHandler{
 			PriceRepository:         priceRepository,
 			AssetUniverseRepository: assetUniverseRepository,
 			Db:                      dbConn,

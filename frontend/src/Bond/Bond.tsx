@@ -17,7 +17,7 @@ import {
 } from 'chart.js';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import formStyle from "../Form.module.css";
-import appStyle from "../App.module.css";
+import appStyle from "../l3_service.module.css";
 import bondStyle from "./Bond.module.css"
 
 
