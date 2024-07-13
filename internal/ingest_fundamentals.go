@@ -14,6 +14,8 @@ import (
 	"github.com/go-jet/jet/v2/qrm"
 )
 
+// deprecated since the service is not available
+
 func IngestUniverseFundamentals(
 	db *sql.DB, // commit as we go for partial failures
 	djClient datajockey.Client,
