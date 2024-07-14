@@ -16,6 +16,7 @@ import (
 type SavedStrategyRepository interface {
 	List(SavedStrategyListFilter) ([]model.SavedStrategy, error)
 	ListMatchingStrategies(m model.SavedStrategy) ([]model.SavedStrategy, error)
+	UpdateName(uuid.UUID, string) error
 	Add(m model.SavedStrategy) error
 	SetBookmarked(savedStrategyID uuid.UUID, bookmarked bool) error
 	Get(uuid.UUID) (*model.SavedStrategy, error)
@@ -40,6 +41,22 @@ func (h savedStrategyRepositoryHandler) Get(id uuid.UUID) (*model.SavedStrategy,
 	}
 
 	return &out, nil
+}
+
+func (h savedStrategyRepositoryHandler) UpdateName(id uuid.UUID, name string) error {
+	query := table.SavedStrategy.UPDATE(
+		table.SavedStrategy.StrategyName,
+	).SET(
+		postgres.String(name),
+	).WHERE(
+		table.SavedStrategy.SavedStragyID.EQ(postgres.UUID(id)),
+	)
+	_, err := query.Exec(h.Db)
+	if err != nil {
+		return fmt.Errorf("failed to update strategy name: %w", err)
+	}
+
+	return nil
 }
 
 func (h savedStrategyRepositoryHandler) Add(m model.SavedStrategy) error {

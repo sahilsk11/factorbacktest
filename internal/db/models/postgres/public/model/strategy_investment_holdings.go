@@ -20,4 +20,5 @@ type StrategyInvestmentHoldings struct {
 	Date                         time.Time
 	Ticker                       uuid.UUID
 	Quantity                     decimal.Decimal
+	CreatedAt                    time.Time
 }
