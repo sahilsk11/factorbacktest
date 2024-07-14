@@ -20,6 +20,7 @@ import { parseDateString } from "./util";
 import { getStrategies, updateBookmarked } from "./Form";
 import modalsStyle from "./Modals.module.css";
 import { useGoogleLogin } from "@react-oauth/google";
+import ConfettiExplosion from "react-confetti-explosion";
 
 export default function Inspector({
   fdIndex,
@@ -50,7 +51,7 @@ export default function Inspector({
   setFactorName: Dispatch<SetStateAction<string>>,
   setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
   setSelectedFactor: Dispatch<SetStateAction<string>>,
-  setUser:  Dispatch<SetStateAction<GoogleAuthUser | null>>,
+  setUser: Dispatch<SetStateAction<GoogleAuthUser | null>>,
 }) {
   const [selectedTab, setSelectedTab] = useState<string>("holdings");
 
@@ -205,7 +206,26 @@ function Invest({
 
         <Row style={{ marginTop: "10px" }}>
           <Col md={6} className={factorSnapshotStyles.latest_holdings_container}>
-            <p className={factorSnapshotStyles.invest_title}>Latest Holdings</p>
+          <p className={factorSnapshotStyles.invest_title}>Invest in Strategy</p>
+            <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Paper trade or deposit real funds</p>
+
+
+            <form onSubmit={deposit}>
+              <input
+                // id="cash"
+                className={factorSnapshotStyles.deposit_input}
+                value={"$ " + depositAmount.toLocaleString()}
+                style={{ paddingLeft: "5px" }}
+                onChange={(e) => updateDepositAmount(e)}
+              />
+              <button className={`${formStyles.backtest_btn} ${factorSnapshotStyles.deposit_btn}`} type="submit">Start</button>
+            </form>
+
+            {/* <i><p style={{textAlign:"center", fontSize:"10px"}} className={appStyles.subtext}>Past performance is not indicative of future results.<br/>May lose value.</p></i> */}
+
+          </Col>
+          <Col md={6} style={{ paddingTop: "10px" }}>
+          <p className={factorSnapshotStyles.invest_title}>Latest Holdings</p>
             <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Based on market data from {parseDateString(latestHoldings.date)}</p>
 
             <table className={factorSnapshotStyles.table}>
@@ -225,23 +245,6 @@ function Invest({
                 </tr>)}
               </tbody>
             </table >
-
-          </Col>
-          <Col md={6} style={{ paddingTop: "10px" }}>
-            <p className={factorSnapshotStyles.invest_title}>Invest in Strategy</p>
-            <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Paper trade or deposit real funds</p>
-
-
-            <form onSubmit={deposit}>
-              <input
-                // id="cash"
-                className={factorSnapshotStyles.deposit_input}
-                value={"$ " + depositAmount.toLocaleString()}
-                style={{ paddingLeft: "5px" }}
-                onChange={(e) => updateDepositAmount(e)}
-              />
-              <button className={`${formStyles.backtest_btn} ${factorSnapshotStyles.deposit_btn}`} type="submit">Start</button>
-            </form>
           </Col>
         </Row>
       </Container>
@@ -293,19 +296,26 @@ function InvestModal({
   // onSubmit: () => Promise<void>
 }) {
   const [stepNumber, setSetStepNumber] = useState(0);
-  useEffect(() => {
-    if (bookmarked) {
-      setSetStepNumber(Math.max(stepNumber, 1))
-    } else {
-      setSetStepNumber(0)
-    }
-  }, [bookmarked])
+  const [clickedVenmoLink, setClickedVenmoLink] = useState(false);
+  // useEffect(() => {
+  //   if (bookmarked) {
+  //     setSetStepNumber(Math.max(stepNumber, 1))
+  //   } else {
+  //     setSetStepNumber(0)
+  //   }
+  // }, [bookmarked])
 
   if (!show) return null;
 
+  function closeWrapper() {
+    setSetStepNumber(0)
+    setClickedVenmoLink(false);
+    close()
+  }
+
   const handleOverlayClick = (e: any) => {
     if (e.target.id === "invest-modal") {
-      close();
+      closeWrapper();
     }
   };
 
@@ -328,38 +338,56 @@ function InvestModal({
         {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
       </>),
       onComplete: () => { bookmarkStategy() },
+      canProceed: true
     },
     {
       component: (<>
         <div>
           <label className={formStyles.label}>Deposit Funds</label>
           Please venmo @sahilsk11 ${depositAmount}
+          <br />
+          <br />
+          <a href="https://venmo.com/sahilsk11" target="_blank" onClick={() => setClickedVenmoLink(true)}>Click here to launch Venmo</a>
         </div>
+        <p className={appStyles.subtext}>complete the Venmo transaction to continue</p>
         {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
       </>),
       onComplete: () => { },
+      canProceed: clickedVenmoLink,
     },
     {
       component: (<>
-        <div>
+        <div style={{ position: "relative" }}>
+          <div style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: "-40px",
+            width: "1px",
+            margin: "0px auto",
+            display: "block"
+          }}>
+            <ConfettiExplosion zIndex={1000} duration={3000} />
+          </div>
           <label className={formStyles.label}>Thanks</label>
           You're all set. Track your investments here.
         </div>
         {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
       </>),
       onComplete: () => { },
+      canProceed: false,
     },
   ]
 
   return (
     <div id="invest-modal" className={modalsStyle.modal} onClick={handleOverlayClick}>
       <div className={modalsStyle.modal_content}>
-        <span onClick={() => close()} className={modalsStyle.close} id="closeInvestModalBtn">&times;</span>
+        <span onClick={() => closeWrapper()} className={modalsStyle.close} id="closeInvestModalBtn">&times;</span>
         <h2 style={{ marginBottom: "40px" }}>Invest in Strategy</h2>
         {steps[stepNumber].component}
 
         <div className={factorSnapshotStyles.invest_modal_pagination_container}>
-          <Pagination>
+          {stepNumber < steps.length - 1 ? <Pagination>
             <Pagination.Item
               onClick={() => setSetStepNumber(
                 Math.max(stepNumber - 1, 0)
@@ -367,22 +395,17 @@ function InvestModal({
               disabled={stepNumber === 0}
             >Prev</Pagination.Item>
             <Pagination.Item
-              onClick={() => setSetStepNumber(
-                Math.min(stepNumber + 1, steps.length - 1)
-              )}
-              disabled={stepNumber === steps.length - 1}
+              onClick={() => {
+                setSetStepNumber(
+                  Math.min(stepNumber + 1, steps.length - 1)
+                )
+                steps[stepNumber].onComplete()
+              }}
+              disabled={stepNumber === steps.length - 1 || !steps[stepNumber].canProceed}
             >
               Next
             </Pagination.Item>
-            {/* <ul className="pagination justify-content-center">
-              <li className="page-item disabled">
-                <a className="page-link">Previous</a>
-              </li>
-              <li className="page-item">
-                <a className="page-link" href="#">Next</a>
-              </li>
-            </ul> */}
-          </Pagination>
+          </Pagination> : <button className={`${formStyles.backtest_btn} ${factorSnapshotStyles.deposit_btn}`} onClick={() => closeWrapper()}>Close</button>}
         </div>
       </div>
 

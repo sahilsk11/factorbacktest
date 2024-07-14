@@ -172,6 +172,13 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 		// do nothing
 		for _, ex := range existing {
 			if ex.Bookmarked {
+				if ex.StrategyName != newModel.StrategyName {
+					err = m.SavedStrategyRepository.UpdateName(ex.SavedStragyID, newModel.StrategyName)
+					if err != nil {
+						returnErrorJson(err, c)
+						return
+					}
+				}
 				out := map[string]string{
 					"message": "ok",
 				}
