@@ -3,7 +3,7 @@ import BacktestChart from './BacktestChart';
 import FactorForm from "./Form";
 import Inspector from './FactorSnapshot';
 import BenchmarkManager from './BenchmarkSelector';
-import { BacktestSnapshot, GoogleAuthUser, LatestHoldings } from "./models";
+import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, LatestHoldings } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
 import { ContactModal, HelpModal } from './Modals';
@@ -67,6 +67,33 @@ function FactorBacktestMain({ userID, user, setUser }: {
   const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
   const [latestHoldings, setLatestHoldings] = useState<LatestHoldings | null>(null);
+  const [assetUniverse, setAssetUniverse] = useState<string>("--");
+
+  const [bookmarked, setBookmarked] = useState(false);
+  const [savedStrategies, setSavedStrategies] = useState<GetSavedStrategiesResponse[]>([]);
+
+
+  // everything related to inputs pmuch
+  const [numSymbols, setNumSymbols] = useState(10);
+  const [factorExpression, setFactorExpression] = useState(`pricePercentChange(
+  nDaysAgo(7),
+  currentDate
+)`);
+  const [factorName, setFactorName] = useState("7_day_momentum_weekly");
+  const [backtestStart, setBacktestStart] = useState(twoYearsAgoAsString());
+  const [backtestEnd, setBacktestEnd] = useState(todayAsString());
+  const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
+  const [selectedFactor, setSelectedFactor] = useState("momentum");
+
+  const backtestInputs: BacktestInputs = {
+    factorName,
+    factorExpression,
+    backtestStart,
+    backtestEnd,
+    rebalanceInterval: samplingIntervalUnit,
+    numAssets: numSymbols,
+    assetUniverse,
+  }
 
   const location = useLocation();
   const pathname = location.pathname;
@@ -76,7 +103,7 @@ function FactorBacktestMain({ userID, user, setUser }: {
     navigate("/backtest")
   } else if (pathname === "/backtest" && factorData.length === 0) {
     navigate("/")
-  } 
+  }
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
@@ -122,6 +149,26 @@ function FactorBacktestMain({ userID, user, setUser }: {
             setUser={setUser}
             fullscreenView={useVerboseBuilder}
             setLatestHoldings={setLatestHoldings}
+            numSymbols={numSymbols}
+            setNumSymbols={setNumSymbols}
+            factorExpression={factorExpression}
+            setFactorExpression={setFactorExpression}
+            factorName={factorName}
+            setFactorName={setFactorName}
+            backtestStart={backtestStart}
+            setBacktestStart={setBacktestStart}
+            backtestEnd={backtestEnd}
+            setBacktestEnd={setBacktestEnd}
+            samplingIntervalUnit={samplingIntervalUnit}
+            setSamplingIntervalUnit={setSamplingIntervalUnit}
+            bookmarked={bookmarked}
+            setBookmarked={setBookmarked}
+            assetUniverse={assetUniverse}
+            setAssetUniverse={setAssetUniverse}
+            selectedFactor={selectedFactor}
+            setSelectedFactor={setSelectedFactor}
+            savedStrategies={savedStrategies}
+            setSavedStrategies={setSavedStrategies}
           />
           <BenchmarkManager
             user={user}
@@ -147,6 +194,12 @@ function FactorBacktestMain({ userID, user, setUser }: {
               updateInspectFactorDataDate={updateInspectFactorDataDate}
               user={user}
               latestHoldings={latestHoldings}
+              bookmarked={bookmarked}
+              setBookmarked={setBookmarked}
+              backtestInputs={backtestInputs}
+              setFactorName={setFactorName}
+              setSelectedFactor={setSelectedFactor}
+              setSavedStrategies={setSavedStrategies}
             />
           </div> : null}
       </div>
@@ -202,3 +255,20 @@ export function getOrCreateUserID(): string {
   return newUserID;
 }
 
+function todayAsString() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function twoYearsAgoAsString() {
+  const today = new Date();
+  const year = today.getFullYear() - 2;
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}

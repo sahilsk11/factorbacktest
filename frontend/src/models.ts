@@ -99,3 +99,13 @@ export interface GetInvestmentsResponse {
   userAccountID: string;
   createdAt: string; // Using string to represent ISO 8601 date format
 }
+
+export interface BacktestInputs {
+  factorExpression: string,
+  factorName: string,
+  backtestStart: string,
+  backtestEnd: string,
+  rebalanceInterval: string,
+  numAssets: number,
+  assetUniverse: string,
+}

@@ -2,7 +2,7 @@ import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "./App";
 import formStyles from "./Form.module.css";
 import appStyles from "./App.module.css";
-import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings } from './models';
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings, BacktestInputs } from './models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from './util';
 import { FactorExpressionInput } from './FactorExpressionInput';
@@ -13,22 +13,59 @@ import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { useGoogleLogin } from '@react-oauth/google';
 import modalsStyle from "./Modals.module.css";
 
-function todayAsString() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
-  const day = String(today.getDate()).padStart(2, '0');
+async function getIsBookmarked(user: GoogleAuthUser, props: FormViewProps): Promise<any> {
+  const bookmarkRequest: BookmarkStrategyRequest = {
+    expression: props.factorExpression,
+    name: props.factorName,
+    backtestStart: props.backtestStart,
+    backtestEnd: props.backtestEnd,
+    rebalanceInterval: props.samplingIntervalUnit,
+    numAssets: props.numSymbols,
+    assetUniverse: props.assetUniverse,
+    bookmark: false, // this is ignored
+  }
+  try {
+    const response = await fetch(endpoint + "/isStrategyBookmarked", {
+      method: "POST",
+      headers: {
+        "Authorization": user ? "Bearer " + user.accessToken : ""
+      },
+      body: JSON.stringify(bookmarkRequest)
+    });
+    if (!response.ok) {
+      const j = await response.json()
+      // alert(j.error)
+      console.error("Error submitting data:", response.status);
+    } else {
+      const j = await response.json()
+      return j;
+    }
+  } catch (error) {
+    // alert((error as Error).message)
+    console.error("Error:", error);
+  }
+  return false;
+};
 
-  return `${year}-${month}-${day}`;
-}
-
-function twoYearsAgoAsString() {
-  const today = new Date();
-  const year = today.getFullYear() - 2;
-  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
-  const day = String(today.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+export async function getStrategies(user: GoogleAuthUser, setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>) {
+  try {
+    const response = await fetch(endpoint + "/savedStrategies", {
+      headers: {
+        "Authorization": user ? "Bearer " + user.accessToken : ""
+      }
+    });
+    if (!response.ok) {
+      const j = await response.json()
+      alert(j.error)
+      console.error("Error submitting data:", response.status);
+    } else {
+      const j = await response.json() as GetSavedStrategiesResponse[];
+      setSavedStrategies(j.filter(e => e.bookmarked))
+    }
+  } catch (error) {
+    alert((error as Error).message)
+    console.error("Error:", error);
+  }
 }
 
 export default function FactorForm({
@@ -39,6 +76,26 @@ export default function FactorForm({
   user,
   setUser,
   setLatestHoldings,
+  numSymbols,
+  setNumSymbols,
+  factorExpression,
+  setFactorExpression,
+  factorName,
+  setFactorName,
+  backtestStart,
+  setBacktestStart,
+  backtestEnd,
+  setBacktestEnd,
+  samplingIntervalUnit,
+  setSamplingIntervalUnit,
+  bookmarked,
+  setBookmarked,
+  assetUniverse,
+  setAssetUniverse,
+  selectedFactor,
+  setSelectedFactor,
+  savedStrategies,
+  setSavedStrategies,
 }: {
   user: GoogleAuthUser | null,
   userID: string,
@@ -47,47 +104,34 @@ export default function FactorForm({
   fullscreenView: boolean,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
   setLatestHoldings: React.Dispatch<React.SetStateAction<LatestHoldings | null>>,
+  numSymbols: number,
+  setNumSymbols: Dispatch<React.SetStateAction<number>>,
+  factorExpression: string,
+  setFactorExpression: Dispatch<React.SetStateAction<string>>,
+  factorName: string,
+  setFactorName: Dispatch<React.SetStateAction<string>>,
+  backtestStart: string,
+  setBacktestStart: Dispatch<React.SetStateAction<string>>,
+  backtestEnd: string,
+  setBacktestEnd: Dispatch<React.SetStateAction<string>>,
+  samplingIntervalUnit: string,
+  setSamplingIntervalUnit: Dispatch<React.SetStateAction<string>>,
+  bookmarked: boolean,
+  setBookmarked: Dispatch<React.SetStateAction<boolean>>;
+  assetUniverse: string,
+  setAssetUniverse: Dispatch<React.SetStateAction<string>>,
+  selectedFactor: string;
+  setSelectedFactor: Dispatch<React.SetStateAction<string>>,
+  savedStrategies: GetSavedStrategiesResponse[],
+  setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>,
 }) {
-  const [factorExpression, setFactorExpression] = useState(`pricePercentChange(
-  nDaysAgo(7),
-  currentDate
-)`);
-  const [factorName, setFactorName] = useState("7_day_momentum_weekly");
-  const [backtestStart, setBacktestStart] = useState(twoYearsAgoAsString());
-  const [backtestEnd, setBacktestEnd] = useState(todayAsString());
-  const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
-
   const [cash, setCash] = useState(10_000);
-
-  const [numSymbols, setNumSymbols] = useState(10);
   const [names, setNames] = useState<string[]>([...takenNames]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [assetUniverse, setAssetUniverse] = useState<string>("--");
   const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
-  const [savedStrategies, setSavedStrategies] = useState<GetSavedStrategiesResponse[]>([]);
 
 
-  async function getStrategies() {
-    try {
-      const response = await fetch(endpoint + "/savedStrategies", {
-        headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
-        }
-      });
-      if (!response.ok) {
-        const j = await response.json()
-        alert(j.error)
-        console.error("Error submitting data:", response.status);
-      } else {
-        const j = await response.json() as GetSavedStrategiesResponse[];
-        setSavedStrategies(j.filter(e => e.bookmarked))
-      }
-    } catch (error) {
-      alert((error as Error).message)
-      console.error("Error:", error);
-    }
-  }
 
   const getUniverses = async () => {
     try {
@@ -120,7 +164,7 @@ export default function FactorForm({
   }, []);
   useEffect(() => {
     if (user) {
-      getStrategies()
+      getStrategies(user, setSavedStrategies)
     }
   }, [user]);
   useEffect(() => {
@@ -267,7 +311,6 @@ export default function FactorForm({
   // (between verbose and regular view) under this component
 
   const [gptInput, setGptInput] = useState("");
-  const [selectedFactor, setSelectedFactor] = useState("momentum");
 
   // todo - create a separate object that contains the setters
   // for all the backtest inputs, and pass that to FactorExpressionInput
@@ -299,9 +342,26 @@ export default function FactorForm({
     user,
     setUser,
     factorExpressionInput: null,
-    getStrategies,
     setSelectedFactor,
+    setBookmarked,
+    bookmarked,
+    setSavedStrategies,
   }
+
+  useEffect(() => {
+    if (user) {
+      // we might wanna change this - 
+      // basically triggers every time the form
+      // input changes to figure out if it's bookmarked
+      getIsBookmarked(user, props).then(resp => {
+        // console.log(resp)
+        setBookmarked(resp.isBookmarked)
+        // formProps.setSelectedFactor(resp.name)
+      })
+    } else {
+      setBookmarked(false)
+    }
+  }, [user, props])
 
   const factorExpressionInput = <FactorExpressionInput
     userID={userID}
@@ -356,8 +416,10 @@ export interface FormViewProps {
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>,
   factorExpressionInput: JSX.Element | null,
 
-  getStrategies: () => Promise<void>,
   setSelectedFactor: Dispatch<SetStateAction<string>>,
+  setBookmarked: Dispatch<SetStateAction<boolean>>,
+  bookmarked: boolean,
+  setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
 }
 
 function ClassicFormView({
@@ -393,12 +455,14 @@ function ClassicFormView({
     user,
     setUser,
     factorExpressionInput,
+    setBookmarked,
+    bookmarked,
   } = props;
   return (
     <div className={appStyles.tile} style={{ position: "relative" }}>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
       <p className={appStyles.subtext}>Define your quantitative strategy and customize backtest parameters.</p>
-      <BookmarkStrategy user={user} setUser={setUser} formProps={props} />
+      <BookmarkStrategy user={user} setUser={setUser} formProps={props} setBookmarked={setBookmarked} bookmarked={bookmarked} />
       <form onSubmit={handleSubmit}>
 
         <div className={formStyles.form_element}>
@@ -697,79 +761,51 @@ function jumpToAnchorOnSmallScreen(anchorId: string) {
   }
 }
 
-function BookmarkStrategy({ user, setUser, formProps }: {
+export const updateBookmarked = async (
+  user: GoogleAuthUser,
+  bookmark: boolean,
+  backtestInputs: BacktestInputs,
+) => {
+  const bookmarkRequest: BookmarkStrategyRequest = {
+    expression: backtestInputs.factorExpression,
+    name: backtestInputs.factorName,
+    backtestStart: backtestInputs.backtestStart,
+    backtestEnd: backtestInputs.backtestEnd,
+    rebalanceInterval: backtestInputs.rebalanceInterval,
+    numAssets: backtestInputs.numAssets,
+    assetUniverse: backtestInputs.assetUniverse,
+    bookmark,
+  }
+  try {
+    const response = await fetch(endpoint + "/bookmarkStrategy", {
+      method: "POST",
+      headers: {
+        "Authorization": user ? "Bearer " + user.accessToken : ""
+      },
+      body: JSON.stringify(bookmarkRequest)
+    });
+    if (!response.ok) {
+      const j = await response.json()
+      alert(j.error)
+      console.error("Error submitting data:", response.status);
+    }
+  } catch (error) {
+    alert((error as Error).message)
+    console.error("Error:", error);
+  }
+};
+
+function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked }: {
   user: GoogleAuthUser | null;
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
   formProps: FormViewProps,
+  setBookmarked: React.Dispatch<React.SetStateAction<boolean>>;
+  bookmarked: boolean;
 }) {
-  const [bookmarked, setBookmarked] = useState(false);
   const toolTipMessage = `Bookmark strategy`;
   const [showBookmarkModal, setShowBookmarkModal] = useState(false);
 
-  const getIsBookmarked: (user: GoogleAuthUser) => Promise<any> = async (user: GoogleAuthUser) => {
-    const bookmarkRequest: BookmarkStrategyRequest = {
-      expression: formProps.factorExpression,
-      name: formProps.factorName,
-      backtestStart: formProps.backtestStart,
-      backtestEnd: formProps.backtestEnd,
-      rebalanceInterval: formProps.samplingIntervalUnit,
-      numAssets: formProps.numSymbols,
-      assetUniverse: formProps.assetUniverse,
-      bookmark: bookmarked, // this is ignored
-    }
-    try {
-      const response = await fetch(endpoint + "/isStrategyBookmarked", {
-        method: "POST",
-        headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
-        },
-        body: JSON.stringify(bookmarkRequest)
-      });
-      if (!response.ok) {
-        const j = await response.json()
-        // alert(j.error)
-        console.error("Error submitting data:", response.status);
-      } else {
-        const j = await response.json()
-        return j;
-      }
-    } catch (error) {
-      // alert((error as Error).message)
-      console.error("Error:", error);
-    }
-    return false;
-  };
 
-  const updateBookmarked = async (user: GoogleAuthUser, bookmark: boolean) => {
-    setBookmarked(bookmark)
-    const bookmarkRequest: BookmarkStrategyRequest = {
-      expression: formProps.factorExpression,
-      name: formProps.factorName,
-      backtestStart: formProps.backtestStart,
-      backtestEnd: formProps.backtestEnd,
-      rebalanceInterval: formProps.samplingIntervalUnit,
-      numAssets: formProps.numSymbols,
-      assetUniverse: formProps.assetUniverse,
-      bookmark,
-    }
-    try {
-      const response = await fetch(endpoint + "/bookmarkStrategy", {
-        method: "POST",
-        headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
-        },
-        body: JSON.stringify(bookmarkRequest)
-      });
-      if (!response.ok) {
-        const j = await response.json()
-        alert(j.error)
-        console.error("Error submitting data:", response.status);
-      }
-    } catch (error) {
-      alert((error as Error).message)
-      console.error("Error:", error);
-    }
-  };
 
   const icon = bookmarked ? <FaBookmark size={20} style={{ cursor: "pointer" }} /> : <FaRegBookmark size={20} style={{ cursor: "pointer" }} />
 
@@ -793,9 +829,19 @@ function BookmarkStrategy({ user, setUser, formProps }: {
     onError: (error) => console.log('Login Failed:', error)
   });
 
+  const backtestInputs: BacktestInputs = {
+    factorExpression: formProps.factorExpression,
+    factorName: formProps.factorName,
+    backtestStart: formProps.backtestStart,
+    backtestEnd: formProps.backtestEnd,
+    rebalanceInterval: formProps.samplingIntervalUnit,
+    numAssets: formProps.numSymbols,
+    assetUniverse: formProps.assetUniverse,
+  };
+
   // they clicked when the state was X, so probably need to toggle
   async function figureOutNext(currentBookmarkState: boolean, user: GoogleAuthUser) {
-    const response = await getIsBookmarked(user);
+    const response = await getIsBookmarked(user, formProps);
     const actualState = response.isBookmarked;
     const name = response.name;
     if (actualState !== true && actualState !== false) {
@@ -825,7 +871,7 @@ function BookmarkStrategy({ user, setUser, formProps }: {
     // no drama - just remove the bookmark
     if (currentBookmarkState && actualState) {
       setBookmarked(false)
-      updateBookmarked(user, false)
+      updateBookmarked(user, false, backtestInputs)
     }
   }
 
@@ -839,20 +885,7 @@ function BookmarkStrategy({ user, setUser, formProps }: {
     }
   }
 
-  useEffect(() => {
-    if (user) {
-      // we might wanna change this - 
-      // basically triggers every time the form
-      // input changes to figure out if it's bookmarked
-      getIsBookmarked(user).then(resp => {
-        // console.log(resp)
-        setBookmarked(resp.isBookmarked)
-        // formProps.setSelectedFactor(resp.name)
-      })
-    } else {
-      setBookmarked(false)
-    }
-  }, [user, formProps])
+
 
   return (
     <>
@@ -875,8 +908,8 @@ function BookmarkStrategy({ user, setUser, formProps }: {
         bookmarkStategy={async () => {
           if (user) {
             setBookmarked(true)
-            await updateBookmarked(user, true)
-            await formProps.getStrategies();
+            await updateBookmarked(user, true, backtestInputs)
+            await getStrategies(user, formProps.setSavedStrategies);
             // console.log(fa)
             formProps.setSelectedFactor(formProps.factorName)
           } else {

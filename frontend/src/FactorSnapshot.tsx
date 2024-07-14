@@ -1,5 +1,5 @@
 import { FactorData } from "./App";
-import { BacktestSnapshot, GoogleAuthUser, LatestHoldings } from "./models";
+import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, LatestHoldings } from "./models";
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -17,6 +17,8 @@ import { Col, Container, Nav, Row } from "react-bootstrap";
 import { Dispatch, SetStateAction, useState } from "react";
 import formStyles from "./Form.module.css";
 import { parseDateString } from "./util";
+import { getStrategies, updateBookmarked } from "./Form";
+import modalsStyle from "./Modals.module.css";
 
 export default function Inspector({
   fdIndex,
@@ -26,6 +28,12 @@ export default function Inspector({
   updateInspectFactorDataDate,
   user,
   latestHoldings,
+  bookmarked,
+  setBookmarked,
+  backtestInputs,
+  setFactorName,
+  setSavedStrategies,
+  setSelectedFactor,
 }: {
   fdIndex: number | null;
   fdDate: string | null;
@@ -34,14 +42,18 @@ export default function Inspector({
   updateInspectFactorDataDate: Dispatch<SetStateAction<string | null>>;
   user: GoogleAuthUser | null,
   latestHoldings: LatestHoldings | null,
+  bookmarked: boolean,
+  setBookmarked: Dispatch<SetStateAction<boolean>>,
+  backtestInputs: BacktestInputs,
+  setFactorName: Dispatch<SetStateAction<string>>,
+  setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
+  setSelectedFactor: Dispatch<SetStateAction<string>>,
 }) {
   const [selectedTab, setSelectedTab] = useState<string>("holdings");
 
   if (fdIndex === null || fdDate === null || factorData.length === 0) {
     return null;
   }
-
-  console.log(latestHoldings)
 
   const selectedComponent = {
     "holdings": <InspectFactorData
@@ -58,6 +70,12 @@ export default function Inspector({
       factorData={factorData}
       updateInspectFactorDataIndex={updateInspectFactorDataIndex}
       latestHoldings={latestHoldings}
+      bookmarked={bookmarked}
+      setBookmarked={setBookmarked}
+      backtestInputs={backtestInputs}
+      setFactorName={setFactorName}
+      setSavedStrategies={setSavedStrategies}
+      setSelectedFactor={setSelectedFactor}
     />,
   }[selectedTab] || null;
 
@@ -95,12 +113,24 @@ function Invest({
   updateInspectFactorDataIndex,
   factorData,
   latestHoldings,
+  bookmarked,
+  setBookmarked,
+  backtestInputs,
+  setFactorName,
+  setSelectedFactor,
+  setSavedStrategies
 }: {
   user: GoogleAuthUser | null,
   fdIndex: number,
   updateInspectFactorDataIndex: (newVal: number) => void,
   factorData: FactorData[],
   latestHoldings: LatestHoldings | null,
+  bookmarked: boolean,
+  setBookmarked: Dispatch<SetStateAction<boolean>>,
+  backtestInputs: BacktestInputs,
+  setFactorName: Dispatch<SetStateAction<string>>,
+  setSelectedFactor: Dispatch<SetStateAction<string>>,
+  setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
 }) {
   const [depositAmount, setDepositAmount] = useState(10);
   function deposit(e: any) {
@@ -113,10 +143,13 @@ function Invest({
   }
 
   const selector = factorData.length > 1 ? <StrategyNamesSelector fdIndex={fdIndex} updateInspectFactorDataIndex={updateInspectFactorDataIndex} factorData={factorData} /> : null;
-  console.log(factorData[fdIndex])
-
   const sortedSymbols = Object.keys(latestHoldings.assets).sort((a, b) => latestHoldings.assets[b].assetWeight - latestHoldings.assets[a].assetWeight);
 
+  const {
+    factorName,
+    factorExpression,
+    assetUniverse,
+  } = backtestInputs;
 
   return (
     <>
@@ -147,7 +180,7 @@ function Invest({
             </table >
 
           </Col>
-          <Col md={6} style={{paddingTop:"10px"}}>
+          <Col md={6} style={{ paddingTop: "10px" }}>
             <p className={factorSnapshotStyles.invest_title}>Invest in Strategy</p>
             <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Paper trade or deposit real funds</p>
 
@@ -174,9 +207,79 @@ function Invest({
           </Col>
         </Row>
       </Container>
+      <InvestModal
+        show={true}
+        close={() => { }}
+        factorName={factorName}
+        setFactorName={setFactorName}
+        bookmarkStategy={async () => {
+          if (user) {
+            setBookmarked(true)
+            await updateBookmarked(user, true, backtestInputs)
+            await getStrategies(user, setSavedStrategies);
+            // console.log(fa)
+            setSelectedFactor(factorName)
+          } else {
+            // should be impossible
+            alert("must be logged in")
+          }
+        }}
+      />
     </>
   )
 }
+
+function InvestModal({
+  show,
+  close,
+  factorName,
+  setFactorName,
+  bookmarkStategy,
+  // onSubmit,
+}: {
+  show: boolean;
+  close: () => void;
+  factorName: string,
+  setFactorName: React.Dispatch<SetStateAction<string>>;
+  bookmarkStategy: () => void;
+  // user: GoogleAuthUser | null,
+  // onSubmit: () => Promise<void>
+}) {
+  if (!show) return null;
+
+  const handleOverlayClick = (e: any) => {
+    if (e.target.id === "contact-modal") {
+      close();
+    }
+  };
+
+  return (
+    <div id="contact-modal" className={modalsStyle.modal} onClick={handleOverlayClick}>
+      <div className={modalsStyle.modal_content}>
+        <span onClick={() => close()} className={modalsStyle.close} id="closeModalBtn">&times;</span>
+        <h2 style={{ marginBottom: "40px" }}>Bookmark Strategy</h2>
+        <form onSubmit={() => {
+          bookmarkStategy();
+          close();
+        }}>
+          <div>
+            <label className={formStyles.label}>Strategy Name</label>
+            <input
+              type="text"
+              value={factorName}
+              className={modalsStyle.contact_form_email_input}
+              onChange={(e) => {
+                setFactorName(e.target.value)
+              }}
+            />
+          </div>
+          <button className={formStyles.backtest_btn} type='submit'>Submit</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 
 function InspectFactorData({
   fdIndex,
