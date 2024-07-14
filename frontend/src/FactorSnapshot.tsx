@@ -13,12 +13,13 @@ import factorSnapshotStyles from "./FactorSnapshot.module.css";
 import { AiOutlineQuestionCircle } from 'react-icons/ai';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
-import { Col, Container, Nav, Row } from "react-bootstrap";
-import { Dispatch, SetStateAction, useState } from "react";
+import { Col, Container, Nav, Pagination, Row } from "react-bootstrap";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import formStyles from "./Form.module.css";
 import { parseDateString } from "./util";
 import { getStrategies, updateBookmarked } from "./Form";
 import modalsStyle from "./Modals.module.css";
+import { useGoogleLogin } from "@react-oauth/google";
 
 export default function Inspector({
   fdIndex,
@@ -34,6 +35,7 @@ export default function Inspector({
   setFactorName,
   setSavedStrategies,
   setSelectedFactor,
+  setUser,
 }: {
   fdIndex: number | null;
   fdDate: string | null;
@@ -48,6 +50,7 @@ export default function Inspector({
   setFactorName: Dispatch<SetStateAction<string>>,
   setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
   setSelectedFactor: Dispatch<SetStateAction<string>>,
+  setUser:  Dispatch<SetStateAction<GoogleAuthUser | null>>,
 }) {
   const [selectedTab, setSelectedTab] = useState<string>("holdings");
 
@@ -66,6 +69,7 @@ export default function Inspector({
     "metrics": <p>coming soon!</p>,
     "invest": <Invest
       user={user}
+      setUser={setUser}
       fdIndex={fdIndex}
       factorData={factorData}
       updateInspectFactorDataIndex={updateInspectFactorDataIndex}
@@ -109,6 +113,7 @@ export default function Inspector({
 
 function Invest({
   user,
+  setUser,
   fdIndex,
   updateInspectFactorDataIndex,
   factorData,
@@ -121,6 +126,7 @@ function Invest({
   setSavedStrategies
 }: {
   user: GoogleAuthUser | null,
+  setUser: Dispatch<SetStateAction<GoogleAuthUser | null>>,
   fdIndex: number,
   updateInspectFactorDataIndex: (newVal: number) => void,
   factorData: FactorData[],
@@ -133,9 +139,37 @@ function Invest({
   setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
 }) {
   const [depositAmount, setDepositAmount] = useState(10);
+  const [showInvestModal, setShowInvestModal] = useState(false);
+
+  // todo - centralize this function
+  const login = useGoogleLogin({
+    onSuccess: (codeResponse) => {
+      // console.log(codeResponse)
+      const date = new Date();
+      date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
+      const expires = "expires=" + date.toUTCString();
+
+      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure";
+      const newUser = {
+        accessToken: codeResponse.access_token
+      } as GoogleAuthUser
+      setUser(newUser);
+
+      setShowInvestModal(true)
+
+    },
+    onError: (error) => console.log('Login Failed:', error)
+  });
+
   function deposit(e: any) {
-    // maybe bookmark strategy
     e.preventDefault()
+    if (user) {
+      // maybe bookmark strategy
+      setShowInvestModal(true)
+    } else {
+      login()
+    }
+
   }
 
   if (!latestHoldings) {
@@ -150,6 +184,19 @@ function Invest({
     factorExpression,
     assetUniverse,
   } = backtestInputs;
+
+  function updateDepositAmount(e: any) {
+    {
+      let x = e.target.value.replace(/,/g, '')
+      x = x.replace(/\$ /g, '')
+      if (x.length === 0) {
+        x = "0";
+      }
+      if (!/[^0-9]/.test(x) && x.length < 12) {
+        setDepositAmount(parseFloat(x))
+      }
+    }
+  }
 
   return (
     <>
@@ -191,16 +238,7 @@ function Invest({
                 className={factorSnapshotStyles.deposit_input}
                 value={"$ " + depositAmount.toLocaleString()}
                 style={{ paddingLeft: "5px" }}
-                onChange={(e) => {
-                  let x = e.target.value.replace(/,/g, '')
-                  x = x.replace(/\$ /g, '')
-                  if (x.length === 0) {
-                    x = "0";
-                  }
-                  if (!/[^0-9]/.test(x) && x.length < 12) {
-                    setDepositAmount(parseFloat(x))
-                  }
-                }}
+                onChange={(e) => updateDepositAmount(e)}
               />
               <button className={`${formStyles.backtest_btn} ${factorSnapshotStyles.deposit_btn}`} type="submit">Start</button>
             </form>
@@ -208,10 +246,11 @@ function Invest({
         </Row>
       </Container>
       <InvestModal
-        show={true}
-        close={() => { }}
+        show={showInvestModal}
+        close={() => { setShowInvestModal(false) }}
         factorName={factorName}
         setFactorName={setFactorName}
+        bookmarked={bookmarked}
         bookmarkStategy={async () => {
           if (user) {
             setBookmarked(true)
@@ -224,6 +263,8 @@ function Invest({
             alert("must be logged in")
           }
         }}
+        depositAmount={depositAmount}
+        setDepositAmount={updateDepositAmount}
       />
     </>
   )
@@ -235,6 +276,9 @@ function InvestModal({
   factorName,
   setFactorName,
   bookmarkStategy,
+  bookmarked,
+  depositAmount,
+  setDepositAmount,
   // onSubmit,
 }: {
   show: boolean;
@@ -242,40 +286,106 @@ function InvestModal({
   factorName: string,
   setFactorName: React.Dispatch<SetStateAction<string>>;
   bookmarkStategy: () => void;
+  bookmarked: boolean;
+  depositAmount: number,
+  setDepositAmount: (e: any) => void,
   // user: GoogleAuthUser | null,
   // onSubmit: () => Promise<void>
 }) {
+  const [stepNumber, setSetStepNumber] = useState(0);
+  useEffect(() => {
+    if (bookmarked) {
+      setSetStepNumber(Math.max(stepNumber, 1))
+    } else {
+      setSetStepNumber(0)
+    }
+  }, [bookmarked])
+
   if (!show) return null;
 
   const handleOverlayClick = (e: any) => {
-    if (e.target.id === "contact-modal") {
+    if (e.target.id === "invest-modal") {
       close();
     }
   };
 
+
+
+  const steps = [
+    {
+      component: (<>
+        <div>
+          <label className={formStyles.label}>Strategy Name</label>
+          <input
+            type="text"
+            value={factorName}
+            className={modalsStyle.contact_form_email_input}
+            onChange={(e) => {
+              setFactorName(e.target.value)
+            }}
+          />
+        </div>
+        {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
+      </>),
+      onComplete: () => { bookmarkStategy() },
+    },
+    {
+      component: (<>
+        <div>
+          <label className={formStyles.label}>Deposit Funds</label>
+          Please venmo @sahilsk11 ${depositAmount}
+        </div>
+        {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
+      </>),
+      onComplete: () => { },
+    },
+    {
+      component: (<>
+        <div>
+          <label className={formStyles.label}>Thanks</label>
+          You're all set. Track your investments here.
+        </div>
+        {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
+      </>),
+      onComplete: () => { },
+    },
+  ]
+
   return (
-    <div id="contact-modal" className={modalsStyle.modal} onClick={handleOverlayClick}>
+    <div id="invest-modal" className={modalsStyle.modal} onClick={handleOverlayClick}>
       <div className={modalsStyle.modal_content}>
-        <span onClick={() => close()} className={modalsStyle.close} id="closeModalBtn">&times;</span>
-        <h2 style={{ marginBottom: "40px" }}>Bookmark Strategy</h2>
-        <form onSubmit={() => {
-          bookmarkStategy();
-          close();
-        }}>
-          <div>
-            <label className={formStyles.label}>Strategy Name</label>
-            <input
-              type="text"
-              value={factorName}
-              className={modalsStyle.contact_form_email_input}
-              onChange={(e) => {
-                setFactorName(e.target.value)
-              }}
-            />
-          </div>
-          <button className={formStyles.backtest_btn} type='submit'>Submit</button>
-        </form>
+        <span onClick={() => close()} className={modalsStyle.close} id="closeInvestModalBtn">&times;</span>
+        <h2 style={{ marginBottom: "40px" }}>Invest in Strategy</h2>
+        {steps[stepNumber].component}
+
+        <div className={factorSnapshotStyles.invest_modal_pagination_container}>
+          <Pagination>
+            <Pagination.Item
+              onClick={() => setSetStepNumber(
+                Math.max(stepNumber - 1, 0)
+              )}
+              disabled={stepNumber === 0}
+            >Prev</Pagination.Item>
+            <Pagination.Item
+              onClick={() => setSetStepNumber(
+                Math.min(stepNumber + 1, steps.length - 1)
+              )}
+              disabled={stepNumber === steps.length - 1}
+            >
+              Next
+            </Pagination.Item>
+            {/* <ul className="pagination justify-content-center">
+              <li className="page-item disabled">
+                <a className="page-link">Previous</a>
+              </li>
+              <li className="page-item">
+                <a className="page-link" href="#">Next</a>
+              </li>
+            </ul> */}
+          </Pagination>
+        </div>
       </div>
+
     </div>
   );
 }

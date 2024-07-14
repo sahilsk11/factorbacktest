@@ -200,6 +200,7 @@ function FactorBacktestMain({ userID, user, setUser }: {
               setFactorName={setFactorName}
               setSelectedFactor={setSelectedFactor}
               setSavedStrategies={setSavedStrategies}
+              setUser={setUser}
             />
           </div> : null}
       </div>

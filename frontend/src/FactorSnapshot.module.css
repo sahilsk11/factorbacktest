@@ -109,3 +109,11 @@
     border-right: none;
   }
 }
+
+.invest_modal_pagination_container {
+  display: block;
+  margin: 0px auto;
+  margin-top: 30px;
+  /* position: absolute; */
+  width: fit-content;
+}
