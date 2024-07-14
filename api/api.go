@@ -33,6 +33,7 @@ type ApiHandler struct {
 	ApiRequestRepository         repository.ApiRequestRepository
 	LatencencyTrackingRepository repository.LatencyTrackingRepository
 	PriceService                 l1_service.PriceService
+	InvestmentService            l3_service.InvestmentService
 	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
 	AssetUniverseRepository      repository.AssetUniverseRepository

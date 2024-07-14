@@ -2,6 +2,8 @@ package l3_service
 
 import (
 	"context"
+	"database/sql"
+	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	l2_service "factorbacktest/internal/service/l2"
@@ -9,23 +11,70 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type InvestmentService interface {
 	// GetAggregrateTargetPortfolio(date time.Time) (*domain.Portfolio, error)
+	AddStrategyInvestment(userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
 }
 
 type investmentServiceHandler struct {
-	PriceRepository         repository.AdjustedPriceRepository
-	UniverseRepository      repository.AssetUniverseRepository
-	StrategyInvestment      repository.StrategyInvestmentRepository
-	SavedStrategyRepository repository.SavedStrategyRepository
-	FactorExpressionService l2_service.FactorExpressionService
-	TickerRepository        repository.TickerRepository
+	Db                           *sql.DB
+	StrategyInvestmentRepository repository.StrategyInvestmentRepository
+	HoldingsRepository           repository.StrategyInvestmentHoldingsRepository
+	PriceRepository              repository.AdjustedPriceRepository
+	UniverseRepository           repository.AssetUniverseRepository
+	SavedStrategyRepository      repository.SavedStrategyRepository
+	FactorExpressionService      l2_service.FactorExpressionService
+	TickerRepository             repository.TickerRepository
+}
+
+func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error {
+	tx, err := h.Db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	date := time.Now().UTC()
+
+	// TODO - put a timeout on this so we don't duplicate
+	newStrategyInvestment, err := h.StrategyInvestmentRepository.Add(tx, model.StrategyInvestment{
+		SavedStragyID: savedStrategyID,
+		UserAccountID: userAccountID,
+		AmountDollars: int32(amount),
+		StartDate:     date,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	cashTicker, err := h.TickerRepository.GetCashTicker()
+	if err != nil {
+		return err
+	}
+
+	// create new holdings, with just cash
+	_, err = h.HoldingsRepository.Add(tx, model.StrategyInvestmentHoldings{
+		StrategyInvestmentID: newStrategyInvestment.StrategyInvestmentID,
+		Date:                 date,
+		Ticker:               cashTicker.TickerID,
+		Quantity:             decimal.NewFromInt(int64(amount)),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
-	investmentDetails, err := h.StrategyInvestment.Get(strategyInvestmentID)
+	investmentDetails, err := h.StrategyInvestmentRepository.Get(strategyInvestmentID)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +119,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 
 func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
 	// get all active investments
-	investments, err := h.StrategyInvestment.List(repository.StrategyInvestmentListFilter{})
+	investments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
 		return nil, err
 	}
