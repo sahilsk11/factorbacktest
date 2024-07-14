@@ -12,6 +12,7 @@ import (
 type TickerRepository interface {
 	List() ([]model.Ticker, error)
 	GetOrCreate(tx *sql.Tx, t model.Ticker) (*model.Ticker, error)
+	GetCashTicker() (*model.Ticker, error)
 }
 
 type tickerRepositoryHandler struct {
@@ -20,6 +21,21 @@ type tickerRepositoryHandler struct {
 
 func NewTickerRepository(db *sql.DB) TickerRepository {
 	return tickerRepositoryHandler{Db: db}
+}
+
+const CASH_SYMBOL = ":CASH"
+
+func (h tickerRepositoryHandler) GetCashTicker() (*model.Ticker, error) {
+	query := table.Ticker.SELECT(table.Ticker.AllColumns).
+		WHERE(table.Ticker.Symbol.EQ(postgres.String(":CASH")))
+
+	result := model.Ticker{}
+	err := query.Query(h.Db, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cash symbol: %w", err)
+	}
+
+	return &result, nil
 }
 
 func (h tickerRepositoryHandler) List() ([]model.Ticker, error) {

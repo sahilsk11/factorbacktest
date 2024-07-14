@@ -20,4 +20,5 @@ type StrategyInvestment struct {
 	UserAccountID        uuid.UUID
 	CreatedAt            time.Time
 	ModifiedAt           time.Time
+	EndDate              *time.Time
 }

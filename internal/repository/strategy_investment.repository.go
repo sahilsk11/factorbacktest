@@ -9,11 +9,12 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 )
 
 type StrategyInvestmentRepository interface {
-	Add(si model.StrategyInvestment) (*model.StrategyInvestment, error)
+	Add(tx *sql.Tx, si model.StrategyInvestment) (*model.StrategyInvestment, error)
 	Get(id uuid.UUID) (*model.StrategyInvestment, error)
 	List(StrategyInvestmentListFilter) ([]model.StrategyInvestment, error)
 }
@@ -26,7 +27,7 @@ func NewStrategyInvestmentRepository(db *sql.DB) StrategyInvestmentRepository {
 	return strategyInvestmentRepositoryHandler{Db: db}
 }
 
-func (h strategyInvestmentRepositoryHandler) Add(si model.StrategyInvestment) (*model.StrategyInvestment, error) {
+func (h strategyInvestmentRepositoryHandler) Add(tx *sql.Tx, si model.StrategyInvestment) (*model.StrategyInvestment, error) {
 	si.CreatedAt = time.Now().UTC()
 	si.ModifiedAt = time.Now().UTC()
 	query := table.StrategyInvestment.
@@ -41,8 +42,12 @@ func (h strategyInvestmentRepositoryHandler) Add(si model.StrategyInvestment) (*
 		MODEL(si).
 		RETURNING(table.StrategyInvestment.AllColumns)
 
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
 	out := model.StrategyInvestment{}
-	err := query.Query(h.Db, &out)
+	err := query.Query(db, &out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert strategy investment: %w", err)
 	}

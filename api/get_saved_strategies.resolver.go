@@ -1,6 +1,7 @@
 package api
 
 import (
+	"factorbacktest/internal/repository"
 	"fmt"
 	"time"
 
@@ -41,7 +42,9 @@ func (m ApiHandler) getSavedStrategies(c *gin.Context) {
 		return
 	}
 
-	savedStrategies, err := m.SavedStrategyRepository.List(userAccountID)
+	savedStrategies, err := m.SavedStrategyRepository.List(repository.SavedStrategyListFilter{
+		UserAccountID: &userAccountID,
+	})
 	if err != nil {
 		returnErrorJson(err, c)
 		return

@@ -52,10 +52,21 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	userAccountRepository := repository.NewUserAccountRepository(dbConn)
 	savedStrategyRepository := repository.NewSavedStrategyRepository(dbConn)
 	strategyInvestmentRepository := repository.NewStrategyInvestmentRepository(dbConn)
+	holdingsRepository := repository.NewStrategyInvestmentHoldingsRepository(dbConn)
 
 	priceService := l1_service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
 	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
+	investmentService := l3_service.NewInvestmentService(
+		dbConn,
+		strategyInvestmentRepository,
+		holdingsRepository,
+		priceRepository,
+		assetUniverseRepository,
+		savedStrategyRepository,
+		factorExpressionService,
+		tickerRepository,
+	)
 
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
@@ -81,6 +92,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		UserAccountRepository:        userAccountRepository,
 		SavedStrategyRepository:      savedStrategyRepository,
 		StrategyInvestmentRepository: strategyInvestmentRepository,
+		InvestmentService:            investmentService,
 	}
 
 	return apiHandler, nil

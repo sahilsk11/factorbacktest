@@ -1,9 +1,8 @@
 package api
 
 import (
-	"factorbacktest/internal/db/models/postgres/public/model"
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,6 +14,8 @@ type investInStrategyRequest struct {
 }
 
 func (m ApiHandler) investInStrategy(c *gin.Context) {
+	ctx := context.Background()
+
 	var requestBody investInStrategyRequest
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		returnErrorJson(err, c)
@@ -44,14 +45,7 @@ func (m ApiHandler) investInStrategy(c *gin.Context) {
 		return
 	}
 
-	// TODO - put a timeout on this so we don't duplicate
-
-	_, err = m.StrategyInvestmentRepository.Add(model.StrategyInvestment{
-		SavedStragyID: savedStrategyID,
-		UserAccountID: userAccountID,
-		AmountDollars: int32(requestBody.Amount),
-		StartDate:     time.Now().UTC(), // TODO - client should set this
-	})
+	err = m.InvestmentService.AddStrategyInvestment(ctx, userAccountID, savedStrategyID, requestBody.Amount)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
