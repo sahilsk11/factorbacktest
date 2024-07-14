@@ -765,7 +765,7 @@ export const updateBookmarked = async (
   user: GoogleAuthUser,
   bookmark: boolean,
   backtestInputs: BacktestInputs,
-) => {
+):Promise<string | null> => {
   const bookmarkRequest: BookmarkStrategyRequest = {
     expression: backtestInputs.factorExpression,
     name: backtestInputs.factorName,
@@ -788,11 +788,15 @@ export const updateBookmarked = async (
       const j = await response.json()
       alert(j.error)
       console.error("Error submitting data:", response.status);
+    } else {
+      const j = await response.json()
+      return j.savedStrategyID;
     }
   } catch (error) {
     alert((error as Error).message)
     console.error("Error:", error);
   }
+  return null;
 };
 
 function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked }: {

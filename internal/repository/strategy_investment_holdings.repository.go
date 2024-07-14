@@ -28,7 +28,7 @@ func NewStrategyInvestmentHoldingsRepository(db *sql.DB) StrategyInvestmentHoldi
 }
 
 func (h strategyInvestmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.StrategyInvestmentHoldings) (*model.StrategyInvestmentHoldings, error) {
-	sih.Date = time.Now().UTC()
+	sih.CreatedAt = time.Now().UTC()
 	query := table.StrategyInvestmentHoldings.
 		INSERT(
 			table.StrategyInvestmentHoldings.StrategyInvestmentID,

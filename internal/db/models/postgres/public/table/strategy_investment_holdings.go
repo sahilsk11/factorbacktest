@@ -22,6 +22,7 @@ type strategyInvestmentHoldingsTable struct {
 	Date                         postgres.ColumnDate
 	Ticker                       postgres.ColumnString
 	Quantity                     postgres.ColumnFloat
+	CreatedAt                    postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -57,8 +58,9 @@ func newStrategyInvestmentHoldingsTableImpl(schemaName, tableName, alias string)
 		DateColumn                         = postgres.DateColumn("date")
 		TickerColumn                       = postgres.StringColumn("ticker")
 		QuantityColumn                     = postgres.FloatColumn("quantity")
-		allColumns                         = postgres.ColumnList{StrategyInvestmentHoldingsIDColumn, StrategyInvestmentIDColumn, DateColumn, TickerColumn, QuantityColumn}
-		mutableColumns                     = postgres.ColumnList{StrategyInvestmentIDColumn, DateColumn, TickerColumn, QuantityColumn}
+		CreatedAtColumn                    = postgres.TimestampzColumn("created_at")
+		allColumns                         = postgres.ColumnList{StrategyInvestmentHoldingsIDColumn, StrategyInvestmentIDColumn, DateColumn, TickerColumn, QuantityColumn, CreatedAtColumn}
+		mutableColumns                     = postgres.ColumnList{StrategyInvestmentIDColumn, DateColumn, TickerColumn, QuantityColumn, CreatedAtColumn}
 	)
 
 	return strategyInvestmentHoldingsTable{
@@ -70,6 +72,7 @@ func newStrategyInvestmentHoldingsTableImpl(schemaName, tableName, alias string)
 		Date:                         DateColumn,
 		Ticker:                       TickerColumn,
 		Quantity:                     QuantityColumn,
+		CreatedAt:                    CreatedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

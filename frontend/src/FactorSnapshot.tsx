@@ -1,5 +1,5 @@
-import { FactorData } from "./App";
-import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, LatestHoldings } from "./models";
+import { endpoint, FactorData } from "./App";
+import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, InvestInStrategyRequest, LatestHoldings } from "./models";
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -206,7 +206,7 @@ function Invest({
 
         <Row style={{ marginTop: "10px" }}>
           <Col md={6} className={factorSnapshotStyles.latest_holdings_container}>
-          <p className={factorSnapshotStyles.invest_title}>Invest in Strategy</p>
+            <p className={factorSnapshotStyles.invest_title}>Invest in Strategy</p>
             <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Paper trade or deposit real funds</p>
 
 
@@ -225,7 +225,7 @@ function Invest({
 
           </Col>
           <Col md={6} style={{ paddingTop: "10px" }}>
-          <p className={factorSnapshotStyles.invest_title}>Latest Holdings</p>
+            <p className={factorSnapshotStyles.invest_title}>Latest Holdings</p>
             <p className={`${appStyles.subtext} ${factorSnapshotStyles.subtext}`}>Based on market data from {parseDateString(latestHoldings.date)}</p>
 
             <table className={factorSnapshotStyles.table}>
@@ -249,54 +249,62 @@ function Invest({
         </Row>
       </Container>
       <InvestModal
+        user={user}
         show={showInvestModal}
         close={() => { setShowInvestModal(false) }}
         factorName={factorName}
         setFactorName={setFactorName}
         bookmarked={bookmarked}
-        bookmarkStategy={async () => {
-          if (user) {
-            setBookmarked(true)
-            await updateBookmarked(user, true, backtestInputs)
-            await getStrategies(user, setSavedStrategies);
-            // console.log(fa)
-            setSelectedFactor(factorName)
-          } else {
-            // should be impossible
-            alert("must be logged in")
-          }
-        }}
+        // bookmarkStategy={}
         depositAmount={depositAmount}
         setDepositAmount={updateDepositAmount}
+        setSavedStrategies={setSavedStrategies}
+        setSelectedFactor={setSelectedFactor}
+        backtestInputs={backtestInputs}
+        setBookmarked={setBookmarked}
       />
     </>
   )
 }
 
 function InvestModal({
+  user,
   show,
   close,
   factorName,
   setFactorName,
-  bookmarkStategy,
+  setBookmarked,
+  // bookmarkStategy,
   bookmarked,
   depositAmount,
   setDepositAmount,
+  backtestInputs,
+  setSavedStrategies,
+  setSelectedFactor,
   // onSubmit,
 }: {
+  user: GoogleAuthUser | null,
   show: boolean;
   close: () => void;
   factorName: string,
   setFactorName: React.Dispatch<SetStateAction<string>>;
-  bookmarkStategy: () => void;
+  setBookmarked: React.Dispatch<SetStateAction<boolean>>;
+  // bookmarkStategy: () => void;
   bookmarked: boolean;
   depositAmount: number,
   setDepositAmount: (e: any) => void,
+  backtestInputs: BacktestInputs,
+  setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
+  setSelectedFactor: Dispatch<SetStateAction<string>>,
+
   // user: GoogleAuthUser | null,
   // onSubmit: () => Promise<void>
 }) {
   const [stepNumber, setSetStepNumber] = useState(0);
   const [clickedVenmoLink, setClickedVenmoLink] = useState(false);
+  const [savedStrategyID, setSavedStrategyID] = useState<string | null>(null)
+  const [depositSuccessful, setDepositSuccessful] = useState(false)
+  const [saveSuccessful, setSaveSuccessful] = useState(false)
   // useEffect(() => {
   //   if (bookmarked) {
   //     setSetStepNumber(Math.max(stepNumber, 1))
@@ -306,6 +314,23 @@ function InvestModal({
   // }, [bookmarked])
 
   if (!show) return null;
+
+  async function bookmarkStrategy() {
+    if (user) {
+      setBookmarked(true)
+      const strategyID = await updateBookmarked(user, true, backtestInputs)
+      if (!strategyID) {
+        alert("failed to retrieve bookmarked strategy ID")
+      }
+      setSavedStrategyID(strategyID);
+      await getStrategies(user, setSavedStrategies);
+      setSelectedFactor(factorName)
+      setSaveSuccessful(true)
+    } else {
+      // should be impossible
+      alert("must be logged in")
+    }
+  }
 
   function closeWrapper() {
     setSetStepNumber(0)
@@ -319,7 +344,36 @@ function InvestModal({
     }
   };
 
-
+  async function invest() {
+    if (!user) {
+      alert("must be logged in to invest")
+    }
+    if (!savedStrategyID) {
+      alert("savedStrategyID not set")
+    }
+    try {
+      const response = await fetch(endpoint + "/investInStrategy", {
+        method: "POST",
+        headers: {
+          "Authorization": user ? "Bearer " + user.accessToken : ""
+        },
+        body: JSON.stringify({
+          amountDollars: depositAmount,
+          savedStrategyID,
+        } as InvestInStrategyRequest)
+      });
+      if (!response.ok) {
+        const j = await response.json()
+        alert(j.error)
+        console.error("Error submitting data:", response.status);
+      } else {
+        setDepositSuccessful(true)
+      }
+    } catch (error) {
+      alert((error as Error).message)
+      console.error("Error:", error);
+    }
+  }
 
   const steps = [
     {
@@ -337,7 +391,9 @@ function InvestModal({
         </div>
         {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
       </>),
-      onComplete: () => { bookmarkStategy() },
+      onComplete: () => {
+        bookmarkStrategy()
+      },
       canProceed: true
     },
     {
@@ -349,11 +405,13 @@ function InvestModal({
           <br />
           <a href="https://venmo.com/sahilsk11" target="_blank" onClick={() => setClickedVenmoLink(true)}>Click here to launch Venmo</a>
         </div>
-        <p className={appStyles.subtext}>complete the Venmo transaction to continue</p>
+        {!clickedVenmoLink ? <p className={appStyles.subtext}>complete the Venmo transaction to continue</p> : null}
         {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
       </>),
-      onComplete: () => { },
-      canProceed: clickedVenmoLink,
+      onComplete: () => {
+        invest()
+      },
+      canProceed: saveSuccessful && clickedVenmoLink && savedStrategyID,
     },
     {
       component: (<>
@@ -387,7 +445,7 @@ function InvestModal({
         {steps[stepNumber].component}
 
         <div className={factorSnapshotStyles.invest_modal_pagination_container}>
-          {stepNumber < steps.length - 1 ? <Pagination>
+          {stepNumber < steps.length - 1 || true? <Pagination>
             <Pagination.Item
               onClick={() => setSetStepNumber(
                 Math.max(stepNumber - 1, 0)

@@ -180,7 +180,8 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 					}
 				}
 				out := map[string]string{
-					"message": "ok",
+					"message":         "ok",
+					"savedStrategyID": ex.SavedStragyID.String(),
 				}
 
 				c.JSON(200, out)
@@ -195,6 +196,13 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 			returnErrorJson(err, c)
 			return
 		}
+		out := map[string]string{
+			"message":         "ok",
+			"savedStrategyID": ex.SavedStragyID.String(),
+		}
+
+		c.JSON(200, out)
+		return
 	}
 	// disable bookmarks on anything that's currently saved
 	for _, ex := range existing {
