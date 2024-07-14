@@ -14,7 +14,7 @@ import (
 )
 
 type SavedStrategyRepository interface {
-	List(uuid.UUID) ([]model.SavedStrategy, error)
+	List(SavedStrategyListFilter) ([]model.SavedStrategy, error)
 	ListMatchingStrategies(m model.SavedStrategy) ([]model.SavedStrategy, error)
 	Add(m model.SavedStrategy) error
 	SetBookmarked(savedStrategyID uuid.UUID, bookmarked bool) error
@@ -86,13 +86,22 @@ func (h savedStrategyRepositoryHandler) ListMatchingStrategies(m model.SavedStra
 	return out, nil
 }
 
-func (h savedStrategyRepositoryHandler) List(userAccountID uuid.UUID) ([]model.SavedStrategy, error) {
+type SavedStrategyListFilter struct {
+	UserAccountID *uuid.UUID
+}
+
+func (h savedStrategyRepositoryHandler) List(filter SavedStrategyListFilter) ([]model.SavedStrategy, error) {
 	query := table.SavedStrategy.
-		SELECT(table.SavedStrategy.AllColumns).WHERE(
-		table.SavedStrategy.UserAccountID.EQ(postgres.UUID(userAccountID)),
-	).ORDER_BY(
-		table.SavedStrategy.CreatedAt.DESC(),
-	)
+		SELECT(table.SavedStrategy.AllColumns).
+		ORDER_BY(
+			table.SavedStrategy.CreatedAt.DESC(),
+		)
+
+	if filter.UserAccountID != nil {
+		query = query.WHERE(
+			table.SavedStrategy.UserAccountID.EQ(postgres.UUID(*filter.UserAccountID)),
+		)
+	}
 
 	out := []model.SavedStrategy{}
 	err := query.Query(h.Db, &out)

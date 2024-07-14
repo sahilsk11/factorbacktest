@@ -16,7 +16,7 @@ import (
 
 type InvestmentService interface {
 	// GetAggregrateTargetPortfolio(date time.Time) (*domain.Portfolio, error)
-	AddStrategyInvestment(userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
+	AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
 }
 
 type investmentServiceHandler struct {
@@ -30,6 +30,28 @@ type investmentServiceHandler struct {
 	TickerRepository             repository.TickerRepository
 }
 
+func NewInvestmentService(
+	db *sql.DB,
+	strategyInvestmentRepository repository.StrategyInvestmentRepository,
+	holdingsRepository repository.StrategyInvestmentHoldingsRepository,
+	priceRepository repository.AdjustedPriceRepository,
+	universeRepository repository.AssetUniverseRepository,
+	savedStrategyRepository repository.SavedStrategyRepository,
+	factorExpressionService l2_service.FactorExpressionService,
+	tickerRepository repository.TickerRepository,
+) InvestmentService {
+	return investmentServiceHandler{
+		Db:                           db,
+		StrategyInvestmentRepository: strategyInvestmentRepository,
+		HoldingsRepository:           holdingsRepository,
+		PriceRepository:              priceRepository,
+		UniverseRepository:           universeRepository,
+		SavedStrategyRepository:      savedStrategyRepository,
+		FactorExpressionService:      factorExpressionService,
+		TickerRepository:             tickerRepository,
+	}
+}
+
 func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error {
 	tx, err := h.Db.Begin()
 	if err != nil {
@@ -38,6 +60,25 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	defer tx.Rollback()
 	date := time.Now().UTC()
 
+	prevInvestments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{
+		UserAccountIDs: []uuid.UUID{userAccountID},
+	})
+	if err != nil {
+		return err
+	}
+
+	mostRecentTime := time.Time{}
+	for _, p := range prevInvestments {
+		if p.CreatedAt.After(mostRecentTime) {
+			mostRecentTime = p.CreatedAt
+		}
+	}
+
+	acceptableDelta := time.Minute
+	if mostRecentTime.Add(acceptableDelta).After(date) {
+		return fmt.Errorf("can only create 1 investment per minute")
+	}
+
 	// TODO - put a timeout on this so we don't duplicate
 	newStrategyInvestment, err := h.StrategyInvestmentRepository.Add(tx, model.StrategyInvestment{
 		SavedStragyID: savedStrategyID,
@@ -45,11 +86,6 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 		AmountDollars: int32(amount),
 		StartDate:     date,
 	})
-	if err != nil {
-		return err
-	}
-
-	err = tx.Commit()
 	if err != nil {
 		return err
 	}
@@ -66,6 +102,11 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 		Ticker:               cashTicker.TickerID,
 		Quantity:             decimal.NewFromInt(int64(amount)),
 	})
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ContactModal, HelpModal } from './Modals';
 import StatsFooter from './Footer';
 import { Nav } from './Nav';
-import styles from './l3_service.module.css'
+import styles from './App.module.css'
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export interface FactorData {

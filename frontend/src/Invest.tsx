@@ -1,6 +1,6 @@
 import { GoogleAuthUser, GetSavedStrategiesResponse, InvestInStrategyRequest, GetInvestmentsResponse } from "./models";
 import investStyles from "./Invest.module.css";
-import appStyles from "./l3_service.module.css";
+import appStyles from "./App.module.css";
 import { Nav } from "./Nav";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ContactModal, HelpModal } from "./Modals";

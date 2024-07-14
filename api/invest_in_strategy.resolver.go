@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,8 @@ type investInStrategyRequest struct {
 }
 
 func (m ApiHandler) investInStrategy(c *gin.Context) {
+	ctx := context.Background()
+
 	var requestBody investInStrategyRequest
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		returnErrorJson(err, c)
@@ -42,7 +45,7 @@ func (m ApiHandler) investInStrategy(c *gin.Context) {
 		return
 	}
 
-	err = m.InvestmentService.AddStrategyInvestment(userAccountID, savedStrategyID, requestBody.Amount)
+	err = m.InvestmentService.AddStrategyInvestment(ctx, userAccountID, savedStrategyID, requestBody.Amount)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
