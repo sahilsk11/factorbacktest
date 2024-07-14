@@ -445,7 +445,7 @@ function InvestModal({
         {steps[stepNumber].component}
 
         <div className={factorSnapshotStyles.invest_modal_pagination_container}>
-          {stepNumber < steps.length - 1 || true? <Pagination>
+          {stepNumber < steps.length - 1 ? <Pagination>
             <Pagination.Item
               onClick={() => setSetStepNumber(
                 Math.max(stepNumber - 1, 0)
