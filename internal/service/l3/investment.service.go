@@ -25,6 +25,7 @@ type InvestmentService interface {
 	// creates a set of trades that should be executed to rebalance all strategy investments
 	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
 	GenerateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error)
+	AddStrategyTrades()
 }
 
 type investmentServiceHandler struct {
@@ -173,6 +174,7 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 		targetPortfolio.Positions[symbol] = &domain.Position{
 			Symbol:   symbol,
 			Quantity: quantity,
+			TickerID: uuid.Nil, // TODO - find out how to get ticker here
 		}
 	}
 
@@ -256,6 +258,7 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 					Symbol:        symbol,
 					Quantity:      0,
 					ExactQuantity: decimal.Zero,
+					TickerID:      position.TickerID,
 				}
 			}
 			currentQuantity := aggregatePortfolio.Positions[symbol].ExactQuantity
@@ -284,6 +287,8 @@ func (h investmentServiceHandler) getCurrentAggregatePortfolio() (*domain.Portfo
 		portfolio.Positions[p.Symbol] = &domain.Position{
 			Symbol:        p.Symbol,
 			ExactQuantity: p.Qty,
+			Quantity:      p.AvgEntryPrice.InexactFloat64(),
+			TickerID:      uuid.Nil, // TODO - figure out how to get this
 		}
 	}
 
@@ -308,6 +313,7 @@ func transitionToTarget(
 		if diff.GreaterThan(decimal.Zero) {
 			trades = append(trades, domain.ProposedTrade{
 				Symbol:        symbol,
+				TickerID:      position.TickerID,
 				ExactQuantity: diff,
 				ExpectedPrice: priceMap[symbol],
 			})
@@ -317,6 +323,7 @@ func transitionToTarget(
 		if _, ok := targetPositions[symbol]; !ok {
 			trades = append(trades, domain.ProposedTrade{
 				Symbol:        symbol,
+				TickerID:      position.TickerID,
 				ExactQuantity: position.ExactQuantity.Neg(),
 				ExpectedPrice: priceMap[symbol],
 			})
@@ -356,6 +363,8 @@ func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, da
 		return nil, fmt.Errorf("failed to get prices on day %v: %w", date, err)
 	}
 
+	// TODO - ensure both these functions have ticker IDs
+	// populated
 	currentPortfolio, err := h.getCurrentAggregatePortfolio()
 	if err != nil {
 		return nil, err
@@ -371,6 +380,9 @@ func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, da
 
 	// TODO - verify that after all trades, the accounts
 	// line up with what they should be
+	// ensure we don't generate trades on cash
 
 	return proposedTrades, nil
 }
+
+func (h investmentServiceHandler) AddStrategyTrades() {}

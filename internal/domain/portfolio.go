@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -66,6 +67,7 @@ type Position struct {
 	Quantity float64
 	// todo - migrate off quantity
 	ExactQuantity decimal.Decimal
+	TickerID      uuid.UUID
 }
 
 func (p Position) DeepCopy() *Position {
@@ -90,6 +92,7 @@ func PositionsFromQuantity(in map[string]float64) map[string]*Position {
 
 type ProposedTrade struct {
 	Symbol        string
+	TickerID      uuid.UUID
 	ExactQuantity decimal.Decimal
 	ExpectedPrice float64
 }

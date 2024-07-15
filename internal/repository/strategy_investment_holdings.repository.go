@@ -123,6 +123,7 @@ func portfolioFromHoldings(holdings []model.LatestStrategyInvestmentHoldings) *d
 		}
 		portfolio.Positions[*h.Symbol] = &domain.Position{
 			Symbol:        *h.Symbol,
+			TickerID:      *h.Ticker, // should be called TickerID
 			Quantity:      h.Quantity.InexactFloat64(),
 			ExactQuantity: *h.Quantity,
 		}

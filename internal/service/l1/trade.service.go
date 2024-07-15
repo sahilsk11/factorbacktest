@@ -34,13 +34,15 @@ func NewTradeService(db *sql.DB, alpacaRepository repository.AlpacaRepository, t
 }
 
 type BuyInput struct {
-	Ticker          model.Ticker
+	TickerID        uuid.UUID
+	Symbol          string
 	AmountInDollars decimal.Decimal
 	Reason          *string
 }
 
 func (h tradeServiceHandler) placeOrder(
-	ticker model.Ticker,
+	tickerID uuid.UUID,
+	symbol string,
 	notes *string,
 	amountInDollars decimal.Decimal,
 	dbSide model.TradeOrderSide,
@@ -53,7 +55,7 @@ func (h tradeServiceHandler) placeOrder(
 	defer tx.Rollback()
 
 	insertedOrder, err := h.TradeOrderRepository.Add(tx, model.TradeOrder{
-		TickerID:                 ticker.TickerID,
+		TickerID:                 tickerID,
 		Side:                     dbSide,
 		RequestedAmountInDollars: amountInDollars,
 		Status:                   model.TradeOrderStatus_Pending,
@@ -67,7 +69,7 @@ func (h tradeServiceHandler) placeOrder(
 	order, err := h.AlpacaRepository.PlaceOrder(repository.AlpacaPlaceOrderRequest{
 		TradeOrderID:    insertedOrder.TradeOrderID,
 		AmountInDollars: amountInDollars,
-		Symbol:          ticker.Symbol,
+		Symbol:          symbol,
 		Side:            alpacaSide,
 	})
 	if err != nil {
@@ -107,13 +109,14 @@ func (h tradeServiceHandler) placeOrder(
 }
 
 type SellInput struct {
-	Ticker          model.Ticker
+	TickerID        uuid.UUID
+	Symbol          string
 	AmountInDollars decimal.Decimal
 	Reason          *string
 }
 
 func (h tradeServiceHandler) Sell(input SellInput) error {
-	if err := h.placeOrder(input.Ticker, input.Reason, input.AmountInDollars, model.TradeOrderSide_Sell, alpaca.Sell); err != nil {
+	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Sell, alpaca.Sell); err != nil {
 		return fmt.Errorf("failed to sell: %w", err)
 	}
 	return nil
@@ -124,7 +127,7 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 		return fmt.Errorf("failed to submit buy order: amount must be >= 1. got %f", input.AmountInDollars.InexactFloat64())
 	}
 
-	if err := h.placeOrder(input.Ticker, input.Reason, input.AmountInDollars, model.TradeOrderSide_Buy, alpaca.Buy); err != nil {
+	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Buy, alpaca.Buy); err != nil {
 		return fmt.Errorf("failed to sell: %w", err)
 	}
 	return nil
