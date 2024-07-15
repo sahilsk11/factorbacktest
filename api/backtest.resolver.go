@@ -6,10 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"factorbacktest/internal"
+	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
-	l3_service "factorbacktest/internal/service/l3"
 	"fmt"
 	"regexp"
 	"strings"
@@ -37,14 +37,14 @@ type BacktestRequest struct {
 }
 
 type BacktestResponse struct {
-	FactorName     string                                 `json:"factorName"`
-	Snapshots      map[string]l3_service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
-	LatestHoldings LatestHoldings                         `json:"latestHoldings"`
+	FactorName     string                          `json:"factorName"`
+	Snapshots      map[string]app.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
+	LatestHoldings LatestHoldings                  `json:"latestHoldings"`
 }
 
 type LatestHoldings struct {
-	Date   time.Time                                  `json:"date"`
-	Assets map[string]l3_service.SnapshotAssetMetrics `json:"assets"`
+	Date   time.Time                           `json:"date"`
+	Assets map[string]app.SnapshotAssetMetrics `json:"assets"`
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
@@ -130,7 +130,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	backtestInput := l3_service.BacktestInput{
+	backtestInput := app.BacktestInput{
 		FactorExpression:  requestBody.FactorOptions.Expression,
 		FactorName:        requestBody.FactorOptions.Name,
 		BacktestStart:     backtestStartDate,

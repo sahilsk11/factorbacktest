@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/internal"
+	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
@@ -25,7 +26,7 @@ import (
 
 type ApiHandler struct {
 	Db                           *sql.DB
-	BacktestHandler              l3_service.BacktestHandler
+	BacktestHandler              app.BacktestHandler
 	BenchmarkHandler             internal.BenchmarkHandler
 	UserStrategyRepository       repository.UserStrategyRepository
 	ContactRepository            repository.ContactRepository
