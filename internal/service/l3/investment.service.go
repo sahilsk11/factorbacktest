@@ -130,6 +130,7 @@ type ComputeTargetPortfolioInput struct {
 	PortfolioValue   float64
 	FactorScores     map[string]*float64
 	TargetNumTickers int
+	TickerIDMap      map[string]uuid.UUID
 }
 
 type ComputeTargetPortfolioResponse struct {
@@ -169,12 +170,18 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 			return nil, fmt.Errorf("priceMap does not have %s", symbol)
 		}
 		dollarsOfSymbol := in.PortfolioValue * weight
-		// TODO - verify that priceMap[symbol] exists
+
+		tickerID := uuid.Nil
+		if in.TickerIDMap != nil {
+			if id, ok := in.TickerIDMap[symbol]; ok {
+				tickerID = id
+			}
+		}
 		quantity := dollarsOfSymbol / price
 		targetPortfolio.Positions[symbol] = &domain.Position{
 			Symbol:   symbol,
 			Quantity: quantity,
-			TickerID: uuid.Nil, // TODO - find out how to get ticker here
+			TickerID: tickerID, // TODO - find out how to get ticker here
 		}
 	}
 
@@ -190,7 +197,7 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 	}, nil
 }
 
-func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
+func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64, tickerIDMap map[string]uuid.UUID) (*domain.Portfolio, error) {
 	investmentDetails, err := h.StrategyInvestmentRepository.Get(strategyInvestmentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get strategy investment with id %s: %w", strategyInvestmentID.String(), err)
@@ -231,6 +238,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 		FactorScores:     factorScoresOnLatestDay.SymbolScores,
 		PortfolioValue:   currentHoldingsValue,
 		PriceMap:         pm,
+		TickerIDMap:      tickerIDMap,
 	})
 	if err != nil {
 		return nil, err
@@ -239,7 +247,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 	return computeTargetPortfolioResponse.TargetPortfolio, nil
 }
 
-func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
+func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time, pm map[string]float64, tickerIDMap map[string]uuid.UUID) (*domain.Portfolio, error) {
 	// get all active investments
 	investments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
@@ -248,7 +256,7 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 
 	aggregatePortfolio := domain.NewPortfolio()
 	for _, i := range investments {
-		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date, pm)
+		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date, pm, tickerIDMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get target portfolio: %w", err)
 		}
@@ -277,18 +285,22 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 	return aggregatePortfolio, nil
 }
 
-func (h investmentServiceHandler) getCurrentAggregatePortfolio() (*domain.Portfolio, error) {
+func (h investmentServiceHandler) getCurrentAggregatePortfolio(tickerIDMap map[string]uuid.UUID) (*domain.Portfolio, error) {
 	positions, err := h.AlpacaRepository.GetPositions()
 	if err != nil {
 		return nil, err
 	}
 	portfolio := domain.NewPortfolio()
 	for _, p := range positions {
+		tickerID, ok := tickerIDMap[p.Symbol]
+		if !ok {
+			return nil, fmt.Errorf("missing ticker id for %s from ticker id map", p.Symbol)
+		}
 		portfolio.Positions[p.Symbol] = &domain.Position{
 			Symbol:        p.Symbol,
 			ExactQuantity: p.Qty,
 			Quantity:      p.AvgEntryPrice.InexactFloat64(),
-			TickerID:      uuid.Nil, // TODO - figure out how to get this
+			TickerID:      tickerID,
 		}
 	}
 
@@ -354,8 +366,10 @@ func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, da
 		return nil, err
 	}
 	symbols := []string{}
+	tickerIDMap := map[string]uuid.UUID{}
 	for _, s := range assets {
 		symbols = append(symbols, s.Symbol)
+		tickerIDMap[s.Symbol] = s.TickerID
 	}
 
 	pm, err := h.PriceRepository.GetManyOnDay(symbols, date)
@@ -365,11 +379,11 @@ func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, da
 
 	// TODO - ensure both these functions have ticker IDs
 	// populated
-	currentPortfolio, err := h.getCurrentAggregatePortfolio()
+	currentPortfolio, err := h.getCurrentAggregatePortfolio(tickerIDMap)
 	if err != nil {
 		return nil, err
 	}
-	targetPortfolio, err := h.getAggregrateTargetPortfolio(ctx, date, pm)
+	targetPortfolio, err := h.getAggregrateTargetPortfolio(ctx, date, pm, tickerIDMap)
 	if err != nil {
 		return nil, err
 	}
