@@ -18,6 +18,10 @@ func Pprint(i interface{}) {
 	fmt.Println(string(bytes))
 }
 
+func StringPointer(s string) *string {
+	return &s
+}
+
 type Secrets struct {
 	DataJockeyApiKey string    `json:"dataJockey"`
 	ChatGPTApiKey    string    `json:"gpt"`

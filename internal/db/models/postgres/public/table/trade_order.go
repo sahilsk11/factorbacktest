@@ -17,17 +17,17 @@ type tradeOrderTable struct {
 	postgres.Table
 
 	//Columns
-	TradeOrderID      postgres.ColumnString
-	ProviderID        postgres.ColumnString
-	TickerID          postgres.ColumnString
-	Side              postgres.ColumnString
-	RequestedQuantity postgres.ColumnFloat
-	Status            postgres.ColumnString
-	FilledQuantity    postgres.ColumnFloat
-	FilledPrice       postgres.ColumnFloat
-	CreatedAt         postgres.ColumnTimestampz
-	ModifiedAt        postgres.ColumnTimestampz
-	Notes             postgres.ColumnString
+	TradeOrderID             postgres.ColumnString
+	ProviderID               postgres.ColumnString
+	TickerID                 postgres.ColumnString
+	Side                     postgres.ColumnString
+	RequestedAmountInDollars postgres.ColumnFloat
+	Status                   postgres.ColumnString
+	FilledQuantity           postgres.ColumnFloat
+	FilledPrice              postgres.ColumnFloat
+	CreatedAt                postgres.ColumnTimestampz
+	ModifiedAt               postgres.ColumnTimestampz
+	Notes                    postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -58,36 +58,36 @@ func newTradeOrderTable(schemaName, tableName, alias string) *TradeOrderTable {
 
 func newTradeOrderTableImpl(schemaName, tableName, alias string) tradeOrderTable {
 	var (
-		TradeOrderIDColumn      = postgres.StringColumn("trade_order_id")
-		ProviderIDColumn        = postgres.StringColumn("provider_id")
-		TickerIDColumn          = postgres.StringColumn("ticker_id")
-		SideColumn              = postgres.StringColumn("side")
-		RequestedQuantityColumn = postgres.FloatColumn("requested_quantity")
-		StatusColumn            = postgres.StringColumn("status")
-		FilledQuantityColumn    = postgres.FloatColumn("filled_quantity")
-		FilledPriceColumn       = postgres.FloatColumn("filled_price")
-		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
-		ModifiedAtColumn        = postgres.TimestampzColumn("modified_at")
-		NotesColumn             = postgres.StringColumn("notes")
-		allColumns              = postgres.ColumnList{TradeOrderIDColumn, ProviderIDColumn, TickerIDColumn, SideColumn, RequestedQuantityColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn}
-		mutableColumns          = postgres.ColumnList{ProviderIDColumn, TickerIDColumn, SideColumn, RequestedQuantityColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn}
+		TradeOrderIDColumn             = postgres.StringColumn("trade_order_id")
+		ProviderIDColumn               = postgres.StringColumn("provider_id")
+		TickerIDColumn                 = postgres.StringColumn("ticker_id")
+		SideColumn                     = postgres.StringColumn("side")
+		RequestedAmountInDollarsColumn = postgres.FloatColumn("requested_amount_in_dollars")
+		StatusColumn                   = postgres.StringColumn("status")
+		FilledQuantityColumn           = postgres.FloatColumn("filled_quantity")
+		FilledPriceColumn              = postgres.FloatColumn("filled_price")
+		CreatedAtColumn                = postgres.TimestampzColumn("created_at")
+		ModifiedAtColumn               = postgres.TimestampzColumn("modified_at")
+		NotesColumn                    = postgres.StringColumn("notes")
+		allColumns                     = postgres.ColumnList{TradeOrderIDColumn, ProviderIDColumn, TickerIDColumn, SideColumn, RequestedAmountInDollarsColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn}
+		mutableColumns                 = postgres.ColumnList{ProviderIDColumn, TickerIDColumn, SideColumn, RequestedAmountInDollarsColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn}
 	)
 
 	return tradeOrderTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		TradeOrderID:      TradeOrderIDColumn,
-		ProviderID:        ProviderIDColumn,
-		TickerID:          TickerIDColumn,
-		Side:              SideColumn,
-		RequestedQuantity: RequestedQuantityColumn,
-		Status:            StatusColumn,
-		FilledQuantity:    FilledQuantityColumn,
-		FilledPrice:       FilledPriceColumn,
-		CreatedAt:         CreatedAtColumn,
-		ModifiedAt:        ModifiedAtColumn,
-		Notes:             NotesColumn,
+		TradeOrderID:             TradeOrderIDColumn,
+		ProviderID:               ProviderIDColumn,
+		TickerID:                 TickerIDColumn,
+		Side:                     SideColumn,
+		RequestedAmountInDollars: RequestedAmountInDollarsColumn,
+		Status:                   StatusColumn,
+		FilledQuantity:           FilledQuantityColumn,
+		FilledPrice:              FilledPriceColumn,
+		CreatedAt:                CreatedAtColumn,
+		ModifiedAt:               ModifiedAtColumn,
+		Notes:                    NotesColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

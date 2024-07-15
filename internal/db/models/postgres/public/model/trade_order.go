@@ -15,15 +15,15 @@ import (
 )
 
 type TradeOrder struct {
-	TradeOrderID      uuid.UUID `sql:"primary_key"`
-	ProviderID        uuid.UUID
-	TickerID          uuid.UUID
-	Side              TradeOrderSide
-	RequestedQuantity decimal.Decimal
-	Status            TradeOrderStatus
-	FilledQuantity    *decimal.Decimal
-	FilledPrice       *decimal.Decimal
-	CreatedAt         *time.Time
-	ModifiedAt        *time.Time
-	Notes             *string
+	TradeOrderID             uuid.UUID `sql:"primary_key"`
+	ProviderID               *uuid.UUID
+	TickerID                 uuid.UUID
+	Side                     TradeOrderSide
+	RequestedAmountInDollars decimal.Decimal
+	Status                   TradeOrderStatus
+	FilledQuantity           *decimal.Decimal
+	FilledPrice              *decimal.Decimal
+	CreatedAt                time.Time
+	ModifiedAt               time.Time
+	Notes                    *string
 }
