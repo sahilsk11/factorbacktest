@@ -273,7 +273,7 @@ func (m ApiHandler) addNewSavedStrategy(
 		Bookmarked:        false,
 		UserAccountID:     userAccountID,
 	}
-	err = m.SavedStrategyRepository.Add(newModel)
+	_, err = m.SavedStrategyRepository.Add(newModel)
 	if err != nil {
 		return err
 	}

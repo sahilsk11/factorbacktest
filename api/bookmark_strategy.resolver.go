@@ -155,7 +155,7 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 	}
 
 	if len(existing) == 0 {
-		err := m.SavedStrategyRepository.Add(newModel)
+		_, err := m.SavedStrategyRepository.Add(newModel)
 		if err != nil {
 			returnErrorJson(err, c)
 			return
