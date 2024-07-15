@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
@@ -12,6 +11,10 @@ import (
 
 type AlpacaRepository interface {
 	PlaceOrder(req AlpacaPlaceOrderRequest) (*alpaca.Order, error)
+	CancelOpenOrders() error
+	GetPositions() ([]alpaca.Position, error)
+	IsMarketOpen() (bool, error)
+	GetAccount() (*alpaca.Account, error)
 }
 
 func NewAlpacaRepository(apiKey, apiSecret string) AlpacaRepository {
@@ -33,22 +36,23 @@ type alpacaRepositoryHandler struct {
 	Client *alpaca.Client
 }
 
-func (h alpacaRepositoryHandler) cancelOpenOrders() {
-	fmt.Print("Cancelling all open orders so they don't impact our buying power... ")
+func (h alpacaRepositoryHandler) CancelOpenOrders() error {
 	orders, err := h.Client.GetOrders(alpaca.GetOrdersRequest{
 		Status: "open",
 		Until:  time.Now(),
 		Limit:  100,
 	})
 	if err != nil {
-		log.Fatalf("Failed to list orders: %v", err)
+		return fmt.Errorf("Failed to list orders: %w", err)
 	}
 	for _, order := range orders {
 		if err := h.Client.CancelOrder(order.ID); err != nil {
-			log.Fatalf("Failed to cancel order %s: %v", order.ID, err)
+			return fmt.Errorf("Failed to cancel order %s: %w", order.ID, err)
 		}
 	}
+
 	fmt.Printf("%d order(s) cancelled\n", len(orders))
+	return nil
 }
 
 func (h alpacaRepositoryHandler) GetPositions() ([]alpaca.Position, error) {
