@@ -8,9 +8,9 @@
 package model
 
 import (
+	"github.com/google/uuid"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 

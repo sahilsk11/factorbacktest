@@ -1,11 +1,13 @@
 mocks:
 	mockgen -source=internal/repository/adj_price.repository.go -destination=internal/repository/mocks/mock_adj_price.repository.go
+	mockgen -source=internal/repository/alpaca.repository.go -destination=internal/repository/mocks/mock_alpaca.repository.go
 
 migration:
 	migrate create -ext sql -dir migrations/ -seq $(name)
 
 db-models:
 	jet -dsn=postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable -path=./internal/db/models
+	tools/env/bin/python tools/db_model_helper.py
 
 migrate:
 	tools/env/bin/python tools/migrations.py up postgres

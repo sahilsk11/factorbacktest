@@ -68,18 +68,18 @@ func (mr *MockAdjustedPriceRepositoryMockRecorder) Get(arg0, arg1 interface{}) *
 }
 
 // GetMany mocks base method.
-func (m *MockAdjustedPriceRepository) GetMany(set []repository.GetManyInput) ([]domain.AssetPrice, error) {
+func (m *MockAdjustedPriceRepository) GetMany(arg0 []repository.GetManyInput) ([]domain.AssetPrice, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMany", set)
+	ret := m.ctrl.Call(m, "GetMany", arg0)
 	ret0, _ := ret[0].([]domain.AssetPrice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetMany indicates an expected call of GetMany.
-func (mr *MockAdjustedPriceRepositoryMockRecorder) GetMany(set interface{}) *gomock.Call {
+func (mr *MockAdjustedPriceRepositoryMockRecorder) GetMany(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMany", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).GetMany), set)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMany", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).GetMany), arg0)
 }
 
 // GetManyOnDay mocks base method.
@@ -110,6 +110,21 @@ func (m *MockAdjustedPriceRepository) LatestPrices(symbols []string) ([]domain.A
 func (mr *MockAdjustedPriceRepositoryMockRecorder) LatestPrices(symbols interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestPrices", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).LatestPrices), symbols)
+}
+
+// LatestTradingDay mocks base method.
+func (m *MockAdjustedPriceRepository) LatestTradingDay() (*time.Time, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LatestTradingDay")
+	ret0, _ := ret[0].(*time.Time)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LatestTradingDay indicates an expected call of LatestTradingDay.
+func (mr *MockAdjustedPriceRepositoryMockRecorder) LatestTradingDay() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestTradingDay", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).LatestTradingDay))
 }
 
 // List mocks base method.
