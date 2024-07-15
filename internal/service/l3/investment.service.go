@@ -15,8 +15,9 @@ import (
 )
 
 type InvestmentService interface {
-	// GetAggregrateTargetPortfolio(date time.Time) (*domain.Portfolio, error)
+	// ledgers a new request to invest in a strategy
 	AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
+	GenerateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error)
 }
 
 type investmentServiceHandler struct {
@@ -28,6 +29,7 @@ type investmentServiceHandler struct {
 	SavedStrategyRepository      repository.SavedStrategyRepository
 	FactorExpressionService      l2_service.FactorExpressionService
 	TickerRepository             repository.TickerRepository
+	AlpacaRepository             repository.AlpacaRepository
 }
 
 func NewInvestmentService(
@@ -39,6 +41,7 @@ func NewInvestmentService(
 	savedStrategyRepository repository.SavedStrategyRepository,
 	factorExpressionService l2_service.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
+	alpacaRepository repository.AlpacaRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                           db,
@@ -49,6 +52,7 @@ func NewInvestmentService(
 		SavedStrategyRepository:      savedStrategyRepository,
 		FactorExpressionService:      factorExpressionService,
 		TickerRepository:             tickerRepository,
+		AlpacaRepository:             alpacaRepository,
 	}
 }
 
@@ -60,26 +64,24 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	defer tx.Rollback()
 	date := time.Now().UTC()
 
+	// ensure we don't double record an entry
 	prevInvestments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{
 		UserAccountIDs: []uuid.UUID{userAccountID},
 	})
 	if err != nil {
 		return err
 	}
-
 	mostRecentTime := time.Time{}
 	for _, p := range prevInvestments {
 		if p.CreatedAt.After(mostRecentTime) {
 			mostRecentTime = p.CreatedAt
 		}
 	}
-
 	acceptableDelta := time.Minute
 	if mostRecentTime.Add(acceptableDelta).After(date) {
 		return fmt.Errorf("can only create 1 investment per minute")
 	}
 
-	// TODO - put a timeout on this so we don't duplicate
 	newStrategyInvestment, err := h.StrategyInvestmentRepository.Add(tx, model.StrategyInvestment{
 		SavedStragyID: savedStrategyID,
 		UserAccountID: userAccountID,
@@ -117,28 +119,33 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
 	investmentDetails, err := h.StrategyInvestmentRepository.Get(strategyInvestmentID)
 	if err != nil {
+		return nil, fmt.Errorf("failed to get strategy investment with id %s: %w", strategyInvestmentID.String(), err)
+	}
+
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(strategyInvestmentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get holdings from saved strategy %s: %w", strategyInvestmentID.String(), err)
+	}
+
+	// we need to get this in decimal and potentially use a different
+	// set of prices? should we use live pricing from Alpaca?
+	currentHoldingsValue, err := currentHoldings.TotalValue(pm)
+	if err != nil {
 		return nil, err
 	}
 
-	// TODO - get current value of holdings? or do we want to return as
-	// percent allocations here
-	// we should definitely get current holdings and figure out
-	// value from that
-
 	savedStrategyDetails, err := h.SavedStrategyRepository.Get(investmentDetails.SavedStragyID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get saved strategy with id %s: %w", investmentDetails.SavedStragyID.String(), err)
 	}
 
 	universe, err := h.UniverseRepository.GetAssets(savedStrategyDetails.AssetUniverse)
 	if err != nil {
 		return nil, err
 	}
-	universeSymbols := []string{}
-	for _, u := range universe {
-		universeSymbols = append(universeSymbols, u.Symbol)
-	}
 
+	// assumes every asset is rebalancing today, which is not true. can simplify for now
+	// but this should only pull the assets which need to rebalance today
 	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScoresOnDay(ctx, date, universe, savedStrategyDetails.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
@@ -148,7 +155,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 		Date:             date,
 		TargetNumTickers: int(savedStrategyDetails.NumAssets),
 		FactorScores:     factorScoresOnLatestDay.SymbolScores,
-		PortfolioValue:   float64(investmentDetails.AmountDollars), // should get latest portfolio value
+		PortfolioValue:   currentHoldingsValue,
 		PriceMap:         pm,
 	})
 	if err != nil {
@@ -162,42 +169,55 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 	// get all active investments
 	investments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list strategy investments: %w", err)
 	}
 
 	aggregatePortfolio := domain.NewPortfolio()
 	for _, i := range investments {
 		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date, pm)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get target portfolio: %w", err)
 		}
 		for symbol, position := range strategyPortfolio.Positions {
 			if _, ok := aggregatePortfolio.Positions[symbol]; !ok {
 				aggregatePortfolio.Positions[symbol] = &domain.Position{
-					Symbol:   symbol,
-					Quantity: 0,
+					Symbol:        symbol,
+					Quantity:      0,
+					ExactQuantity: decimal.Zero,
 				}
 			}
-			aggregatePortfolio.Positions[symbol].Quantity += position.Quantity
+			currentQuantity := aggregatePortfolio.Positions[symbol].ExactQuantity
+			newPositionQuantity := decimal.NewFromFloat(position.Quantity)
+			aggregatePortfolio.Positions[symbol].ExactQuantity = currentQuantity.Add(newPositionQuantity)
 		}
 
-		// definitely shouldn't be the case, but throw in cash
-		// just in case. we don't do anything with cash, so we
+		// definitely shouldn't be the case, but we don't
+		// do anything with cash, so we
 		// should check this for errors
 		if strategyPortfolio.Cash > 0 {
 			return nil, fmt.Errorf("portfolio %s generated %f cash", i.StrategyInvestmentID, strategyPortfolio.Cash)
 		}
-		// aggregatePortfolio.Cash += strategyPortfolio.Cash
 	}
 
 	return aggregatePortfolio, nil
 }
 
 func (h investmentServiceHandler) getCurrentAggregatePortfolio() (*domain.Portfolio, error) {
-	return nil, fmt.Errorf("not implemented")
+	positions, err := h.AlpacaRepository.GetPositions()
+	if err != nil {
+		return nil, err
+	}
+	portfolio := domain.NewPortfolio()
+	for _, p := range positions {
+		portfolio.Positions[p.Symbol] = &domain.Position{
+			Symbol:        p.Symbol,
+			ExactQuantity: p.Qty,
+		}
+	}
+
+	return portfolio, nil
 }
 
-// TODO - how should we handle trades where amount < $1
 func transitionToTarget(
 	currentPortfolio domain.Portfolio,
 	targetPortfolio domain.Portfolio,
@@ -208,15 +228,15 @@ func transitionToTarget(
 	targetPositions := targetPortfolio.Positions
 
 	for symbol, position := range targetPositions {
-		diff := position.Quantity
+		diff := position.ExactQuantity
 		prevPosition, ok := prevPositions[symbol]
 		if ok {
-			diff = position.Quantity - prevPosition.Quantity
+			diff = position.ExactQuantity.Sub(prevPosition.ExactQuantity)
 		}
-		if diff != 0 {
+		if diff.GreaterThan(decimal.Zero) {
 			trades = append(trades, domain.ProposedTrade{
 				Symbol:        symbol,
-				Quantity:      diff,
+				ExactQuantity: diff,
 				ExpectedPrice: priceMap[symbol],
 			})
 		}
@@ -225,7 +245,7 @@ func transitionToTarget(
 		if _, ok := targetPositions[symbol]; !ok {
 			trades = append(trades, domain.ProposedTrade{
 				Symbol:        symbol,
-				Quantity:      -position.Quantity,
+				ExactQuantity: position.ExactQuantity.Neg(),
 				ExpectedPrice: priceMap[symbol],
 			})
 		}
@@ -234,6 +254,14 @@ func transitionToTarget(
 	// we could round all trades up to $1 but
 	// if they have tons of little trades, that
 	// could get expensive
+	// round all buy orders to $1
+	// TODO - i think we should use market value
+	// and figure out whether to round up or down
+	for _, t := range trades {
+		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.LessThan(decimal.NewFromInt(1)) {
+			t.ExactQuantity = decimal.NewFromInt(1)
+		}
+	}
 
 	return trades, nil
 }
@@ -241,7 +269,7 @@ func transitionToTarget(
 // the way this is set up, i think date would be like, the last
 // trading day? it definitely needs to be a day we have prices
 // for
-func (h investmentServiceHandler) generateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error) {
+func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error) {
 	assets, err := h.TickerRepository.List()
 	if err != nil {
 		return nil, err

@@ -2,6 +2,8 @@ package domain
 
 import (
 	"fmt"
+
+	"github.com/shopspring/decimal"
 )
 
 type Portfolio struct {
@@ -62,12 +64,15 @@ func (p Portfolio) AssetWeightsExcludingCash(priceMap map[string]float64) (map[s
 type Position struct {
 	Symbol   string
 	Quantity float64
+	// todo - migrate off quantity
+	ExactQuantity decimal.Decimal
 }
 
 func (p Position) DeepCopy() *Position {
 	return &Position{
-		Symbol:   p.Symbol,
-		Quantity: p.Quantity,
+		Symbol:        p.Symbol,
+		Quantity:      p.Quantity,
+		ExactQuantity: p.ExactQuantity,
 	}
 }
 
@@ -85,7 +90,7 @@ func PositionsFromQuantity(in map[string]float64) map[string]*Position {
 
 type ProposedTrade struct {
 	Symbol        string
-	Quantity      float64 // negative is valid and implies sell
+	ExactQuantity decimal.Decimal
 	ExpectedPrice float64
 }
 

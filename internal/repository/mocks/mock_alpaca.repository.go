@@ -10,6 +10,7 @@ import (
 
 	alpaca "github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	gomock "github.com/golang/mock/gomock"
+	uuid "github.com/google/uuid"
 )
 
 // MockAlpacaRepository is a mock of AlpacaRepository interface.
@@ -62,6 +63,21 @@ func (m *MockAlpacaRepository) GetAccount() (*alpaca.Account, error) {
 func (mr *MockAlpacaRepositoryMockRecorder) GetAccount() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAccount", reflect.TypeOf((*MockAlpacaRepository)(nil).GetAccount))
+}
+
+// GetOrder mocks base method.
+func (m *MockAlpacaRepository) GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrder", alpacaOrderID)
+	ret0, _ := ret[0].(*alpaca.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrder indicates an expected call of GetOrder.
+func (mr *MockAlpacaRepositoryMockRecorder) GetOrder(alpacaOrderID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrder", reflect.TypeOf((*MockAlpacaRepository)(nil).GetOrder), alpacaOrderID)
 }
 
 // GetPositions mocks base method.
