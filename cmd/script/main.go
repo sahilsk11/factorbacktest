@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/cmd"
 	"factorbacktest/internal"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/pkg/datajockey"
 	"fmt"
@@ -25,14 +27,23 @@ func New() (*sql.DB, error) {
 	}
 
 	return dbConn, nil
+
 }
 
 func main() {
-	// internal.IngestPrices()
-	// gpt()
-	// ingestUniverseFundamentals()
-	// ingestFundamentals("AAPL")
-	// updateUniversePrices()
+	handler, err := cmd.InitializeDependencies()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	profile, endProfile := domain.NewProfile()
+	defer endProfile()
+	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+
+	err = handler.RebalancerHandler.Rebalance(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func Ingest(tx *sql.Tx, symbol string) {

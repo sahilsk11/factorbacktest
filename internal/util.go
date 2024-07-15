@@ -27,9 +27,15 @@ func FloatPointer(f float64) *float64 {
 }
 
 type Secrets struct {
-	DataJockeyApiKey string    `json:"dataJockey"`
-	ChatGPTApiKey    string    `json:"gpt"`
-	Db               DbSecrets `json:"db"`
+	DataJockeyApiKey string        `json:"dataJockey"`
+	ChatGPTApiKey    string        `json:"gpt"`
+	Db               DbSecrets     `json:"db"`
+	Alpaca           AlpacaSecrets `json:"alpaca"`
+}
+
+type AlpacaSecrets struct {
+	ApiKey    string `json:"apiKey"`
+	ApiSecret string `json:"apiSecret"`
 }
 
 type DbSecrets struct {

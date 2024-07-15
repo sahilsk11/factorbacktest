@@ -15,7 +15,7 @@ import (
 
 type TradeOrderRepository interface {
 	Add(tx *sql.Tx, to model.TradeOrder) (*model.TradeOrder, error)
-	Update(tx *sql.Tx, to model.TradeOrder, columns postgres.ColumnList) (*model.TradeOrder, error)
+	Update(tx *sql.Tx, tradeOrderID uuid.UUID, to model.TradeOrder, columns postgres.ColumnList) (*model.TradeOrder, error)
 	Get(id uuid.UUID) (*model.TradeOrder, error)
 	List() ([]model.TradeOrder, error)
 }
@@ -45,11 +45,14 @@ func (h tradeOrderRepositoryHandler) Add(tx *sql.Tx, to model.TradeOrder) (*mode
 	return &out, nil
 }
 
-func (h tradeOrderRepositoryHandler) Update(tx *sql.Tx, to model.TradeOrder, columns postgres.ColumnList) (*model.TradeOrder, error) {
+func (h tradeOrderRepositoryHandler) Update(tx *sql.Tx, tradeOrderID uuid.UUID, to model.TradeOrder, columns postgres.ColumnList) (*model.TradeOrder, error) {
 	to.ModifiedAt = time.Now().UTC()
 	columns = append(columns, table.TradeOrder.ModifiedAt)
 	query := table.TradeOrder.
 		UPDATE(columns).
+		WHERE(
+			table.TradeOrder.TradeOrderID.EQ(postgres.UUID(tradeOrderID)),
+		).
 		MODEL(to).
 		RETURNING(table.TradeOrder.AllColumns)
 

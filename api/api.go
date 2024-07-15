@@ -41,6 +41,7 @@ type ApiHandler struct {
 	UserAccountRepository        repository.UserAccountRepository
 	SavedStrategyRepository      repository.SavedStrategyRepository
 	StrategyInvestmentRepository repository.StrategyInvestmentRepository
+	RebalancerHandler            app.RebalancerHandler
 }
 
 func int64Ptr(i int64) *int64 {

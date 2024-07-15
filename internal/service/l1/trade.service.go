@@ -76,6 +76,11 @@ func (h tradeServiceHandler) placeOrder(
 		return err
 	}
 
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
 	orderID, err := uuid.Parse(order.ID)
 	if err != nil {
 		return err
@@ -84,23 +89,22 @@ func (h tradeServiceHandler) placeOrder(
 	// todo - figure out alpaca to db status mapping
 	// todo - figure out what alpaca returns for qty/price
 
-	_, err = h.TradeOrderRepository.Update(tx, model.TradeOrder{
-		Status:         model.TradeOrderStatus_Pending,
-		ProviderID:     &orderID,
-		FilledQuantity: order.FilledQty,      // will probably be 0
-		FilledPrice:    order.FilledAvgPrice, // will probably be nil
-		FilledAt:       order.FilledAt,       // will probably be nil
-	}, postgres.ColumnList{
-		table.TradeOrder.Status,
-		table.TradeOrder.ProviderID,
-		table.TradeOrder.FilledQuantity,
-		table.TradeOrder.FilledPrice,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = tx.Commit()
+	// don't keep on the same tx because we don't want
+	// to roll back and lose the record if this fails
+	_, err = h.TradeOrderRepository.Update(nil,
+		insertedOrder.TradeOrderID,
+		model.TradeOrder{
+			Status:         model.TradeOrderStatus_Pending,
+			ProviderID:     &orderID,
+			FilledQuantity: order.FilledQty,      // will probably be 0
+			FilledPrice:    order.FilledAvgPrice, // will probably be nil
+			FilledAt:       order.FilledAt,       // will probably be nil
+		}, postgres.ColumnList{
+			table.TradeOrder.Status,
+			table.TradeOrder.ProviderID,
+			table.TradeOrder.FilledQuantity,
+			table.TradeOrder.FilledPrice,
+		})
 	if err != nil {
 		return err
 	}
@@ -128,7 +132,7 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 	}
 
 	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Buy, alpaca.Buy); err != nil {
-		return fmt.Errorf("failed to sell: %w", err)
+		return fmt.Errorf("failed to buy: %w", err)
 	}
 	return nil
 }
@@ -147,16 +151,18 @@ func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) error {
 		return err
 	}
 
-	_, err = h.TradeOrderRepository.Update(nil, model.TradeOrder{
-		Status:         model.TradeOrderStatus_Pending,
-		FilledQuantity: order.FilledQty,
-		FilledPrice:    order.FilledAvgPrice,
-		FilledAt:       order.FilledAt,
-	}, postgres.ColumnList{
-		table.TradeOrder.Status,
-		table.TradeOrder.FilledQuantity,
-		table.TradeOrder.FilledPrice,
-	})
+	_, err = h.TradeOrderRepository.Update(nil,
+		tradeOrderID,
+		model.TradeOrder{
+			Status:         model.TradeOrderStatus_Pending,
+			FilledQuantity: order.FilledQty,
+			FilledPrice:    order.FilledAvgPrice,
+			FilledAt:       order.FilledAt,
+		}, postgres.ColumnList{
+			table.TradeOrder.Status,
+			table.TradeOrder.FilledQuantity,
+			table.TradeOrder.FilledPrice,
+		})
 	if err != nil {
 		return err
 	}

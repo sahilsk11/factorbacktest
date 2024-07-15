@@ -24,7 +24,7 @@ type InvestmentService interface {
 	AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
 	// creates a set of trades that should be executed to rebalance all strategy investments
 	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
-	GenerateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error)
+	GenerateProposedTrades(ctx context.Context, date time.Time) ([]*domain.ProposedTrade, error)
 	AddStrategyTrades()
 }
 
@@ -227,6 +227,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 
 	// assumes every asset is rebalancing today, which is not true. can simplify for now
 	// but this should only pull the assets which need to rebalance today
+
 	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScoresOnDay(ctx, date, universe, savedStrategyDetails.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
@@ -241,7 +242,7 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 		TickerIDMap:      tickerIDMap,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute target portfolio: %w", err)
 	}
 
 	return computeTargetPortfolioResponse.TargetPortfolio, nil
@@ -258,7 +259,7 @@ func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Conte
 	for _, i := range investments {
 		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date, pm, tickerIDMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get target portfolio: %w", err)
+			return nil, fmt.Errorf("failed to get target portfolio for strategy investment %s: %w", i.StrategyInvestmentID.String(), err)
 		}
 		for symbol, position := range strategyPortfolio.Positions {
 			if _, ok := aggregatePortfolio.Positions[symbol]; !ok {
@@ -311,8 +312,8 @@ func transitionToTarget(
 	currentPortfolio domain.Portfolio,
 	targetPortfolio domain.Portfolio,
 	priceMap map[string]float64,
-) ([]domain.ProposedTrade, error) {
-	trades := []domain.ProposedTrade{}
+) ([]*domain.ProposedTrade, error) {
+	trades := []*domain.ProposedTrade{}
 	prevPositions := currentPortfolio.Positions
 	targetPositions := targetPortfolio.Positions
 
@@ -323,7 +324,7 @@ func transitionToTarget(
 			diff = position.ExactQuantity.Sub(prevPosition.ExactQuantity)
 		}
 		if diff.GreaterThan(decimal.Zero) {
-			trades = append(trades, domain.ProposedTrade{
+			trades = append(trades, &domain.ProposedTrade{
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
 				ExactQuantity: diff,
@@ -333,7 +334,7 @@ func transitionToTarget(
 	}
 	for symbol, position := range prevPositions {
 		if _, ok := targetPositions[symbol]; !ok {
-			trades = append(trades, domain.ProposedTrade{
+			trades = append(trades, &domain.ProposedTrade{
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
 				ExactQuantity: position.ExactQuantity.Neg(),
@@ -349,8 +350,8 @@ func transitionToTarget(
 	// TODO - i think we should use market value
 	// and figure out whether to round up or down
 	for _, t := range trades {
-		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.LessThan(decimal.NewFromInt(1)) {
-			t.ExactQuantity = decimal.NewFromInt(1)
+		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).LessThan(decimal.NewFromInt(1)) {
+			t.ExactQuantity = (decimal.NewFromInt(1).Div(decimal.NewFromFloat(t.ExpectedPrice)))
 		}
 	}
 
@@ -360,7 +361,7 @@ func transitionToTarget(
 // the way this is set up, i think date would be like, the last
 // trading day? it definitely needs to be a day we have prices
 // for
-func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error) {
+func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, date time.Time) ([]*domain.ProposedTrade, error) {
 	assets, err := h.TickerRepository.List()
 	if err != nil {
 		return nil, err
@@ -372,9 +373,31 @@ func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, da
 		tickerIDMap[s.Symbol] = s.TickerID
 	}
 
-	pm, err := h.PriceRepository.GetManyOnDay(symbols, date)
+	// figure out most recent trading day from date
+	// super wide window bc i haven't update prices on local
+	// in a long time lol
+	tradingDays, err := h.PriceRepository.ListTradingDays(
+		date.AddDate(0, -6, 0),
+		date,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get prices on day %v: %w", date, err)
+		return nil, fmt.Errorf("failed to get trading days")
+	}
+
+	if len(tradingDays) == 0 {
+		return nil, fmt.Errorf("failed to get trading days")
+	}
+	tradingDay := tradingDays[len(tradingDays)-1]
+	for i, td := range tradingDays[:len(tradingDays)-1] {
+		if tradingDays[i+1].After(date) {
+			tradingDay = td
+			break
+		}
+	}
+
+	pm, err := h.PriceRepository.GetManyOnDay(symbols, tradingDay)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get prices on day %v: %w", tradingDay, err)
 	}
 
 	// TODO - ensure both these functions have ticker IDs
@@ -383,7 +406,7 @@ func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, da
 	if err != nil {
 		return nil, err
 	}
-	targetPortfolio, err := h.getAggregrateTargetPortfolio(ctx, date, pm, tickerIDMap)
+	targetPortfolio, err := h.getAggregrateTargetPortfolio(ctx, tradingDay, pm, tickerIDMap)
 	if err != nil {
 		return nil, err
 	}
