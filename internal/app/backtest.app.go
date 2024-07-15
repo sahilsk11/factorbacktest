@@ -1,14 +1,14 @@
-package l3_service
+package app
 
 import (
 	"context"
 	"database/sql"
-	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l2_service "factorbacktest/internal/service/l2"
+	l3_service "factorbacktest/internal/service/l3"
 	"fmt"
 	"time"
 )
@@ -20,71 +20,6 @@ type BacktestHandler struct {
 	Db                      *sql.DB
 	PriceService            l1_service.PriceService
 	FactorExpressionService l2_service.FactorExpressionService
-}
-
-type ComputeTargetPortfolioInput struct {
-	PriceMap         map[string]float64
-	Date             time.Time
-	PortfolioValue   float64
-	FactorScores     map[string]*float64
-	TargetNumTickers int
-}
-
-type ComputeTargetPortfolioResponse struct {
-	TargetPortfolio *domain.Portfolio
-	AssetWeights    map[string]float64
-	FactorScores    map[string]float64
-}
-
-// Computes what the portfolio should hold on a given day, given the
-// strategy (equation and universe) and value of current holdings
-// TODO - find a better place for this function
-func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
-	if in.TargetNumTickers < 3 {
-		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
-	}
-
-	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
-		Date:                 in.Date,
-		FactorScoresBySymbol: in.FactorScores,
-		NumTickers:           in.TargetNumTickers,
-	}
-	newWeights, err := internal.CalculateTargetAssetWeights(computeTargetInput)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate target asset weights: %w", err)
-	}
-
-	// this is where the assumption that target portfolio will not hold
-	// cash comes from - the field is just not populated
-	targetPortfolio := &domain.Portfolio{
-		Positions: map[string]*domain.Position{},
-	}
-
-	// convert weights into quantities
-	for symbol, weight := range newWeights {
-		price, ok := in.PriceMap[symbol]
-		if !ok {
-			return nil, fmt.Errorf("priceMap does not have %s", symbol)
-		}
-		dollarsOfSymbol := in.PortfolioValue * weight
-		// TODO - verify that priceMap[symbol] exists
-		quantity := dollarsOfSymbol / price
-		targetPortfolio.Positions[symbol] = &domain.Position{
-			Symbol:   symbol,
-			Quantity: quantity,
-		}
-	}
-
-	selectedAssetFactorScores := map[string]float64{}
-	for _, asset := range targetPortfolio.Positions {
-		selectedAssetFactorScores[asset.Symbol] = *in.FactorScores[asset.Symbol]
-	}
-
-	return &ComputeTargetPortfolioResponse{
-		TargetPortfolio: targetPortfolio,
-		AssetWeights:    newWeights,
-		FactorScores:    selectedAssetFactorScores,
-	}, nil
 }
 
 type BacktestSample struct {
@@ -204,7 +139,8 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// scoringErrors := valuesFromDay.errors
 		// backtestErrors = append(backtestErrors, scoringErrors...)
 
-		computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+		// TODO - find a better place for this function to live
+		computeTargetPortfolioResponse, err := l3_service.ComputeTargetPortfolio(l3_service.ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
 			FactorScores:     valuesFromDay.SymbolScores,
@@ -277,7 +213,7 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
 	scoreResults := factorScoresOnLatestDay[*latestTradingDay]
-	computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+	computeTargetPortfolioResponse, err := l3_service.ComputeTargetPortfolio(l3_service.ComputeTargetPortfolioInput{
 		Date:             *latestTradingDay,
 		TargetNumTickers: in.NumTickers,
 		FactorScores:     scoreResults.SymbolScores,

@@ -3,6 +3,7 @@ package l3_service
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
@@ -14,9 +15,15 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// InvestmentService is responsible for the logic around creating
+// investments into strategies, and maintaing those investments stay
+// on trajectory. It maintains the concept of the aggregate investment
+// account and calculates how to dice it up among all investments
 type InvestmentService interface {
 	// ledgers a new request to invest in a strategy
 	AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
+	// creates a set of trades that should be executed to rebalance all strategy investments
+	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
 	GenerateProposedTrades(ctx context.Context, date time.Time) ([]domain.ProposedTrade, error)
 }
 
@@ -114,6 +121,71 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	}
 
 	return nil
+}
+
+type ComputeTargetPortfolioInput struct {
+	PriceMap         map[string]float64
+	Date             time.Time
+	PortfolioValue   float64
+	FactorScores     map[string]*float64
+	TargetNumTickers int
+}
+
+type ComputeTargetPortfolioResponse struct {
+	TargetPortfolio *domain.Portfolio
+	AssetWeights    map[string]float64
+	FactorScores    map[string]float64
+}
+
+// Computes what the portfolio should hold on a given day, given the
+// strategy (equation and universe) and value of current holdings
+// TODO - find a better place for this function
+func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
+	if in.TargetNumTickers < 3 {
+		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
+	}
+
+	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
+		Date:                 in.Date,
+		FactorScoresBySymbol: in.FactorScores,
+		NumTickers:           in.TargetNumTickers,
+	}
+	newWeights, err := internal.CalculateTargetAssetWeights(computeTargetInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate target asset weights: %w", err)
+	}
+
+	// this is where the assumption that target portfolio will not hold
+	// cash comes from - the field is just not populated
+	targetPortfolio := &domain.Portfolio{
+		Positions: map[string]*domain.Position{},
+	}
+
+	// convert weights into quantities
+	for symbol, weight := range newWeights {
+		price, ok := in.PriceMap[symbol]
+		if !ok {
+			return nil, fmt.Errorf("priceMap does not have %s", symbol)
+		}
+		dollarsOfSymbol := in.PortfolioValue * weight
+		// TODO - verify that priceMap[symbol] exists
+		quantity := dollarsOfSymbol / price
+		targetPortfolio.Positions[symbol] = &domain.Position{
+			Symbol:   symbol,
+			Quantity: quantity,
+		}
+	}
+
+	selectedAssetFactorScores := map[string]float64{}
+	for _, asset := range targetPortfolio.Positions {
+		selectedAssetFactorScores[asset.Symbol] = *in.FactorScores[asset.Symbol]
+	}
+
+	return &ComputeTargetPortfolioResponse{
+		TargetPortfolio: targetPortfolio,
+		AssetWeights:    newWeights,
+		FactorScores:    selectedAssetFactorScores,
+	}, nil
 }
 
 func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64) (*domain.Portfolio, error) {
