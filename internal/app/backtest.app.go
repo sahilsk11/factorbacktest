@@ -139,6 +139,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// scoringErrors := valuesFromDay.errors
 		// backtestErrors = append(backtestErrors, scoringErrors...)
 
+		// TODO - find a better place for this function to live
 		computeTargetPortfolioResponse, err := l3_service.ComputeTargetPortfolio(l3_service.ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
