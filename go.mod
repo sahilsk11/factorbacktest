@@ -7,10 +7,11 @@ require (
 	github.com/google/uuid v1.5.0
 	github.com/lib/pq v1.10.8
 	github.com/montanaflynn/stats v0.7.1
-	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/shopspring/decimal v1.3.1
 )
 
 require (
+	github.com/alpacahq/alpaca-trade-api-go/v3 v3.5.0
 	github.com/aws/aws-lambda-go v1.46.0
 	github.com/awslabs/aws-lambda-go-api-proxy v0.16.1
 	github.com/ayush6624/go-chatgpt v0.3.0
@@ -24,7 +25,6 @@ require (
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
-	github.com/alpacahq/alpaca-trade-api-go/v3 v3.5.0 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
