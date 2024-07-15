@@ -13,6 +13,7 @@ for file in files:
   for u in update_files:
     if u not in file:
       continue
+    print("rewriting", file)
     f = open(file)
     contents = f.read()
     f.close()
