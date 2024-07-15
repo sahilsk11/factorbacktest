@@ -22,6 +22,10 @@ func StringPointer(s string) *string {
 	return &s
 }
 
+func FloatPointer(f float64) *float64 {
+	return &f
+}
+
 type Secrets struct {
 	DataJockeyApiKey string    `json:"dataJockey"`
 	ChatGPTApiKey    string    `json:"gpt"`

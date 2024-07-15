@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 type priceCache map[string]map[time.Time]float64
@@ -84,7 +85,12 @@ func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 		),
 	)
 
-	_, err := query.Exec(tx)
+	var db qrm.Executable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
+	_, err := query.Exec(db)
 	if err != nil {
 		return fmt.Errorf("failed to add adjusted prices to db: %w", err)
 	}

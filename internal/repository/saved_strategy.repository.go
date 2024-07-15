@@ -17,7 +17,7 @@ type SavedStrategyRepository interface {
 	List(SavedStrategyListFilter) ([]model.SavedStrategy, error)
 	ListMatchingStrategies(m model.SavedStrategy) ([]model.SavedStrategy, error)
 	UpdateName(uuid.UUID, string) error
-	Add(m model.SavedStrategy) error
+	Add(m model.SavedStrategy) (*model.SavedStrategy, error)
 	SetBookmarked(savedStrategyID uuid.UUID, bookmarked bool) error
 	Get(uuid.UUID) (*model.SavedStrategy, error)
 }
@@ -59,17 +59,22 @@ func (h savedStrategyRepositoryHandler) UpdateName(id uuid.UUID, name string) er
 	return nil
 }
 
-func (h savedStrategyRepositoryHandler) Add(m model.SavedStrategy) error {
+func (h savedStrategyRepositoryHandler) Add(m model.SavedStrategy) (*model.SavedStrategy, error) {
 	m.CreatedAt = time.Now().UTC()
 	m.ModifiedAt = time.Now().UTC()
 
-	query := table.SavedStrategy.INSERT(table.SavedStrategy.MutableColumns).MODEL(m)
-	_, err := query.Exec(h.Db)
+	query := table.SavedStrategy.
+		INSERT(table.SavedStrategy.MutableColumns).
+		MODEL(m).
+		RETURNING(table.SavedStrategy.AllColumns)
+
+	out := model.SavedStrategy{}
+	err := query.Query(h.Db, &out)
 	if err != nil {
-		return fmt.Errorf("failed to insert saved strategy: %w", err)
+		return nil, fmt.Errorf("failed to insert saved strategy: %w", err)
 	}
 
-	return nil
+	return &out, nil
 }
 
 // ignores bookmarker col

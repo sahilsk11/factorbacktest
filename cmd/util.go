@@ -53,6 +53,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	savedStrategyRepository := repository.NewSavedStrategyRepository(dbConn)
 	strategyInvestmentRepository := repository.NewStrategyInvestmentRepository(dbConn)
 	holdingsRepository := repository.NewStrategyInvestmentHoldingsRepository(dbConn)
+	alpacaRepository := repository.NewAlpacaRepository("", "")
 
 	priceService := l1_service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
@@ -66,6 +67,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		savedStrategyRepository,
 		factorExpressionService,
 		tickerRepository,
+		alpacaRepository,
 	)
 
 	apiHandler := &api.ApiHandler{

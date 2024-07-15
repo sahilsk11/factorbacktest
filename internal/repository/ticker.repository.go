@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 type TickerRepository interface {
@@ -59,8 +60,13 @@ func (h tickerRepositoryHandler) GetOrCreate(tx *sql.Tx, t model.Ticker) (*model
 		),
 	).RETURNING(table.Ticker.AllColumns)
 
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
 	out := model.Ticker{}
-	err := query.Query(tx, &out)
+	err := query.Query(db, &out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert ticker: %w", err)
 	}

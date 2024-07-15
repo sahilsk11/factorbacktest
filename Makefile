@@ -1,6 +1,16 @@
 mocks:
+	# repositories
 	mockgen -source=internal/repository/adj_price.repository.go -destination=internal/repository/mocks/mock_adj_price.repository.go
 	mockgen -source=internal/repository/alpaca.repository.go -destination=internal/repository/mocks/mock_alpaca.repository.go
+	mockgen -source=internal/repository/strategy_investment.repository.go -destination=internal/repository/mocks/mock_strategy_investment.repository.go
+	mockgen -source=internal/repository/saved_strategy.repository.go -destination=internal/repository/mocks/mock_saved_strategy.repository.go
+	mockgen -source=internal/repository/strategy_investment_holdings.repository.go -destination=internal/repository/mocks/mock_strategy_investment_holdings.repository.go
+	mockgen -source=internal/repository/asset_universe.repository.go -destination=internal/repository/mocks/mock_asset_universe.repository.go
+	mockgen -source=internal/repository/ticker.repository.go -destination=internal/repository/mocks/mock_ticker.repository.go
+
+	# l2 services
+	mockgen -source=internal/service/l2/factor_expression.service.go -destination=internal/service/l2/mocks/mock_factor_expression.service.go
+
 
 migration:
 	migrate create -ext sql -dir migrations/ -seq $(name)
