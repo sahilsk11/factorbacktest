@@ -15,6 +15,7 @@ import (
 
 type TradeService interface {
 	Buy(input BuyInput) error
+	Sell(input SellInput) error
 	UpdateOrder(tradeOrderID uuid.UUID) error
 }
 
@@ -38,11 +39,13 @@ type BuyInput struct {
 	Reason          *string
 }
 
-func (h tradeServiceHandler) Buy(input BuyInput) error {
-	if input.AmountInDollars.LessThan(decimal.NewFromInt(1)) {
-		return fmt.Errorf("failed to submit buy order: amount must be >= 1. got %f", input.AmountInDollars.InexactFloat64())
-	}
-
+func (h tradeServiceHandler) placeOrder(
+	ticker model.Ticker,
+	notes *string,
+	amountInDollars decimal.Decimal,
+	dbSide model.TradeOrderSide,
+	alpacaSide alpaca.Side,
+) error {
 	tx, err := h.Db.Begin()
 	if err != nil {
 		return err
@@ -50,11 +53,11 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 	defer tx.Rollback()
 
 	insertedOrder, err := h.TradeOrderRepository.Add(tx, model.TradeOrder{
-		TickerID:                 input.Ticker.TickerID,
-		Side:                     model.TradeOrderSide_Buy,
-		RequestedAmountInDollars: input.AmountInDollars,
+		TickerID:                 ticker.TickerID,
+		Side:                     dbSide,
+		RequestedAmountInDollars: amountInDollars,
 		Status:                   model.TradeOrderStatus_Pending,
-		Notes:                    input.Reason,
+		Notes:                    notes,
 		FilledQuantity:           decimal.Zero,
 	})
 	if err != nil {
@@ -63,9 +66,9 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 
 	order, err := h.AlpacaRepository.PlaceOrder(repository.AlpacaPlaceOrderRequest{
 		TradeOrderID:    insertedOrder.TradeOrderID,
-		AmountInDollars: input.AmountInDollars,
-		Symbol:          input.Ticker.Symbol,
-		Side:            alpaca.Buy,
+		AmountInDollars: amountInDollars,
+		Symbol:          ticker.Symbol,
+		Side:            alpacaSide,
 	})
 	if err != nil {
 		return err
@@ -100,6 +103,30 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 		return err
 	}
 
+	return nil
+}
+
+type SellInput struct {
+	Ticker          model.Ticker
+	AmountInDollars decimal.Decimal
+	Reason          *string
+}
+
+func (h tradeServiceHandler) Sell(input SellInput) error {
+	if err := h.placeOrder(input.Ticker, input.Reason, input.AmountInDollars, model.TradeOrderSide_Sell, alpaca.Sell); err != nil {
+		return fmt.Errorf("failed to sell: %w", err)
+	}
+	return nil
+}
+
+func (h tradeServiceHandler) Buy(input BuyInput) error {
+	if input.AmountInDollars.LessThan(decimal.NewFromInt(1)) {
+		return fmt.Errorf("failed to submit buy order: amount must be >= 1. got %f", input.AmountInDollars.InexactFloat64())
+	}
+
+	if err := h.placeOrder(input.Ticker, input.Reason, input.AmountInDollars, model.TradeOrderSide_Buy, alpaca.Buy); err != nil {
+		return fmt.Errorf("failed to sell: %w", err)
+	}
 	return nil
 }
 
