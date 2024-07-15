@@ -16,8 +16,9 @@ create table trade_order(
   side trade_order_side not null,
   requested_amount_in_dollars decimal not null,
   status trade_order_status not null,
-  filled_quantity decimal,
+  filled_quantity decimal not null,
   filled_price decimal,
+  filled_at timestamp with time zone,
   created_at timestamp with time zone not null default now(),
   modified_at timestamp with time zone not null default now(),
   notes text

@@ -21,8 +21,9 @@ type TradeOrder struct {
 	Side                     TradeOrderSide
 	RequestedAmountInDollars decimal.Decimal
 	Status                   TradeOrderStatus
-	FilledQuantity           *decimal.Decimal
+	FilledQuantity           decimal.Decimal
 	FilledPrice              *decimal.Decimal
+	FilledAt                 *time.Time
 	CreatedAt                time.Time
 	ModifiedAt               time.Time
 	Notes                    *string

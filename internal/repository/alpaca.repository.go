@@ -15,6 +15,7 @@ type AlpacaRepository interface {
 	GetPositions() ([]alpaca.Position, error)
 	IsMarketOpen() (bool, error)
 	GetAccount() (*alpaca.Account, error)
+	GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error)
 }
 
 func NewAlpacaRepository(apiKey, apiSecret string) AlpacaRepository {
@@ -91,6 +92,10 @@ func (a AlpacaPlaceOrderRequest) isValid() error {
 		return fmt.Errorf("amount is <= 0, order of | %d %s %s | not sent\n", a.AmountInDollars, a.Side, a.Side)
 	}
 	return nil
+}
+
+func (h alpacaRepositoryHandler) GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error) {
+	return h.Client.GetOrder(alpacaOrderID.String())
 }
 
 func (h alpacaRepositoryHandler) PlaceOrder(req AlpacaPlaceOrderRequest) (*alpaca.Order, error) {

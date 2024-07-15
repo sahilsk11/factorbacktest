@@ -15,6 +15,7 @@ import (
 
 type TradeService interface {
 	Buy(input BuyInput) error
+	UpdateOrder(tradeOrderID uuid.UUID) error
 }
 
 type tradeServiceHandler struct {
@@ -54,6 +55,7 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 		RequestedAmountInDollars: input.AmountInDollars,
 		Status:                   model.TradeOrderStatus_Pending,
 		Notes:                    input.Reason,
+		FilledQuantity:           decimal.Zero,
 	})
 	if err != nil {
 		return err
@@ -74,11 +76,15 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 		return err
 	}
 
+	// todo - figure out alpaca to db status mapping
+	// todo - figure out what alpaca returns for qty/price
+
 	_, err = h.TradeOrderRepository.Update(tx, model.TradeOrder{
 		Status:         model.TradeOrderStatus_Pending,
 		ProviderID:     &orderID,
-		FilledQuantity: &order.FilledQty,
-		FilledPrice:    insertedOrder.FilledPrice,
+		FilledQuantity: order.FilledQty,      // will probably be 0
+		FilledPrice:    order.FilledAvgPrice, // will probably be nil
+		FilledAt:       order.FilledAt,       // will probably be nil
 	}, postgres.ColumnList{
 		table.TradeOrder.Status,
 		table.TradeOrder.ProviderID,
@@ -90,6 +96,37 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) error {
+	tradeOrder, err := h.TradeOrderRepository.Get(tradeOrderID)
+	if err != nil {
+		return err
+	}
+	if tradeOrder.ProviderID != nil {
+		return fmt.Errorf("failed to update order: %s has no provider id", tradeOrderID.String())
+	}
+
+	order, err := h.AlpacaRepository.GetOrder(*tradeOrder.ProviderID)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.TradeOrderRepository.Update(nil, model.TradeOrder{
+		Status:         model.TradeOrderStatus_Pending,
+		FilledQuantity: order.FilledQty,
+		FilledPrice:    order.FilledAvgPrice,
+		FilledAt:       order.FilledAt,
+	}, postgres.ColumnList{
+		table.TradeOrder.Status,
+		table.TradeOrder.FilledQuantity,
+		table.TradeOrder.FilledPrice,
+	})
 	if err != nil {
 		return err
 	}

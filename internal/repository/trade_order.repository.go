@@ -9,6 +9,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 )
 
@@ -45,15 +46,20 @@ func (h tradeOrderRepositoryHandler) Add(tx *sql.Tx, to model.TradeOrder) (*mode
 }
 
 func (h tradeOrderRepositoryHandler) Update(tx *sql.Tx, to model.TradeOrder, columns postgres.ColumnList) (*model.TradeOrder, error) {
-	to.CreatedAt = time.Now().UTC()
 	to.ModifiedAt = time.Now().UTC()
+	columns = append(columns, table.TradeOrder.ModifiedAt)
 	query := table.TradeOrder.
 		UPDATE(columns).
 		MODEL(to).
 		RETURNING(table.TradeOrder.AllColumns)
 
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
 	out := model.TradeOrder{}
-	err := query.Query(tx, &out)
+	err := query.Query(db, &out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update trade order: %w", err)
 	}
