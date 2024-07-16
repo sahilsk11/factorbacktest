@@ -52,13 +52,12 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	factorScoreRepository := repository.NewFactorScoreRepository(dbConn)
 	userAccountRepository := repository.NewUserAccountRepository(dbConn)
 	savedStrategyRepository := repository.NewSavedStrategyRepository(dbConn)
-	strategyInvestmentRepository := repository.NewStrategyInvestmentRepository(dbConn)
-	holdingsRepository := repository.NewStrategyInvestmentHoldingsRepository(dbConn)
+	strategyInvestmentRepository := repository.NewInvestmentRepository(dbConn)
+	holdingsRepository := repository.NewInvestmentHoldingsRepository(dbConn)
 	alpacaRepository := repository.NewAlpacaRepository(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret)
 	tradeOrderRepository := repository.NewTradeOrderRepository(dbConn)
 	rebalancerRunRepository := repository.NewRebalancerRunRepository(dbConn)
-	investmentRebalanceTradeRepository := repository.NewInvestmentRebalanceTradeRepository(dbConn)
-	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
+	investmentTradeRepository := repository.NewInvestmentTradeRepository(dbConn)
 
 	priceService := l1_service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
@@ -81,15 +80,14 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	)
 
 	rebalancerHandler := app.RebalancerHandler{
-		Db:                                dbConn,
-		InvestmentService:                 investmentService,
-		TradingService:                    tradingService,
-		RebalancerRunRepository:           rebalancerRunRepository,
-		PriceRepository:                   priceRepository,
-		TickerRepository:                  tickerRepository,
-		InvestmentRebalanceRepository:     investmentRebalanceRepository,
-		InvestmentRebalanceTrdeRepository: investmentRebalanceTradeRepository,
-		HoldingsRepository:                holdingsRepository,
+		Db:                        dbConn,
+		InvestmentService:         investmentService,
+		TradingService:            tradingService,
+		RebalancerRunRepository:   rebalancerRunRepository,
+		PriceRepository:           priceRepository,
+		TickerRepository:          tickerRepository,
+		InvestmentTradeRepository: investmentTradeRepository,
+		HoldingsRepository:        holdingsRepository,
 	}
 
 	apiHandler := &api.ApiHandler{
@@ -115,7 +113,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		AssetUniverseRepository:      assetUniverseRepository,
 		UserAccountRepository:        userAccountRepository,
 		SavedStrategyRepository:      savedStrategyRepository,
-		StrategyInvestmentRepository: strategyInvestmentRepository,
+		InvestmentRepository:         strategyInvestmentRepository,
 		InvestmentService:            investmentService,
 		RebalancerHandler:            rebalancerHandler,
 	}

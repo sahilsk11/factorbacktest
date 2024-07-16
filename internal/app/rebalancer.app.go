@@ -17,15 +17,14 @@ import (
 )
 
 type RebalancerHandler struct {
-	Db                                *sql.DB
-	InvestmentService                 l3_service.InvestmentService
-	TradingService                    l1_service.TradeService
-	RebalancerRunRepository           repository.RebalancerRunRepository
-	PriceRepository                   repository.AdjustedPriceRepository
-	TickerRepository                  repository.TickerRepository
-	InvestmentRebalanceRepository     repository.InvestmentRebalanceRepository
-	InvestmentRebalanceTrdeRepository repository.InvestmentRebalanceTradeRepository
-	HoldingsRepository                repository.StrategyInvestmentHoldingsRepository
+	Db                        *sql.DB
+	InvestmentService         l3_service.InvestmentService
+	TradingService            l1_service.TradeService
+	RebalancerRunRepository   repository.RebalancerRunRepository
+	PriceRepository           repository.AdjustedPriceRepository
+	TickerRepository          repository.TickerRepository
+	InvestmentTradeRepository repository.InvestmentTradeRepository
+	HoldingsRepository        repository.InvestmentHoldingsRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -103,17 +102,6 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		}
 
 		defer tx.Rollback()
-		investmentRebalance, err := h.InvestmentRebalanceRepository.Add(
-			tx,
-			model.InvestmentRebalance{
-				RebalancerRunID:      rebalancerRun.RebalancerRunID,
-				StrategyInvestmentID: investment.StrategyInvestmentID,
-				State:                model.RebalancerRunState_Pending,
-			},
-		)
-		if err != nil {
-			return err
-		}
 
 		portfolio, trades, err := h.InvestmentService.GenerateRebalanceResults(
 			ctx,
@@ -127,18 +115,20 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		}
 		allTrades = append(allTrades, trades...)
 
-		mappedPortfolios[investment.StrategyInvestmentID] = portfolio
+		mappedPortfolios[investment.InvestmentID] = portfolio
 
 		for _, t := range trades {
 			side := model.TradeOrderSide_Buy
 			if t.ExactQuantity.LessThan(decimal.Zero) {
 				side = model.TradeOrderSide_Sell
 			}
-			h.InvestmentRebalanceTrdeRepository.Add(tx, model.InvestmentRebalanceTrade{
-				InvestmentRebalanceID: investmentRebalance.InvestmentRebalanceID,
-				TickerID:              t.TickerID,
-				AmountInDollars:       t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
-				Side:                  side,
+			h.InvestmentTradeRepository.Add(tx, model.InvestmentTrade{
+				TickerID:        t.TickerID,
+				AmountInDollars: t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
+				Side:            side,
+				CreatedAt:       time.Time{},
+				InvestmentID:    investment.InvestmentID,
+				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		}
 		err = tx.Commit()
@@ -177,11 +167,11 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 
 	for strategyInvestmentID, portfolio := range mappedPortfolios {
 		for _, position := range portfolio.Positions {
-			_, err = h.HoldingsRepository.Add(nil, model.StrategyInvestmentHoldings{
-				StrategyInvestmentID: strategyInvestmentID,
-				Date:                 date,
-				Ticker:               position.TickerID,
-				Quantity:             position.ExactQuantity,
+			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
+				InvestmentID:    strategyInvestmentID,
+				Ticker:          position.TickerID,
+				Quantity:        position.ExactQuantity,
+				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 			if err != nil {
 				return err
@@ -194,11 +184,11 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		}
 
 		if portfolio.Cash > 0 {
-			_, err = h.HoldingsRepository.Add(nil, model.StrategyInvestmentHoldings{
-				StrategyInvestmentID: strategyInvestmentID,
-				Date:                 date,
-				Ticker:               cashTicker.TickerID,
-				Quantity:             decimal.NewFromFloat(portfolio.Cash),
+			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
+				InvestmentID:    strategyInvestmentID,
+				Ticker:          cashTicker.TickerID,
+				Quantity:        decimal.NewFromFloat(portfolio.Cash),
+				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 			if err != nil {
 				return err
