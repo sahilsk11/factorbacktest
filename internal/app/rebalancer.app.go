@@ -25,6 +25,7 @@ type RebalancerHandler struct {
 	TickerRepository                  repository.TickerRepository
 	InvestmentRebalanceRepository     repository.InvestmentRebalanceRepository
 	InvestmentRebalanceTrdeRepository repository.InvestmentRebalanceTradeRepository
+	HoldingsRepository                repository.StrategyInvestmentHoldingsRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -147,16 +148,12 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 
 	}
 
-	fmt.Println(len(allTrades))
-
 	proposedTrades := l3_service.AggregateAndFormatTrades(allTrades)
 
 	// TODO - verify proposed trades
 	// by checking mapped portfolios
 
-	fmt.Println("here")
 	internal.Pprint(proposedTrades)
-	fmt.Println("h3ere")
 
 	for _, t := range proposedTrades {
 		// TODO - optimize this amount math
@@ -175,6 +172,37 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		}
 		if err != nil {
 			return err
+		}
+	}
+
+	for strategyInvestmentID, portfolio := range mappedPortfolios {
+		for _, position := range portfolio.Positions {
+			_, err = h.HoldingsRepository.Add(nil, model.StrategyInvestmentHoldings{
+				StrategyInvestmentID: strategyInvestmentID,
+				Date:                 date,
+				Ticker:               position.TickerID,
+				Quantity:             position.ExactQuantity,
+			})
+			if err != nil {
+				return err
+			}
+
+		}
+		cashTicker, err := h.TickerRepository.GetCashTicker()
+		if err != nil {
+			return err
+		}
+
+		if portfolio.Cash > 0 {
+			_, err = h.HoldingsRepository.Add(nil, model.StrategyInvestmentHoldings{
+				StrategyInvestmentID: strategyInvestmentID,
+				Date:                 date,
+				Ticker:               cashTicker.TickerID,
+				Quantity:             decimal.NewFromFloat(portfolio.Cash),
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 

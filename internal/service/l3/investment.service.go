@@ -195,6 +195,9 @@ type ComputeTargetPortfolioResponse struct {
 // strategy (equation and universe) and value of current holdings
 // TODO - find a better place for this function
 func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
+	if in.PortfolioValue < 0.001 {
+		return nil, fmt.Errorf("cannot compute target portfolio with value %f", in.PortfolioValue)
+	}
 	if in.TargetNumTickers < 3 {
 		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
 	}
@@ -315,6 +318,9 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 		pm,
 		tickerIDMap,
 	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get target portfolio: %w", err)
+	}
 
 	proposedTrades, err := transitionToTarget(*currentHoldings, *targetPortfolio, pm)
 	if err != nil {
@@ -339,9 +345,7 @@ func transitionToTarget(
 		if ok {
 			diff = position.ExactQuantity.Sub(prevPosition.ExactQuantity)
 		}
-		fmt.Println(position.ExactQuantity, diff)
 		if diff.GreaterThan(decimal.Zero) {
-			fmt.Println("hfripe")
 			trades = append(trades, &domain.ProposedTrade{
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
