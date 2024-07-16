@@ -10,6 +10,8 @@ package model
 import (
 	"github.com/google/uuid"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 type InvestmentHoldings struct {
@@ -17,6 +19,6 @@ type InvestmentHoldings struct {
 	StrategyInvestmentID uuid.UUID
 	Date                 time.Time
 	Ticker               uuid.UUID
-	Quantity             float64
+	Quantity             decimal.Decimal
 	CreatedAt            time.Time
 }

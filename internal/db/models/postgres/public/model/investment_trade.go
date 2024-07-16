@@ -10,12 +10,14 @@ package model
 import (
 	"github.com/google/uuid"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 type InvestmentTrade struct {
 	InvestmentTradeID uuid.UUID `sql:"primary_key"`
 	TickerID          uuid.UUID
-	AmountInDollars   float64
+	AmountInDollars   decimal.Decimal
 	Side              TradeOrderSide
 	CreatedAt         time.Time
 	InvestmentID      uuid.UUID
