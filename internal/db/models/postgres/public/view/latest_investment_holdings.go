@@ -5,15 +5,15 @@
 // and will be lost if the code is regenerated
 //
 
-package table
+package view
 
 import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-var InvestmentHoldings = newInvestmentHoldingsTable("public", "investment_holdings", "")
+var LatestInvestmentHoldings = newLatestInvestmentHoldingsTable("public", "latest_investment_holdings", "")
 
-type investmentHoldingsTable struct {
+type latestInvestmentHoldingsTable struct {
 	postgres.Table
 
 	//Columns
@@ -28,30 +28,30 @@ type investmentHoldingsTable struct {
 	MutableColumns postgres.ColumnList
 }
 
-type InvestmentHoldingsTable struct {
-	investmentHoldingsTable
+type LatestInvestmentHoldingsTable struct {
+	latestInvestmentHoldingsTable
 
-	EXCLUDED investmentHoldingsTable
+	EXCLUDED latestInvestmentHoldingsTable
 }
 
-// AS creates new InvestmentHoldingsTable with assigned alias
-func (a InvestmentHoldingsTable) AS(alias string) *InvestmentHoldingsTable {
-	return newInvestmentHoldingsTable(a.SchemaName(), a.TableName(), alias)
+// AS creates new LatestInvestmentHoldingsTable with assigned alias
+func (a LatestInvestmentHoldingsTable) AS(alias string) *LatestInvestmentHoldingsTable {
+	return newLatestInvestmentHoldingsTable(a.SchemaName(), a.TableName(), alias)
 }
 
-// Schema creates new InvestmentHoldingsTable with assigned schema name
-func (a InvestmentHoldingsTable) FromSchema(schemaName string) *InvestmentHoldingsTable {
-	return newInvestmentHoldingsTable(schemaName, a.TableName(), a.Alias())
+// Schema creates new LatestInvestmentHoldingsTable with assigned schema name
+func (a LatestInvestmentHoldingsTable) FromSchema(schemaName string) *LatestInvestmentHoldingsTable {
+	return newLatestInvestmentHoldingsTable(schemaName, a.TableName(), a.Alias())
 }
 
-func newInvestmentHoldingsTable(schemaName, tableName, alias string) *InvestmentHoldingsTable {
-	return &InvestmentHoldingsTable{
-		investmentHoldingsTable: newInvestmentHoldingsTableImpl(schemaName, tableName, alias),
-		EXCLUDED:                newInvestmentHoldingsTableImpl("", "excluded", ""),
+func newLatestInvestmentHoldingsTable(schemaName, tableName, alias string) *LatestInvestmentHoldingsTable {
+	return &LatestInvestmentHoldingsTable{
+		latestInvestmentHoldingsTable: newLatestInvestmentHoldingsTableImpl(schemaName, tableName, alias),
+		EXCLUDED:                      newLatestInvestmentHoldingsTableImpl("", "excluded", ""),
 	}
 }
 
-func newInvestmentHoldingsTableImpl(schemaName, tableName, alias string) investmentHoldingsTable {
+func newLatestInvestmentHoldingsTableImpl(schemaName, tableName, alias string) latestInvestmentHoldingsTable {
 	var (
 		InvestmentHoldingsIDColumn = postgres.StringColumn("investment_holdings_id")
 		InvestmentIDColumn         = postgres.StringColumn("investment_id")
@@ -60,10 +60,10 @@ func newInvestmentHoldingsTableImpl(schemaName, tableName, alias string) investm
 		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
 		RebalancerRunIDColumn      = postgres.StringColumn("rebalancer_run_id")
 		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
-		mutableColumns             = postgres.ColumnList{InvestmentIDColumn, TickerColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		mutableColumns             = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
 	)
 
-	return investmentHoldingsTable{
+	return latestInvestmentHoldingsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns

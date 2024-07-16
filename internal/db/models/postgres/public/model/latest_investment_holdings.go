@@ -14,11 +14,11 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type InvestmentHoldings struct {
-	InvestmentHoldingsID uuid.UUID `sql:"primary_key"`
-	InvestmentID         uuid.UUID
-	Ticker               uuid.UUID
-	Quantity             decimal.Decimal
-	CreatedAt            time.Time
-	RebalancerRunID      uuid.UUID
+type LatestInvestmentHoldings struct {
+	InvestmentHoldingsID *uuid.UUID
+	InvestmentID         *uuid.UUID
+	Ticker               *uuid.UUID
+	Quantity             *decimal.Decimal
+	CreatedAt            *time.Time
+	RebalancerRunID      *uuid.UUID
 }
