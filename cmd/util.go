@@ -58,7 +58,6 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	tradeOrderRepository := repository.NewTradeOrderRepository(dbConn)
 	rebalancerRunRepository := repository.NewRebalancerRunRepository(dbConn)
 	investmentTradeRepository := repository.NewInvestmentTradeRepository(dbConn)
-	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
 
 	priceService := l1_service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
@@ -81,15 +80,14 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	)
 
 	rebalancerHandler := app.RebalancerHandler{
-		Db:                            dbConn,
-		InvestmentService:             investmentService,
-		TradingService:                tradingService,
-		RebalancerRunRepository:       rebalancerRunRepository,
-		PriceRepository:               priceRepository,
-		TickerRepository:              tickerRepository,
-		InvestmentRebalanceRepository: investmentRebalanceRepository,
-		InvestmentTradeRepository:     investmentTradeRepository,
-		HoldingsRepository:            holdingsRepository,
+		Db:                        dbConn,
+		InvestmentService:         investmentService,
+		TradingService:            tradingService,
+		RebalancerRunRepository:   rebalancerRunRepository,
+		PriceRepository:           priceRepository,
+		TickerRepository:          tickerRepository,
+		InvestmentTradeRepository: investmentTradeRepository,
+		HoldingsRepository:        holdingsRepository,
 	}
 
 	apiHandler := &api.ApiHandler{

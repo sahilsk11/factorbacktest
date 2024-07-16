@@ -17,15 +17,14 @@ import (
 )
 
 type RebalancerHandler struct {
-	Db                            *sql.DB
-	InvestmentService             l3_service.InvestmentService
-	TradingService                l1_service.TradeService
-	RebalancerRunRepository       repository.RebalancerRunRepository
-	PriceRepository               repository.AdjustedPriceRepository
-	TickerRepository              repository.TickerRepository
-	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
-	InvestmentTradeRepository     repository.InvestmentTradeRepository
-	HoldingsRepository            repository.StrategyInvestmentHoldingsRepository
+	Db                        *sql.DB
+	InvestmentService         l3_service.InvestmentService
+	TradingService            l1_service.TradeService
+	RebalancerRunRepository   repository.RebalancerRunRepository
+	PriceRepository           repository.AdjustedPriceRepository
+	TickerRepository          repository.TickerRepository
+	InvestmentTradeRepository repository.InvestmentTradeRepository
+	HoldingsRepository        repository.StrategyInvestmentHoldingsRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -103,17 +102,6 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		}
 
 		defer tx.Rollback()
-		investmentRebalance, err := h.InvestmentRebalanceRepository.Add(
-			tx,
-			model.InvestmentRebalance{
-				RebalancerRunID:      rebalancerRun.RebalancerRunID,
-				StrategyInvestmentID: investment.StrategyInvestmentID,
-				State:                model.RebalancerRunState_Pending,
-			},
-		)
-		if err != nil {
-			return err
-		}
 
 		portfolio, trades, err := h.InvestmentService.GenerateRebalanceResults(
 			ctx,
@@ -135,10 +123,12 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 				side = model.TradeOrderSide_Sell
 			}
 			h.InvestmentTradeRepository.Add(tx, model.InvestmentTrade{
-				InvestmentRebalanceID: investmentRebalance.InvestmentRebalanceID,
-				TickerID:              t.TickerID,
-				AmountInDollars:       t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
-				Side:                  side,
+				TickerID:        t.TickerID,
+				AmountInDollars: t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
+				Side:            side,
+				CreatedAt:       time.Time{},
+				InvestmentID:    investment.InvestmentID,
+				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		}
 		err = tx.Commit()
