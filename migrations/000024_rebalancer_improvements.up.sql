@@ -51,7 +51,7 @@ alter table
 add
   column rebalancer_run_id uuid not null references rebalancer_run(rebalancer_run_id);
 
-drop view latest_strategy_holdings;
+drop view latest_strategy_investment_holdings;
 
 alter table
   investment_holdings drop column date;
