@@ -14,70 +14,70 @@ import (
 	uuid "github.com/google/uuid"
 )
 
-// MockStrategyInvestmentRepository is a mock of StrategyInvestmentRepository interface.
-type MockStrategyInvestmentRepository struct {
+// MockInvestmentRepository is a mock of InvestmentRepository interface.
+type MockInvestmentRepository struct {
 	ctrl     *gomock.Controller
-	recorder *MockStrategyInvestmentRepositoryMockRecorder
+	recorder *MockInvestmentRepositoryMockRecorder
 }
 
-// MockStrategyInvestmentRepositoryMockRecorder is the mock recorder for MockStrategyInvestmentRepository.
-type MockStrategyInvestmentRepositoryMockRecorder struct {
-	mock *MockStrategyInvestmentRepository
+// MockInvestmentRepositoryMockRecorder is the mock recorder for MockInvestmentRepository.
+type MockInvestmentRepositoryMockRecorder struct {
+	mock *MockInvestmentRepository
 }
 
-// NewMockStrategyInvestmentRepository creates a new mock instance.
-func NewMockStrategyInvestmentRepository(ctrl *gomock.Controller) *MockStrategyInvestmentRepository {
-	mock := &MockStrategyInvestmentRepository{ctrl: ctrl}
-	mock.recorder = &MockStrategyInvestmentRepositoryMockRecorder{mock}
+// NewMockInvestmentRepository creates a new mock instance.
+func NewMockInvestmentRepository(ctrl *gomock.Controller) *MockInvestmentRepository {
+	mock := &MockInvestmentRepository{ctrl: ctrl}
+	mock.recorder = &MockInvestmentRepositoryMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockStrategyInvestmentRepository) EXPECT() *MockStrategyInvestmentRepositoryMockRecorder {
+func (m *MockInvestmentRepository) EXPECT() *MockInvestmentRepositoryMockRecorder {
 	return m.recorder
 }
 
 // Add mocks base method.
-func (m *MockStrategyInvestmentRepository) Add(tx *sql.Tx, si model.StrategyInvestment) (*model.StrategyInvestment, error) {
+func (m *MockInvestmentRepository) Add(tx *sql.Tx, si model.Investment) (*model.Investment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Add", tx, si)
-	ret0, _ := ret[0].(*model.StrategyInvestment)
+	ret0, _ := ret[0].(*model.Investment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockStrategyInvestmentRepositoryMockRecorder) Add(tx, si interface{}) *gomock.Call {
+func (mr *MockInvestmentRepositoryMockRecorder) Add(tx, si interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStrategyInvestmentRepository)(nil).Add), tx, si)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockInvestmentRepository)(nil).Add), tx, si)
 }
 
 // Get mocks base method.
-func (m *MockStrategyInvestmentRepository) Get(id uuid.UUID) (*model.StrategyInvestment, error) {
+func (m *MockInvestmentRepository) Get(id uuid.UUID) (*model.Investment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", id)
-	ret0, _ := ret[0].(*model.StrategyInvestment)
+	ret0, _ := ret[0].(*model.Investment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockStrategyInvestmentRepositoryMockRecorder) Get(id interface{}) *gomock.Call {
+func (mr *MockInvestmentRepositoryMockRecorder) Get(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockStrategyInvestmentRepository)(nil).Get), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockInvestmentRepository)(nil).Get), id)
 }
 
 // List mocks base method.
-func (m *MockStrategyInvestmentRepository) List(arg0 repository.StrategyInvestmentListFilter) ([]model.StrategyInvestment, error) {
+func (m *MockInvestmentRepository) List(arg0 repository.StrategyInvestmentListFilter) ([]model.Investment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", arg0)
-	ret0, _ := ret[0].([]model.StrategyInvestment)
+	ret0, _ := ret[0].([]model.Investment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockStrategyInvestmentRepositoryMockRecorder) List(arg0 interface{}) *gomock.Call {
+func (mr *MockInvestmentRepositoryMockRecorder) List(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockStrategyInvestmentRepository)(nil).List), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockInvestmentRepository)(nil).List), arg0)
 }

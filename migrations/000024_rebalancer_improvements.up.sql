@@ -56,44 +56,49 @@ drop view latest_strategy_holdings;
 alter table
   investment_holdings drop column date;
 
-CREATE VIEW latest_investment_holdings AS WITH latest_runs AS (
-  SELECT
-    ih.investment_id,
-    MAX(rr.date) AS latest_date
-  FROM
-    investment_holdings ih
-    JOIN rebalancer_run rr ON ih.rebalancer_run_id = rr.rebalancer_run_id
-  GROUP BY
-    ih.investment_id
+CREATE VIEW latest_investment_holdings AS
+WITH latest_runs AS (
+    SELECT
+        ih.investment_id,
+        MAX(rr.date) AS latest_date
+    FROM
+        investment_holdings ih
+    JOIN
+        rebalancer_run rr ON ih.rebalancer_run_id = rr.rebalancer_run_id
+    GROUP BY
+        ih.investment_id
 ),
 latest_holdings AS (
-  SELECT
-    ih.*
-  FROM
-    investment_holdings ih
-    JOIN rebalancer_run rr ON ih.rebalancer_run_id = rr.rebalancer_run_id
-    JOIN latest_runs lr ON ih.investment_id = lr.investment_id
-    AND rr.date = lr.latest_date
+    SELECT
+        ih.*
+    FROM
+        investment_holdings ih
+    JOIN
+        rebalancer_run rr ON ih.rebalancer_run_id = rr.rebalancer_run_id
+    JOIN
+        latest_runs lr ON ih.investment_id = lr.investment_id AND rr.date = lr.latest_date
 )
 SELECT
-  lh.investment_holdings_id,
-  lh.investment_id,
-  lh.ticker,
-  lh.quantity,
-  lh.created_at,
-  lh.rebalancer_run_id
+    lh.investment_holdings_id,
+    lh.investment_id,
+    lh.ticker,
+    t.symbol,
+    lh.quantity,
+    lh.created_at,
+    lh.rebalancer_run_id
 FROM
-  latest_holdings lh
-  JOIN (
+    latest_holdings lh
+JOIN
+    ticker t ON lh.ticker = t.ticker_id
+JOIN (
     SELECT
-      investment_id,
-      ticker,
-      MAX(created_at) AS max_created_at
+        investment_id,
+        ticker,
+        MAX(created_at) AS max_created_at
     FROM
-      latest_holdings
+        latest_holdings
     GROUP BY
-      investment_id,
-      ticker
-  ) max_dates ON lh.investment_id = max_dates.investment_id
-  AND lh.ticker = max_dates.ticker
-  AND lh.created_at = max_dates.max_created_at;
+        investment_id, ticker
+) max_dates ON lh.investment_id = max_dates.investment_id 
+           AND lh.ticker = max_dates.ticker 
+           AND lh.created_at = max_dates.max_created_at;

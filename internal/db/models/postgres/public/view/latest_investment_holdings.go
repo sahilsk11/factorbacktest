@@ -20,6 +20,7 @@ type latestInvestmentHoldingsTable struct {
 	InvestmentHoldingsID postgres.ColumnString
 	InvestmentID         postgres.ColumnString
 	Ticker               postgres.ColumnString
+	Symbol               postgres.ColumnString
 	Quantity             postgres.ColumnFloat
 	CreatedAt            postgres.ColumnTimestampz
 	RebalancerRunID      postgres.ColumnString
@@ -56,11 +57,12 @@ func newLatestInvestmentHoldingsTableImpl(schemaName, tableName, alias string) l
 		InvestmentHoldingsIDColumn = postgres.StringColumn("investment_holdings_id")
 		InvestmentIDColumn         = postgres.StringColumn("investment_id")
 		TickerColumn               = postgres.StringColumn("ticker")
+		SymbolColumn               = postgres.StringColumn("symbol")
 		QuantityColumn             = postgres.FloatColumn("quantity")
 		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
 		RebalancerRunIDColumn      = postgres.StringColumn("rebalancer_run_id")
-		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
-		mutableColumns             = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, SymbolColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		mutableColumns             = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, SymbolColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
 	)
 
 	return latestInvestmentHoldingsTable{
@@ -70,6 +72,7 @@ func newLatestInvestmentHoldingsTableImpl(schemaName, tableName, alias string) l
 		InvestmentHoldingsID: InvestmentHoldingsIDColumn,
 		InvestmentID:         InvestmentIDColumn,
 		Ticker:               TickerColumn,
+		Symbol:               SymbolColumn,
 		Quantity:             QuantityColumn,
 		CreatedAt:            CreatedAtColumn,
 		RebalancerRunID:      RebalancerRunIDColumn,

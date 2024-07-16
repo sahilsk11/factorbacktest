@@ -16,41 +16,37 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type StrategyInvestmentHoldingsRepository interface {
-	Add(tx *sql.Tx, sih model.StrategyInvestmentHoldings) (*model.StrategyInvestmentHoldings, error)
-	Get(id uuid.UUID) (*model.StrategyInvestmentHoldings, error)
-	List(HoldingsListFilter) ([]model.StrategyInvestmentHoldings, error)
-	GetLatestHoldings(savedStrategyID uuid.UUID) (*domain.Portfolio, error)
+type InvestmentHoldingsRepository interface {
+	Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error)
+	Get(id uuid.UUID) (*model.InvestmentHoldings, error)
+	List(HoldingsListFilter) ([]model.InvestmentHoldings, error)
+	GetLatestHoldings(investmentID uuid.UUID) (*domain.Portfolio, error)
 }
 
 type HoldingsListFilter struct {
-	StrategyID *uuid.UUID
 }
 
-type strategyInvestmentHoldingsRepositoryHandler struct {
+type investmentHoldingsRepositoryHandler struct {
 	Db *sql.DB
 }
 
-func NewStrategyInvestmentHoldingsRepository(db *sql.DB) StrategyInvestmentHoldingsRepository {
-	return strategyInvestmentHoldingsRepositoryHandler{Db: db}
+func NewInvestmentHoldingsRepository(db *sql.DB) InvestmentHoldingsRepository {
+	return investmentHoldingsRepositoryHandler{Db: db}
 }
 
-func (h strategyInvestmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.StrategyInvestmentHoldings) (*model.StrategyInvestmentHoldings, error) {
+func (h investmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error) {
 	sih.CreatedAt = time.Now().UTC()
 	if sih.Quantity.LessThanOrEqual(decimal.Zero) {
 		return nil, fmt.Errorf("failed to insert investment holding: quantity must be >= 0, got %s", sih.Quantity.String())
 	}
-	query := table.StrategyInvestmentHoldings.
+	query := table.InvestmentHoldings.
 		INSERT(
-			table.StrategyInvestmentHoldings.StrategyInvestmentID,
-			table.StrategyInvestmentHoldings.Date,
-			table.StrategyInvestmentHoldings.Ticker,
-			table.StrategyInvestmentHoldings.Quantity,
+			table.InvestmentHoldings.MutableColumns,
 		).
 		MODEL(sih).
-		RETURNING(table.StrategyInvestmentHoldings.AllColumns)
+		RETURNING(table.InvestmentHoldings.AllColumns)
 
-	out := model.StrategyInvestmentHoldings{}
+	out := model.InvestmentHoldings{}
 	var db qrm.Queryable = h.Db
 	if tx != nil {
 		db = tx
@@ -63,12 +59,12 @@ func (h strategyInvestmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.S
 	return &out, nil
 }
 
-func (h strategyInvestmentHoldingsRepositoryHandler) Get(id uuid.UUID) (*model.StrategyInvestmentHoldings, error) {
-	query := table.StrategyInvestmentHoldings.
-		SELECT(table.StrategyInvestmentHoldings.AllColumns).
-		WHERE(table.StrategyInvestmentHoldings.StrategyInvestmentHoldingsID.EQ(postgres.UUID(id)))
+func (h investmentHoldingsRepositoryHandler) Get(id uuid.UUID) (*model.InvestmentHoldings, error) {
+	query := table.InvestmentHoldings.
+		SELECT(table.InvestmentHoldings.AllColumns).
+		WHERE(table.InvestmentHoldings.InvestmentHoldingsID.EQ(postgres.UUID(id)))
 
-	result := model.StrategyInvestmentHoldings{}
+	result := model.InvestmentHoldings{}
 	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get strategy investment holding: %w", err)
@@ -78,18 +74,10 @@ func (h strategyInvestmentHoldingsRepositoryHandler) Get(id uuid.UUID) (*model.S
 }
 
 // kind useless bc this gets all holdings, for all time
-func (h strategyInvestmentHoldingsRepositoryHandler) List(listFilter HoldingsListFilter) ([]model.StrategyInvestmentHoldings, error) {
-	query := table.StrategyInvestmentHoldings.SELECT(table.StrategyInvestmentHoldings.AllColumns)
+func (h investmentHoldingsRepositoryHandler) List(listFilter HoldingsListFilter) ([]model.InvestmentHoldings, error) {
+	query := table.InvestmentHoldings.SELECT(table.InvestmentHoldings.AllColumns)
 
-	if listFilter.StrategyID != nil {
-		query = query.WHERE(
-			table.StrategyInvestmentHoldings.StrategyInvestmentID.EQ(
-				postgres.UUID(*listFilter.StrategyID),
-			),
-		)
-	}
-
-	result := []model.StrategyInvestmentHoldings{}
+	result := []model.InvestmentHoldings{}
 	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list strategy investment holdings: %w", err)
@@ -98,16 +86,16 @@ func (h strategyInvestmentHoldingsRepositoryHandler) List(listFilter HoldingsLis
 	return result, nil
 }
 
-func (h strategyInvestmentHoldingsRepositoryHandler) GetLatestHoldings(savedStrategyID uuid.UUID) (*domain.Portfolio, error) {
-	query := view.LatestStrategyInvestmentHoldings.
-		SELECT(view.LatestStrategyInvestmentHoldings.AllColumns).
+func (h investmentHoldingsRepositoryHandler) GetLatestHoldings(investmentID uuid.UUID) (*domain.Portfolio, error) {
+	query := view.LatestInvestmentHoldings.
+		SELECT(view.LatestInvestmentHoldings.AllColumns).
 		WHERE(
-			view.LatestStrategyInvestmentHoldings.StrategyInvestmentID.EQ(
-				postgres.UUID(savedStrategyID),
+			view.LatestInvestmentHoldings.InvestmentID.EQ(
+				postgres.UUID(investmentID),
 			),
 		)
 
-	result := []model.LatestStrategyInvestmentHoldings{}
+	result := []model.LatestInvestmentHoldings{}
 	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list strategy investment holdings: %w", err)
@@ -118,7 +106,7 @@ func (h strategyInvestmentHoldingsRepositoryHandler) GetLatestHoldings(savedStra
 	return portfolio, nil
 }
 
-func portfolioFromHoldings(holdings []model.LatestStrategyInvestmentHoldings) *domain.Portfolio {
+func portfolioFromHoldings(holdings []model.LatestInvestmentHoldings) *domain.Portfolio {
 	portfolio := domain.NewPortfolio()
 	for _, h := range holdings {
 		if *h.Symbol == ":CASH" {

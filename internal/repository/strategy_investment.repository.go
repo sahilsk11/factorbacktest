@@ -13,40 +13,40 @@ import (
 	"github.com/google/uuid"
 )
 
-type StrategyInvestmentRepository interface {
-	Add(tx *sql.Tx, si model.StrategyInvestment) (*model.StrategyInvestment, error)
-	Get(id uuid.UUID) (*model.StrategyInvestment, error)
-	List(StrategyInvestmentListFilter) ([]model.StrategyInvestment, error)
+type InvestmentRepository interface {
+	Add(tx *sql.Tx, si model.Investment) (*model.Investment, error)
+	Get(id uuid.UUID) (*model.Investment, error)
+	List(StrategyInvestmentListFilter) ([]model.Investment, error)
 }
 
-type strategyInvestmentRepositoryHandler struct {
+type investmentRepositoryHandler struct {
 	Db *sql.DB
 }
 
-func NewStrategyInvestmentRepository(db *sql.DB) StrategyInvestmentRepository {
-	return strategyInvestmentRepositoryHandler{Db: db}
+func NewInvestmentRepository(db *sql.DB) InvestmentRepository {
+	return investmentRepositoryHandler{Db: db}
 }
 
-func (h strategyInvestmentRepositoryHandler) Add(tx *sql.Tx, si model.StrategyInvestment) (*model.StrategyInvestment, error) {
+func (h investmentRepositoryHandler) Add(tx *sql.Tx, si model.Investment) (*model.Investment, error) {
 	si.CreatedAt = time.Now().UTC()
 	si.ModifiedAt = time.Now().UTC()
-	query := table.StrategyInvestment.
+	query := table.Investment.
 		INSERT(
-			table.StrategyInvestment.AmountDollars,
-			table.StrategyInvestment.StartDate,
-			table.StrategyInvestment.SavedStragyID,
-			table.StrategyInvestment.UserAccountID,
-			table.StrategyInvestment.CreatedAt,
-			table.StrategyInvestment.ModifiedAt,
+			table.Investment.AmountDollars,
+			table.Investment.StartDate,
+			table.Investment.SavedStragyID,
+			table.Investment.UserAccountID,
+			table.Investment.CreatedAt,
+			table.Investment.ModifiedAt,
 		).
 		MODEL(si).
-		RETURNING(table.StrategyInvestment.AllColumns)
+		RETURNING(table.Investment.AllColumns)
 
 	var db qrm.Queryable = h.Db
 	if tx != nil {
 		db = tx
 	}
-	out := model.StrategyInvestment{}
+	out := model.Investment{}
 	err := query.Query(db, &out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert strategy investment: %w", err)
@@ -55,12 +55,12 @@ func (h strategyInvestmentRepositoryHandler) Add(tx *sql.Tx, si model.StrategyIn
 	return &out, nil
 }
 
-func (h strategyInvestmentRepositoryHandler) Get(id uuid.UUID) (*model.StrategyInvestment, error) {
-	query := table.StrategyInvestment.
-		SELECT(table.StrategyInvestment.AllColumns).
-		WHERE(table.StrategyInvestment.StrategyInvestmentID.EQ(postgres.UUID(id)))
+func (h investmentRepositoryHandler) Get(id uuid.UUID) (*model.Investment, error) {
+	query := table.Investment.
+		SELECT(table.Investment.AllColumns).
+		WHERE(table.Investment.InvestmentID.EQ(postgres.UUID(id)))
 
-	result := model.StrategyInvestment{}
+	result := model.Investment{}
 	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get strategy investment: %w", err)
@@ -73,10 +73,10 @@ type StrategyInvestmentListFilter struct {
 	UserAccountIDs []uuid.UUID
 }
 
-func (h strategyInvestmentRepositoryHandler) List(filter StrategyInvestmentListFilter) ([]model.StrategyInvestment, error) {
-	query := table.StrategyInvestment.
-		SELECT(table.StrategyInvestment.AllColumns).
-		ORDER_BY(table.StrategyInvestment.CreatedAt.DESC())
+func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) ([]model.Investment, error) {
+	query := table.Investment.
+		SELECT(table.Investment.AllColumns).
+		ORDER_BY(table.Investment.CreatedAt.DESC())
 
 	if len(filter.UserAccountIDs) > 0 {
 		ids := []postgres.Expression{}
@@ -84,11 +84,11 @@ func (h strategyInvestmentRepositoryHandler) List(filter StrategyInvestmentListF
 			ids = append(ids, postgres.UUID(id))
 		}
 		query = query.WHERE(
-			table.StrategyInvestment.UserAccountID.IN(ids...),
+			table.Investment.UserAccountID.IN(ids...),
 		)
 	}
 
-	result := []model.StrategyInvestment{}
+	result := []model.Investment{}
 	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list strategy investments: %w", err)

@@ -20,14 +20,14 @@ import (
 // on trajectory. It maintains the concept of the aggregate investment
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
-	ListForRebalance() ([]model.StrategyInvestment, error)
+	ListForRebalance() ([]model.Investment, error)
 	// ledgers a new request to invest in a strategy
 	AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
 	// assumes investment should be rebalanced and determines
 	// holdings and necessary trades
 	GenerateRebalanceResults(
 		ctx context.Context,
-		strategyInvestment model.StrategyInvestment,
+		strategyInvestment model.Investment,
 		date time.Time,
 		pm map[string]float64, tickerIDMap map[string]uuid.UUID,
 	) (*domain.Portfolio, []*domain.ProposedTrade, error)
@@ -73,21 +73,21 @@ func AggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.Proposed
 }
 
 type investmentServiceHandler struct {
-	Db                           *sql.DB
-	StrategyInvestmentRepository repository.StrategyInvestmentRepository
-	HoldingsRepository           repository.StrategyInvestmentHoldingsRepository
-	PriceRepository              repository.AdjustedPriceRepository
-	UniverseRepository           repository.AssetUniverseRepository
-	SavedStrategyRepository      repository.SavedStrategyRepository
-	FactorExpressionService      l2_service.FactorExpressionService
-	TickerRepository             repository.TickerRepository
-	AlpacaRepository             repository.AlpacaRepository
+	Db                      *sql.DB
+	InvestmentRepository    repository.InvestmentRepository
+	HoldingsRepository      repository.InvestmentHoldingsRepository
+	PriceRepository         repository.AdjustedPriceRepository
+	UniverseRepository      repository.AssetUniverseRepository
+	SavedStrategyRepository repository.SavedStrategyRepository
+	FactorExpressionService l2_service.FactorExpressionService
+	TickerRepository        repository.TickerRepository
+	AlpacaRepository        repository.AlpacaRepository
 }
 
 func NewInvestmentService(
 	db *sql.DB,
-	strategyInvestmentRepository repository.StrategyInvestmentRepository,
-	holdingsRepository repository.StrategyInvestmentHoldingsRepository,
+	strategyInvestmentRepository repository.InvestmentRepository,
+	holdingsRepository repository.InvestmentHoldingsRepository,
 	priceRepository repository.AdjustedPriceRepository,
 	universeRepository repository.AssetUniverseRepository,
 	savedStrategyRepository repository.SavedStrategyRepository,
@@ -96,20 +96,20 @@ func NewInvestmentService(
 	alpacaRepository repository.AlpacaRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
-		Db:                           db,
-		StrategyInvestmentRepository: strategyInvestmentRepository,
-		HoldingsRepository:           holdingsRepository,
-		PriceRepository:              priceRepository,
-		UniverseRepository:           universeRepository,
-		SavedStrategyRepository:      savedStrategyRepository,
-		FactorExpressionService:      factorExpressionService,
-		TickerRepository:             tickerRepository,
-		AlpacaRepository:             alpacaRepository,
+		Db:                      db,
+		InvestmentRepository:    strategyInvestmentRepository,
+		HoldingsRepository:      holdingsRepository,
+		PriceRepository:         priceRepository,
+		UniverseRepository:      universeRepository,
+		SavedStrategyRepository: savedStrategyRepository,
+		FactorExpressionService: factorExpressionService,
+		TickerRepository:        tickerRepository,
+		AlpacaRepository:        alpacaRepository,
 	}
 }
 
-func (h investmentServiceHandler) ListForRebalance() ([]model.StrategyInvestment, error) {
-	investments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+func (h investmentServiceHandler) ListForRebalance() ([]model.Investment, error) {
+	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	date := time.Now().UTC()
 
 	// ensure we don't double record an entry
-	prevInvestments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{
+	prevInvestments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{
 		UserAccountIDs: []uuid.UUID{userAccountID},
 	})
 	if err != nil {
@@ -142,7 +142,7 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 		return fmt.Errorf("can only create 1 investment per minute")
 	}
 
-	newStrategyInvestment, err := h.StrategyInvestmentRepository.Add(tx, model.StrategyInvestment{
+	newStrategyInvestment, err := h.InvestmentRepository.Add(tx, model.Investment{
 		SavedStragyID: savedStrategyID,
 		UserAccountID: userAccountID,
 		AmountDollars: int32(amount),
@@ -158,11 +158,11 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	}
 
 	// create new holdings, with just cash
-	_, err = h.HoldingsRepository.Add(tx, model.StrategyInvestmentHoldings{
-		StrategyInvestmentID: newStrategyInvestment.StrategyInvestmentID,
-		Date:                 date,
-		Ticker:               cashTicker.TickerID,
-		Quantity:             decimal.NewFromInt(int64(amount)),
+	_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+		InvestmentID:    newStrategyInvestment.InvestmentID,
+		Ticker:          cashTicker.TickerID,
+		Quantity:        decimal.NewFromInt(int64(amount)),
+		RebalancerRunID: uuid.Nil, // todo - idk what to do here
 	})
 	if err != nil {
 		return err
@@ -255,7 +255,7 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 
 func (h investmentServiceHandler) getTargetPortfolio(
 	ctx context.Context,
-	strategyInvestment model.StrategyInvestment,
+	strategyInvestment model.Investment,
 	date time.Time,
 	portfolioValue decimal.Decimal,
 	pm map[string]float64,
@@ -292,15 +292,15 @@ func (h investmentServiceHandler) getTargetPortfolio(
 
 func (h investmentServiceHandler) GenerateRebalanceResults(
 	ctx context.Context,
-	strategyInvestment model.StrategyInvestment,
+	strategyInvestment model.Investment,
 	date time.Time,
 	pm map[string]float64, tickerIDMap map[string]uuid.UUID,
 ) (*domain.Portfolio, []*domain.ProposedTrade, error) {
 	// get current holdings to figure out what the
 	// total investment is worth
-	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(strategyInvestment.StrategyInvestmentID)
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(strategyInvestment.InvestmentID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get holdings from saved strategy %s: %w", strategyInvestment.StrategyInvestmentID.String(), err)
+		return nil, nil, fmt.Errorf("failed to get holdings from investment id %s: %w", strategyInvestment.InvestmentID.String(), err)
 	}
 
 	// we need to get this in decimal and potentially use a different

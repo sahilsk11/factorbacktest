@@ -40,7 +40,7 @@ type ApiHandler struct {
 	AssetUniverseRepository      repository.AssetUniverseRepository
 	UserAccountRepository        repository.UserAccountRepository
 	SavedStrategyRepository      repository.SavedStrategyRepository
-	StrategyInvestmentRepository repository.StrategyInvestmentRepository
+	InvestmentRepository         repository.InvestmentRepository
 	RebalancerHandler            app.RebalancerHandler
 }
 

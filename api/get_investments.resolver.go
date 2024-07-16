@@ -36,7 +36,7 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 		return
 	}
 
-	investments, err := m.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{
+	investments, err := m.InvestmentRepository.List(repository.StrategyInvestmentListFilter{
 		UserAccountIDs: []uuid.UUID{userAccountID},
 	})
 	if err != nil {
@@ -47,7 +47,7 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 	out := []GetInvestmentsResponse{}
 	for _, i := range investments {
 		out = append(out, GetInvestmentsResponse{
-			StrategyInvestmentID: i.StrategyInvestmentID,
+			StrategyInvestmentID: i.InvestmentID,
 			AmountDollars:        i.AmountDollars,
 			StartDate:            i.StartDate,
 			SavedStragyID:        i.SavedStragyID,

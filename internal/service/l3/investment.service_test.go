@@ -10,8 +10,8 @@ import (
 // 	ctrl := gomock.NewController(t)
 
 // 	savedStrategyRepository := mock_repository.NewMockSavedStrategyRepository(ctrl)
-// 	strategyInvestmentRepository := mock_repository.NewMockStrategyInvestmentRepository(ctrl)
-// 	holdingsRepository := mock_repository.NewMockStrategyInvestmentHoldingsRepository(ctrl)
+// 	strategyInvestmentRepository := mock_repository.NewMockInvestmentRepository(ctrl)
+// 	holdingsRepository := mock_repository.NewMockInvestmentHoldingsRepository(ctrl)
 // 	priceRepository := mock_repository.NewMockAdjustedPriceRepository(ctrl)
 // 	universeRepository := mock_repository.NewMockAssetUniverseRepository(ctrl)
 // 	tickerRepository := mock_repository.NewMockTickerRepository(ctrl)
@@ -21,7 +21,7 @@ import (
 // 	factorExpressionService := mock_l2_service.NewMockFactorExpressionService(ctrl)
 
 // 	handler := investmentServiceHandler{
-// 		StrategyInvestmentRepository: strategyInvestmentRepository,
+// 		InvestmentRepository: strategyInvestmentRepository,
 // 		HoldingsRepository:           holdingsRepository,
 // 		PriceRepository:              priceRepository,
 // 		UniverseRepository:           universeRepository,
@@ -64,7 +64,7 @@ import (
 // 			Get(savedStrategy.SavedStragyID).
 // 			Return(&savedStrategy, nil)
 
-// 		strategyInvestment := model.StrategyInvestment{
+// 		strategyInvestment := model.Investment{
 // 			StrategyInvestmentID: uuid.New(),
 // 			SavedStragyID:        savedStrategy.SavedStragyID,
 // 			AmountDollars:        100,
@@ -77,7 +77,7 @@ import (
 
 // 		strategyInvestmentRepository.EXPECT().
 // 			List(repository.StrategyInvestmentListFilter{}).
-// 			Return([]model.StrategyInvestment{
+// 			Return([]model.Investment{
 // 				strategyInvestment,
 // 			}, nil)
 

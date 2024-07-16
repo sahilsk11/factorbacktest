@@ -18,6 +18,7 @@ type LatestInvestmentHoldings struct {
 	InvestmentHoldingsID *uuid.UUID
 	InvestmentID         *uuid.UUID
 	Ticker               *uuid.UUID
+	Symbol               *string
 	Quantity             *decimal.Decimal
 	CreatedAt            *time.Time
 	RebalancerRunID      *uuid.UUID
