@@ -2,17 +2,30 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"factorbacktest/internal"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/domain"
+	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l3_service "factorbacktest/internal/service/l3"
+	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
 type RebalancerHandler struct {
-	InvestmentService l3_service.InvestmentService
-	TradingService    l1_service.TradeService
+	Db                                *sql.DB
+	InvestmentService                 l3_service.InvestmentService
+	TradingService                    l1_service.TradeService
+	RebalancerRunRepository           repository.RebalancerRunRepository
+	PriceRepository                   repository.AdjustedPriceRepository
+	TickerRepository                  repository.TickerRepository
+	InvestmentRebalanceRepository     repository.InvestmentRebalanceRepository
+	InvestmentRebalanceTrdeRepository repository.InvestmentRebalanceTradeRepository
+	HoldingsRepository                repository.StrategyInvestmentHoldingsRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -27,12 +40,118 @@ type RebalancerHandler struct {
 // TODO - add idempotency around runs and somehow invalidate any
 // old runs
 func (h RebalancerHandler) Rebalance(ctx context.Context) error {
+	// todo - use latest trading date or something idk
 	date := time.Now().UTC()
 
-	proposedTrades, err := h.InvestmentService.GenerateProposedTrades(ctx, date)
+	// figure out most recent trading day from date
+	// super wide window bc i haven't update prices on local
+	// in a long time lol
+	tradingDays, err := h.PriceRepository.ListTradingDays(
+		date.AddDate(0, -6, 0),
+		date,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get trading days")
+	}
+
+	if len(tradingDays) == 0 {
+		return fmt.Errorf("failed to get trading days")
+	}
+	tradingDay := tradingDays[len(tradingDays)-1]
+	for i, td := range tradingDays[:len(tradingDays)-1] {
+		if tradingDays[i+1].After(date) {
+			tradingDay = td
+			break
+		}
+	}
+
+	assets, err := h.TickerRepository.List()
 	if err != nil {
 		return err
 	}
+	symbols := []string{}
+	tickerIDMap := map[string]uuid.UUID{}
+	for _, s := range assets {
+		symbols = append(symbols, s.Symbol)
+		tickerIDMap[s.Symbol] = s.TickerID
+	}
+
+	pm, err := h.PriceRepository.GetManyOnDay(symbols, tradingDay)
+	if err != nil {
+		return fmt.Errorf("failed to get prices on day %v: %w", tradingDay, err)
+	}
+
+	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
+		Date: tradingDay,
+	})
+	if err != nil {
+		return err
+	}
+
+	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
+	investments, err := h.InvestmentService.ListForRebalance()
+	if err != nil {
+		return err
+	}
+
+	allTrades := []*domain.ProposedTrade{}
+	mappedPortfolios := map[uuid.UUID]*domain.Portfolio{}
+	for _, investment := range investments {
+		tx, err := h.Db.Begin()
+		if err != nil {
+			return err
+		}
+
+		defer tx.Rollback()
+		investmentRebalance, err := h.InvestmentRebalanceRepository.Add(
+			tx,
+			model.InvestmentRebalance{
+				RebalancerRunID:      rebalancerRun.RebalancerRunID,
+				StrategyInvestmentID: investment.StrategyInvestmentID,
+				State:                model.RebalancerRunState_Pending,
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		portfolio, trades, err := h.InvestmentService.GenerateRebalanceResults(
+			ctx,
+			investment,
+			rebalancerRun.Date,
+			pm,
+			tickerIDMap,
+		)
+		if err != nil {
+			return err
+		}
+		allTrades = append(allTrades, trades...)
+
+		mappedPortfolios[investment.StrategyInvestmentID] = portfolio
+
+		for _, t := range trades {
+			side := model.TradeOrderSide_Buy
+			if t.ExactQuantity.LessThan(decimal.Zero) {
+				side = model.TradeOrderSide_Sell
+			}
+			h.InvestmentRebalanceTrdeRepository.Add(tx, model.InvestmentRebalanceTrade{
+				InvestmentRebalanceID: investmentRebalance.InvestmentRebalanceID,
+				TickerID:              t.TickerID,
+				AmountInDollars:       t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
+				Side:                  side,
+			})
+		}
+		err = tx.Commit()
+		if err != nil {
+			return err
+		}
+
+	}
+
+	proposedTrades := l3_service.AggregateAndFormatTrades(allTrades)
+
+	// TODO - verify proposed trades
+	// by checking mapped portfolios
 
 	internal.Pprint(proposedTrades)
 
@@ -53,6 +172,37 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		}
 		if err != nil {
 			return err
+		}
+	}
+
+	for strategyInvestmentID, portfolio := range mappedPortfolios {
+		for _, position := range portfolio.Positions {
+			_, err = h.HoldingsRepository.Add(nil, model.StrategyInvestmentHoldings{
+				StrategyInvestmentID: strategyInvestmentID,
+				Date:                 date,
+				Ticker:               position.TickerID,
+				Quantity:             position.ExactQuantity,
+			})
+			if err != nil {
+				return err
+			}
+
+		}
+		cashTicker, err := h.TickerRepository.GetCashTicker()
+		if err != nil {
+			return err
+		}
+
+		if portfolio.Cash > 0 {
+			_, err = h.HoldingsRepository.Add(nil, model.StrategyInvestmentHoldings{
+				StrategyInvestmentID: strategyInvestmentID,
+				Date:                 date,
+				Ticker:               cashTicker.TickerID,
+				Quantity:             decimal.NewFromFloat(portfolio.Cash),
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 

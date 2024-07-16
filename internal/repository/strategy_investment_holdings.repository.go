@@ -13,6 +13,7 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type StrategyInvestmentHoldingsRepository interface {
@@ -36,6 +37,9 @@ func NewStrategyInvestmentHoldingsRepository(db *sql.DB) StrategyInvestmentHoldi
 
 func (h strategyInvestmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.StrategyInvestmentHoldings) (*model.StrategyInvestmentHoldings, error) {
 	sih.CreatedAt = time.Now().UTC()
+	if sih.Quantity.LessThanOrEqual(decimal.Zero) {
+		return nil, fmt.Errorf("failed to insert investment holding: quantity must be >= 0, got %s", sih.Quantity.String())
+	}
 	query := table.StrategyInvestmentHoldings.
 		INSERT(
 			table.StrategyInvestmentHoldings.StrategyInvestmentID,
