@@ -3,6 +3,7 @@ import os
 update_files = {
   "strategy_investment_holdings.go",
   "trade_order.go",
+  "investment_rebalance_trade.go",
 }
 
 os.chdir("./internal/db/models/postgres/public/model/")

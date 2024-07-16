@@ -20,12 +20,56 @@ import (
 // on trajectory. It maintains the concept of the aggregate investment
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
+	ListForRebalance() ([]model.StrategyInvestment, error)
 	// ledgers a new request to invest in a strategy
 	AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
-	// creates a set of trades that should be executed to rebalance all strategy investments
-	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
-	GenerateProposedTrades(ctx context.Context, date time.Time) ([]*domain.ProposedTrade, error)
-	AddStrategyTrades()
+	// assumes investment should be rebalanced and determines
+	// holdings and necessary trades
+	GenerateRebalanceResults(
+		ctx context.Context,
+		strategyInvestment model.StrategyInvestment,
+		date time.Time,
+		pm map[string]float64, tickerIDMap map[string]uuid.UUID,
+	) (*domain.Portfolio, []*domain.ProposedTrade, error)
+}
+
+func AggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.ProposedTrade {
+	// Map to hold aggregated trades by symbol
+	aggregatedTrades := make(map[string]*domain.ProposedTrade)
+
+	// Aggregate trades by symbol
+	for _, trade := range trades {
+		if existingTrade, exists := aggregatedTrades[trade.Symbol]; exists {
+			// Update the existing trade quantity
+			existingTrade.ExactQuantity = existingTrade.ExactQuantity.Add(trade.ExactQuantity)
+			aggregatedTrades[trade.Symbol] = existingTrade
+		} else {
+			// Add a new trade to the map
+			aggregatedTrades[trade.Symbol] = trade
+		}
+	}
+
+	// Create a slice to hold the formatted trades
+	var result []*domain.ProposedTrade
+	for _, trade := range aggregatedTrades {
+		if !trade.ExactQuantity.IsZero() {
+			result = append(result, trade)
+		}
+	}
+
+	// we could round all trades up to $1 but
+	// if they have tons of little trades, that
+	// could get expensive
+	// round all buy orders to $1
+	// TODO - i think we should use market value
+	// and figure out whether to round up or down
+	for _, t := range trades {
+		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).LessThan(decimal.NewFromInt(1)) {
+			t.ExactQuantity = (decimal.NewFromInt(1).Div(decimal.NewFromFloat(t.ExpectedPrice)))
+		}
+	}
+
+	return result
 }
 
 type investmentServiceHandler struct {
@@ -62,6 +106,14 @@ func NewInvestmentService(
 		TickerRepository:             tickerRepository,
 		AlpacaRepository:             alpacaRepository,
 	}
+}
+
+func (h investmentServiceHandler) ListForRebalance() ([]model.StrategyInvestment, error) {
+	investments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+	if err != nil {
+		return nil, err
+	}
+	return investments, nil
 }
 
 func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error {
@@ -197,47 +249,33 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 	}, nil
 }
 
-func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strategyInvestmentID uuid.UUID, date time.Time, pm map[string]float64, tickerIDMap map[string]uuid.UUID) (*domain.Portfolio, error) {
-	investmentDetails, err := h.StrategyInvestmentRepository.Get(strategyInvestmentID)
+func (h investmentServiceHandler) getTargetPortfolio(
+	ctx context.Context,
+	strategyInvestment model.StrategyInvestment,
+	date time.Time,
+	portfolioValue decimal.Decimal,
+	pm map[string]float64,
+	tickerIDMap map[string]uuid.UUID,
+) (*domain.Portfolio, error) {
+	// figure out what the strategy should hold if we rebalance
+	// now
+	savedStrategyDetails, err := h.SavedStrategyRepository.Get(strategyInvestment.SavedStragyID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get strategy investment with id %s: %w", strategyInvestmentID.String(), err)
+		return nil, fmt.Errorf("failed to get saved strategy with id %s: %w", strategyInvestment.SavedStragyID.String(), err)
 	}
-
-	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(strategyInvestmentID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get holdings from saved strategy %s: %w", strategyInvestmentID.String(), err)
-	}
-
-	// we need to get this in decimal and potentially use a different
-	// set of prices? should we use live pricing from Alpaca?
-	currentHoldingsValue, err := currentHoldings.TotalValue(pm)
-	if err != nil {
-		return nil, err
-	}
-
-	savedStrategyDetails, err := h.SavedStrategyRepository.Get(investmentDetails.SavedStragyID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get saved strategy with id %s: %w", investmentDetails.SavedStragyID.String(), err)
-	}
-
 	universe, err := h.UniverseRepository.GetAssets(savedStrategyDetails.AssetUniverse)
 	if err != nil {
 		return nil, err
 	}
-
-	// assumes every asset is rebalancing today, which is not true. can simplify for now
-	// but this should only pull the assets which need to rebalance today
-
 	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScoresOnDay(ctx, date, universe, savedStrategyDetails.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
-
 	computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 		Date:             date,
 		TargetNumTickers: int(savedStrategyDetails.NumAssets),
 		FactorScores:     factorScoresOnLatestDay.SymbolScores,
-		PortfolioValue:   currentHoldingsValue,
+		PortfolioValue:   portfolioValue.InexactFloat64(),
 		PriceMap:         pm,
 		TickerIDMap:      tickerIDMap,
 	})
@@ -248,64 +286,46 @@ func (h investmentServiceHandler) getTargetPortfolio(ctx context.Context, strate
 	return computeTargetPortfolioResponse.TargetPortfolio, nil
 }
 
-func (h investmentServiceHandler) getAggregrateTargetPortfolio(ctx context.Context, date time.Time, pm map[string]float64, tickerIDMap map[string]uuid.UUID) (*domain.Portfolio, error) {
-	// get all active investments
-	investments, err := h.StrategyInvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+func (h investmentServiceHandler) GenerateRebalanceResults(
+	ctx context.Context,
+	strategyInvestment model.StrategyInvestment,
+	date time.Time,
+	pm map[string]float64, tickerIDMap map[string]uuid.UUID,
+) (*domain.Portfolio, []*domain.ProposedTrade, error) {
+	// get current holdings to figure out what the
+	// total investment is worth
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(strategyInvestment.StrategyInvestmentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list strategy investments: %w", err)
+		return nil, nil, fmt.Errorf("failed to get holdings from saved strategy %s: %w", strategyInvestment.StrategyInvestmentID.String(), err)
 	}
-
-	aggregatePortfolio := domain.NewPortfolio()
-	for _, i := range investments {
-		strategyPortfolio, err := h.getTargetPortfolio(ctx, i.StrategyInvestmentID, date, pm, tickerIDMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get target portfolio for strategy investment %s: %w", i.StrategyInvestmentID.String(), err)
-		}
-		for symbol, position := range strategyPortfolio.Positions {
-			if _, ok := aggregatePortfolio.Positions[symbol]; !ok {
-				aggregatePortfolio.Positions[symbol] = &domain.Position{
-					Symbol:        symbol,
-					Quantity:      0,
-					ExactQuantity: decimal.Zero,
-					TickerID:      position.TickerID,
-				}
-			}
-			currentQuantity := aggregatePortfolio.Positions[symbol].ExactQuantity
-			newPositionQuantity := decimal.NewFromFloat(position.Quantity)
-			aggregatePortfolio.Positions[symbol].ExactQuantity = currentQuantity.Add(newPositionQuantity)
-		}
-
-		// definitely shouldn't be the case, but we don't
-		// do anything with cash, so we
-		// should check this for errors
-		if strategyPortfolio.Cash > 0 {
-			return nil, fmt.Errorf("portfolio %s generated %f cash", i.StrategyInvestmentID, strategyPortfolio.Cash)
-		}
-	}
-
-	return aggregatePortfolio, nil
-}
-
-func (h investmentServiceHandler) getCurrentAggregatePortfolio(tickerIDMap map[string]uuid.UUID) (*domain.Portfolio, error) {
-	positions, err := h.AlpacaRepository.GetPositions()
+	fmt.Println(currentHoldings.Positions)
+	fmt.Println(currentHoldings.Cash)
+	// we need to get this in decimal and potentially use a different
+	// set of prices? should we use live pricing from Alpaca?
+	currentHoldingsValue, err := currentHoldings.TotalValue(pm)
 	if err != nil {
-		return nil, err
-	}
-	portfolio := domain.NewPortfolio()
-	for _, p := range positions {
-		tickerID, ok := tickerIDMap[p.Symbol]
-		if !ok {
-			return nil, fmt.Errorf("missing ticker id for %s from ticker id map", p.Symbol)
-		}
-		portfolio.Positions[p.Symbol] = &domain.Position{
-			Symbol:        p.Symbol,
-			ExactQuantity: p.Qty,
-			Quantity:      p.AvgEntryPrice.InexactFloat64(),
-			TickerID:      tickerID,
-		}
+		return nil, nil, err
 	}
 
-	return portfolio, nil
+	fmt.Println("h", currentHoldingsValue)
+
+	targetPortfolio, err := h.getTargetPortfolio(
+		ctx,
+		strategyInvestment,
+		date,
+		decimal.NewFromFloat(currentHoldingsValue),
+		pm,
+		tickerIDMap,
+	)
+	fmt.Println(targetPortfolio.Positions)
+	proposedTrades, err := transitionToTarget(*currentHoldings, *targetPortfolio, pm)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fmt.Println("here", len(proposedTrades))
+
+	return targetPortfolio, proposedTrades, nil
 }
 
 func transitionToTarget(
@@ -343,83 +363,7 @@ func transitionToTarget(
 		}
 	}
 
-	// we could round all trades up to $1 but
-	// if they have tons of little trades, that
-	// could get expensive
-	// round all buy orders to $1
-	// TODO - i think we should use market value
-	// and figure out whether to round up or down
-	for _, t := range trades {
-		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).LessThan(decimal.NewFromInt(1)) {
-			t.ExactQuantity = (decimal.NewFromInt(1).Div(decimal.NewFromFloat(t.ExpectedPrice)))
-		}
-	}
+	fmt.Println("hereee", trades)
 
 	return trades, nil
 }
-
-// the way this is set up, i think date would be like, the last
-// trading day? it definitely needs to be a day we have prices
-// for
-func (h investmentServiceHandler) GenerateProposedTrades(ctx context.Context, date time.Time) ([]*domain.ProposedTrade, error) {
-	assets, err := h.TickerRepository.List()
-	if err != nil {
-		return nil, err
-	}
-	symbols := []string{}
-	tickerIDMap := map[string]uuid.UUID{}
-	for _, s := range assets {
-		symbols = append(symbols, s.Symbol)
-		tickerIDMap[s.Symbol] = s.TickerID
-	}
-
-	// figure out most recent trading day from date
-	// super wide window bc i haven't update prices on local
-	// in a long time lol
-	tradingDays, err := h.PriceRepository.ListTradingDays(
-		date.AddDate(0, -6, 0),
-		date,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get trading days")
-	}
-
-	if len(tradingDays) == 0 {
-		return nil, fmt.Errorf("failed to get trading days")
-	}
-	tradingDay := tradingDays[len(tradingDays)-1]
-	for i, td := range tradingDays[:len(tradingDays)-1] {
-		if tradingDays[i+1].After(date) {
-			tradingDay = td
-			break
-		}
-	}
-
-	pm, err := h.PriceRepository.GetManyOnDay(symbols, tradingDay)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get prices on day %v: %w", tradingDay, err)
-	}
-
-	// TODO - ensure both these functions have ticker IDs
-	// populated
-	currentPortfolio, err := h.getCurrentAggregatePortfolio(tickerIDMap)
-	if err != nil {
-		return nil, err
-	}
-	targetPortfolio, err := h.getAggregrateTargetPortfolio(ctx, tradingDay, pm, tickerIDMap)
-	if err != nil {
-		return nil, err
-	}
-	proposedTrades, err := transitionToTarget(*currentPortfolio, *targetPortfolio, pm)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO - verify that after all trades, the accounts
-	// line up with what they should be
-	// ensure we don't generate trades on cash
-
-	return proposedTrades, nil
-}
-
-func (h investmentServiceHandler) AddStrategyTrades() {}
