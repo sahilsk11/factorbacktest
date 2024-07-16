@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
@@ -12,15 +13,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type RebalancerHandler struct {
-	InvestmentService             l3_service.InvestmentService
-	TradingService                l1_service.TradeService
-	RebalancerRunRepository       repository.RebalancerRunRepository
-	PriceRepository               repository.AdjustedPriceRepository
-	TickerRepository              repository.TickerRepository
-	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
+	Db                                *sql.DB
+	InvestmentService                 l3_service.InvestmentService
+	TradingService                    l1_service.TradeService
+	RebalancerRunRepository           repository.RebalancerRunRepository
+	PriceRepository                   repository.AdjustedPriceRepository
+	TickerRepository                  repository.TickerRepository
+	InvestmentRebalanceRepository     repository.InvestmentRebalanceRepository
+	InvestmentRebalanceTrdeRepository repository.InvestmentRebalanceTradeRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -92,8 +96,14 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	allTrades := []*domain.ProposedTrade{}
 	mappedPortfolios := map[uuid.UUID]*domain.Portfolio{}
 	for _, investment := range investments {
-		_, err := h.InvestmentRebalanceRepository.Add(
-			nil,
+		tx, err := h.Db.Begin()
+		if err != nil {
+			return err
+		}
+
+		defer tx.Rollback()
+		investmentRebalance, err := h.InvestmentRebalanceRepository.Add(
+			tx,
 			model.InvestmentRebalance{
 				RebalancerRunID:      rebalancerRun.RebalancerRunID,
 				StrategyInvestmentID: investment.StrategyInvestmentID,
@@ -118,18 +128,23 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 
 		mappedPortfolios[investment.StrategyInvestmentID] = portfolio
 
-		// for _, t := range trades {
-		// 	side := model.TradeOrderSide_Buy
-		// 	if t.ExactQuantity.LessThan(decimal.Zero) {
-		// 		side = model.TradeOrderSide_Sell
-		// 	}
-		// 	model.InvestmentRebalanceTrade{
-		// 		InvestmentRebalanceID: investmentRebalance.InvestmentRebalanceID,
-		// 		TickerID:              t.TickerID,
-		// 		AmountInDollars:       t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
-		// 		Side:                  side,
-		// 	}
-		// }
+		for _, t := range trades {
+			side := model.TradeOrderSide_Buy
+			if t.ExactQuantity.LessThan(decimal.Zero) {
+				side = model.TradeOrderSide_Sell
+			}
+			h.InvestmentRebalanceTrdeRepository.Add(tx, model.InvestmentRebalanceTrade{
+				InvestmentRebalanceID: investmentRebalance.InvestmentRebalanceID,
+				TickerID:              t.TickerID,
+				AmountInDollars:       t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
+				Side:                  side,
+			})
+		}
+		err = tx.Commit()
+		if err != nil {
+			return err
+		}
+
 	}
 
 	fmt.Println(len(allTrades))
@@ -143,25 +158,25 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	internal.Pprint(proposedTrades)
 	fmt.Println("h3ere")
 
-	// for _, t := range proposedTrades {
-	// 	// TODO - optimize this amount math
-	// 	if t.ExactQuantity.GreaterThan(decimal.Zero) {
-	// 		err = h.TradingService.Buy(l1_service.BuyInput{
-	// 			TickerID:        t.TickerID,
-	// 			Symbol:          t.Symbol,
-	// 			AmountInDollars: t.ExactQuantity.Abs().Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
-	// 		})
-	// 	} else {
-	// 		err = h.TradingService.Sell(l1_service.SellInput{
-	// 			TickerID:        t.TickerID,
-	// 			Symbol:          t.Symbol,
-	// 			AmountInDollars: t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
-	// 		})
-	// 	}
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
+	for _, t := range proposedTrades {
+		// TODO - optimize this amount math
+		if t.ExactQuantity.GreaterThan(decimal.Zero) {
+			err = h.TradingService.Buy(l1_service.BuyInput{
+				TickerID:        t.TickerID,
+				Symbol:          t.Symbol,
+				AmountInDollars: t.ExactQuantity.Abs().Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
+			})
+		} else {
+			err = h.TradingService.Sell(l1_service.SellInput{
+				TickerID:        t.TickerID,
+				Symbol:          t.Symbol,
+				AmountInDollars: t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
+			})
+		}
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

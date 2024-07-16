@@ -231,9 +231,10 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 		}
 		quantity := dollarsOfSymbol / price
 		targetPortfolio.Positions[symbol] = &domain.Position{
-			Symbol:   symbol,
-			Quantity: quantity,
-			TickerID: tickerID, // TODO - find out how to get ticker here
+			Symbol:        symbol,
+			Quantity:      quantity,
+			ExactQuantity: decimal.NewFromFloat(quantity),
+			TickerID:      tickerID, // TODO - find out how to get ticker here
 		}
 	}
 
@@ -298,16 +299,13 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get holdings from saved strategy %s: %w", strategyInvestment.StrategyInvestmentID.String(), err)
 	}
-	fmt.Println(currentHoldings.Positions)
-	fmt.Println(currentHoldings.Cash)
+
 	// we need to get this in decimal and potentially use a different
 	// set of prices? should we use live pricing from Alpaca?
 	currentHoldingsValue, err := currentHoldings.TotalValue(pm)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	fmt.Println("h", currentHoldingsValue)
 
 	targetPortfolio, err := h.getTargetPortfolio(
 		ctx,
@@ -317,13 +315,11 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 		pm,
 		tickerIDMap,
 	)
-	fmt.Println(targetPortfolio.Positions)
+
 	proposedTrades, err := transitionToTarget(*currentHoldings, *targetPortfolio, pm)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	fmt.Println("here", len(proposedTrades))
 
 	return targetPortfolio, proposedTrades, nil
 }
@@ -343,7 +339,9 @@ func transitionToTarget(
 		if ok {
 			diff = position.ExactQuantity.Sub(prevPosition.ExactQuantity)
 		}
+		fmt.Println(position.ExactQuantity, diff)
 		if diff.GreaterThan(decimal.Zero) {
+			fmt.Println("hfripe")
 			trades = append(trades, &domain.ProposedTrade{
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
@@ -362,8 +360,6 @@ func transitionToTarget(
 			})
 		}
 	}
-
-	fmt.Println("hereee", trades)
 
 	return trades, nil
 }

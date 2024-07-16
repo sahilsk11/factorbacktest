@@ -57,7 +57,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	alpacaRepository := repository.NewAlpacaRepository(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret)
 	tradeOrderRepository := repository.NewTradeOrderRepository(dbConn)
 	rebalancerRunRepository := repository.NewRebalancerRunRepository(dbConn)
-	// investmentRebalanceTradeRepository := repository.NewInvestmentRebalanceTradeRepository(dbConn)
+	investmentRebalanceTradeRepository := repository.NewInvestmentRebalanceTradeRepository(dbConn)
 	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
 
 	priceService := l1_service.NewPriceService(dbConn, priceRepository)
@@ -81,12 +81,14 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	)
 
 	rebalancerHandler := app.RebalancerHandler{
-		InvestmentService:             investmentService,
-		TradingService:                tradingService,
-		RebalancerRunRepository:       rebalancerRunRepository,
-		PriceRepository:               priceRepository,
-		TickerRepository:              tickerRepository,
-		InvestmentRebalanceRepository: investmentRebalanceRepository,
+		Db:                                dbConn,
+		InvestmentService:                 investmentService,
+		TradingService:                    tradingService,
+		RebalancerRunRepository:           rebalancerRunRepository,
+		PriceRepository:                   priceRepository,
+		TickerRepository:                  tickerRepository,
+		InvestmentRebalanceRepository:     investmentRebalanceRepository,
+		InvestmentRebalanceTrdeRepository: investmentRebalanceTradeRepository,
 	}
 
 	apiHandler := &api.ApiHandler{
