@@ -17,15 +17,15 @@ import (
 )
 
 type RebalancerHandler struct {
-	Db                                *sql.DB
-	InvestmentService                 l3_service.InvestmentService
-	TradingService                    l1_service.TradeService
-	RebalancerRunRepository           repository.RebalancerRunRepository
-	PriceRepository                   repository.AdjustedPriceRepository
-	TickerRepository                  repository.TickerRepository
-	InvestmentRebalanceRepository     repository.InvestmentRebalanceRepository
-	InvestmentRebalanceTrdeRepository repository.InvestmentRebalanceTradeRepository
-	HoldingsRepository                repository.StrategyInvestmentHoldingsRepository
+	Db                            *sql.DB
+	InvestmentService             l3_service.InvestmentService
+	TradingService                l1_service.TradeService
+	RebalancerRunRepository       repository.RebalancerRunRepository
+	PriceRepository               repository.AdjustedPriceRepository
+	TickerRepository              repository.TickerRepository
+	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
+	InvestmentTradeRepository     repository.InvestmentTradeRepository
+	HoldingsRepository            repository.StrategyInvestmentHoldingsRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -134,7 +134,7 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 			if t.ExactQuantity.LessThan(decimal.Zero) {
 				side = model.TradeOrderSide_Sell
 			}
-			h.InvestmentRebalanceTrdeRepository.Add(tx, model.InvestmentRebalanceTrade{
+			h.InvestmentTradeRepository.Add(tx, model.InvestmentTrade{
 				InvestmentRebalanceID: investmentRebalance.InvestmentRebalanceID,
 				TickerID:              t.TickerID,
 				AmountInDollars:       t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
