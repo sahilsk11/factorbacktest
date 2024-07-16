@@ -29,6 +29,7 @@ type tradeOrderTable struct {
 	CreatedAt                postgres.ColumnTimestampz
 	ModifiedAt               postgres.ColumnTimestampz
 	Notes                    postgres.ColumnString
+	RebalancerRunID          postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -71,8 +72,9 @@ func newTradeOrderTableImpl(schemaName, tableName, alias string) tradeOrderTable
 		CreatedAtColumn                = postgres.TimestampzColumn("created_at")
 		ModifiedAtColumn               = postgres.TimestampzColumn("modified_at")
 		NotesColumn                    = postgres.StringColumn("notes")
-		allColumns                     = postgres.ColumnList{TradeOrderIDColumn, ProviderIDColumn, TickerIDColumn, SideColumn, RequestedAmountInDollarsColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, FilledAtColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn}
-		mutableColumns                 = postgres.ColumnList{ProviderIDColumn, TickerIDColumn, SideColumn, RequestedAmountInDollarsColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, FilledAtColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn}
+		RebalancerRunIDColumn          = postgres.StringColumn("rebalancer_run_id")
+		allColumns                     = postgres.ColumnList{TradeOrderIDColumn, ProviderIDColumn, TickerIDColumn, SideColumn, RequestedAmountInDollarsColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, FilledAtColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn, RebalancerRunIDColumn}
+		mutableColumns                 = postgres.ColumnList{ProviderIDColumn, TickerIDColumn, SideColumn, RequestedAmountInDollarsColumn, StatusColumn, FilledQuantityColumn, FilledPriceColumn, FilledAtColumn, CreatedAtColumn, ModifiedAtColumn, NotesColumn, RebalancerRunIDColumn}
 	)
 
 	return tradeOrderTable{
@@ -91,6 +93,7 @@ func newTradeOrderTableImpl(schemaName, tableName, alias string) tradeOrderTable
 		CreatedAt:                CreatedAtColumn,
 		ModifiedAt:               ModifiedAtColumn,
 		Notes:                    NotesColumn,
+		RebalancerRunID:          RebalancerRunIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

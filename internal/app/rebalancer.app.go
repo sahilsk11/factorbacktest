@@ -152,12 +152,14 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 				TickerID:        t.TickerID,
 				Symbol:          t.Symbol,
 				AmountInDollars: t.ExactQuantity.Abs().Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
+				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		} else {
 			err = h.TradingService.Sell(l1_service.SellInput{
 				TickerID:        t.TickerID,
 				Symbol:          t.Symbol,
 				AmountInDollars: t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
+				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		}
 		if err != nil {

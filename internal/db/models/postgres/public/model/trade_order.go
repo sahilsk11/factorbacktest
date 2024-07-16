@@ -27,4 +27,5 @@ type TradeOrder struct {
 	CreatedAt                time.Time
 	ModifiedAt               time.Time
 	Notes                    *string
+	RebalancerRunID          uuid.UUID
 }

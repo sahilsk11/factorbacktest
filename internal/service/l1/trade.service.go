@@ -37,6 +37,7 @@ type BuyInput struct {
 	TickerID        uuid.UUID
 	Symbol          string
 	AmountInDollars decimal.Decimal
+	RebalancerRunID uuid.UUID
 	Reason          *string
 }
 
@@ -47,6 +48,7 @@ func (h tradeServiceHandler) placeOrder(
 	amountInDollars decimal.Decimal,
 	dbSide model.TradeOrderSide,
 	alpacaSide alpaca.Side,
+	rebalancerRunID uuid.UUID,
 ) error {
 	tx, err := h.Db.Begin()
 	if err != nil {
@@ -61,6 +63,7 @@ func (h tradeServiceHandler) placeOrder(
 		Status:                   model.TradeOrderStatus_Pending,
 		Notes:                    notes,
 		FilledQuantity:           decimal.Zero,
+		RebalancerRunID:          rebalancerRunID,
 	})
 	if err != nil {
 		return err
@@ -116,11 +119,12 @@ type SellInput struct {
 	TickerID        uuid.UUID
 	Symbol          string
 	AmountInDollars decimal.Decimal
+	RebalancerRunID uuid.UUID
 	Reason          *string
 }
 
 func (h tradeServiceHandler) Sell(input SellInput) error {
-	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Sell, alpaca.Sell); err != nil {
+	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Sell, alpaca.Sell, input.RebalancerRunID); err != nil {
 		return fmt.Errorf("failed to sell: %w", err)
 	}
 	return nil
@@ -131,7 +135,7 @@ func (h tradeServiceHandler) Buy(input BuyInput) error {
 		return fmt.Errorf("failed to submit buy order: amount must be >= 1. got %f", input.AmountInDollars.InexactFloat64())
 	}
 
-	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Buy, alpaca.Buy); err != nil {
+	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Buy, alpaca.Buy, input.RebalancerRunID); err != nil {
 		return fmt.Errorf("failed to buy: %w", err)
 	}
 	return nil
