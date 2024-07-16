@@ -82,6 +82,7 @@ type investmentServiceHandler struct {
 	FactorExpressionService l2_service.FactorExpressionService
 	TickerRepository        repository.TickerRepository
 	AlpacaRepository        repository.AlpacaRepository
+	RebalancerRunRepository repository.RebalancerRunRepository
 }
 
 func NewInvestmentService(
@@ -94,6 +95,7 @@ func NewInvestmentService(
 	factorExpressionService l2_service.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
 	alpacaRepository repository.AlpacaRepository,
+	rebalancerRunRepository repository.RebalancerRunRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                      db,
@@ -105,6 +107,7 @@ func NewInvestmentService(
 		FactorExpressionService: factorExpressionService,
 		TickerRepository:        tickerRepository,
 		AlpacaRepository:        alpacaRepository,
+		RebalancerRunRepository: rebalancerRunRepository,
 	}
 }
 
@@ -157,12 +160,21 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 		return err
 	}
 
+	// this is super weird but just call this a rebalance lol
+	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
+		Date:              date,
+		RebalancerRunType: model.RebalancerRunType_Deposit,
+	})
+	if err != nil {
+		return err
+	}
+
 	// create new holdings, with just cash
 	_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
 		InvestmentID:    newStrategyInvestment.InvestmentID,
 		Ticker:          cashTicker.TickerID,
 		Quantity:        decimal.NewFromInt(int64(amount)),
-		RebalancerRunID: uuid.Nil, // todo - idk what to do here
+		RebalancerRunID: rebalancerRun.RebalancerRunID,
 	})
 	if err != nil {
 		return err

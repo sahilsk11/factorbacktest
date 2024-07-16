@@ -17,9 +17,10 @@ type rebalancerRunTable struct {
 	postgres.Table
 
 	//Columns
-	RebalancerRunID postgres.ColumnString
-	Date            postgres.ColumnDate
-	CreatedAt       postgres.ColumnTimestampz
+	RebalancerRunID   postgres.ColumnString
+	Date              postgres.ColumnDate
+	CreatedAt         postgres.ColumnTimestampz
+	RebalancerRunType postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -50,20 +51,22 @@ func newRebalancerRunTable(schemaName, tableName, alias string) *RebalancerRunTa
 
 func newRebalancerRunTableImpl(schemaName, tableName, alias string) rebalancerRunTable {
 	var (
-		RebalancerRunIDColumn = postgres.StringColumn("rebalancer_run_id")
-		DateColumn            = postgres.DateColumn("date")
-		CreatedAtColumn       = postgres.TimestampzColumn("created_at")
-		allColumns            = postgres.ColumnList{RebalancerRunIDColumn, DateColumn, CreatedAtColumn}
-		mutableColumns        = postgres.ColumnList{DateColumn, CreatedAtColumn}
+		RebalancerRunIDColumn   = postgres.StringColumn("rebalancer_run_id")
+		DateColumn              = postgres.DateColumn("date")
+		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
+		RebalancerRunTypeColumn = postgres.StringColumn("rebalancer_run_type")
+		allColumns              = postgres.ColumnList{RebalancerRunIDColumn, DateColumn, CreatedAtColumn, RebalancerRunTypeColumn}
+		mutableColumns          = postgres.ColumnList{DateColumn, CreatedAtColumn, RebalancerRunTypeColumn}
 	)
 
 	return rebalancerRunTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		RebalancerRunID: RebalancerRunIDColumn,
-		Date:            DateColumn,
-		CreatedAt:       CreatedAtColumn,
+		RebalancerRunID:   RebalancerRunIDColumn,
+		Date:              DateColumn,
+		CreatedAt:         CreatedAtColumn,
+		RebalancerRunType: RebalancerRunTypeColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
