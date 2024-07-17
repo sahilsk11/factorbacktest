@@ -248,7 +248,7 @@ func Test_backtestFlow(t *testing.T) {
 		cmp.Diff(
 			app.BacktestSnapshot{
 				ValuePercentChange: 33.6989043,
-				Value:              13369.89043,
+				Value:              13369.88700,
 				Date:               "2020-12-29",
 				AssetMetrics: map[string]app.SnapshotAssetMetrics{
 					"AAPL": {
