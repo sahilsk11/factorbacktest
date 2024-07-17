@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,9 +35,9 @@ func seedPrices(tx *sql.Tx) error {
 	defer f.Close()
 
 	type Row struct {
-		Date   string  `csv:"date"`
-		Symbol string  `csv:"symbol"`
-		Price  float64 `csv:"price"`
+		Date   string          `csv:"date"`
+		Symbol string          `csv:"symbol"`
+		Price  decimal.Decimal `csv:"price"`
 	}
 	rows := []Row{}
 	gocsv.UnmarshalFile(f, &rows)

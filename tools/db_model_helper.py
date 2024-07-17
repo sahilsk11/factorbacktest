@@ -4,6 +4,7 @@ update_files = {
   "investment_holdings.go",
   "trade_order.go",
   "investment_trade.go",
+  "adjusted_price.go"
 }
 
 os.chdir("./internal/db/models/postgres/public/model/")

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 type BenchmarkHandler struct {
@@ -58,7 +60,7 @@ func intraPeriodChangeIterator(
 			nextTarget = nextTarget.Add(24 * time.Hour)
 		}
 		if prices[i].Date.Format(layout) == nextTarget.Format(layout) {
-			out[nextTarget] = 100 * (prices[i].Price - prices[0].Price) / prices[0].Price
+			out[nextTarget] = decimal.NewFromInt(100).Mul((prices[i].Price.Sub(prices[0].Price))).Div(prices[0].Price).InexactFloat64()
 			nextTarget = nextTarget.Add(granularity)
 		}
 		i++

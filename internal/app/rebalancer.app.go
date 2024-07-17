@@ -186,11 +186,11 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 			return err
 		}
 
-		if portfolio.Cash > 0 {
+		if portfolio.Cash.GreaterThan(decimal.Zero) {
 			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
 				InvestmentID:    strategyInvestmentID,
 				TickerID:        cashTicker.TickerID,
-				Quantity:        decimal.NewFromFloat(portfolio.Cash),
+				Quantity:        portfolio.Cash,
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 			if err != nil {

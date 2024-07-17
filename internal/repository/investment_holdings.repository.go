@@ -110,7 +110,7 @@ func portfolioFromHoldings(holdings []model.LatestInvestmentHoldings) *domain.Po
 	portfolio := domain.NewPortfolio()
 	for _, h := range holdings {
 		if *h.Symbol == ":CASH" {
-			portfolio.Cash = h.Quantity.InexactFloat64()
+			portfolio.Cash = *h.Quantity
 			continue
 		}
 		portfolio.Positions[*h.Symbol] = &domain.Position{

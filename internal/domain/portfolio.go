@@ -9,13 +9,13 @@ import (
 
 type Portfolio struct {
 	Positions map[string]*Position
-	Cash      float64
+	Cash      decimal.Decimal
 }
 
 func NewPortfolio() *Portfolio {
 	return &Portfolio{
 		Positions: map[string]*Position{},
-		Cash:      0,
+		Cash:      decimal.Zero,
 	}
 }
 
@@ -31,35 +31,17 @@ func (p Portfolio) DeepCopy() *Portfolio {
 	return newPortfolio
 }
 
-func (p Portfolio) TotalValue(priceMap map[string]float64) (float64, error) {
+func (p Portfolio) TotalValue(priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
 	totalValue := p.Cash
 	for symbol, position := range p.Positions {
 		price, ok := priceMap[symbol]
 		if !ok {
-			return 0, fmt.Errorf("cannot compute portfolio total value: price map missing %s", symbol)
+			return decimal.Zero, fmt.Errorf("cannot compute portfolio total value: price map missing %s", symbol)
 		}
-		totalValue += position.Quantity * price
+		totalValue = totalValue.Add(position.ExactQuantity.Mul(price))
 	}
 
 	return totalValue, nil
-}
-
-func (p Portfolio) AssetWeightsExcludingCash(priceMap map[string]float64) (map[string]float64, error) {
-	totalValue, err := p.TotalValue(priceMap)
-	if err != nil {
-		return nil, err
-	}
-
-	totalValueExcludingCash := totalValue - p.Cash
-	weights := map[string]float64{}
-	for symbol, position := range p.Positions {
-		// gonna assume that price map has symbol if prev call
-		// didn't fail
-		// TODO - check if symbol is missing
-		weights[symbol] = position.Quantity * priceMap[symbol] / totalValueExcludingCash
-	}
-
-	return weights, nil
 }
 
 type Position struct {

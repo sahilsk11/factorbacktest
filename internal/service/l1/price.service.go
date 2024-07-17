@@ -340,7 +340,7 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 		if _, ok := cache[p.Symbol]; !ok {
 			cache[p.Symbol] = make(map[string]float64)
 		}
-		cache[p.Symbol][p.Date.Format(time.DateOnly)] = p.Price
+		cache[p.Symbol][p.Date.Format(time.DateOnly)] = p.Price.InexactFloat64()
 	}
 	endNewSpan()
 
@@ -470,7 +470,7 @@ func IngestPrices(
 		models = append(models, model.AdjustedPrice{
 			Symbol:    symbol,
 			Date:      time.Unix(int64(iter.Bar().Timestamp), 0),
-			Price:     iter.Bar().AdjClose.InexactFloat64(),
+			Price:     iter.Bar().AdjClose,
 			CreatedAt: time.Now().UTC(),
 		})
 	}

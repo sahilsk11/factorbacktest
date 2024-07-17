@@ -29,7 +29,8 @@ type InvestmentService interface {
 		ctx context.Context,
 		strategyInvestment model.Investment,
 		date time.Time,
-		pm map[string]float64, tickerIDMap map[string]uuid.UUID,
+		pm map[string]decimal.Decimal,
+		tickerIDMap map[string]uuid.UUID,
 	) (*domain.Portfolio, []*domain.ProposedTrade, error)
 }
 
@@ -189,9 +190,9 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 }
 
 type ComputeTargetPortfolioInput struct {
-	PriceMap         map[string]float64
+	PriceMap         map[string]decimal.Decimal
 	Date             time.Time
-	PortfolioValue   float64
+	PortfolioValue   decimal.Decimal
 	FactorScores     map[string]*float64
 	TargetNumTickers int
 	TickerIDMap      map[string]uuid.UUID
@@ -207,8 +208,8 @@ type ComputeTargetPortfolioResponse struct {
 // strategy (equation and universe) and value of current holdings
 // TODO - find a better place for this function
 func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortfolioResponse, error) {
-	if in.PortfolioValue < 0.001 {
-		return nil, fmt.Errorf("cannot compute target portfolio with value %f", in.PortfolioValue)
+	if in.PortfolioValue.LessThan(decimal.NewFromFloat(0.001)) {
+		return nil, fmt.Errorf("cannot compute target portfolio with value %s", in.PortfolioValue.String())
 	}
 	if in.TargetNumTickers < 3 {
 		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
@@ -236,7 +237,7 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 		if !ok {
 			return nil, fmt.Errorf("priceMap does not have %s", symbol)
 		}
-		dollarsOfSymbol := in.PortfolioValue * weight
+		dollarsOfSymbol := in.PortfolioValue.Mul(decimal.NewFromFloat(weight))
 
 		tickerID := uuid.Nil
 		if in.TickerIDMap != nil {
@@ -244,12 +245,12 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 				tickerID = id
 			}
 		}
-		quantity := dollarsOfSymbol / price
+		quantity := dollarsOfSymbol.Div(price)
 		targetPortfolio.Positions[symbol] = &domain.Position{
 			Symbol:        symbol,
-			Quantity:      quantity,
-			ExactQuantity: decimal.NewFromFloat(quantity),
-			TickerID:      tickerID, // TODO - find out how to get ticker here
+			Quantity:      quantity.InexactFloat64(),
+			ExactQuantity: quantity,
+			TickerID:      tickerID,
 		}
 	}
 
@@ -270,7 +271,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	strategyInvestment model.Investment,
 	date time.Time,
 	portfolioValue decimal.Decimal,
-	pm map[string]float64,
+	pm map[string]decimal.Decimal,
 	tickerIDMap map[string]uuid.UUID,
 ) (*domain.Portfolio, error) {
 	// figure out what the strategy should hold if we rebalance
@@ -291,7 +292,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 		Date:             date,
 		TargetNumTickers: int(savedStrategyDetails.NumAssets),
 		FactorScores:     factorScoresOnLatestDay.SymbolScores,
-		PortfolioValue:   portfolioValue.InexactFloat64(),
+		PortfolioValue:   portfolioValue,
 		PriceMap:         pm,
 		TickerIDMap:      tickerIDMap,
 	})
@@ -306,7 +307,7 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 	ctx context.Context,
 	strategyInvestment model.Investment,
 	date time.Time,
-	pm map[string]float64, tickerIDMap map[string]uuid.UUID,
+	pm map[string]decimal.Decimal, tickerIDMap map[string]uuid.UUID,
 ) (*domain.Portfolio, []*domain.ProposedTrade, error) {
 	// get current holdings to figure out what the
 	// total investment is worth
@@ -326,7 +327,7 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 		ctx,
 		strategyInvestment,
 		date,
-		decimal.NewFromFloat(currentHoldingsValue),
+		currentHoldingsValue,
 		pm,
 		tickerIDMap,
 	)
@@ -345,7 +346,7 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 func transitionToTarget(
 	currentPortfolio domain.Portfolio,
 	targetPortfolio domain.Portfolio,
-	priceMap map[string]float64,
+	priceMap map[string]decimal.Decimal,
 ) ([]*domain.ProposedTrade, error) {
 	trades := []*domain.ProposedTrade{}
 	prevPositions := currentPortfolio.Positions
@@ -362,7 +363,7 @@ func transitionToTarget(
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
 				ExactQuantity: diff,
-				ExpectedPrice: priceMap[symbol],
+				ExpectedPrice: priceMap[symbol].InexactFloat64(),
 			})
 		}
 	}
@@ -372,7 +373,7 @@ func transitionToTarget(
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
 				ExactQuantity: position.ExactQuantity.Neg(),
-				ExpectedPrice: priceMap[symbol],
+				ExpectedPrice: priceMap[symbol].InexactFloat64(),
 			})
 		}
 	}
