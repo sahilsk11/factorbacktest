@@ -77,12 +77,10 @@ type investmentServiceHandler struct {
 	Db                      *sql.DB
 	InvestmentRepository    repository.InvestmentRepository
 	HoldingsRepository      repository.InvestmentHoldingsRepository
-	PriceRepository         repository.AdjustedPriceRepository
 	UniverseRepository      repository.AssetUniverseRepository
 	SavedStrategyRepository repository.SavedStrategyRepository
 	FactorExpressionService l2_service.FactorExpressionService
 	TickerRepository        repository.TickerRepository
-	AlpacaRepository        repository.AlpacaRepository
 	RebalancerRunRepository repository.RebalancerRunRepository
 }
 
@@ -90,24 +88,20 @@ func NewInvestmentService(
 	db *sql.DB,
 	strategyInvestmentRepository repository.InvestmentRepository,
 	holdingsRepository repository.InvestmentHoldingsRepository,
-	priceRepository repository.AdjustedPriceRepository,
 	universeRepository repository.AssetUniverseRepository,
 	savedStrategyRepository repository.SavedStrategyRepository,
 	factorExpressionService l2_service.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
-	alpacaRepository repository.AlpacaRepository,
 	rebalancerRunRepository repository.RebalancerRunRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                      db,
 		InvestmentRepository:    strategyInvestmentRepository,
 		HoldingsRepository:      holdingsRepository,
-		PriceRepository:         priceRepository,
 		UniverseRepository:      universeRepository,
 		SavedStrategyRepository: savedStrategyRepository,
 		FactorExpressionService: factorExpressionService,
 		TickerRepository:        tickerRepository,
-		AlpacaRepository:        alpacaRepository,
 		RebalancerRunRepository: rebalancerRunRepository,
 	}
 }
@@ -162,7 +156,7 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	}
 
 	// this is super weird but just call this a rebalance lol
-	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
+	rebalancerRun, err := h.RebalancerRunRepository.Add(tx, model.RebalancerRun{
 		Date:              date,
 		RebalancerRunType: model.RebalancerRunType_Deposit,
 	})

@@ -17,6 +17,7 @@ type RebalancerRunRepository interface {
 	Add(tx *sql.Tx, rr model.RebalancerRun) (*model.RebalancerRun, error)
 	Get(id uuid.UUID) (*model.RebalancerRun, error)
 	List() ([]model.RebalancerRun, error)
+	Update(tx *sql.Tx, rr model.RebalancerRun) (*model.RebalancerRun, error)
 }
 
 type rebalancerRunRepositoryHandler struct {
@@ -48,6 +49,30 @@ func (h rebalancerRunRepositoryHandler) Add(tx *sql.Tx, rr model.RebalancerRun) 
 	}
 
 	return &out, nil
+}
+
+func (h rebalancerRunRepositoryHandler) Update(tx *sql.Tx, rr model.RebalancerRun) (*model.RebalancerRun, error) {
+	// rr.Mo = time.Now().UTC()
+	// query := table.RebalancerRun.
+	// 	UPDATE(
+	// 		table.RebalancerRun.MutableColumns,
+	// 	).
+	// 	MODEL(rr).
+	// 	RETURNING(table.RebalancerRun.AllColumns)
+
+	// var db qrm.Queryable = h.Db
+	// if tx != nil {
+	// 	db = tx
+	// }
+
+	// out := model.RebalancerRun{}
+	// err := query.Query(db, &out)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to insert rebalancer run: %w", err)
+	// }
+
+	// return &out, nil
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (h rebalancerRunRepositoryHandler) Get(id uuid.UUID) (*model.RebalancerRun, error) {
