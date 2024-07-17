@@ -14,8 +14,8 @@ import (
 )
 
 type TradeService interface {
-	Buy(input BuyInput) error
-	Sell(input SellInput) error
+	Buy(input BuyInput) (*model.TradeOrder, error)
+	Sell(input SellInput) (*model.TradeOrder, error)
 	UpdateOrder(tradeOrderID uuid.UUID) error
 }
 
@@ -36,57 +36,60 @@ func NewTradeService(db *sql.DB, alpacaRepository repository.AlpacaRepository, t
 type BuyInput struct {
 	TickerID        uuid.UUID
 	Symbol          string
-	AmountInDollars decimal.Decimal
+	Quantity        decimal.Decimal
 	RebalancerRunID uuid.UUID
 	Reason          *string
+	ExpectedPrice   decimal.Decimal
 }
 
 func (h tradeServiceHandler) placeOrder(
 	tickerID uuid.UUID,
 	symbol string,
 	notes *string,
-	amountInDollars decimal.Decimal,
+	quantity decimal.Decimal,
 	dbSide model.TradeOrderSide,
 	alpacaSide alpaca.Side,
 	rebalancerRunID uuid.UUID,
-) error {
+	expectedPrice decimal.Decimal,
+) (*model.TradeOrder, error) {
 	tx, err := h.Db.Begin()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	insertedOrder, err := h.TradeOrderRepository.Add(tx, model.TradeOrder{
-		TickerID:                 tickerID,
-		Side:                     dbSide,
-		RequestedAmountInDollars: amountInDollars,
-		Status:                   model.TradeOrderStatus_Pending,
-		Notes:                    notes,
-		FilledQuantity:           decimal.Zero,
-		RebalancerRunID:          rebalancerRunID,
+		TickerID:          tickerID,
+		Side:              dbSide,
+		RequestedQuantity: quantity,
+		ExpectedPrice:     expectedPrice,
+		Status:            model.TradeOrderStatus_Pending,
+		Notes:             notes,
+		FilledQuantity:    decimal.Zero,
+		RebalancerRunID:   rebalancerRunID,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	order, err := h.AlpacaRepository.PlaceOrder(repository.AlpacaPlaceOrderRequest{
-		TradeOrderID:    insertedOrder.TradeOrderID,
-		AmountInDollars: amountInDollars,
-		Symbol:          symbol,
-		Side:            alpacaSide,
+		TradeOrderID: insertedOrder.TradeOrderID,
+		Quantity:     quantity,
+		Symbol:       symbol,
+		Side:         alpacaSide,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	orderID, err := uuid.Parse(order.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// todo - figure out alpaca to db status mapping
@@ -94,7 +97,7 @@ func (h tradeServiceHandler) placeOrder(
 
 	// don't keep on the same tx because we don't want
 	// to roll back and lose the record if this fails
-	_, err = h.TradeOrderRepository.Update(nil,
+	updatedOrder, err := h.TradeOrderRepository.Update(nil,
 		insertedOrder.TradeOrderID,
 		model.TradeOrder{
 			Status:         model.TradeOrderStatus_Pending,
@@ -109,36 +112,35 @@ func (h tradeServiceHandler) placeOrder(
 			table.TradeOrder.FilledPrice,
 		})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return updatedOrder, nil
 }
 
 type SellInput struct {
 	TickerID        uuid.UUID
 	Symbol          string
-	AmountInDollars decimal.Decimal
+	Quantity        decimal.Decimal
 	RebalancerRunID uuid.UUID
 	Reason          *string
+	ExpectedPrice   decimal.Decimal
 }
 
-func (h tradeServiceHandler) Sell(input SellInput) error {
-	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Sell, alpaca.Sell, input.RebalancerRunID); err != nil {
-		return fmt.Errorf("failed to sell: %w", err)
+func (h tradeServiceHandler) Sell(input SellInput) (*model.TradeOrder, error) {
+	order, err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.Quantity, model.TradeOrderSide_Sell, alpaca.Sell, input.RebalancerRunID, input.ExpectedPrice)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sell: %w", err)
 	}
-	return nil
+	return order, nil
 }
 
-func (h tradeServiceHandler) Buy(input BuyInput) error {
-	if input.AmountInDollars.LessThan(decimal.NewFromInt(1)) {
-		return fmt.Errorf("failed to submit buy order: amount must be >= 1. got %f", input.AmountInDollars.InexactFloat64())
+func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
+	order, err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.Quantity, model.TradeOrderSide_Buy, alpaca.Buy, input.RebalancerRunID, input.ExpectedPrice)
+	if err != nil {
+		return nil, fmt.Errorf("failed to buy: %w", err)
 	}
-
-	if err := h.placeOrder(input.TickerID, input.Symbol, input.Reason, input.AmountInDollars, model.TradeOrderSide_Buy, alpaca.Buy, input.RebalancerRunID); err != nil {
-		return fmt.Errorf("failed to buy: %w", err)
-	}
-	return nil
+	return order, nil
 }
 
 func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) error {

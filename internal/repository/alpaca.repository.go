@@ -81,15 +81,15 @@ func (h alpacaRepositoryHandler) GetAccount() (*alpaca.Account, error) {
 }
 
 type AlpacaPlaceOrderRequest struct {
-	TradeOrderID    uuid.UUID
-	AmountInDollars decimal.Decimal
-	Symbol          string
-	Side            alpaca.Side
+	TradeOrderID uuid.UUID
+	Quantity     decimal.Decimal
+	Symbol       string
+	Side         alpaca.Side
 }
 
 func (a AlpacaPlaceOrderRequest) isValid() error {
-	if a.AmountInDollars.LessThanOrEqual(decimal.Zero) {
-		return fmt.Errorf("amount is <= 0, order of | %d %s %s | not sent\n", a.AmountInDollars, a.Side, a.Side)
+	if a.Quantity.LessThanOrEqual(decimal.Zero) {
+		return fmt.Errorf("amount is <= 0, order of | %s %s| not sent\n", a.Quantity.String(), a.Side)
 	}
 	return nil
 }
@@ -105,7 +105,7 @@ func (h alpacaRepositoryHandler) PlaceOrder(req AlpacaPlaceOrderRequest) (*alpac
 
 	order, err := h.Client.PlaceOrder(alpaca.PlaceOrderRequest{
 		Symbol:        req.Symbol,
-		Notional:      &req.AmountInDollars,
+		Qty:           &req.Quantity,
 		Side:          req.Side,
 		Type:          alpaca.Market,
 		TimeInForce:   alpaca.Day,

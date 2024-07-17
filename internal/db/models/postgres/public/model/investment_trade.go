@@ -17,9 +17,10 @@ import (
 type InvestmentTrade struct {
 	InvestmentTradeID uuid.UUID `sql:"primary_key"`
 	TickerID          uuid.UUID
-	AmountInDollars   decimal.Decimal
 	Side              TradeOrderSide
 	CreatedAt         time.Time
 	InvestmentID      uuid.UUID
 	RebalancerRunID   uuid.UUID
+	Quantity          decimal.Decimal
+	TradeOrderID      *uuid.UUID
 }

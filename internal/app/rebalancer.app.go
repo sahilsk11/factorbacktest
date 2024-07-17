@@ -123,14 +123,18 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 			if t.ExactQuantity.LessThan(decimal.Zero) {
 				side = model.TradeOrderSide_Sell
 			}
-			h.InvestmentTradeRepository.Add(tx, model.InvestmentTrade{
+			_, err = h.InvestmentTradeRepository.Add(tx, model.InvestmentTrade{
 				TickerID:        t.TickerID,
-				AmountInDollars: t.ExactQuantity.Mul(t.ExpectedPrice),
 				Side:            side,
 				CreatedAt:       time.Time{},
 				InvestmentID:    investment.InvestmentID,
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
+				Quantity:        t.ExactQuantity,
 			})
+			if err != nil {
+				return err
+			}
+
 		}
 		err = tx.Commit()
 		if err != nil {
@@ -147,19 +151,20 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	internal.Pprint(proposedTrades)
 
 	for _, t := range proposedTrades {
-		// TODO - optimize this amount math
 		if t.ExactQuantity.GreaterThan(decimal.Zero) {
-			err = h.TradingService.Buy(l1_service.BuyInput{
+			_, err = h.TradingService.Buy(l1_service.BuyInput{
 				TickerID:        t.TickerID,
 				Symbol:          t.Symbol,
-				AmountInDollars: t.ExactQuantity.Abs().Mul(t.ExpectedPrice).Round(2),
+				Quantity:        t.ExactQuantity,
+				ExpectedPrice:   t.ExpectedPrice,
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		} else {
-			err = h.TradingService.Sell(l1_service.SellInput{
+			_, err = h.TradingService.Sell(l1_service.SellInput{
 				TickerID:        t.TickerID,
 				Symbol:          t.Symbol,
-				AmountInDollars: t.ExactQuantity.Mul(t.ExpectedPrice).Round(2),
+				Quantity:        t.ExactQuantity,
+				ExpectedPrice:   t.ExpectedPrice,
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		}
