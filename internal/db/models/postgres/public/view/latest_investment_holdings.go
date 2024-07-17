@@ -19,10 +19,10 @@ type latestInvestmentHoldingsTable struct {
 	//Columns
 	InvestmentHoldingsID postgres.ColumnString
 	InvestmentID         postgres.ColumnString
-	Ticker               postgres.ColumnString
+	TickerID             postgres.ColumnString
 	Symbol               postgres.ColumnString
 	Quantity             postgres.ColumnFloat
-	CreatedAt            postgres.ColumnTimestampz
+	RebalancerRunDate    postgres.ColumnDate
 	RebalancerRunID      postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
@@ -56,13 +56,13 @@ func newLatestInvestmentHoldingsTableImpl(schemaName, tableName, alias string) l
 	var (
 		InvestmentHoldingsIDColumn = postgres.StringColumn("investment_holdings_id")
 		InvestmentIDColumn         = postgres.StringColumn("investment_id")
-		TickerColumn               = postgres.StringColumn("ticker")
+		TickerIDColumn             = postgres.StringColumn("ticker_id")
 		SymbolColumn               = postgres.StringColumn("symbol")
 		QuantityColumn             = postgres.FloatColumn("quantity")
-		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
+		RebalancerRunDateColumn    = postgres.DateColumn("rebalancer_run_date")
 		RebalancerRunIDColumn      = postgres.StringColumn("rebalancer_run_id")
-		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, SymbolColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
-		mutableColumns             = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, SymbolColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, RebalancerRunDateColumn, RebalancerRunIDColumn}
+		mutableColumns             = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, RebalancerRunDateColumn, RebalancerRunIDColumn}
 	)
 
 	return latestInvestmentHoldingsTable{
@@ -71,10 +71,10 @@ func newLatestInvestmentHoldingsTableImpl(schemaName, tableName, alias string) l
 		//Columns
 		InvestmentHoldingsID: InvestmentHoldingsIDColumn,
 		InvestmentID:         InvestmentIDColumn,
-		Ticker:               TickerColumn,
+		TickerID:             TickerIDColumn,
 		Symbol:               SymbolColumn,
 		Quantity:             QuantityColumn,
-		CreatedAt:            CreatedAtColumn,
+		RebalancerRunDate:    RebalancerRunDateColumn,
 		RebalancerRunID:      RebalancerRunIDColumn,
 
 		AllColumns:     allColumns,

@@ -81,7 +81,8 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	}
 
 	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
-		Date: tradingDay,
+		Date:              date,
+		RebalancerRunType: model.RebalancerRunType_ManualInvestmentRebalance,
 	})
 	if err != nil {
 		return err
@@ -171,7 +172,7 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		for _, position := range portfolio.Positions {
 			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
 				InvestmentID:    strategyInvestmentID,
-				Ticker:          position.TickerID,
+				TickerID:        position.TickerID,
 				Quantity:        position.ExactQuantity,
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
@@ -188,7 +189,7 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		if portfolio.Cash > 0 {
 			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
 				InvestmentID:    strategyInvestmentID,
-				Ticker:          cashTicker.TickerID,
+				TickerID:        cashTicker.TickerID,
 				Quantity:        decimal.NewFromFloat(portfolio.Cash),
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})

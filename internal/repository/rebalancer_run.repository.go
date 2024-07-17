@@ -31,8 +31,7 @@ func (h rebalancerRunRepositoryHandler) Add(tx *sql.Tx, rr model.RebalancerRun) 
 	rr.CreatedAt = time.Now().UTC()
 	query := table.RebalancerRun.
 		INSERT(
-			table.RebalancerRun.Date,
-			table.RebalancerRun.CreatedAt,
+			table.RebalancerRun.MutableColumns,
 		).
 		MODEL(rr).
 		RETURNING(table.RebalancerRun.AllColumns)

@@ -17,9 +17,9 @@ import (
 type LatestInvestmentHoldings struct {
 	InvestmentHoldingsID *uuid.UUID
 	InvestmentID         *uuid.UUID
-	Ticker               *uuid.UUID
+	TickerID             *uuid.UUID
 	Symbol               *string
 	Quantity             *decimal.Decimal
-	CreatedAt            *time.Time
+	RebalancerRunDate    *time.Time
 	RebalancerRunID      *uuid.UUID
 }

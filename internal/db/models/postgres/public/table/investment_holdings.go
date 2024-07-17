@@ -19,7 +19,7 @@ type investmentHoldingsTable struct {
 	//Columns
 	InvestmentHoldingsID postgres.ColumnString
 	InvestmentID         postgres.ColumnString
-	Ticker               postgres.ColumnString
+	TickerID             postgres.ColumnString
 	Quantity             postgres.ColumnFloat
 	CreatedAt            postgres.ColumnTimestampz
 	RebalancerRunID      postgres.ColumnString
@@ -55,12 +55,12 @@ func newInvestmentHoldingsTableImpl(schemaName, tableName, alias string) investm
 	var (
 		InvestmentHoldingsIDColumn = postgres.StringColumn("investment_holdings_id")
 		InvestmentIDColumn         = postgres.StringColumn("investment_id")
-		TickerColumn               = postgres.StringColumn("ticker")
+		TickerIDColumn             = postgres.StringColumn("ticker_id")
 		QuantityColumn             = postgres.FloatColumn("quantity")
 		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
 		RebalancerRunIDColumn      = postgres.StringColumn("rebalancer_run_id")
-		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
-		mutableColumns             = postgres.ColumnList{InvestmentIDColumn, TickerColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		mutableColumns             = postgres.ColumnList{InvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
 	)
 
 	return investmentHoldingsTable{
@@ -69,7 +69,7 @@ func newInvestmentHoldingsTableImpl(schemaName, tableName, alias string) investm
 		//Columns
 		InvestmentHoldingsID: InvestmentHoldingsIDColumn,
 		InvestmentID:         InvestmentIDColumn,
-		Ticker:               TickerColumn,
+		TickerID:             TickerIDColumn,
 		Quantity:             QuantityColumn,
 		CreatedAt:            CreatedAtColumn,
 		RebalancerRunID:      RebalancerRunIDColumn,

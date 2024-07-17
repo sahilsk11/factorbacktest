@@ -17,7 +17,7 @@ import (
 type InvestmentHoldings struct {
 	InvestmentHoldingsID uuid.UUID `sql:"primary_key"`
 	InvestmentID         uuid.UUID
-	Ticker               uuid.UUID
+	TickerID             uuid.UUID
 	Quantity             decimal.Decimal
 	CreatedAt            time.Time
 	RebalancerRunID      uuid.UUID

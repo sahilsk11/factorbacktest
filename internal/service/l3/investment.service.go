@@ -172,7 +172,7 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	// create new holdings, with just cash
 	_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
 		InvestmentID:    newStrategyInvestment.InvestmentID,
-		Ticker:          cashTicker.TickerID,
+		TickerID:        cashTicker.TickerID,
 		Quantity:        decimal.NewFromInt(int64(amount)),
 		RebalancerRunID: rebalancerRun.RebalancerRunID,
 	})
