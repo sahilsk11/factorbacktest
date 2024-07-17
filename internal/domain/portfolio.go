@@ -76,7 +76,7 @@ type ProposedTrade struct {
 	Symbol        string
 	TickerID      uuid.UUID
 	ExactQuantity decimal.Decimal
-	ExpectedPrice float64
+	ExpectedPrice decimal.Decimal
 }
 
 type ProposedTrades []ProposedTrade

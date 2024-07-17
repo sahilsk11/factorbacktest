@@ -125,7 +125,7 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 			}
 			h.InvestmentTradeRepository.Add(tx, model.InvestmentTrade{
 				TickerID:        t.TickerID,
-				AmountInDollars: t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)),
+				AmountInDollars: t.ExactQuantity.Mul(t.ExpectedPrice),
 				Side:            side,
 				CreatedAt:       time.Time{},
 				InvestmentID:    investment.InvestmentID,
@@ -152,14 +152,14 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 			err = h.TradingService.Buy(l1_service.BuyInput{
 				TickerID:        t.TickerID,
 				Symbol:          t.Symbol,
-				AmountInDollars: t.ExactQuantity.Abs().Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
+				AmountInDollars: t.ExactQuantity.Abs().Mul(t.ExpectedPrice).Round(2),
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		} else {
 			err = h.TradingService.Sell(l1_service.SellInput{
 				TickerID:        t.TickerID,
 				Symbol:          t.Symbol,
-				AmountInDollars: t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).Round(2),
+				AmountInDollars: t.ExactQuantity.Mul(t.ExpectedPrice).Round(2),
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 		}

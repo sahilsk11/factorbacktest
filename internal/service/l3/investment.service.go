@@ -65,8 +65,8 @@ func AggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.Proposed
 	// TODO - i think we should use market value
 	// and figure out whether to round up or down
 	for _, t := range trades {
-		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(decimal.NewFromFloat(t.ExpectedPrice)).LessThan(decimal.NewFromInt(1)) {
-			t.ExactQuantity = (decimal.NewFromInt(1).Div(decimal.NewFromFloat(t.ExpectedPrice)))
+		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(decimal.NewFromInt(1)) {
+			t.ExactQuantity = (decimal.NewFromInt(1).Div(t.ExpectedPrice))
 		}
 	}
 
@@ -237,7 +237,13 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 		if !ok {
 			return nil, fmt.Errorf("priceMap does not have %s", symbol)
 		}
-		dollarsOfSymbol := in.PortfolioValue.Mul(decimal.NewFromFloat(weight))
+
+		// key line - determines how much new amount of symbol should be
+		// i want to round this to something so that we can generate results
+		// deterministically.
+
+		dollarsOfSymbol := in.PortfolioValue.Mul(decimal.NewFromFloat(weight)).Round(3)
+		quantity := dollarsOfSymbol.Div(price)
 
 		tickerID := uuid.Nil
 		if in.TickerIDMap != nil {
@@ -245,12 +251,12 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 				tickerID = id
 			}
 		}
-		quantity := dollarsOfSymbol.Div(price)
+
 		targetPortfolio.Positions[symbol] = &domain.Position{
 			Symbol:        symbol,
-			Quantity:      quantity.InexactFloat64(),
 			ExactQuantity: quantity,
 			TickerID:      tickerID,
+			// if we want to switch to $ instead, add here
 		}
 	}
 
@@ -363,7 +369,7 @@ func transitionToTarget(
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
 				ExactQuantity: diff,
-				ExpectedPrice: priceMap[symbol].InexactFloat64(),
+				ExpectedPrice: priceMap[symbol],
 			})
 		}
 	}
@@ -373,7 +379,7 @@ func transitionToTarget(
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
 				ExactQuantity: position.ExactQuantity.Neg(),
-				ExpectedPrice: priceMap[symbol].InexactFloat64(),
+				ExpectedPrice: priceMap[symbol],
 			})
 		}
 	}
