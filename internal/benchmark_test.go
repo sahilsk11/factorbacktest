@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,11 +17,11 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
 				{
-					Price: 100,
+					Price: decimal.NewFromInt(100),
 					Date:  NewDate(2020, 1, 1),
 				},
 				{
-					Price: 110,
+					Price: decimal.NewFromInt(110),
 					Date:  NewDate(2020, 1, 2),
 				},
 			},
@@ -47,11 +48,11 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
 				{
-					Price: 110,
+					Price: decimal.NewFromInt(110),
 					Date:  NewDate(2020, 1, 2),
 				},
 				{
-					Price: 110,
+					Price: decimal.NewFromInt(110),
 					Date:  NewDate(2020, 1, 3),
 				},
 			},
@@ -79,11 +80,11 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
 				{
-					Price: 110,
+					Price: decimal.NewFromInt(110),
 					Date:  NewDate(2020, 1, 2),
 				},
 				{
-					Price: 110,
+					Price: decimal.NewFromInt(110),
 					Date:  NewDate(2020, 1, 3),
 				},
 			},

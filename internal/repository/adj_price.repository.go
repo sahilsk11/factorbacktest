@@ -12,9 +12,10 @@ import (
 
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
+	"github.com/shopspring/decimal"
 )
 
-type priceCache map[string]map[time.Time]float64
+type priceCache map[string]map[time.Time]decimal.Decimal
 
 type TradingDatesCache struct {
 	Start time.Time
@@ -22,7 +23,7 @@ type TradingDatesCache struct {
 	Days  map[string]struct{}
 }
 
-func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date time.Time) *float64 {
+func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date time.Time) *decimal.Decimal {
 	pc := h.priceCache
 	h.ReadMutex.RLock()
 	if _, ok := pc[symbol]; ok {
@@ -35,11 +36,11 @@ func (h adjustedPriceRepositoryHandler) GetFromPriceCache(symbol string, date ti
 	return nil
 }
 
-func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time.Time, price float64) {
+func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time.Time, price decimal.Decimal) {
 	pc := h.priceCache
 	h.ReadMutex.Lock()
 	if _, ok := pc[symbol]; !ok {
-		pc[symbol] = map[time.Time]float64{}
+		pc[symbol] = map[time.Time]decimal.Decimal{}
 	}
 	pc[symbol][date] = price
 	h.ReadMutex.Unlock()
@@ -47,8 +48,8 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
-	Get(string, time.Time) (float64, error)
-	GetManyOnDay([]string, time.Time) (map[string]float64, error)
+	Get(string, time.Time) (decimal.Decimal, error)
+	GetManyOnDay([]string, time.Time) (map[string]decimal.Decimal, error)
 	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
 	ListTradingDays(start, end time.Time) ([]time.Time, error)
 	LatestTradingDay() (*time.Time, error)
@@ -98,7 +99,7 @@ func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 	return nil
 }
 
-func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (float64, error) {
+func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (decimal.Decimal, error) {
 	if pc := h.GetFromPriceCache(symbol, date); pc != nil {
 		return *pc, nil
 	}
@@ -122,10 +123,10 @@ func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (floa
 	results := []model.AdjustedPrice{}
 	err := query.Query(h.Db, &results)
 	if err != nil {
-		return 0, fmt.Errorf("failed to query price for %s on %v: %w", symbol, date, err)
+		return decimal.Zero, fmt.Errorf("failed to query price for %s on %v: %w", symbol, date, err)
 	}
 	if len(results) == 0 {
-		return 0, fmt.Errorf("no results for %s on %v", symbol, date)
+		return decimal.Zero, fmt.Errorf("no results for %s on %v", symbol, date)
 	}
 	result := results[0]
 
@@ -134,8 +135,8 @@ func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (floa
 }
 
 // assumes input date is a trading day
-func (h adjustedPriceRepositoryHandler) GetManyOnDay(symbols []string, date time.Time) (map[string]float64, error) {
-	cachedResults := map[string]float64{}
+func (h adjustedPriceRepositoryHandler) GetManyOnDay(symbols []string, date time.Time) (map[string]decimal.Decimal, error) {
+	cachedResults := map[string]decimal.Decimal{}
 	symbolSet := map[string]bool{}
 	postgresStr := []postgres.Expression{}
 
@@ -170,7 +171,7 @@ func (h adjustedPriceRepositoryHandler) GetManyOnDay(symbols []string, date time
 		}
 	}
 
-	out := map[string]float64{}
+	out := map[string]decimal.Decimal{}
 	for _, r := range res {
 		out[r.Symbol] = r.Price
 	}

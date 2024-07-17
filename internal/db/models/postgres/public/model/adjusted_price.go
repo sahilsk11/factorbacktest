@@ -9,12 +9,14 @@ package model
 
 import (
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 type AdjustedPrice struct {
 	ID        int32 `sql:"primary_key"`
 	Date      time.Time
 	Symbol    string
-	Price     float64
+	Price     decimal.Decimal
 	CreatedAt time.Time
 }

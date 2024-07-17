@@ -682,7 +682,7 @@ func (h factorMetricsHandler) MarketCap(tx qrm.Queryable, symbol string, date ti
 		return 0, factorMetricsMissingDataError{fmt.Errorf("%s does not have # shares outstanding on %v", symbol, date)}
 	}
 
-	return *out.SharesOutstandingBasic * price, nil
+	return *out.SharesOutstandingBasic * price.InexactFloat64(), nil
 }
 
 func (h factorMetricsHandler) PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
@@ -699,7 +699,7 @@ func (h factorMetricsHandler) PeRatio(tx qrm.Queryable, symbol string, date time
 		return 0, factorMetricsMissingDataError{fmt.Errorf("%s does not have eps on %v", symbol, date)}
 	}
 
-	return price / *out.EpsBasic, nil
+	return price.InexactFloat64() / *out.EpsBasic, nil
 
 }
 
@@ -724,5 +724,5 @@ func (h factorMetricsHandler) PbRatio(tx qrm.Queryable, symbol string, date time
 		return 0, factorMetricsMissingDataError{fmt.Errorf("missing shares outstanding")}
 	}
 
-	return price / ((*out.TotalAssets - *out.TotalLiabilities) / *out.SharesOutstandingBasic), nil
+	return price.InexactFloat64() / ((*out.TotalAssets - *out.TotalLiabilities) / *out.SharesOutstandingBasic), nil
 }

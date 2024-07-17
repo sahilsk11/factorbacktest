@@ -1,9 +1,13 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 type AssetPrice struct {
 	Symbol string
-	Price  float64
+	Price  decimal.Decimal
 	Date   time.Time
 }

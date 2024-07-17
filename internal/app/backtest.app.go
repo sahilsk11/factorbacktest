@@ -11,6 +11,8 @@ import (
 	l3_service "factorbacktest/internal/service/l3"
 	"fmt"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 type BacktestHandler struct {
@@ -101,7 +103,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	}
 	endSpan()
 
-	startValue := in.StartingCash
+	startValue := decimal.NewFromFloat(in.StartingCash)
 
 	currentPortfolio := domain.Portfolio{
 		Cash: startValue,
@@ -111,7 +113,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	const errThreshold = 0.1
 	backtestErrors := []error{}
 
-	priceMap := map[string]map[string]float64{}
+	priceMap := map[string]map[string]decimal.Decimal{}
 
 	_, endSpan = profile.StartNewSpan("daily calcs")
 	for _, t := range tradingDays {
@@ -158,7 +160,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 
 		out = append(out, BacktestSample{
 			Date:         t,
-			TotalValue:   currentPortfolioValue,
+			TotalValue:   currentPortfolioValue.InexactFloat64(),
 			AssetWeights: computeTargetPortfolioResponse.AssetWeights,
 			FactorScores: computeTargetPortfolioResponse.FactorScores,
 		})
@@ -217,7 +219,7 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 		Date:             *latestTradingDay,
 		TargetNumTickers: in.NumTickers,
 		FactorScores:     scoreResults.SymbolScores,
-		PortfolioValue:   1000,
+		PortfolioValue:   decimal.NewFromInt(1000),
 		PriceMap:         pm,
 	})
 	if err != nil {
@@ -239,7 +241,7 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 	return &out, nil
 }
 
-func toSnapshots(result []BacktestSample, priceMap map[string]map[string]float64) (map[string]BacktestSnapshot, error) {
+func toSnapshots(result []BacktestSample, priceMap map[string]map[string]decimal.Decimal) (map[string]BacktestSnapshot, error) {
 	snapshots := map[string]BacktestSnapshot{}
 
 	for i, r := range result {
@@ -260,7 +262,7 @@ func toSnapshots(result []BacktestSample, priceMap map[string]map[string]float64
 				if !ok {
 					return nil, fmt.Errorf("failed to get end price from cache: %s, %v", symbol, r.Date)
 				}
-				priceChangeTilNextResampling[symbol] = 100 * (endPrice - startPrice) / startPrice
+				priceChangeTilNextResampling[symbol] = decimal.NewFromInt(100).Mul((endPrice.Sub(startPrice)).Div(startPrice)).InexactFloat64()
 			}
 		}
 
