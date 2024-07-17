@@ -55,10 +55,10 @@ func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 	}()
 
 	order, err := handler.PlaceOrder(AlpacaPlaceOrderRequest{
-		TradeOrderID:    uuid.New(),
-		AmountInDollars: decimal.NewFromInt(12),
-		Symbol:          "AAPL",
-		Side:            alpaca.Buy,
+		TradeOrderID: uuid.New(),
+		Quantity:     decimal.NewFromInt(12),
+		Symbol:       "AAPL",
+		Side:         alpaca.Buy,
 	})
 	require.NoError(t, err)
 

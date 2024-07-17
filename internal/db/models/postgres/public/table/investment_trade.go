@@ -19,11 +19,12 @@ type investmentTradeTable struct {
 	//Columns
 	InvestmentTradeID postgres.ColumnString
 	TickerID          postgres.ColumnString
-	AmountInDollars   postgres.ColumnFloat
 	Side              postgres.ColumnString
 	CreatedAt         postgres.ColumnTimestampz
 	InvestmentID      postgres.ColumnString
 	RebalancerRunID   postgres.ColumnString
+	Quantity          postgres.ColumnFloat
+	TradeOrderID      postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -56,13 +57,14 @@ func newInvestmentTradeTableImpl(schemaName, tableName, alias string) investment
 	var (
 		InvestmentTradeIDColumn = postgres.StringColumn("investment_trade_id")
 		TickerIDColumn          = postgres.StringColumn("ticker_id")
-		AmountInDollarsColumn   = postgres.FloatColumn("amount_in_dollars")
 		SideColumn              = postgres.StringColumn("side")
 		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
 		InvestmentIDColumn      = postgres.StringColumn("investment_id")
 		RebalancerRunIDColumn   = postgres.StringColumn("rebalancer_run_id")
-		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, TickerIDColumn, AmountInDollarsColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn}
-		mutableColumns          = postgres.ColumnList{TickerIDColumn, AmountInDollarsColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn}
+		QuantityColumn          = postgres.FloatColumn("quantity")
+		TradeOrderIDColumn      = postgres.StringColumn("trade_order_id")
+		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn}
+		mutableColumns          = postgres.ColumnList{TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn}
 	)
 
 	return investmentTradeTable{
@@ -71,11 +73,12 @@ func newInvestmentTradeTableImpl(schemaName, tableName, alias string) investment
 		//Columns
 		InvestmentTradeID: InvestmentTradeIDColumn,
 		TickerID:          TickerIDColumn,
-		AmountInDollars:   AmountInDollarsColumn,
 		Side:              SideColumn,
 		CreatedAt:         CreatedAtColumn,
 		InvestmentID:      InvestmentIDColumn,
 		RebalancerRunID:   RebalancerRunIDColumn,
+		Quantity:          QuantityColumn,
+		TradeOrderID:      TradeOrderIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
