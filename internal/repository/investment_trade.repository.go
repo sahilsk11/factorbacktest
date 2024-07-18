@@ -14,6 +14,7 @@ import (
 
 type InvestmentTradeRepository interface {
 	Add(tx *sql.Tx, irt model.InvestmentTrade) (*model.InvestmentTrade, error)
+	AddMany(tx *sql.Tx, m []*model.InvestmentTrade) ([]model.InvestmentTrade, error)
 	Get(id uuid.UUID) (*model.InvestmentTrade, error)
 	List() ([]model.InvestmentTrade, error)
 }
@@ -42,6 +43,27 @@ func (h investmentTradeRepositoryHandler) Add(tx *sql.Tx, irt model.InvestmentTr
 	}
 
 	return &out, nil
+}
+
+func (h investmentTradeRepositoryHandler) AddMany(tx *sql.Tx, models []*model.InvestmentTrade) ([]model.InvestmentTrade, error) {
+	for _, m := range models {
+		m.CreatedAt = time.Now().UTC()
+	}
+
+	query := table.InvestmentTrade.
+		INSERT(
+			table.InvestmentTrade.MutableColumns,
+		).
+		MODELS(models).
+		RETURNING(table.InvestmentTrade.AllColumns)
+
+	out := []model.InvestmentTrade{}
+	err := query.Query(tx, &out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert investment trade models: %w", err)
+	}
+
+	return out, nil
 }
 
 func (h investmentTradeRepositoryHandler) Get(id uuid.UUID) (*model.InvestmentTrade, error) {

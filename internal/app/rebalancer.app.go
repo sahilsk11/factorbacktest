@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-jet/jet/v2/internal/jet"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -90,7 +89,7 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	// if it exits for any unhandled reason, mark the
 	// run as an error
 	defer func() {
-		_, err = h.RebalancerRunRepository.Update(nil, model.RebalancerRun{}, []jet.ColumnExpression{})
+		_, err = h.RebalancerRunRepository.Update(nil, model.RebalancerRun{})
 		if err != nil {
 			fmt.Printf("failed to update rebalancer run to failed: %s: %v\n", rebalancerRun.RebalancerRunID, err.Error())
 		}
@@ -102,87 +101,118 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
-	investmentTrades := []*domain.ProposedTrade{}
+	proposedTrades := []*domain.ProposedTrade{}
+	investmentTrades := []*model.InvestmentTrade{}
 	// keyed by investment id
 	mappedPortfolios := map[uuid.UUID]*domain.Portfolio{}
+	rebalanceErrors := []error{}
+
 	for _, investment := range investmentsToRebalance {
-		err = h.generateTrades(
+		portfolio, trades, err := h.InvestmentService.GenerateRebalanceResults(
 			ctx,
 			investment,
-			rebalancerRun,
+			rebalancerRun.Date,
 			pm,
 			tickerIDMap,
-			investmentTrades,
-			mappedPortfolios, // what should we do with this
 		)
 		if err != nil {
-			// return returnValue
+			rebalanceErrors = append(rebalanceErrors, fmt.Errorf("failed to generate rebalance results for %s: %w", investment.InvestmentID, err))
+			continue
 		}
 
+		mappedPortfolios[investment.InvestmentID] = portfolio
+
+		proposedTrades = append(proposedTrades, trades...)
+		investmentTrades = append(investmentTrades,
+			proposedTradesToInvestmentTradeModels(
+				proposedTrades,
+				investment.InvestmentID,
+				rebalancerRun.RebalancerRunID,
+			)...)
 	}
 
-	proposedTrades := l3_service.AggregateAndFormatTrades(investmentTrades)
+	// TODO - create table for storing rebalance errors
+
+	if len(rebalanceErrors) == len(investmentsToRebalance) {
+		return fmt.Errorf("failed to generate rebalance results for all (%d) investments. first err: %w", len(investmentsToRebalance), rebalanceErrors[0])
+	} else if len(rebalanceErrors) > 0 {
+		fmt.Printf("failed to generate rebalance results for %d/%d investments. first err: %v", len(rebalanceErrors), len(investmentsToRebalance), rebalanceErrors[0].Error())
+	}
+
+	// until we have some fancier math for reconciling completed trades,
+	// treat any failure here as fatal
+	// TODO - improve reconciliation + partial trade completion
+	executedOrders, err := h.aggregateAndExecuteTradeOrders(proposedTrades, rebalancerRun.RebalancerRunID)
+	if err != nil {
+		return fmt.Errorf("failure on executing orders for rebalance run %s: %v\n", rebalancerRun.RebalancerRunID.String(), err.Error())
+	}
+
+	for _, order := range executedOrders {
+		for _, t := range investmentTrades {
+			if t.TickerID == order.TickerID {
+				t.TradeOrderID = &order.TradeOrderID
+				_, err = h.InvestmentTradeRepository.Update(t)
+				if err != nil {
+					// i dont even know
+				}
+			}
+		}
+	}
+
+	// update positions to match whatever we just traded to get
+	// them to
+	// todo - when we improve reconciliation, handle partial failures
+	// from this
+	_, err = h.updateHoldings(mappedPortfolios, err, rebalancerRun)
+	if err != nil {
+		return err
+	}
 
 	// TODO - verify proposed trades
 	// by checking mapped portfolios
 
-	internal.Pprint(proposedTrades)
-
-	for _, t := range proposedTrades {
-		if t.ExactQuantity.GreaterThan(decimal.Zero) {
-			_, err = h.TradingService.Buy(l1_service.BuyInput{
-				TickerID:        t.TickerID,
-				Symbol:          t.Symbol,
-				Quantity:        t.ExactQuantity,
-				ExpectedPrice:   t.ExpectedPrice,
-				RebalancerRunID: rebalancerRun.RebalancerRunID,
-			})
-		} else {
-			_, err = h.TradingService.Sell(l1_service.SellInput{
-				TickerID:        t.TickerID,
-				Symbol:          t.Symbol,
-				Quantity:        t.ExactQuantity,
-				ExpectedPrice:   t.ExpectedPrice,
-				RebalancerRunID: rebalancerRun.RebalancerRunID,
-			})
-		}
-		if err != nil {
-			return err
-		}
+	_, err = h.RebalancerRunRepository.Update(nil, model.RebalancerRun{})
+	if err != nil {
+		return err
 	}
 
-	for strategyInvestmentID, portfolio := range mappedPortfolios {
+	return nil
+}
+
+func (h RebalancerHandler) updateHoldings(mappedPortfolios map[uuid.UUID]*domain.Portfolio, err error, rebalancerRun *model.RebalancerRun) (map[uuid.UUID][]error, error) {
+	cashTicker, err := h.TickerRepository.GetCashTicker()
+	if err != nil {
+		return nil, err
+	}
+
+	errorsByInvestment := map[uuid.UUID][]error{}
+	for investmentID, portfolio := range mappedPortfolios {
 		for _, position := range portfolio.Positions {
 			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
-				InvestmentID:    strategyInvestmentID,
+				InvestmentID:    investmentID,
 				TickerID:        position.TickerID,
 				Quantity:        position.ExactQuantity,
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 			if err != nil {
-				return err
+				errorsByInvestment[investmentID] = append(errorsByInvestment[investmentID], err)
 			}
-
-		}
-		cashTicker, err := h.TickerRepository.GetCashTicker()
-		if err != nil {
-			return err
 		}
 
 		if portfolio.Cash.GreaterThan(decimal.Zero) {
 			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
-				InvestmentID:    strategyInvestmentID,
+				InvestmentID:    investmentID,
 				TickerID:        cashTicker.TickerID,
 				Quantity:        portfolio.Cash,
 				RebalancerRunID: rebalancerRun.RebalancerRunID,
 			})
 			if err != nil {
-				return err
+				errorsByInvestment[investmentID] = append(errorsByInvestment[investmentID], err)
 			}
 		}
 	}
 
-	return nil
+	return errorsByInvestment, nil
 }
 
 func (h RebalancerHandler) generateTrades(
@@ -242,4 +272,87 @@ func (h RebalancerHandler) generateTrades(
 	}
 
 	return nil
+}
+
+func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, investmentID, rebalancerRunID uuid.UUID) []*model.InvestmentTrade {
+	out := []*model.InvestmentTrade{}
+	for _, t := range trades {
+		side := model.TradeOrderSide_Buy
+		if t.ExactQuantity.LessThan(decimal.Zero) {
+			side = model.TradeOrderSide_Sell
+		}
+		out = append(out, &model.InvestmentTrade{
+			TickerID:        t.TickerID,
+			Side:            side,
+			InvestmentID:    investmentID,
+			RebalancerRunID: rebalancerRunID,
+			Quantity:        t.ExactQuantity,
+			TradeOrderID:    nil, // need to update and set this
+		})
+	}
+	return out
+}
+
+func (h RebalancerHandler) aggregateAndExecuteTradeOrders(proposedTrades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
+	aggregatedTrades := l3_service.AggregateAndFormatTrades(proposedTrades)
+	internal.Pprint(aggregatedTrades)
+
+	generatedOrders := []model.TradeOrder{}
+
+	// TODO - we may have to optimize the way we submit trades
+	// i don't think alpaca has block orders, but ideally we submit
+	// this in one chunk, in an all-or-none fashion. if we don't have
+	// that, we should research proper techniques. for example, we might
+	// want to submit all sell orders first to avoid overexceeded cash
+	// limit. for now, what should we do if one of these fails?
+
+	// do a simple two pass to run all trades first
+
+	sellOrderErrors := []error{}
+	for _, t := range aggregatedTrades {
+		if t.ExactQuantity.LessThan(decimal.Zero) {
+			order, err := h.TradingService.Sell(l1_service.SellInput{
+				TickerID:        t.TickerID,
+				Symbol:          t.Symbol,
+				Quantity:        t.ExactQuantity,
+				ExpectedPrice:   t.ExpectedPrice,
+				RebalancerRunID: rebalancerRunID,
+			})
+			if err != nil {
+				sellOrderErrors = append(sellOrderErrors, err)
+				continue
+			}
+			generatedOrders = append(generatedOrders, *order)
+		}
+	}
+
+	// if any of the sells fail, let's just call it quits
+	if len(sellOrderErrors) > 0 {
+		return generatedOrders, fmt.Errorf("failed to execute %d sells. first: %w", len(sellOrderErrors), sellOrderErrors[0])
+	}
+
+	// keep track of all of the buy orders that failed
+	buyOrderErrors := []error{}
+	for _, t := range aggregatedTrades {
+		if t.ExactQuantity.GreaterThan(decimal.Zero) {
+			order, err := h.TradingService.Buy(l1_service.BuyInput{
+				TickerID:        t.TickerID,
+				Symbol:          t.Symbol,
+				Quantity:        t.ExactQuantity,
+				ExpectedPrice:   t.ExpectedPrice,
+				RebalancerRunID: rebalancerRunID,
+			})
+			if err != nil {
+				buyOrderErrors = append(buyOrderErrors, err)
+				continue
+			}
+			generatedOrders = append(generatedOrders, *order)
+		}
+	}
+
+	if len(buyOrderErrors) > 0 {
+		return generatedOrders, fmt.Errorf("failed to execute %d buy. first: %w", len(buyOrderErrors), buyOrderErrors[0])
+	}
+
+	return generatedOrders, nil
 }
