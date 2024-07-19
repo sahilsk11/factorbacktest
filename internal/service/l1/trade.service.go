@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"fmt"
 
@@ -16,6 +17,7 @@ import (
 type TradeService interface {
 	Buy(input BuyInput) (*model.TradeOrder, error)
 	Sell(input SellInput) (*model.TradeOrder, error)
+	ExecuteBlock([]*domain.ProposedTrade, uuid.UUID) ([]model.TradeOrder, error)
 	UpdateOrder(tradeOrderID uuid.UUID) error
 }
 
@@ -52,18 +54,12 @@ func (h tradeServiceHandler) placeOrder(
 	rebalancerRunID uuid.UUID,
 	expectedPrice decimal.Decimal,
 ) (*model.TradeOrder, error) {
-	tx, err := h.Db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	insertedOrder, err := h.TradeOrderRepository.Add(tx, model.TradeOrder{
+	insertedOrder, err := h.TradeOrderRepository.Add(nil, model.TradeOrder{
 		TickerID:          tickerID,
 		Side:              dbSide,
 		RequestedQuantity: quantity,
 		ExpectedPrice:     expectedPrice,
-		Status:            model.TradeOrderStatus_Pending,
+		Status:            model.TradeOrderStatus_Error,
 		Notes:             notes,
 		FilledQuantity:    decimal.Zero,
 		RebalancerRunID:   rebalancerRunID,
@@ -72,6 +68,8 @@ func (h tradeServiceHandler) placeOrder(
 		return nil, err
 	}
 
+	// should we include investmentOrder updates here
+
 	order, err := h.AlpacaRepository.PlaceOrder(repository.AlpacaPlaceOrderRequest{
 		TradeOrderID: insertedOrder.TradeOrderID,
 		Quantity:     quantity,
@@ -79,12 +77,7 @@ func (h tradeServiceHandler) placeOrder(
 		Side:         alpacaSide,
 	})
 	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to execute order for trade order %s: %w", insertedOrder.TradeOrderID, err)
 	}
 
 	orderID, err := uuid.Parse(order.ID)
@@ -110,6 +103,7 @@ func (h tradeServiceHandler) placeOrder(
 			table.TradeOrder.ProviderID,
 			table.TradeOrder.FilledQuantity,
 			table.TradeOrder.FilledPrice,
+			table.TradeOrder.FilledAt,
 		})
 	if err != nil {
 		return nil, err
@@ -174,4 +168,68 @@ func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) error {
 	}
 
 	return nil
+}
+
+// assumes trades are already aggregated by symbol
+func (h tradeServiceHandler) ExecuteBlock(trades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
+	// TODO - should we still store the trade order if it failed,
+	// but give it status failed? i think that will be easier to
+	// look up later and understand what happened instead of
+	// leaving the col null in investmentTrade
+
+	// first ensure that we have enough quantity for the order
+	currentHoldings, err := h.AlpacaRepository.GetPositions()
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range trades {
+		if t.ExactQuantity.LessThan(decimal.Zero) {
+			for _, position := range currentHoldings {
+				// if we hold less of the symbol than we want to sell, error
+				if t.Symbol == position.Symbol && (position.Qty.LessThan(t.ExactQuantity) ||
+					position.QtyAvailable.LessThan(t.ExactQuantity)) {
+					return nil, fmt.Errorf("insufficient %s (%f) to sell %f", t.Symbol, position.QtyAvailable.InexactFloat64(), t.ExactQuantity.InexactFloat64())
+				}
+			}
+		}
+	}
+
+	// maybe check buying power
+
+	generatedOrders := []model.TradeOrder{}
+
+	// do a simple two pass to run all trades first
+	for _, t := range trades {
+		if t.ExactQuantity.LessThan(decimal.Zero) {
+			order, err := h.Sell(SellInput{
+				TickerID:        t.TickerID,
+				Symbol:          t.Symbol,
+				Quantity:        t.ExactQuantity.Abs(),
+				ExpectedPrice:   t.ExpectedPrice,
+				RebalancerRunID: rebalancerRunID,
+			})
+			if err != nil {
+				return generatedOrders, err
+			}
+			generatedOrders = append(generatedOrders, *order)
+		}
+	}
+
+	for _, t := range trades {
+		if t.ExactQuantity.GreaterThan(decimal.Zero) {
+			order, err := h.Buy(BuyInput{
+				TickerID:        t.TickerID,
+				Symbol:          t.Symbol,
+				Quantity:        t.ExactQuantity,
+				ExpectedPrice:   t.ExpectedPrice,
+				RebalancerRunID: rebalancerRunID,
+			})
+			if err != nil {
+				return generatedOrders, err
+			}
+			generatedOrders = append(generatedOrders, *order)
+		}
+	}
+
+	return generatedOrders, nil
 }

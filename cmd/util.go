@@ -83,7 +83,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		InvestmentService:         investmentService,
 		TradingService:            tradingService,
 		RebalancerRunRepository:   rebalancerRunRepository,
-		PriceRepository:           priceRepository,
+		AlpacaRepository:          alpacaRepository,
 		TickerRepository:          tickerRepository,
 		InvestmentTradeRepository: investmentTradeRepository,
 		HoldingsRepository:        holdingsRepository,
