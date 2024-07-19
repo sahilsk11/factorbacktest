@@ -13,8 +13,11 @@ import (
 )
 
 type RebalancerRun struct {
-	RebalancerRunID   uuid.UUID `sql:"primary_key"`
-	Date              time.Time
-	CreatedAt         time.Time
-	RebalancerRunType RebalancerRunType
+	RebalancerRunID         uuid.UUID `sql:"primary_key"`
+	Date                    time.Time
+	CreatedAt               time.Time
+	RebalancerRunType       RebalancerRunType
+	RebalancerRunState      RebalancerRunState
+	ModifiedAt              time.Time
+	NumInvestmentsAttempted int32
 }

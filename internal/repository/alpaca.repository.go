@@ -112,7 +112,7 @@ func (h alpacaRepositoryHandler) PlaceOrder(req AlpacaPlaceOrderRequest) (*alpac
 		ClientOrderID: req.TradeOrderID.String(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Order for trade request id %s failed: %w", req.TradeOrderID.String(), err)
+		return nil, fmt.Errorf("order for trade request %s %s %s failed: %w", req.Side, req.Symbol, req.Quantity.String(), err)
 	}
 
 	return order, nil

@@ -17,10 +17,13 @@ type rebalancerRunTable struct {
 	postgres.Table
 
 	//Columns
-	RebalancerRunID   postgres.ColumnString
-	Date              postgres.ColumnDate
-	CreatedAt         postgres.ColumnTimestampz
-	RebalancerRunType postgres.ColumnString
+	RebalancerRunID         postgres.ColumnString
+	Date                    postgres.ColumnDate
+	CreatedAt               postgres.ColumnTimestampz
+	RebalancerRunType       postgres.ColumnString
+	RebalancerRunState      postgres.ColumnString
+	ModifiedAt              postgres.ColumnTimestampz
+	NumInvestmentsAttempted postgres.ColumnInteger
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -51,22 +54,28 @@ func newRebalancerRunTable(schemaName, tableName, alias string) *RebalancerRunTa
 
 func newRebalancerRunTableImpl(schemaName, tableName, alias string) rebalancerRunTable {
 	var (
-		RebalancerRunIDColumn   = postgres.StringColumn("rebalancer_run_id")
-		DateColumn              = postgres.DateColumn("date")
-		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
-		RebalancerRunTypeColumn = postgres.StringColumn("rebalancer_run_type")
-		allColumns              = postgres.ColumnList{RebalancerRunIDColumn, DateColumn, CreatedAtColumn, RebalancerRunTypeColumn}
-		mutableColumns          = postgres.ColumnList{DateColumn, CreatedAtColumn, RebalancerRunTypeColumn}
+		RebalancerRunIDColumn         = postgres.StringColumn("rebalancer_run_id")
+		DateColumn                    = postgres.DateColumn("date")
+		CreatedAtColumn               = postgres.TimestampzColumn("created_at")
+		RebalancerRunTypeColumn       = postgres.StringColumn("rebalancer_run_type")
+		RebalancerRunStateColumn      = postgres.StringColumn("rebalancer_run_state")
+		ModifiedAtColumn              = postgres.TimestampzColumn("modified_at")
+		NumInvestmentsAttemptedColumn = postgres.IntegerColumn("num_investments_attempted")
+		allColumns                    = postgres.ColumnList{RebalancerRunIDColumn, DateColumn, CreatedAtColumn, RebalancerRunTypeColumn, RebalancerRunStateColumn, ModifiedAtColumn, NumInvestmentsAttemptedColumn}
+		mutableColumns                = postgres.ColumnList{DateColumn, CreatedAtColumn, RebalancerRunTypeColumn, RebalancerRunStateColumn, ModifiedAtColumn, NumInvestmentsAttemptedColumn}
 	)
 
 	return rebalancerRunTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		RebalancerRunID:   RebalancerRunIDColumn,
-		Date:              DateColumn,
-		CreatedAt:         CreatedAtColumn,
-		RebalancerRunType: RebalancerRunTypeColumn,
+		RebalancerRunID:         RebalancerRunIDColumn,
+		Date:                    DateColumn,
+		CreatedAt:               CreatedAtColumn,
+		RebalancerRunType:       RebalancerRunTypeColumn,
+		RebalancerRunState:      RebalancerRunStateColumn,
+		ModifiedAt:              ModifiedAtColumn,
+		NumInvestmentsAttempted: NumInvestmentsAttemptedColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

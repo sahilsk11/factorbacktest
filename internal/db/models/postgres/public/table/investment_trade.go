@@ -25,6 +25,7 @@ type investmentTradeTable struct {
 	RebalancerRunID   postgres.ColumnString
 	Quantity          postgres.ColumnFloat
 	TradeOrderID      postgres.ColumnString
+	ModifiedAt        postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -63,8 +64,9 @@ func newInvestmentTradeTableImpl(schemaName, tableName, alias string) investment
 		RebalancerRunIDColumn   = postgres.StringColumn("rebalancer_run_id")
 		QuantityColumn          = postgres.FloatColumn("quantity")
 		TradeOrderIDColumn      = postgres.StringColumn("trade_order_id")
-		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn}
-		mutableColumns          = postgres.ColumnList{TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn}
+		ModifiedAtColumn        = postgres.TimestampzColumn("modified_at")
+		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn, ModifiedAtColumn}
+		mutableColumns          = postgres.ColumnList{TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn, ModifiedAtColumn}
 	)
 
 	return investmentTradeTable{
@@ -79,6 +81,7 @@ func newInvestmentTradeTableImpl(schemaName, tableName, alias string) investment
 		RebalancerRunID:   RebalancerRunIDColumn,
 		Quantity:          QuantityColumn,
 		TradeOrderID:      TradeOrderIDColumn,
+		ModifiedAt:        ModifiedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

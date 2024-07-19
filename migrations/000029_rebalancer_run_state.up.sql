@@ -4,7 +4,7 @@
 --   'ERROR'
 -- );
 
-alter type rebalancer_run_state add value 'PARTIAL_ERROR';
+-- alter type rebalancer_run_state add value 'PARTIAL_ERROR';
 
 alter table rebalancer_run
 add column rebalancer_run_state rebalancer_run_state not null default 'PENDING';
@@ -21,5 +21,8 @@ create table investment_rebalance_error (
   investment_id uuid not null references investment(investment_id),
   error_message text not null
 );
+
+alter table investment_trade
+add column modified_at timestamp with time zone not null default now();
 
 -- maybe use num failed / num attempted?
