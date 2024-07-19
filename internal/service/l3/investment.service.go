@@ -64,9 +64,10 @@ func AggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.Proposed
 	// round all buy orders to $1
 	// TODO - i think we should use market value
 	// and figure out whether to round up or down
+	// also since price is stale, it could be just under $1
 	for _, t := range trades {
 		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(decimal.NewFromInt(1)) {
-			t.ExactQuantity = (decimal.NewFromInt(1).Div(t.ExpectedPrice))
+			t.ExactQuantity = (decimal.NewFromInt(2).Div(t.ExpectedPrice))
 		}
 	}
 
@@ -77,12 +78,10 @@ type investmentServiceHandler struct {
 	Db                      *sql.DB
 	InvestmentRepository    repository.InvestmentRepository
 	HoldingsRepository      repository.InvestmentHoldingsRepository
-	PriceRepository         repository.AdjustedPriceRepository
 	UniverseRepository      repository.AssetUniverseRepository
 	SavedStrategyRepository repository.SavedStrategyRepository
 	FactorExpressionService l2_service.FactorExpressionService
 	TickerRepository        repository.TickerRepository
-	AlpacaRepository        repository.AlpacaRepository
 	RebalancerRunRepository repository.RebalancerRunRepository
 }
 
@@ -90,24 +89,20 @@ func NewInvestmentService(
 	db *sql.DB,
 	strategyInvestmentRepository repository.InvestmentRepository,
 	holdingsRepository repository.InvestmentHoldingsRepository,
-	priceRepository repository.AdjustedPriceRepository,
 	universeRepository repository.AssetUniverseRepository,
 	savedStrategyRepository repository.SavedStrategyRepository,
 	factorExpressionService l2_service.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
-	alpacaRepository repository.AlpacaRepository,
 	rebalancerRunRepository repository.RebalancerRunRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                      db,
 		InvestmentRepository:    strategyInvestmentRepository,
 		HoldingsRepository:      holdingsRepository,
-		PriceRepository:         priceRepository,
 		UniverseRepository:      universeRepository,
 		SavedStrategyRepository: savedStrategyRepository,
 		FactorExpressionService: factorExpressionService,
 		TickerRepository:        tickerRepository,
-		AlpacaRepository:        alpacaRepository,
 		RebalancerRunRepository: rebalancerRunRepository,
 	}
 }
@@ -162,9 +157,10 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	}
 
 	// this is super weird but just call this a rebalance lol
-	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
-		Date:              date,
-		RebalancerRunType: model.RebalancerRunType_Deposit,
+	rebalancerRun, err := h.RebalancerRunRepository.Add(tx, model.RebalancerRun{
+		Date:               date,
+		RebalancerRunType:  model.RebalancerRunType_Deposit,
+		RebalancerRunState: model.RebalancerRunState_Completed,
 	})
 	if err != nil {
 		return err

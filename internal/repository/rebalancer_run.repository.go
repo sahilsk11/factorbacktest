@@ -17,6 +17,7 @@ type RebalancerRunRepository interface {
 	Add(tx *sql.Tx, rr model.RebalancerRun) (*model.RebalancerRun, error)
 	Get(id uuid.UUID) (*model.RebalancerRun, error)
 	List() ([]model.RebalancerRun, error)
+	Update(tx *sql.Tx, rr *model.RebalancerRun, columns postgres.ColumnList) (*model.RebalancerRun, error)
 }
 
 type rebalancerRunRepositoryHandler struct {
@@ -29,6 +30,8 @@ func NewRebalancerRunRepository(db *sql.DB) RebalancerRunRepository {
 
 func (h rebalancerRunRepositoryHandler) Add(tx *sql.Tx, rr model.RebalancerRun) (*model.RebalancerRun, error) {
 	rr.CreatedAt = time.Now().UTC()
+	rr.ModifiedAt = time.Now().UTC()
+
 	query := table.RebalancerRun.
 		INSERT(
 			table.RebalancerRun.MutableColumns,
@@ -45,6 +48,30 @@ func (h rebalancerRunRepositoryHandler) Add(tx *sql.Tx, rr model.RebalancerRun) 
 	err := query.Query(db, &out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert rebalancer run: %w", err)
+	}
+
+	return &out, nil
+}
+
+func (h rebalancerRunRepositoryHandler) Update(tx *sql.Tx, rr *model.RebalancerRun, columns postgres.ColumnList) (*model.RebalancerRun, error) {
+	rr.ModifiedAt = time.Now().UTC()
+	query := table.RebalancerRun.
+		UPDATE(columns).
+		MODEL(rr).
+		RETURNING(table.RebalancerRun.AllColumns).
+		WHERE(table.RebalancerRun.RebalancerRunID.EQ(
+			postgres.UUID(rr.RebalancerRunID),
+		))
+
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
+	out := model.RebalancerRun{}
+	err := query.Query(db, &out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update rebalancer run %s: %w", rr.RebalancerRunID.String(), err)
 	}
 
 	return &out, nil

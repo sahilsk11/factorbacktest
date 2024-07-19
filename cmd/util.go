@@ -66,12 +66,10 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		dbConn,
 		strategyInvestmentRepository,
 		holdingsRepository,
-		priceRepository,
 		assetUniverseRepository,
 		savedStrategyRepository,
 		factorExpressionService,
 		tickerRepository,
-		alpacaRepository,
 		rebalancerRunRepository,
 	)
 	tradingService := l1_service.NewTradeService(
