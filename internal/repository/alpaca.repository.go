@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -16,6 +17,7 @@ type AlpacaRepository interface {
 	IsMarketOpen() (bool, error)
 	GetAccount() (*alpaca.Account, error)
 	GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error)
+	GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error)
 }
 
 func NewAlpacaRepository(apiKey, apiSecret string) AlpacaRepository {
@@ -26,15 +28,38 @@ func NewAlpacaRepository(apiKey, apiSecret string) AlpacaRepository {
 		RetryLimit: 3,
 	})
 
+	mdClient := marketdata.NewClient(marketdata.ClientOpts{
+		APIKey:    apiKey,
+		APISecret: apiSecret,
+	})
+
 	// todo - verify key
 
 	return &alpacaRepositoryHandler{
-		Client: client,
+		Client:   client,
+		MdClient: mdClient,
 	}
 }
 
 type alpacaRepositoryHandler struct {
-	Client *alpaca.Client
+	Client   *alpaca.Client
+	MdClient *marketdata.Client
+}
+
+func (h alpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {
+	results, err := h.MdClient.GetLatestQuotes(symbols, marketdata.GetLatestQuoteRequest{})
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]decimal.Decimal{}
+	for symbol, result := range results {
+		out[symbol] = decimal.NewFromFloat(result.BidPrice)
+		if out[symbol].IsZero() {
+			return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
+		}
+	}
+
+	return out, nil
 }
 
 func (h alpacaRepositoryHandler) CancelOpenOrders() error {

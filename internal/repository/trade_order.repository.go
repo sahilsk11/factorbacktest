@@ -36,8 +36,13 @@ func (h tradeOrderRepositoryHandler) Add(tx *sql.Tx, to model.TradeOrder) (*mode
 		MODEL(to).
 		RETURNING(table.TradeOrder.AllColumns)
 
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
 	out := model.TradeOrder{}
-	err := query.Query(tx, &out)
+	err := query.Query(db, &out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert trade order: %w", err)
 	}

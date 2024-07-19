@@ -65,6 +65,8 @@ func AggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.Proposed
 	// TODO - i think we should use market value
 	// and figure out whether to round up or down
 	// also since price is stale, it could be just under $1
+	// also we need to ledger these somewhere, as excess that
+	// I own
 	for _, t := range trades {
 		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(decimal.NewFromInt(1)) {
 			t.ExactQuantity = (decimal.NewFromInt(2).Div(t.ExpectedPrice))

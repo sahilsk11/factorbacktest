@@ -23,10 +23,10 @@ type RebalancerHandler struct {
 	InvestmentService         l3_service.InvestmentService
 	TradingService            l1_service.TradeService
 	RebalancerRunRepository   repository.RebalancerRunRepository
-	PriceRepository           repository.AdjustedPriceRepository
 	TickerRepository          repository.TickerRepository
 	InvestmentTradeRepository repository.InvestmentTradeRepository
 	HoldingsRepository        repository.InvestmentHoldingsRepository
+	AlpacaRepository          repository.AlpacaRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -36,31 +36,10 @@ type RebalancerHandler struct {
 //
 // TODO - add some sort of reconciliation that figures out what
 // everything got executed at.
-// Also consider how we should store/link virtual trades with
-// the actual executed trades
 // TODO - add idempotency around runs and somehow invalidate any
 // old runs
 func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	date := time.Now().UTC()
-
-	// figure out most recent trading day from date
-	tradingDays, err := h.PriceRepository.ListTradingDays(
-		date.AddDate(0, -6, 0),
-		date,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get trading days")
-	}
-	if len(tradingDays) == 0 {
-		return fmt.Errorf("failed to get trading days")
-	}
-	tradingDay := tradingDays[len(tradingDays)-1]
-	for i, td := range tradingDays[:len(tradingDays)-1] {
-		if tradingDays[i+1].After(date) {
-			tradingDay = td
-			break
-		}
-	}
 
 	// get all assets
 	// we could probably clean this up
@@ -72,12 +51,14 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	symbols := []string{}
 	tickerIDMap := map[string]uuid.UUID{}
 	for _, s := range assets {
-		symbols = append(symbols, s.Symbol)
-		tickerIDMap[s.Symbol] = s.TickerID
+		if s.Symbol != ":CASH" {
+			symbols = append(symbols, s.Symbol)
+			tickerIDMap[s.Symbol] = s.TickerID
+		}
 	}
-	pm, err := h.PriceRepository.GetManyOnDay(symbols, tradingDay)
+	pm, err := h.AlpacaRepository.GetLatestPrices(symbols)
 	if err != nil {
-		return fmt.Errorf("failed to get prices on day %v: %w", tradingDay, err)
+		return fmt.Errorf("failed to get latest prices: %w", err)
 	}
 
 	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
@@ -281,53 +262,5 @@ func (h RebalancerHandler) aggregateAndExecuteTradeOrders(proposedTrades []*doma
 	aggregatedTrades := l3_service.AggregateAndFormatTrades(proposedTrades)
 	internal.Pprint(aggregatedTrades)
 
-	generatedOrders := []model.TradeOrder{}
-
-	// TODO - we may have to optimize the way we submit trades
-	// i don't think alpaca has block orders, but ideally we submit
-	// this in one chunk, in an all-or-none fashion. if we don't have
-	// that, we should research proper techniques. for example, we might
-	// want to submit all sell orders first to avoid overexceeded cash
-	// limit. for now, what should we do if one of these fails?
-
-	// do a simple two pass to run all trades first
-
-	// TODO - should we still store the trade order if it failed,
-	// but give it status failed? i think that will be easier to
-	// look up later and understand what happened instead of
-	// leaving the col null in investmentTrade
-
-	for _, t := range aggregatedTrades {
-		if t.ExactQuantity.LessThan(decimal.Zero) {
-			order, err := h.TradingService.Sell(l1_service.SellInput{
-				TickerID:        t.TickerID,
-				Symbol:          t.Symbol,
-				Quantity:        t.ExactQuantity.Abs(),
-				ExpectedPrice:   t.ExpectedPrice,
-				RebalancerRunID: rebalancerRunID,
-			})
-			if err != nil {
-				return generatedOrders, err
-			}
-			generatedOrders = append(generatedOrders, *order)
-		}
-	}
-
-	for _, t := range aggregatedTrades {
-		if t.ExactQuantity.GreaterThan(decimal.Zero) {
-			order, err := h.TradingService.Buy(l1_service.BuyInput{
-				TickerID:        t.TickerID,
-				Symbol:          t.Symbol,
-				Quantity:        t.ExactQuantity,
-				ExpectedPrice:   t.ExpectedPrice,
-				RebalancerRunID: rebalancerRunID,
-			})
-			if err != nil {
-				return generatedOrders, err
-			}
-			generatedOrders = append(generatedOrders, *order)
-		}
-	}
-
-	return generatedOrders, nil
+	return h.TradingService.ExecuteBlock(aggregatedTrades, rebalancerRunID)
 }
