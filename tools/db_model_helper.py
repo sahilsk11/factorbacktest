@@ -4,6 +4,7 @@ update_files = {
   "investment_holdings.go",
   "trade_order.go",
   "investment_trade.go",
+  "investment_trade_status.go",
   "adjusted_price.go"
 }
 

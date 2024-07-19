@@ -138,9 +138,9 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 			mostRecentTime = p.CreatedAt
 		}
 	}
-	acceptableDelta := time.Minute
+	acceptableDelta := 30 * time.Second
 	if mostRecentTime.Add(acceptableDelta).After(date) {
-		return fmt.Errorf("can only create 1 investment per minute")
+		return fmt.Errorf("can only create 1 investment every 30s")
 	}
 
 	newStrategyInvestment, err := h.InvestmentRepository.Add(tx, model.Investment{

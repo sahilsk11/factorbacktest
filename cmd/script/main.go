@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"factorbacktest/cmd"
 	"factorbacktest/internal"
-	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/pkg/datajockey"
 	"fmt"
@@ -36,11 +35,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	profile, endProfile := domain.NewProfile()
-	defer endProfile()
-	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+	// profile, endProfile := domain.NewProfile()
+	// defer endProfile()
+	// ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
-	err = handler.RebalancerHandler.Rebalance(ctx)
+	err = handler.RebalancerHandler.UpdateAllPendingOrders()
 	if err != nil {
 		log.Fatal(err)
 	}

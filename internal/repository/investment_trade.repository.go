@@ -7,6 +7,7 @@ import (
 
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/db/models/postgres/public/view"
 
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
@@ -17,7 +18,7 @@ type InvestmentTradeRepository interface {
 	Add(tx *sql.Tx, irt model.InvestmentTrade) (*model.InvestmentTrade, error)
 	AddMany(tx *sql.Tx, m []*model.InvestmentTrade) ([]model.InvestmentTrade, error)
 	Get(id uuid.UUID) (*model.InvestmentTrade, error)
-	List() ([]model.InvestmentTrade, error)
+	List(InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error)
 	Update(tx *sql.Tx, m model.InvestmentTrade, columns postgres.ColumnList) (*model.InvestmentTrade, error)
 }
 
@@ -85,9 +86,21 @@ func (h investmentTradeRepositoryHandler) Get(id uuid.UUID) (*model.InvestmentTr
 	return &result, nil
 }
 
-func (h investmentTradeRepositoryHandler) List() ([]model.InvestmentTrade, error) {
-	query := table.InvestmentTrade.SELECT(table.InvestmentTrade.AllColumns)
-	result := []model.InvestmentTrade{}
+type InvestmentTradeListFilter struct {
+	TradeOrderID *uuid.UUID
+}
+
+func (h investmentTradeRepositoryHandler) List(listFilter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
+	query := view.InvestmentTradeStatus.SELECT(view.InvestmentTradeStatus.AllColumns)
+	if listFilter.TradeOrderID != nil {
+		query = query.WHERE(
+			view.InvestmentTradeStatus.TradeOrderID.EQ(
+				postgres.UUID(listFilter.TradeOrderID),
+			),
+		)
+	}
+
+	result := []model.InvestmentTradeStatus{}
 	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list investment rebalance trades: %w", err)
