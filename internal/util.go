@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func Pprint(i interface{}) {
@@ -24,6 +27,15 @@ func StringPointer(s string) *string {
 
 func FloatPointer(f float64) *float64 {
 	return &f
+}
+
+func TimePointer(t time.Time) *time.Time {
+	return &t
+}
+
+func DecimalPointer(f float64) *decimal.Decimal {
+	d := decimal.NewFromFloat(f)
+	return &d
 }
 
 type Secrets struct {
