@@ -28,6 +28,7 @@ type RebalancerHandler struct {
 	HoldingsRepository        repository.InvestmentHoldingsRepository
 	AlpacaRepository          repository.AlpacaRepository
 	TradeOrderRepository      repository.TradeOrderRepository
+	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -278,10 +279,16 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 		return err
 	}
 
+	tx, err := h.Db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	completedTrades := []model.InvestmentTradeStatus{}
 	for _, trade := range trades {
 		if trade.Status == model.TradeOrderStatus_Pending {
-			updatedTrade, err := h.TradingService.UpdateOrder(trade.TradeOrderID)
+			updatedTrade, err := h.TradingService.UpdateOrder(tx, trade.TradeOrderID)
 			if err != nil {
 				return err
 			}
@@ -335,12 +342,19 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 		// if one trade finishes from a rebalance but the other
 		// didn't, then what is the rebalance id of the holdings?
 
+		version, err := h.HoldingsVersionRepository.Add(tx, model.InvestmentHoldingsVersion{
+			InvestmentID: investmentID,
+		})
+		if err != nil {
+			return err
+		}
+
 		for _, position := range newPortfolio.Positions {
-			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
-				InvestmentID: investmentID,
-				TickerID:     position.TickerID,
-				Quantity:     position.ExactQuantity,
-				// RebalancerRunID: rebalancerRun.RebalancerRunID,
+			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+				InvestmentID:                investmentID,
+				TickerID:                    position.TickerID,
+				Quantity:                    position.ExactQuantity,
+				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
 			})
 			if err != nil {
 				return err
@@ -348,11 +362,11 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 		}
 
 		if newPortfolio.Cash.GreaterThan(decimal.Zero) {
-			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
-				InvestmentID: investmentID,
-				TickerID:     cashTicker.TickerID,
-				Quantity:     newPortfolio.Cash,
-				// RebalancerRunID: rebalancerRun.RebalancerRunID,
+			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+				InvestmentID:                investmentID,
+				TickerID:                    cashTicker.TickerID,
+				Quantity:                    newPortfolio.Cash,
+				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
 			})
 			if err != nil {
 				return err
@@ -361,6 +375,10 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 	}
 
 	// todo - update holdings from these trades
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -18,7 +18,7 @@ type TradeService interface {
 	Buy(input BuyInput) (*model.TradeOrder, error)
 	Sell(input SellInput) (*model.TradeOrder, error)
 	ExecuteBlock([]*domain.ProposedTrade, uuid.UUID) ([]model.TradeOrder, error)
-	UpdateOrder(tradeOrderID uuid.UUID) (*model.TradeOrder, error)
+	UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error)
 }
 
 type tradeServiceHandler struct {
@@ -137,7 +137,7 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 	return order, nil
 }
 
-func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) (*model.TradeOrder, error) {
+func (h tradeServiceHandler) UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error) {
 	tradeOrder, err := h.TradeOrderRepository.Get(tradeOrderID)
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) (*model.TradeOr
 		state = model.TradeOrderStatus_Error
 	}
 
-	updatedTrade, err := h.TradeOrderRepository.Update(nil,
+	updatedTrade, err := h.TradeOrderRepository.Update(tx,
 		tradeOrderID,
 		model.TradeOrder{
 			Status:         state,

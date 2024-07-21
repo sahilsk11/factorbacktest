@@ -58,6 +58,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	tradeOrderRepository := repository.NewTradeOrderRepository(dbConn)
 	rebalancerRunRepository := repository.NewRebalancerRunRepository(dbConn)
 	investmentTradeRepository := repository.NewInvestmentTradeRepository(dbConn)
+	holdingsVersionRepository := repository.NewInvestmentHoldingsVersionRepository(dbConn)
 
 	priceService := l1_service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
@@ -71,6 +72,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		factorExpressionService,
 		tickerRepository,
 		rebalancerRunRepository,
+		holdingsVersionRepository,
 	)
 	tradingService := l1_service.NewTradeService(
 		dbConn,
@@ -88,6 +90,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		InvestmentTradeRepository: investmentTradeRepository,
 		HoldingsRepository:        holdingsRepository,
 		TradeOrderRepository:      tradeOrderRepository,
+		HoldingsVersionRepository: holdingsVersionRepository,
 	}
 
 	apiHandler := &api.ApiHandler{

@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/api"
 	"factorbacktest/cmd"
 	"factorbacktest/internal"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/pkg/datajockey"
 	"fmt"
@@ -35,11 +37,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// profile, endProfile := domain.NewProfile()
-	// defer endProfile()
-	// ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+	profile, endProfile := domain.NewProfile()
+	defer endProfile()
+	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
-	err = handler.RebalancerHandler.UpdateAllPendingOrders()
+	err = handler.RebalancerHandler.Rebalance(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func updateOrders(handler *api.ApiHandler) {
+	err := handler.RebalancerHandler.UpdateAllPendingOrders()
 	if err != nil {
 		log.Fatal(err)
 	}
