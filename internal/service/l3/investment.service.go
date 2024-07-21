@@ -226,9 +226,7 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 
 	// this is where the assumption that target portfolio will not hold
 	// cash comes from - the field is just not populated
-	targetPortfolio := &domain.Portfolio{
-		Positions: map[string]*domain.Position{},
-	}
+	targetPortfolio := domain.NewPortfolio()
 
 	// convert weights into quantities
 	for symbol, weight := range newWeights {
