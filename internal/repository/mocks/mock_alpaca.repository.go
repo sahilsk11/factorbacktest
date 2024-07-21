@@ -11,6 +11,7 @@ import (
 	alpaca "github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
+	decimal "github.com/shopspring/decimal"
 )
 
 // MockAlpacaRepository is a mock of AlpacaRepository interface.
@@ -63,6 +64,21 @@ func (m *MockAlpacaRepository) GetAccount() (*alpaca.Account, error) {
 func (mr *MockAlpacaRepositoryMockRecorder) GetAccount() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAccount", reflect.TypeOf((*MockAlpacaRepository)(nil).GetAccount))
+}
+
+// GetLatestPrices mocks base method.
+func (m *MockAlpacaRepository) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestPrices", symbols)
+	ret0, _ := ret[0].(map[string]decimal.Decimal)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestPrices indicates an expected call of GetLatestPrices.
+func (mr *MockAlpacaRepositoryMockRecorder) GetLatestPrices(symbols interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPrices", reflect.TypeOf((*MockAlpacaRepository)(nil).GetLatestPrices), symbols)
 }
 
 // GetOrder mocks base method.

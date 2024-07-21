@@ -8,9 +8,11 @@ import (
 
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
+	"github.com/google/uuid"
 )
 
 type TickerRepository interface {
+	Get(tickerID uuid.UUID) (*model.Ticker, error)
 	List() ([]model.Ticker, error)
 	GetOrCreate(tx *sql.Tx, t model.Ticker) (*model.Ticker, error)
 	GetCashTicker() (*model.Ticker, error)
@@ -48,6 +50,22 @@ func (h tickerRepositoryHandler) List() ([]model.Ticker, error) {
 	}
 
 	return result, nil
+}
+
+func (h tickerRepositoryHandler) Get(tickerID uuid.UUID) (*model.Ticker, error) {
+	query := table.Ticker.
+		SELECT(table.Ticker.AllColumns).
+		WHERE(table.Ticker.TickerID.EQ(
+			postgres.UUID(tickerID),
+		))
+
+	out := model.Ticker{}
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ticker: %w", err)
+	}
+
+	return &out, nil
 }
 
 func (h tickerRepositoryHandler) GetOrCreate(tx *sql.Tx, t model.Ticker) (*model.Ticker, error) {

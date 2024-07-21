@@ -16,7 +16,7 @@ import (
 type TradeOrderRepository interface {
 	Add(tx *sql.Tx, to model.TradeOrder) (*model.TradeOrder, error)
 	Update(tx *sql.Tx, tradeOrderID uuid.UUID, to model.TradeOrder, columns postgres.ColumnList) (*model.TradeOrder, error)
-	Get(id uuid.UUID) (*model.TradeOrder, error)
+	Get(TradeOrderGetFilter) (*model.TradeOrder, error)
 	List() ([]model.TradeOrder, error)
 }
 
@@ -75,10 +75,23 @@ func (h tradeOrderRepositoryHandler) Update(tx *sql.Tx, tradeOrderID uuid.UUID, 
 	return &out, nil
 }
 
-func (h tradeOrderRepositoryHandler) Get(id uuid.UUID) (*model.TradeOrder, error) {
+type TradeOrderGetFilter struct {
+	TradeOrderID *uuid.UUID
+	ProviderID   *uuid.UUID
+}
+
+func (h tradeOrderRepositoryHandler) Get(filter TradeOrderGetFilter) (*model.TradeOrder, error) {
 	query := table.TradeOrder.
-		SELECT(table.TradeOrder.AllColumns).
-		WHERE(table.TradeOrder.TradeOrderID.EQ(postgres.UUID(id)))
+		SELECT(table.TradeOrder.AllColumns)
+
+	if filter.TradeOrderID != nil {
+		query = query.WHERE(table.TradeOrder.TradeOrderID.EQ(postgres.UUID(filter.TradeOrderID)))
+	} else if filter.ProviderID != nil {
+		query = query.WHERE(table.TradeOrder.ProviderID.EQ(postgres.UUID(filter.ProviderID)))
+
+	} else {
+		return nil, fmt.Errorf("invalid TradeOrderGetFilter")
+	}
 
 	result := model.TradeOrder{}
 	err := query.Query(h.Db, &result)

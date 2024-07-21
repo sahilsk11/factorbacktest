@@ -9,14 +9,19 @@ import (
 
 type Portfolio struct {
 	Positions map[string]*Position
-	Cash      decimal.Decimal
+	Cash      *decimal.Decimal
 }
 
 func NewPortfolio() *Portfolio {
+	d := decimal.Zero
 	return &Portfolio{
 		Positions: map[string]*Position{},
-		Cash:      decimal.Zero,
+		Cash:      &d,
 	}
+}
+
+func (p *Portfolio) SetCash(newCash decimal.Decimal) {
+	p.Cash = &newCash
 }
 
 func (p Portfolio) DeepCopy() *Portfolio {
@@ -32,7 +37,7 @@ func (p Portfolio) DeepCopy() *Portfolio {
 }
 
 func (p Portfolio) TotalValue(priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
-	totalValue := p.Cash
+	totalValue := *p.Cash
 	for symbol, position := range p.Positions {
 		price, ok := priceMap[symbol]
 		if !ok {
@@ -57,6 +62,7 @@ func (p Position) DeepCopy() *Position {
 		Symbol:        p.Symbol,
 		Quantity:      p.Quantity,
 		ExactQuantity: p.ExactQuantity,
+		TickerID:      p.TickerID,
 	}
 }
 

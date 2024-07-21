@@ -89,7 +89,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	if len(inputs) == 0 {
 		return nil, fmt.Errorf("cannot calculate factor scores with 0 inputs")
 	}
-	fmt.Printf("computing %d scores\n", len(inputs))
+	// fmt.Printf("computing %d scores\n", len(inputs))
 
 	out := map[time.Time]*ScoresResultsOnDay{}
 
@@ -197,7 +197,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		totalMs += float64(res.elapsedMs)
 		// newProfile.AddSpan(res.span)
 	}
-	fmt.Printf("avg score processing: %f\n", totalMs/float64(len(results)))
+	// fmt.Printf("avg score processing: %f\n", totalMs/float64(len(results)))
 	// endNewProfile()
 	endSpan()
 

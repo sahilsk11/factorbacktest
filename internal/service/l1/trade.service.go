@@ -138,7 +138,9 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 }
 
 func (h tradeServiceHandler) UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error) {
-	tradeOrder, err := h.TradeOrderRepository.Get(tradeOrderID)
+	tradeOrder, err := h.TradeOrderRepository.Get(repository.TradeOrderGetFilter{
+		TradeOrderID: &tradeOrderID,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +152,8 @@ func (h tradeServiceHandler) UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*m
 	if err != nil {
 		return nil, err
 	}
+
+	// todo - should we check order.Status
 
 	state := tradeOrder.Status
 	// check valid state transition

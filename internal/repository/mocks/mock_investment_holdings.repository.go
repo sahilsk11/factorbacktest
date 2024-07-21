@@ -69,18 +69,18 @@ func (mr *MockInvestmentHoldingsRepositoryMockRecorder) Get(id interface{}) *gom
 }
 
 // GetLatestHoldings mocks base method.
-func (m *MockInvestmentHoldingsRepository) GetLatestHoldings(investmentID uuid.UUID) (*domain.Portfolio, error) {
+func (m *MockInvestmentHoldingsRepository) GetLatestHoldings(tx *sql.Tx, investmentID uuid.UUID) (*domain.Portfolio, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLatestHoldings", investmentID)
+	ret := m.ctrl.Call(m, "GetLatestHoldings", tx, investmentID)
 	ret0, _ := ret[0].(*domain.Portfolio)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetLatestHoldings indicates an expected call of GetLatestHoldings.
-func (mr *MockInvestmentHoldingsRepositoryMockRecorder) GetLatestHoldings(investmentID interface{}) *gomock.Call {
+func (mr *MockInvestmentHoldingsRepositoryMockRecorder) GetLatestHoldings(tx, investmentID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestHoldings", reflect.TypeOf((*MockInvestmentHoldingsRepository)(nil).GetLatestHoldings), investmentID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestHoldings", reflect.TypeOf((*MockInvestmentHoldingsRepository)(nil).GetLatestHoldings), tx, investmentID)
 }
 
 // List mocks base method.

@@ -226,9 +226,7 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 
 	// this is where the assumption that target portfolio will not hold
 	// cash comes from - the field is just not populated
-	targetPortfolio := &domain.Portfolio{
-		Positions: map[string]*domain.Position{},
-	}
+	targetPortfolio := domain.NewPortfolio()
 
 	// convert weights into quantities
 	for symbol, weight := range newWeights {
@@ -316,7 +314,7 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 ) (*domain.Portfolio, []*domain.ProposedTrade, error) {
 	// get current holdings to figure out what the
 	// total investment is worth
-	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(strategyInvestment.InvestmentID)
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, strategyInvestment.InvestmentID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get holdings from investment id %s: %w", strategyInvestment.InvestmentID.String(), err)
 	}

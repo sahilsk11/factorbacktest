@@ -105,9 +105,11 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 
 	startValue := decimal.NewFromFloat(in.StartingCash)
 
-	currentPortfolio := domain.Portfolio{
-		Cash: startValue,
-	}
+	currentPortfolio := domain.NewPortfolio()
+	currentPortfolio.SetCash(startValue)
+
+	fmt.Println(currentPortfolio.TotalValue(map[string]decimal.Decimal{}))
+
 	out := []BacktestSample{}
 
 	const errThreshold = 0.1
@@ -164,7 +166,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			AssetWeights: computeTargetPortfolioResponse.AssetWeights,
 			FactorScores: computeTargetPortfolioResponse.FactorScores,
 		})
-		currentPortfolio = *computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
+		currentPortfolio = computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 	}
 	endSpan()
 

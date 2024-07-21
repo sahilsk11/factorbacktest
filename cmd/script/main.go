@@ -45,6 +45,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	updateOrders(handler)
 }
 
 func updateOrders(handler *api.ApiHandler) {

@@ -13,14 +13,13 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 )
 
 type InvestmentHoldingsRepository interface {
 	Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error)
 	Get(id uuid.UUID) (*model.InvestmentHoldings, error)
 	List(HoldingsListFilter) ([]model.InvestmentHoldings, error)
-	GetLatestHoldings(investmentID uuid.UUID) (*domain.Portfolio, error)
+	GetLatestHoldings(tx *sql.Tx, investmentID uuid.UUID) (*domain.Portfolio, error)
 }
 
 type HoldingsListFilter struct {
@@ -36,9 +35,7 @@ func NewInvestmentHoldingsRepository(db *sql.DB) InvestmentHoldingsRepository {
 
 func (h investmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error) {
 	sih.CreatedAt = time.Now().UTC()
-	if sih.Quantity.LessThanOrEqual(decimal.Zero) {
-		return nil, fmt.Errorf("failed to insert investment holding: quantity must be >= 0, got %s", sih.Quantity.String())
-	}
+
 	query := table.InvestmentHoldings.
 		INSERT(
 			table.InvestmentHoldings.MutableColumns,
@@ -86,7 +83,7 @@ func (h investmentHoldingsRepositoryHandler) List(listFilter HoldingsListFilter)
 	return result, nil
 }
 
-func (h investmentHoldingsRepositoryHandler) GetLatestHoldings(investmentID uuid.UUID) (*domain.Portfolio, error) {
+func (h investmentHoldingsRepositoryHandler) GetLatestHoldings(tx *sql.Tx, investmentID uuid.UUID) (*domain.Portfolio, error) {
 	query := view.LatestInvestmentHoldings.
 		SELECT(view.LatestInvestmentHoldings.AllColumns).
 		WHERE(
@@ -95,8 +92,13 @@ func (h investmentHoldingsRepositoryHandler) GetLatestHoldings(investmentID uuid
 			),
 		)
 
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
 	result := []model.LatestInvestmentHoldings{}
-	err := query.Query(h.Db, &result)
+	err := query.Query(db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list strategy investment holdings: %w", err)
 	}
@@ -110,7 +112,7 @@ func portfolioFromHoldings(holdings []model.LatestInvestmentHoldings) *domain.Po
 	portfolio := domain.NewPortfolio()
 	for _, h := range holdings {
 		if *h.Symbol == ":CASH" {
-			portfolio.Cash = *h.Quantity
+			portfolio.Cash = h.Quantity
 			continue
 		}
 		portfolio.Positions[*h.Symbol] = &domain.Position{

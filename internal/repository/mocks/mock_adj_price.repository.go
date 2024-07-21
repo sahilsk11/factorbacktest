@@ -13,6 +13,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	decimal "github.com/shopspring/decimal"
 )
 
 // MockAdjustedPriceRepository is a mock of AdjustedPriceRepository interface.
@@ -53,10 +54,10 @@ func (mr *MockAdjustedPriceRepositoryMockRecorder) Add(arg0, arg1 interface{}) *
 }
 
 // Get mocks base method.
-func (m *MockAdjustedPriceRepository) Get(arg0 string, arg1 time.Time) (float64, error) {
+func (m *MockAdjustedPriceRepository) Get(arg0 string, arg1 time.Time) (decimal.Decimal, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
-	ret0, _ := ret[0].(float64)
+	ret0, _ := ret[0].(decimal.Decimal)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -83,10 +84,10 @@ func (mr *MockAdjustedPriceRepositoryMockRecorder) GetMany(arg0 interface{}) *go
 }
 
 // GetManyOnDay mocks base method.
-func (m *MockAdjustedPriceRepository) GetManyOnDay(arg0 []string, arg1 time.Time) (map[string]float64, error) {
+func (m *MockAdjustedPriceRepository) GetManyOnDay(arg0 []string, arg1 time.Time) (map[string]decimal.Decimal, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetManyOnDay", arg0, arg1)
-	ret0, _ := ret[0].(map[string]float64)
+	ret0, _ := ret[0].(map[string]decimal.Decimal)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

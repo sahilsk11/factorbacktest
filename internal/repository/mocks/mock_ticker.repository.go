@@ -10,6 +10,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	uuid "github.com/google/uuid"
 )
 
 // MockTickerRepository is a mock of TickerRepository interface.
@@ -33,6 +34,21 @@ func NewMockTickerRepository(ctrl *gomock.Controller) *MockTickerRepository {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTickerRepository) EXPECT() *MockTickerRepositoryMockRecorder {
 	return m.recorder
+}
+
+// Get mocks base method.
+func (m *MockTickerRepository) Get(tickerID uuid.UUID) (*model.Ticker, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", tickerID)
+	ret0, _ := ret[0].(*model.Ticker)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockTickerRepositoryMockRecorder) Get(tickerID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockTickerRepository)(nil).Get), tickerID)
 }
 
 // GetCashTicker mocks base method.
