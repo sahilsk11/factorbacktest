@@ -3,6 +3,7 @@ package cmd
 import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/repository"
+	"fmt"
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
@@ -29,12 +30,20 @@ type MockAlpacaRepository interface {
 type mockAlpacaRepositoryHandler struct {
 	realAlpacaRepository repository.AlpacaRepository
 	tradeOrderRepository repository.TradeOrderRepository
+	tickerRepository     repository.TickerRepository
 }
 
-func NewMockAlpacaRepository(alpacaRepository repository.AlpacaRepository, toRepository repository.TradeOrderRepository) MockAlpacaRepository {
+func NewMockAlpacaRepository(alpacaRepository repository.AlpacaRepository, toRepository repository.TradeOrderRepository, tickerRepository repository.TickerRepository) MockAlpacaRepository {
+	fmt.Println(`*******************
+WARNING: Using mock Alpaca service. May not reflect real conditions
+*******************`)
+
+	// todo - ensure we're using paper trading
+
 	return mockAlpacaRepositoryHandler{
 		realAlpacaRepository: alpacaRepository,
 		tradeOrderRepository: toRepository,
+		tickerRepository:     tickerRepository,
 	}
 }
 func (m mockAlpacaRepositoryHandler) PlaceOrder(req repository.AlpacaPlaceOrderRequest) (*alpaca.Order, error) {
@@ -67,17 +76,28 @@ func (m mockAlpacaRepositoryHandler) GetOrder(alpacaOrderID uuid.UUID) (*alpaca.
 		return nil, err
 	}
 
+	ticker, err := m.tickerRepository.Get(trade.TickerID)
+	if err != nil {
+		return nil, err
+	}
+
+	prices, err := m.realAlpacaRepository.GetLatestPrices([]string{ticker.Symbol})
+	if err != nil {
+		return nil, err
+	}
+	price := prices[ticker.Symbol]
+
 	return &alpaca.Order{
 		FilledAt: internal.TimePointer(time.Now().UTC()),
 		// ExpiredAt:      &time.Time{},
 		// CanceledAt:     &time.Time{},
 		// FailedAt:       &time.Time{},
 
-		Status: "",
+		// Status: alpaca.Fill,
 		// Notional:       &decimal.Decimal{},
 		Qty:            &trade.RequestedQuantity,
 		FilledQty:      trade.RequestedQuantity,
-		FilledAvgPrice: internal.DecimalPointer(100),
+		FilledAvgPrice: &price,
 	}, nil
 }
 

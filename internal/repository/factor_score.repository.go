@@ -100,8 +100,6 @@ func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) 
 	numGoroutines := 10
 	var wg sync.WaitGroup
 
-	x := time.Now()
-
 	for start := 0; start < len(expressions); start += batchSize {
 		end := start + batchSize
 		if end > len(expressions) {
@@ -156,8 +154,6 @@ func (h factorScoreRepositoryHandler) GetMany(inputs []FactorScoreGetManyInput) 
 			results[m.Date][m.TickerID] = m
 		}
 	}
-
-	fmt.Printf("query took %d ms\n", time.Since(x).Milliseconds())
 
 	return results, nil
 }

@@ -153,6 +153,8 @@ func (h tradeServiceHandler) UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*m
 		return nil, err
 	}
 
+	// todo - should we check order.Status
+
 	state := tradeOrder.Status
 	// check valid state transition
 	if state == model.TradeOrderStatus_Pending && order.FilledAt != nil {

@@ -316,7 +316,7 @@ func (h investmentServiceHandler) GenerateRebalanceResults(
 ) (*domain.Portfolio, []*domain.ProposedTrade, error) {
 	// get current holdings to figure out what the
 	// total investment is worth
-	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(strategyInvestment.InvestmentID)
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, strategyInvestment.InvestmentID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get holdings from investment id %s: %w", strategyInvestment.InvestmentID.String(), err)
 	}

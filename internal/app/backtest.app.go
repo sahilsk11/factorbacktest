@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
@@ -106,7 +107,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	startValue := decimal.NewFromFloat(in.StartingCash)
 
 	currentPortfolio := domain.Portfolio{
-		Cash: startValue,
+		Cash: internal.DecimalPointer(startValue),
 	}
 	out := []BacktestSample{}
 

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"database/sql"
-	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
@@ -263,7 +262,6 @@ func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, inves
 
 func (h RebalancerHandler) aggregateAndExecuteTradeOrders(proposedTrades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
 	aggregatedTrades := l3_service.AggregateAndFormatTrades(proposedTrades)
-	internal.Pprint(aggregatedTrades)
 
 	return h.TradingService.ExecuteBlock(aggregatedTrades, rebalancerRunID)
 }
@@ -279,7 +277,10 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 		return err
 	}
 
-	tx, err := h.Db.Begin()
+	tx, err := h.Db.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelReadUncommitted,
+		ReadOnly:  false,
+	})
 	if err != nil {
 		return err
 	}
@@ -293,7 +294,7 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 				return err
 			}
 			if updatedTrade.Status == model.TradeOrderStatus_Completed {
-				relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(repository.InvestmentTradeListFilter{
+				relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
 					TradeOrderID: &updatedTrade.TradeOrderID,
 				})
 				if err != nil {
@@ -313,34 +314,46 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 	}
 
 	for investmentID, newTrades := range completedTradesByInvestment {
-		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(investmentID)
+		// should be the holdings prior to the new trades being completed
+		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(tx, investmentID)
 		if err != nil {
 			return err
 		}
 		newPortfolio := currentHoldings.DeepCopy()
 		for _, t := range newTrades {
-			oldQuantity := newPortfolio.Positions[*t.Symbol].ExactQuantity
+			oldQuantity := decimal.Zero
+			if p, ok := newPortfolio.Positions[*t.Symbol]; ok {
+				oldQuantity = p.ExactQuantity
+			} else {
+				newPortfolio.Positions[*t.Symbol] = &domain.Position{
+					Symbol:        *t.Symbol,
+					Quantity:      0,
+					ExactQuantity: decimal.Zero,
+					TickerID:      *t.TickerID,
+				}
+			}
 			orderQuantity := *t.Quantity
 			orderPrice := *t.FilledPrice
 
 			if *t.Side == model.TradeOrderSide_Sell {
 				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Sub(orderQuantity)
-				newPortfolio.Cash = newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice))
+				fmt.Println("new cash", newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
+				newPortfolio.SetCash(newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
 			} else {
 				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Add(orderQuantity)
-				newPortfolio.Cash = newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice))
-				newPortfolio.Cash = newPortfolio.Cash.Sub(orderQuantity.Mul(orderPrice))
+				fmt.Println("new cash", newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
+				newPortfolio.SetCash(newPortfolio.Cash.Sub(orderQuantity.Mul(orderPrice)))
 			}
+			fmt.Println(newPortfolio.Cash)
+
 		}
+		fmt.Println("here")
+		fmt.Println(newPortfolio.Cash)
 
 		// validate the portfolio
 		// - ensure cash >= 0
 		// - ensure position quantity >= 0
 		// ensure allocations line up with expected
-
-		// todo - no clue what rebalancer run id should be
-		// if one trade finishes from a rebalance but the other
-		// didn't, then what is the rebalance id of the holdings?
 
 		version, err := h.HoldingsVersionRepository.Add(tx, model.InvestmentHoldingsVersion{
 			InvestmentID: investmentID,
@@ -361,11 +374,13 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 			}
 		}
 
-		if newPortfolio.Cash.GreaterThan(decimal.Zero) {
+		// record even small slippage in cash, so we know
+		// their actual account balances
+		if newPortfolio.Cash.Abs().GreaterThan(decimal.Zero) {
 			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
 				InvestmentID:                investmentID,
 				TickerID:                    cashTicker.TickerID,
-				Quantity:                    newPortfolio.Cash,
+				Quantity:                    *newPortfolio.Cash,
 				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
 			})
 			if err != nil {

@@ -99,7 +99,6 @@ func percentChange(end, start float64) float64 {
 func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput, tradingDays []time.Time) (*stdevCache, error) {
 	// profile, endProfile := domain.GetProfile(ctx)
 	// defer endProfile()
-	f := time.Now()
 
 	c := map[string]map[time.Time]map[time.Time]float64{}
 
@@ -248,8 +247,6 @@ func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[
 	// fmt.Printf("processed %d stdev inputs, loop took %d\n", len(stdevInputs), total1/1e6)
 	// fmt.Printf("processed %d stdev inputs, stdevs took %d\n", len(stdevInputs), total2/1e6)
 	// fmt.Printf("processed %d stdev inputs, fre took %d\n", len(stdevInputs), total3/1e6)
-
-	fmt.Printf("stdev thing took %d ms\n", time.Since(f).Milliseconds())
 
 	return &stdevCache{
 		cache: c,

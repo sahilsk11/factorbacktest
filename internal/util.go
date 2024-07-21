@@ -33,8 +33,7 @@ func TimePointer(t time.Time) *time.Time {
 	return &t
 }
 
-func DecimalPointer(f float64) *decimal.Decimal {
-	d := decimal.NewFromFloat(f)
+func DecimalPointer(d decimal.Decimal) *decimal.Decimal {
 	return &d
 }
 

@@ -18,7 +18,7 @@ type InvestmentTradeRepository interface {
 	Add(tx *sql.Tx, irt model.InvestmentTrade) (*model.InvestmentTrade, error)
 	AddMany(tx *sql.Tx, m []*model.InvestmentTrade) ([]model.InvestmentTrade, error)
 	Get(id uuid.UUID) (*model.InvestmentTrade, error)
-	List(InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error)
+	List(tx *sql.Tx, filter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error)
 	Update(tx *sql.Tx, m model.InvestmentTrade, columns postgres.ColumnList) (*model.InvestmentTrade, error)
 }
 
@@ -44,13 +44,17 @@ func (h investmentTradeRepositoryHandler) Add(tx *sql.Tx, irt model.InvestmentTr
 	out := model.InvestmentTrade{}
 	err := query.Query(tx, &out)
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert investment rebalance trade: %w", err)
+		return nil, fmt.Errorf("failed to insert investment trade: %w", err)
 	}
 
 	return &out, nil
 }
 
 func (h investmentTradeRepositoryHandler) AddMany(tx *sql.Tx, models []*model.InvestmentTrade) ([]model.InvestmentTrade, error) {
+	if len(models) == 0 {
+		return []model.InvestmentTrade{}, nil
+	}
+
 	for _, m := range models {
 		m.CreatedAt = time.Now().UTC()
 		m.ModifiedAt = time.Now().UTC()
@@ -62,6 +66,8 @@ func (h investmentTradeRepositoryHandler) AddMany(tx *sql.Tx, models []*model.In
 		).
 		MODELS(models).
 		RETURNING(table.InvestmentTrade.AllColumns)
+
+	fmt.Println(query.DebugSql())
 
 	out := []model.InvestmentTrade{}
 	err := query.Query(tx, &out)
@@ -90,7 +96,7 @@ type InvestmentTradeListFilter struct {
 	TradeOrderID *uuid.UUID
 }
 
-func (h investmentTradeRepositoryHandler) List(listFilter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
+func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
 	query := view.InvestmentTradeStatus.SELECT(view.InvestmentTradeStatus.AllColumns)
 	if listFilter.TradeOrderID != nil {
 		query = query.WHERE(
@@ -100,8 +106,13 @@ func (h investmentTradeRepositoryHandler) List(listFilter InvestmentTradeListFil
 		)
 	}
 
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
 	result := []model.InvestmentTradeStatus{}
-	err := query.Query(h.Db, &result)
+	err := query.Query(db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list investment rebalance trades: %w", err)
 	}
