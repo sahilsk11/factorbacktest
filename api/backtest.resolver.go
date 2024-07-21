@@ -5,11 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/util"
 	"fmt"
 	"regexp"
 	"strings"
@@ -205,7 +205,7 @@ func saveUserStrategy(
 	siHasher.Write(siBytes)
 	siHash := hex.EncodeToString(siHasher.Sum(nil))
 
-	expressionHash := internal.HashFactorExpression(requestBody.FactorOptions.Expression)
+	expressionHash := util.HashFactorExpression(requestBody.FactorOptions.Expression)
 
 	// rewrite the saved JSON, including the ignored fields
 	si.FactorName = requestBody.FactorOptions.Name

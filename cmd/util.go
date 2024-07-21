@@ -9,6 +9,7 @@ import (
 	l1_service "factorbacktest/internal/service/l1"
 	l2_service "factorbacktest/internal/service/l2"
 	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/util"
 	"fmt"
 	"log"
 
@@ -25,7 +26,7 @@ func CloseDependencies(handler *api.ApiHandler) {
 }
 
 func InitializeDependencies() (*api.ApiHandler, error) {
-	secrets, err := internal.LoadSecrets()
+	secrets, err := util.LoadSecrets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load secrets: %w", err)
 	}

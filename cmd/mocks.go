@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"factorbacktest/internal"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/util"
 	"fmt"
 	"time"
 
@@ -88,7 +88,7 @@ func (m mockAlpacaRepositoryHandler) GetOrder(alpacaOrderID uuid.UUID) (*alpaca.
 	price := prices[ticker.Symbol]
 
 	return &alpaca.Order{
-		FilledAt: internal.TimePointer(time.Now().UTC()),
+		FilledAt: util.TimePointer(time.Now().UTC()),
 		// ExpiredAt:      &time.Time{},
 		// CanceledAt:     &time.Time{},
 		// FailedAt:       &time.Time{},

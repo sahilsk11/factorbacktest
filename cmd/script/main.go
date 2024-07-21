@@ -8,6 +8,7 @@ import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/util"
 	"factorbacktest/pkg/datajockey"
 	"fmt"
 	"log"
@@ -17,7 +18,7 @@ import (
 )
 
 func New() (*sql.DB, error) {
-	secrets, err := internal.LoadSecrets()
+	secrets, err := util.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,7 +77,7 @@ func ingestFundamentals(symbol string) {
 	}
 	defer tx.Rollback()
 
-	secrets, err := internal.LoadSecrets()
+	secrets, err := util.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func ingestFundamentals(symbol string) {
 
 func gpt() {
 	ctx := context.Background()
-	secrets, err := internal.LoadSecrets()
+	secrets, err := util.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,7 +119,7 @@ func gpt() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	internal.Pprint(resp)
+	util.Pprint(resp)
 
 }
 
@@ -128,7 +129,7 @@ func ingestUniverseFundamentals() {
 		log.Fatal(fmt.Errorf("failed to create tx: %w", err))
 	}
 
-	secrets, err := internal.LoadSecrets()
+	secrets, err := util.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
 	}

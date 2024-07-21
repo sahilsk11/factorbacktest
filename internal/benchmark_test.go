@@ -2,6 +2,7 @@ package internal
 
 import (
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/util"
 	"testing"
 	"time"
 
@@ -12,17 +13,17 @@ import (
 
 func Test_intraPeriodChangeIterator(t *testing.T) {
 	t.Run("two days, both present", func(t *testing.T) {
-		t1 := NewDate(2020, 1, 1)
-		t2 := NewDate(2020, 1, 2)
+		t1 := util.NewDate(2020, 1, 1)
+		t2 := util.NewDate(2020, 1, 2)
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
 				{
 					Price: decimal.NewFromInt(100),
-					Date:  NewDate(2020, 1, 1),
+					Date:  util.NewDate(2020, 1, 1),
 				},
 				{
 					Price: decimal.NewFromInt(110),
-					Date:  NewDate(2020, 1, 2),
+					Date:  util.NewDate(2020, 1, 2),
 				},
 			},
 			// t1,
@@ -43,21 +44,21 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 		)
 	})
 	t.Run("first day missing", func(t *testing.T) {
-		// t1 := NewDate(2020, 1, 1)
-		t2 := NewDate(2020, 1, 2)
+		// t1 := util.NewDate(2020, 1, 1)
+		t2 := util.NewDate(2020, 1, 2)
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
 				{
 					Price: decimal.NewFromInt(110),
-					Date:  NewDate(2020, 1, 2),
+					Date:  util.NewDate(2020, 1, 2),
 				},
 				{
 					Price: decimal.NewFromInt(110),
-					Date:  NewDate(2020, 1, 3),
+					Date:  util.NewDate(2020, 1, 3),
 				},
 			},
 			// t1,
-			NewDate(2020, 1, 2),
+			util.NewDate(2020, 1, 2),
 			time.Hour*24,
 		)
 
@@ -74,22 +75,22 @@ func Test_intraPeriodChangeIterator(t *testing.T) {
 	})
 
 	t.Run("include last day", func(t *testing.T) {
-		// t1 := NewDate(2020, 1, 1)
-		t2 := NewDate(2020, 1, 2)
-		t3 := NewDate(2020, 1, 3)
+		// t1 := util.NewDate(2020, 1, 1)
+		t2 := util.NewDate(2020, 1, 2)
+		t3 := util.NewDate(2020, 1, 3)
 		out := intraPeriodChangeIterator(
 			[]domain.AssetPrice{
 				{
 					Price: decimal.NewFromInt(110),
-					Date:  NewDate(2020, 1, 2),
+					Date:  util.NewDate(2020, 1, 2),
 				},
 				{
 					Price: decimal.NewFromInt(110),
-					Date:  NewDate(2020, 1, 3),
+					Date:  util.NewDate(2020, 1, 3),
 				},
 			},
 			// t1,
-			NewDate(2020, 1, 3),
+			util.NewDate(2020, 1, 3),
 			time.Hour*24,
 		)
 

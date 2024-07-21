@@ -3,13 +3,13 @@ package app
 import (
 	"context"
 	"database/sql"
-	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/util"
 	"fmt"
 	"time"
 
@@ -121,10 +121,10 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	rebalancerRun.RebalancerRunState = model.RebalancerRunState_Pending
 	if len(investmentsToRebalance) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
-		rebalancerRun.Notes = internal.StringPointer("no investments to rebalance")
+		rebalancerRun.Notes = util.StringPointer("no investments to rebalance")
 	} else if len(insertedInvestmentTrades) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
-		rebalancerRun.Notes = internal.StringPointer("no investment trades generated")
+		rebalancerRun.Notes = util.StringPointer("no investment trades generated")
 	}
 
 	_, err = h.RebalancerRunRepository.Update(tx, rebalancerRun, []postgres.Column{
@@ -180,7 +180,7 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 
 	if len(executedTrades) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
-		rebalancerRun.Notes = internal.StringPointer("no trade orders generated - investment trades must have cancelled out")
+		rebalancerRun.Notes = util.StringPointer("no trade orders generated - investment trades must have cancelled out")
 		_, err = h.RebalancerRunRepository.Update(nil, rebalancerRun, []postgres.Column{
 			table.RebalancerRun.RebalancerRunState,
 			table.RebalancerRun.Notes,

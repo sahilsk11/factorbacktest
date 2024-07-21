@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
+	"factorbacktest/internal/util"
 	"math"
 
 	"fmt"
@@ -213,7 +213,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 
 		m := &model.FactorScore{
 			TickerID:             res.Ticker.TickerID,
-			FactorExpressionHash: internal.HashFactorExpression(factorExpression),
+			FactorExpressionHash: util.HashFactorExpression(factorExpression),
 			Date:                 res.Date,
 		}
 
@@ -280,7 +280,7 @@ func (h factorExpressionServiceHandler) getPrecomputedScores(inputsPtr *[]workIn
 	getScoresInput := []repository.FactorScoreGetManyInput{}
 	for _, in := range inputs {
 		getScoresInput = append(getScoresInput, repository.FactorScoreGetManyInput{
-			FactorExpressionHash: internal.HashFactorExpression(in.FactorExpression),
+			FactorExpressionHash: util.HashFactorExpression(in.FactorExpression),
 			Ticker:               in.Ticker,
 			Date:                 in.Date,
 		})

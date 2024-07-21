@@ -3,6 +3,7 @@ package internal
 import (
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/util"
 	"fmt"
 	"sort"
 	"time"
@@ -55,7 +56,7 @@ func intraPeriodChangeIterator(
 		prices[0].Date: 0,
 	}
 	nextTarget := prices[0].Date.Add(granularity)
-	for i < len(prices) && DateLte(prices[i].Date, end) {
+	for i < len(prices) && util.DateLte(prices[i].Date, end) {
 		for nextTarget.Format(layout) < prices[i].Date.Format(layout) {
 			nextTarget = nextTarget.Add(24 * time.Hour)
 		}

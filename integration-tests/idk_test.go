@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/api"
-	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/util"
 	"fmt"
 	"io"
 	"math"
@@ -191,7 +191,7 @@ func cleanupUniverse(db *sql.DB) error {
 
 func Test_backtestFlow(t *testing.T) {
 	// setup db
-	db, err := internal.NewTestDb()
+	db, err := util.NewTestDb()
 	require.NoError(t, err)
 	err = cleanupUniverse(db) // redundant but ensures tables are empty
 	require.NoError(t, err)
