@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
-	"fmt"
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
@@ -34,7 +34,7 @@ type mockAlpacaRepositoryHandler struct {
 }
 
 func NewMockAlpacaRepository(alpacaRepository repository.AlpacaRepository, toRepository repository.TradeOrderRepository, tickerRepository repository.TickerRepository) MockAlpacaRepository {
-	fmt.Println(`*******************
+	logger.Info(`*******************
 WARNING: Using mock Alpaca service. May not reflect real conditions
 *******************`)
 
