@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"fmt"
 	"math"
@@ -160,14 +161,6 @@ func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[
 		bufferedStart := in.Start.AddDate(0, 0, 7)
 		bufferedEnd := in.End.AddDate(0, 0, -7)
 		if returns[0].date.After(bufferedStart) || returns[len(returns)-1].date.Before(bufferedEnd) {
-			// fmt.Printf(
-			// 	"skipping stdev for %s between %s and %s %s - %s\n",
-			// 	in.Symbol,
-			// 	in.Start.Format(time.DateOnly),
-			// 	in.End.Format(time.DateOnly),
-			// 	returns[0].date.Format(time.DateOnly),
-			// 	returns[len(returns)-1].date.Format(time.DateOnly),
-			// )
 			continue
 		}
 		data := []float64{}
@@ -184,69 +177,6 @@ func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[
 		magicNumber := math.Sqrt(252)
 		set(in.Symbol, in.Start, in.End, stdev*magicNumber)
 	}
-
-	// total := int64(0)
-	// total1 := int64(0)
-	// total2 := int64(0)
-
-	// total3 := int64(0)
-
-	// for _, in := range stdevInputs {
-	// 	intradayChanges := []float64{}
-	// 	relevantTradingDays := []time.Time{}
-	// 	skip := false
-
-	// 	x := time.Now()
-	// 	for _, t := range tradingDays {
-	// 		if (t.Equal(in.Start) || t.After(in.Start)) && (t.Equal(in.End) || t.Before(in.End)) {
-	// 			relevantTradingDays = append(relevantTradingDays, t)
-	// 		}
-	// 	}
-	// 	total += time.Since(x).Nanoseconds()
-
-	// 	y := time.Now()
-	// 	for i := 1; i < len(relevantTradingDays); i++ {
-	// 		startPrice, ok := get(in.Symbol, relevantTradingDays[i-1])
-	// 		if !ok {
-	// 			skip = true
-	// 			break
-	// 			// return nil, fmt.Errorf("missing price in cache for %s on %v", in.Symbol, relevantTradingDays[i-1])
-	// 		}
-	// 		endPrice, ok := get(in.Symbol, relevantTradingDays[i])
-	// 		if !ok {
-	// 			skip = true
-	// 			break
-	// 			// return nil, fmt.Errorf("missing price in cache for %s on %v", in.Symbol, relevantTradingDays[i])
-	// 		}
-	// 		intradayChanges = append(intradayChanges, percentChange(
-	// 			endPrice,
-	// 			startPrice,
-	// 		))
-	// 	}
-	// 	total1 += time.Since(y).Nanoseconds()
-	// 	if skip {
-	// 		total3 += time.Since(fjr).Nanoseconds()
-
-	// 		continue
-	// 	}
-
-	// 	z := time.Now()
-	// 	stdev, err := stats.StandardDeviationSample(intradayChanges)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	total2 += time.Since(z).Nanoseconds()
-	// 	magicNumber := math.Sqrt(252)
-
-	// 	set(in.Symbol, in.Start, in.End, stdev*magicNumber)
-	// 	total3 += time.Since(fjr).Nanoseconds()
-	// }
-	// fmt.Printf("loop took %d ms\n", time.Since(fjreo).Milliseconds())
-
-	// fmt.Printf("processed %d stdev inputs, relevant trading days took %d\n", len(stdevInputs), total/1e6)
-	// fmt.Printf("processed %d stdev inputs, loop took %d\n", len(stdevInputs), total1/1e6)
-	// fmt.Printf("processed %d stdev inputs, stdevs took %d\n", len(stdevInputs), total2/1e6)
-	// fmt.Printf("processed %d stdev inputs, fre took %d\n", len(stdevInputs), total3/1e6)
 
 	return &stdevCache{
 		cache: c,
@@ -533,7 +463,7 @@ func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPri
 					}
 					err := IngestPrices(tx, symbol, adjPriceRepository, nil)
 					if err != nil {
-						fmt.Printf("failed to ingest price for %s: %s\n", symbol, err.Error())
+						logger.Warn("failed to ingest price for %s: %s\n", symbol, err.Error())
 					}
 					wg.Done()
 				}

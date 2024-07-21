@@ -2,6 +2,7 @@ package api
 
 import (
 	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/logger"
 	l1_service "factorbacktest/internal/service/l1"
 	"fmt"
 	"time"
@@ -63,7 +64,7 @@ func (m ApiHandler) addAssetsToUniverse(c *gin.Context) {
 		// try getting price on some random day to check if we already track the price
 		_, err = m.PriceRepository.Get(ticker.Symbol, time.Date(2024, 06, 12, 0, 0, 0, 0, time.UTC))
 		if err == nil {
-			fmt.Println("skipping", ticker.Symbol)
+			logger.Info("skipping", ticker.Symbol)
 			continue
 		}
 		err = l1_service.IngestPrices(tx, ticker.Symbol, m.PriceRepository, nil)

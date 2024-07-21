@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"factorbacktest/internal/logger"
 	"fmt"
 	"time"
 
@@ -77,7 +78,7 @@ func (h alpacaRepositoryHandler) CancelOpenOrders() error {
 		}
 	}
 
-	fmt.Printf("%d order(s) cancelled\n", len(orders))
+	logger.Info("%d order(s) cancelled\n", len(orders))
 	return nil
 }
 

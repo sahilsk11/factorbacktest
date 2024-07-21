@@ -8,6 +8,7 @@ import (
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
 	"fmt"
@@ -98,10 +99,10 @@ func (h ApiHandler) backtest(c *gin.Context) {
 				requestId = &id
 			}
 		} else {
-			fmt.Println("failed to convert to str")
+			logger.Warn("failed to convert to str")
 		}
 	} else {
-		fmt.Println("missing from ctx")
+		logger.Warn("missing from ctx")
 	}
 	// ensure the user input is valid
 	err = saveUserStrategy(

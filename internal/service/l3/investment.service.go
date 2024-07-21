@@ -6,6 +6,7 @@ import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	l2_service "factorbacktest/internal/service/l2"
 	"fmt"
@@ -139,7 +140,7 @@ func (h investmentServiceHandler) ListForRebalance() ([]model.Investment, error)
 		if pendingInvestmentTradeID == uuid.Nil {
 			investmentsToRebalance = append(investmentsToRebalance, investment)
 		} else {
-			fmt.Printf("skipping rebalancing investment id %s: has pending investment trade %s\n", investment.InvestmentID, pendingInvestmentTradeID)
+			logger.Info("skipping rebalancing investment id %s: has pending investment trade %s\n", investment.InvestmentID, pendingInvestmentTradeID)
 		}
 	}
 

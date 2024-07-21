@@ -7,6 +7,7 @@ import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l3_service "factorbacktest/internal/service/l3"
@@ -104,14 +105,14 @@ func (m ApiHandler) StartApi(port int) error {
 }
 
 func returnErrorJson(err error, c *gin.Context) {
-	fmt.Println(err.Error())
+	logger.Error(err)
 	c.AbortWithStatusJSON(500, gin.H{
 		"error": err.Error(),
 	})
 }
 
 func returnErrorJsonCode(err error, c *gin.Context, code int) {
-	fmt.Println(err.Error())
+	logger.Error(err)
 	c.AbortWithStatusJSON(code, gin.H{
 		"error": err.Error(),
 	})

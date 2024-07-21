@@ -104,8 +104,6 @@ func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (deci
 		return *pc, nil
 	}
 
-	// fmt.Println("cache miss", symbol, date)
-
 	minDate := postgres.DateT(date.AddDate(0, 0, -3))
 	maxDate := postgres.DateT(date)
 	// use range so we can do t-3 for weekends or holidays

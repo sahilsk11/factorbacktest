@@ -2,6 +2,7 @@ package datajockey
 
 import (
 	"encoding/json"
+	"factorbacktest/internal/logger"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,7 +72,6 @@ type FinancialResponse struct {
 
 func (c Client) GetAssetMetrics(symbol string) (*FinancialResponse, error) {
 	url := fmt.Sprintf("https://api.datajockey.io/v0/company/financials?apikey=%s&ticker=%s&period=Q", c.ApiKey, symbol)
-	fmt.Println(url)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (c Client) GetAssetMetrics(symbol string) (*FinancialResponse, error) {
 	}
 
 	if response.StatusCode == 429 {
-		fmt.Println("hit rate limit. sleeping...")
+		logger.Debug("hit rate limit. sleeping...")
 		time.Sleep(60 * time.Second)
 		return c.GetAssetMetrics(symbol)
 	} else if response.StatusCode != 200 {
