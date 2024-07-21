@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/internal"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
@@ -117,10 +118,18 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
-	// any errors from here cannot easily be rolled back
 	rebalancerRun.RebalancerRunState = model.RebalancerRunState_Pending
+	if len(investmentsToRebalance) == 0 {
+		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
+		rebalancerRun.Notes = internal.StringPointer("no investments to rebalance")
+	} else if len(insertedInvestmentTrades) == 0 {
+		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
+		rebalancerRun.Notes = internal.StringPointer("no investment trades generated")
+	}
+
 	_, err = h.RebalancerRunRepository.Update(tx, rebalancerRun, []postgres.Column{
 		table.RebalancerRun.RebalancerRunState,
+		table.RebalancerRun.Notes,
 	})
 	if err != nil {
 		return err
@@ -129,6 +138,10 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 	err = tx.Commit()
 	if err != nil {
 		return err
+	}
+
+	if len(insertedInvestmentTrades) == 0 {
+		return nil
 	}
 
 	// until we have some fancier math for reconciling completed trades,
@@ -165,81 +178,20 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		return fmt.Errorf("failed to update %d investment trade status. first update err: %w", len(updateInvesmtentTradeErrors), updateInvesmtentTradeErrors[0])
 	}
 
-	// before we update holdings, we need trades to settle
-	// so let's leave the run as pending and check back
-	// later
+	if len(executedTrades) == 0 {
+		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
+		rebalancerRun.Notes = internal.StringPointer("no trade orders generated - investment trades must have cancelled out")
+		_, err = h.RebalancerRunRepository.Update(nil, rebalancerRun, []postgres.Column{
+			table.RebalancerRun.RebalancerRunState,
+			table.RebalancerRun.Notes,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
-
-	// update positions to match whatever we just traded to get
-	// them to
-	// todo - when we improve reconciliation, handle partial failures
-	// from this
-
-	// okay seriously use trades to update holdings, not
-	// target portfolios. if the trades fail, we need to know
-	// exactly what is being held still
-	// _, err = h.updateHoldings(mappedPortfolios, executedInvestmentTrade, rebalancerRun)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// return nil
 }
-
-// func (h RebalancerHandler) updateHoldings(
-// 	mappedPortfolios map[uuid.UUID]*domain.Portfolio, executedInvestmentTrades map[uuid.UUID][]*model.InvestmentTrade,
-// 	rebalancerRun *model.RebalancerRun,
-// ) (map[uuid.UUID][]error, error) {
-// 	cashTicker, err := h.TickerRepository.GetCashTicker()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	for investmentID, executedInvestmentTrades := range executedInvestmentTrades {
-// 		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(investmentID)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to get holdings from investment id %s: %w", investmentID.String(), err)
-// 		}
-// 		newPortfolio := currentHoldings.DeepCopy()
-// 		for _, trade := range executedInvestmentTrades {
-// 			if trade.Side == model.TradeOrderSide_Sell {
-// 				newPortfolio.Cash = newPortfolio.Cash.Add(
-// 					// how do we do this
-// 					trade.Quantity.Mul(trade.Price),
-// 				)
-// 			}
-// 		}
-// 	}
-
-// 	errorsByInvestment := map[uuid.UUID][]error{}
-// 	for investmentID, portfolio := range mappedPortfolios {
-// 		for _, position := range portfolio.Positions {
-// 			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
-// 				InvestmentID:    investmentID,
-// 				TickerID:        position.TickerID,
-// 				Quantity:        position.ExactQuantity,
-// 				RebalancerRunID: rebalancerRun.RebalancerRunID,
-// 			})
-// 			if err != nil {
-// 				errorsByInvestment[investmentID] = append(errorsByInvestment[investmentID], err)
-// 			}
-// 		}
-
-// 		if portfolio.Cash.GreaterThan(decimal.Zero) {
-// 			_, err = h.HoldingsRepository.Add(nil, model.InvestmentHoldings{
-// 				InvestmentID:    investmentID,
-// 				TickerID:        cashTicker.TickerID,
-// 				Quantity:        portfolio.Cash,
-// 				RebalancerRunID: rebalancerRun.RebalancerRunID,
-// 			})
-// 			if err != nil {
-// 				errorsByInvestment[investmentID] = append(errorsByInvestment[investmentID], err)
-// 			}
-// 		}
-// 	}
-
-// 	return errorsByInvestment, nil
-// }
 
 func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, investmentID, rebalancerRunID uuid.UUID) []*model.InvestmentTrade {
 	out := []*model.InvestmentTrade{}

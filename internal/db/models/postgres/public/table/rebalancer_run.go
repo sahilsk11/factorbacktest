@@ -24,6 +24,7 @@ type rebalancerRunTable struct {
 	RebalancerRunState      postgres.ColumnString
 	ModifiedAt              postgres.ColumnTimestampz
 	NumInvestmentsAttempted postgres.ColumnInteger
+	Notes                   postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -61,8 +62,9 @@ func newRebalancerRunTableImpl(schemaName, tableName, alias string) rebalancerRu
 		RebalancerRunStateColumn      = postgres.StringColumn("rebalancer_run_state")
 		ModifiedAtColumn              = postgres.TimestampzColumn("modified_at")
 		NumInvestmentsAttemptedColumn = postgres.IntegerColumn("num_investments_attempted")
-		allColumns                    = postgres.ColumnList{RebalancerRunIDColumn, DateColumn, CreatedAtColumn, RebalancerRunTypeColumn, RebalancerRunStateColumn, ModifiedAtColumn, NumInvestmentsAttemptedColumn}
-		mutableColumns                = postgres.ColumnList{DateColumn, CreatedAtColumn, RebalancerRunTypeColumn, RebalancerRunStateColumn, ModifiedAtColumn, NumInvestmentsAttemptedColumn}
+		NotesColumn                   = postgres.StringColumn("notes")
+		allColumns                    = postgres.ColumnList{RebalancerRunIDColumn, DateColumn, CreatedAtColumn, RebalancerRunTypeColumn, RebalancerRunStateColumn, ModifiedAtColumn, NumInvestmentsAttemptedColumn, NotesColumn}
+		mutableColumns                = postgres.ColumnList{DateColumn, CreatedAtColumn, RebalancerRunTypeColumn, RebalancerRunStateColumn, ModifiedAtColumn, NumInvestmentsAttemptedColumn, NotesColumn}
 	)
 
 	return rebalancerRunTable{
@@ -76,6 +78,7 @@ func newRebalancerRunTableImpl(schemaName, tableName, alias string) rebalancerRu
 		RebalancerRunState:      RebalancerRunStateColumn,
 		ModifiedAt:              ModifiedAtColumn,
 		NumInvestmentsAttempted: NumInvestmentsAttemptedColumn,
+		Notes:                   NotesColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

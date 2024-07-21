@@ -86,6 +86,7 @@ type investmentServiceHandler struct {
 	TickerRepository          repository.TickerRepository
 	RebalancerRunRepository   repository.RebalancerRunRepository
 	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
+	InvestmentTradeRepository repository.InvestmentTradeRepository
 }
 
 func NewInvestmentService(
@@ -98,6 +99,7 @@ func NewInvestmentService(
 	tickerRepository repository.TickerRepository,
 	rebalancerRunRepository repository.RebalancerRunRepository,
 	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
+	investmentTradeRepository repository.InvestmentTradeRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                        db,
@@ -109,6 +111,7 @@ func NewInvestmentService(
 		TickerRepository:          tickerRepository,
 		RebalancerRunRepository:   rebalancerRunRepository,
 		HoldingsVersionRepository: holdingsVersionRepository,
+		InvestmentTradeRepository: investmentTradeRepository,
 	}
 }
 
@@ -117,7 +120,30 @@ func (h investmentServiceHandler) ListForRebalance() ([]model.Investment, error)
 	if err != nil {
 		return nil, err
 	}
-	return investments, nil
+
+	investmentsToRebalance := []model.Investment{}
+	for _, investment := range investments {
+		tradeOrders, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
+			InvestmentID: &investment.InvestmentID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		pendingInvestmentTradeID := uuid.Nil
+		for _, t := range tradeOrders {
+			if *t.Status == model.TradeOrderStatus_Pending {
+				pendingInvestmentTradeID = *t.InvestmentTradeID
+			}
+		}
+
+		if pendingInvestmentTradeID == uuid.Nil {
+			investmentsToRebalance = append(investmentsToRebalance, investment)
+		} else {
+			fmt.Printf("skipping rebalancing investment id %s: has pending investment trade %s\n", investment.InvestmentID, pendingInvestmentTradeID)
+		}
+	}
+
+	return investmentsToRebalance, nil
 }
 
 func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error {

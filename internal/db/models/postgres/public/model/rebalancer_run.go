@@ -20,4 +20,5 @@ type RebalancerRun struct {
 	RebalancerRunState      RebalancerRunState
 	ModifiedAt              time.Time
 	NumInvestmentsAttempted int32
+	Notes                   *string
 }

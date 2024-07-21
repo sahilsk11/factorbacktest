@@ -77,6 +77,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		tickerRepository,
 		rebalancerRunRepository,
 		holdingsVersionRepository,
+		investmentTradeRepository,
 	)
 	tradingService := l1_service.NewTradeService(
 		dbConn,

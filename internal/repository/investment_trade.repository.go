@@ -93,6 +93,7 @@ func (h investmentTradeRepositoryHandler) Get(id uuid.UUID) (*model.InvestmentTr
 type InvestmentTradeListFilter struct {
 	TradeOrderID    *uuid.UUID
 	RebalancerRunID *uuid.UUID
+	InvestmentID    *uuid.UUID
 }
 
 func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
@@ -107,6 +108,12 @@ func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter Investment
 		query = query.WHERE(
 			view.InvestmentTradeStatus.RebalancerRunID.EQ(
 				postgres.UUID(listFilter.RebalancerRunID),
+			),
+		)
+	} else if listFilter.InvestmentID != nil {
+		query = query.WHERE(
+			view.InvestmentTradeStatus.InvestmentID.EQ(
+				postgres.UUID(listFilter.InvestmentID),
 			),
 		)
 	}

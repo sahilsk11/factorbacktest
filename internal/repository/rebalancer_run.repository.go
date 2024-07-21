@@ -58,6 +58,7 @@ func (h rebalancerRunRepositoryHandler) Update(tx *sql.Tx, rr *model.RebalancerR
 	if rr.RebalancerRunID == uuid.Nil {
 		return nil, fmt.Errorf("failed to update rebalancer run - id not provided in inputted model")
 	}
+
 	query := table.RebalancerRun.
 		UPDATE(columns).
 		MODEL(rr).
