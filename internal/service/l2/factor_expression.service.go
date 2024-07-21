@@ -198,7 +198,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		totalMs += float64(res.elapsedMs)
 		// newProfile.AddSpan(res.span)
 	}
-	logger.Debug("avg score processing: %f\n", totalMs/float64(len(results)))
+	logger.Debug("avg score processing: %f", totalMs/float64(len(results)))
 	// endNewProfile()
 	endSpan()
 
