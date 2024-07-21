@@ -77,14 +77,15 @@ func AggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.Proposed
 }
 
 type investmentServiceHandler struct {
-	Db                      *sql.DB
-	InvestmentRepository    repository.InvestmentRepository
-	HoldingsRepository      repository.InvestmentHoldingsRepository
-	UniverseRepository      repository.AssetUniverseRepository
-	SavedStrategyRepository repository.SavedStrategyRepository
-	FactorExpressionService l2_service.FactorExpressionService
-	TickerRepository        repository.TickerRepository
-	RebalancerRunRepository repository.RebalancerRunRepository
+	Db                        *sql.DB
+	InvestmentRepository      repository.InvestmentRepository
+	HoldingsRepository        repository.InvestmentHoldingsRepository
+	UniverseRepository        repository.AssetUniverseRepository
+	SavedStrategyRepository   repository.SavedStrategyRepository
+	FactorExpressionService   l2_service.FactorExpressionService
+	TickerRepository          repository.TickerRepository
+	RebalancerRunRepository   repository.RebalancerRunRepository
+	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
 }
 
 func NewInvestmentService(
@@ -96,16 +97,18 @@ func NewInvestmentService(
 	factorExpressionService l2_service.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
 	rebalancerRunRepository repository.RebalancerRunRepository,
+	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
-		Db:                      db,
-		InvestmentRepository:    strategyInvestmentRepository,
-		HoldingsRepository:      holdingsRepository,
-		UniverseRepository:      universeRepository,
-		SavedStrategyRepository: savedStrategyRepository,
-		FactorExpressionService: factorExpressionService,
-		TickerRepository:        tickerRepository,
-		RebalancerRunRepository: rebalancerRunRepository,
+		Db:                        db,
+		InvestmentRepository:      strategyInvestmentRepository,
+		HoldingsRepository:        holdingsRepository,
+		UniverseRepository:        universeRepository,
+		SavedStrategyRepository:   savedStrategyRepository,
+		FactorExpressionService:   factorExpressionService,
+		TickerRepository:          tickerRepository,
+		RebalancerRunRepository:   rebalancerRunRepository,
+		HoldingsVersionRepository: holdingsVersionRepository,
 	}
 }
 
@@ -138,9 +141,9 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 			mostRecentTime = p.CreatedAt
 		}
 	}
-	acceptableDelta := time.Minute
+	acceptableDelta := 30 * time.Second
 	if mostRecentTime.Add(acceptableDelta).After(date) {
-		return fmt.Errorf("can only create 1 investment per minute")
+		return fmt.Errorf("can only create 1 investment every 30s")
 	}
 
 	newStrategyInvestment, err := h.InvestmentRepository.Add(tx, model.Investment{
@@ -159,10 +162,8 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 	}
 
 	// this is super weird but just call this a rebalance lol
-	rebalancerRun, err := h.RebalancerRunRepository.Add(tx, model.RebalancerRun{
-		Date:               date,
-		RebalancerRunType:  model.RebalancerRunType_Deposit,
-		RebalancerRunState: model.RebalancerRunState_Completed,
+	version, err := h.HoldingsVersionRepository.Add(tx, model.InvestmentHoldingsVersion{
+		InvestmentID: newStrategyInvestment.InvestmentID,
 	})
 	if err != nil {
 		return err
@@ -170,10 +171,10 @@ func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, use
 
 	// create new holdings, with just cash
 	_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
-		InvestmentID:    newStrategyInvestment.InvestmentID,
-		TickerID:        cashTicker.TickerID,
-		Quantity:        decimal.NewFromInt(int64(amount)),
-		RebalancerRunID: rebalancerRun.RebalancerRunID,
+		InvestmentID:                newStrategyInvestment.InvestmentID,
+		TickerID:                    cashTicker.TickerID,
+		Quantity:                    decimal.NewFromInt(int64(amount)),
+		InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
 	})
 	if err != nil {
 		return err

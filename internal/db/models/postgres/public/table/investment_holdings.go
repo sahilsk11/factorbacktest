@@ -17,12 +17,12 @@ type investmentHoldingsTable struct {
 	postgres.Table
 
 	//Columns
-	InvestmentHoldingsID postgres.ColumnString
-	InvestmentID         postgres.ColumnString
-	TickerID             postgres.ColumnString
-	Quantity             postgres.ColumnFloat
-	CreatedAt            postgres.ColumnTimestampz
-	RebalancerRunID      postgres.ColumnString
+	InvestmentHoldingsID        postgres.ColumnString
+	InvestmentID                postgres.ColumnString
+	TickerID                    postgres.ColumnString
+	Quantity                    postgres.ColumnFloat
+	CreatedAt                   postgres.ColumnTimestampz
+	InvestmentHoldingsVersionID postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -53,26 +53,26 @@ func newInvestmentHoldingsTable(schemaName, tableName, alias string) *Investment
 
 func newInvestmentHoldingsTableImpl(schemaName, tableName, alias string) investmentHoldingsTable {
 	var (
-		InvestmentHoldingsIDColumn = postgres.StringColumn("investment_holdings_id")
-		InvestmentIDColumn         = postgres.StringColumn("investment_id")
-		TickerIDColumn             = postgres.StringColumn("ticker_id")
-		QuantityColumn             = postgres.FloatColumn("quantity")
-		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
-		RebalancerRunIDColumn      = postgres.StringColumn("rebalancer_run_id")
-		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
-		mutableColumns             = postgres.ColumnList{InvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		InvestmentHoldingsIDColumn        = postgres.StringColumn("investment_holdings_id")
+		InvestmentIDColumn                = postgres.StringColumn("investment_id")
+		TickerIDColumn                    = postgres.StringColumn("ticker_id")
+		QuantityColumn                    = postgres.FloatColumn("quantity")
+		CreatedAtColumn                   = postgres.TimestampzColumn("created_at")
+		InvestmentHoldingsVersionIDColumn = postgres.StringColumn("investment_holdings_version_id")
+		allColumns                        = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
+		mutableColumns                    = postgres.ColumnList{InvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
 	)
 
 	return investmentHoldingsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		InvestmentHoldingsID: InvestmentHoldingsIDColumn,
-		InvestmentID:         InvestmentIDColumn,
-		TickerID:             TickerIDColumn,
-		Quantity:             QuantityColumn,
-		CreatedAt:            CreatedAtColumn,
-		RebalancerRunID:      RebalancerRunIDColumn,
+		InvestmentHoldingsID:        InvestmentHoldingsIDColumn,
+		InvestmentID:                InvestmentIDColumn,
+		TickerID:                    TickerIDColumn,
+		Quantity:                    QuantityColumn,
+		CreatedAt:                   CreatedAtColumn,
+		InvestmentHoldingsVersionID: InvestmentHoldingsVersionIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

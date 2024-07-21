@@ -27,6 +27,8 @@ type RebalancerHandler struct {
 	InvestmentTradeRepository repository.InvestmentTradeRepository
 	HoldingsRepository        repository.InvestmentHoldingsRepository
 	AlpacaRepository          repository.AlpacaRepository
+	TradeOrderRepository      repository.TradeOrderRepository
+	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
 }
 
 // Rebalance retrieves the latest proposed trades for the aggregate
@@ -61,17 +63,18 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		return fmt.Errorf("failed to get latest prices: %w", err)
 	}
 
-	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
-		Date:               date,
-		RebalancerRunType:  model.RebalancerRunType_ManualInvestmentRebalance,
-		RebalancerRunState: model.RebalancerRunState_Error,
-	})
+	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
+	investmentsToRebalance, err := h.InvestmentService.ListForRebalance()
 	if err != nil {
 		return err
 	}
 
-	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
-	investmentsToRebalance, err := h.InvestmentService.ListForRebalance()
+	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
+		Date:                    date,
+		RebalancerRunType:       model.RebalancerRunType_ManualInvestmentRebalance,
+		RebalancerRunState:      model.RebalancerRunState_Error,
+		NumInvestmentsAttempted: int32(len(investmentsToRebalance)),
+	})
 	if err != nil {
 		return err
 	}
@@ -263,4 +266,119 @@ func (h RebalancerHandler) aggregateAndExecuteTradeOrders(proposedTrades []*doma
 	internal.Pprint(aggregatedTrades)
 
 	return h.TradingService.ExecuteBlock(aggregatedTrades, rebalancerRunID)
+}
+
+func (h RebalancerHandler) UpdateAllPendingOrders() error {
+	cashTicker, err := h.TickerRepository.GetCashTicker()
+	if err != nil {
+		return err
+	}
+
+	trades, err := h.TradeOrderRepository.List()
+	if err != nil {
+		return err
+	}
+
+	tx, err := h.Db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	completedTrades := []model.InvestmentTradeStatus{}
+	for _, trade := range trades {
+		if trade.Status == model.TradeOrderStatus_Pending {
+			updatedTrade, err := h.TradingService.UpdateOrder(tx, trade.TradeOrderID)
+			if err != nil {
+				return err
+			}
+			if updatedTrade.Status == model.TradeOrderStatus_Completed {
+				relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(repository.InvestmentTradeListFilter{
+					TradeOrderID: &updatedTrade.TradeOrderID,
+				})
+				if err != nil {
+					return err
+				}
+				completedTrades = append(completedTrades, relevantInvestmentTrades...)
+			}
+		}
+	}
+
+	completedTradesByInvestment := map[uuid.UUID][]model.InvestmentTradeStatus{}
+	for _, t := range completedTrades {
+		if _, ok := completedTradesByInvestment[*t.InvestmentID]; !ok {
+			completedTradesByInvestment[*t.InvestmentID] = []model.InvestmentTradeStatus{}
+		}
+		completedTradesByInvestment[*t.InvestmentID] = append(completedTradesByInvestment[*t.InvestmentID], t)
+	}
+
+	for investmentID, newTrades := range completedTradesByInvestment {
+		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(investmentID)
+		if err != nil {
+			return err
+		}
+		newPortfolio := currentHoldings.DeepCopy()
+		for _, t := range newTrades {
+			oldQuantity := newPortfolio.Positions[*t.Symbol].ExactQuantity
+			orderQuantity := *t.Quantity
+			orderPrice := *t.FilledPrice
+
+			if *t.Side == model.TradeOrderSide_Sell {
+				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Sub(orderQuantity)
+				newPortfolio.Cash = newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice))
+			} else {
+				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Add(orderQuantity)
+				newPortfolio.Cash = newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice))
+				newPortfolio.Cash = newPortfolio.Cash.Sub(orderQuantity.Mul(orderPrice))
+			}
+		}
+
+		// validate the portfolio
+		// - ensure cash >= 0
+		// - ensure position quantity >= 0
+		// ensure allocations line up with expected
+
+		// todo - no clue what rebalancer run id should be
+		// if one trade finishes from a rebalance but the other
+		// didn't, then what is the rebalance id of the holdings?
+
+		version, err := h.HoldingsVersionRepository.Add(tx, model.InvestmentHoldingsVersion{
+			InvestmentID: investmentID,
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, position := range newPortfolio.Positions {
+			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+				InvestmentID:                investmentID,
+				TickerID:                    position.TickerID,
+				Quantity:                    position.ExactQuantity,
+				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		if newPortfolio.Cash.GreaterThan(decimal.Zero) {
+			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+				InvestmentID:                investmentID,
+				TickerID:                    cashTicker.TickerID,
+				Quantity:                    newPortfolio.Cash,
+				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// todo - update holdings from these trades
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

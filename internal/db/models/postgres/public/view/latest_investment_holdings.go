@@ -17,13 +17,13 @@ type latestInvestmentHoldingsTable struct {
 	postgres.Table
 
 	//Columns
-	InvestmentHoldingsID postgres.ColumnString
-	InvestmentID         postgres.ColumnString
-	TickerID             postgres.ColumnString
-	Symbol               postgres.ColumnString
-	Quantity             postgres.ColumnFloat
-	RebalancerRunDate    postgres.ColumnDate
-	RebalancerRunID      postgres.ColumnString
+	InvestmentHoldingsID        postgres.ColumnString
+	InvestmentID                postgres.ColumnString
+	TickerID                    postgres.ColumnString
+	Symbol                      postgres.ColumnString
+	Quantity                    postgres.ColumnFloat
+	CreatedAt                   postgres.ColumnTimestampz
+	InvestmentHoldingsVersionID postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -54,28 +54,28 @@ func newLatestInvestmentHoldingsTable(schemaName, tableName, alias string) *Late
 
 func newLatestInvestmentHoldingsTableImpl(schemaName, tableName, alias string) latestInvestmentHoldingsTable {
 	var (
-		InvestmentHoldingsIDColumn = postgres.StringColumn("investment_holdings_id")
-		InvestmentIDColumn         = postgres.StringColumn("investment_id")
-		TickerIDColumn             = postgres.StringColumn("ticker_id")
-		SymbolColumn               = postgres.StringColumn("symbol")
-		QuantityColumn             = postgres.FloatColumn("quantity")
-		RebalancerRunDateColumn    = postgres.DateColumn("rebalancer_run_date")
-		RebalancerRunIDColumn      = postgres.StringColumn("rebalancer_run_id")
-		allColumns                 = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, RebalancerRunDateColumn, RebalancerRunIDColumn}
-		mutableColumns             = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, RebalancerRunDateColumn, RebalancerRunIDColumn}
+		InvestmentHoldingsIDColumn        = postgres.StringColumn("investment_holdings_id")
+		InvestmentIDColumn                = postgres.StringColumn("investment_id")
+		TickerIDColumn                    = postgres.StringColumn("ticker_id")
+		SymbolColumn                      = postgres.StringColumn("symbol")
+		QuantityColumn                    = postgres.FloatColumn("quantity")
+		CreatedAtColumn                   = postgres.TimestampzColumn("created_at")
+		InvestmentHoldingsVersionIDColumn = postgres.StringColumn("investment_holdings_version_id")
+		allColumns                        = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
+		mutableColumns                    = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
 	)
 
 	return latestInvestmentHoldingsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		InvestmentHoldingsID: InvestmentHoldingsIDColumn,
-		InvestmentID:         InvestmentIDColumn,
-		TickerID:             TickerIDColumn,
-		Symbol:               SymbolColumn,
-		Quantity:             QuantityColumn,
-		RebalancerRunDate:    RebalancerRunDateColumn,
-		RebalancerRunID:      RebalancerRunIDColumn,
+		InvestmentHoldingsID:        InvestmentHoldingsIDColumn,
+		InvestmentID:                InvestmentIDColumn,
+		TickerID:                    TickerIDColumn,
+		Symbol:                      SymbolColumn,
+		Quantity:                    QuantityColumn,
+		CreatedAt:                   CreatedAtColumn,
+		InvestmentHoldingsVersionID: InvestmentHoldingsVersionIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

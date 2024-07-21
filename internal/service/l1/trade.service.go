@@ -18,7 +18,7 @@ type TradeService interface {
 	Buy(input BuyInput) (*model.TradeOrder, error)
 	Sell(input SellInput) (*model.TradeOrder, error)
 	ExecuteBlock([]*domain.ProposedTrade, uuid.UUID) ([]model.TradeOrder, error)
-	UpdateOrder(tradeOrderID uuid.UUID) error
+	UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error)
 }
 
 type tradeServiceHandler struct {
@@ -137,24 +137,32 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 	return order, nil
 }
 
-func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) error {
+func (h tradeServiceHandler) UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error) {
 	tradeOrder, err := h.TradeOrderRepository.Get(tradeOrderID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if tradeOrder.ProviderID != nil {
-		return fmt.Errorf("failed to update order: %s has no provider id", tradeOrderID.String())
+	if tradeOrder.ProviderID == nil {
+		return nil, fmt.Errorf("failed to update order: %s has no provider id", tradeOrderID.String())
 	}
 
 	order, err := h.AlpacaRepository.GetOrder(*tradeOrder.ProviderID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = h.TradeOrderRepository.Update(nil,
+	state := tradeOrder.Status
+	// check valid state transition
+	if state == model.TradeOrderStatus_Pending && order.FilledAt != nil {
+		state = model.TradeOrderStatus_Completed
+	} else if state == model.TradeOrderStatus_Pending && order.FailedAt != nil {
+		state = model.TradeOrderStatus_Error
+	}
+
+	updatedTrade, err := h.TradeOrderRepository.Update(tx,
 		tradeOrderID,
 		model.TradeOrder{
-			Status:         model.TradeOrderStatus_Pending,
+			Status:         state,
 			FilledQuantity: order.FilledQty,
 			FilledPrice:    order.FilledAvgPrice,
 			FilledAt:       order.FilledAt,
@@ -162,12 +170,13 @@ func (h tradeServiceHandler) UpdateOrder(tradeOrderID uuid.UUID) error {
 			table.TradeOrder.Status,
 			table.TradeOrder.FilledQuantity,
 			table.TradeOrder.FilledPrice,
+			table.TradeOrder.FilledAt,
 		})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return updatedTrade, nil
 }
 
 // assumes trades are already aggregated by symbol
