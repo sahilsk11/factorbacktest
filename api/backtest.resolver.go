@@ -5,11 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
+	l3_service "factorbacktest/internal/service/l3"
 	"factorbacktest/internal/util"
 	"fmt"
 	"regexp"
@@ -38,14 +38,14 @@ type BacktestRequest struct {
 }
 
 type BacktestResponse struct {
-	FactorName     string                          `json:"factorName"`
-	Snapshots      map[string]app.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
-	LatestHoldings LatestHoldings                  `json:"latestHoldings"`
+	FactorName     string                                 `json:"factorName"`
+	Snapshots      map[string]l3_service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
+	LatestHoldings LatestHoldings                         `json:"latestHoldings"`
 }
 
 type LatestHoldings struct {
-	Date   time.Time                           `json:"date"`
-	Assets map[string]app.SnapshotAssetMetrics `json:"assets"`
+	Date   time.Time                                  `json:"date"`
+	Assets map[string]l3_service.SnapshotAssetMetrics `json:"assets"`
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
@@ -131,9 +131,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	backtestInput := app.BacktestInput{
+	backtestInput := l3_service.BacktestInput{
 		FactorExpression:  requestBody.FactorOptions.Expression,
-		FactorName:        requestBody.FactorOptions.Name,
 		BacktestStart:     backtestStartDate,
 		BacktestEnd:       backtestEndDate,
 		RebalanceInterval: samplingInterval,
@@ -152,7 +151,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	endSpan()
 
 	responseJson := BacktestResponse{
-		FactorName: backtestInput.FactorName,
+		FactorName: requestBody.FactorOptions.Name,
 		Snapshots:  result.Snapshots,
 		LatestHoldings: LatestHoldings{
 			Date:   result.LatestHoldings.Date,

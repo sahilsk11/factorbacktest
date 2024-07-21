@@ -10,6 +10,7 @@ import (
 	"factorbacktest/internal/repository"
 	l2_service "factorbacktest/internal/service/l2"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,6 +34,7 @@ type InvestmentService interface {
 		pm map[string]decimal.Decimal,
 		tickerIDMap map[string]uuid.UUID,
 	) (*domain.Portfolio, []*domain.ProposedTrade, error)
+	Reconcile(ctx context.Context, investmentID uuid.UUID) error
 }
 
 func AggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.ProposedTrade {
@@ -88,6 +90,7 @@ type investmentServiceHandler struct {
 	RebalancerRunRepository   repository.RebalancerRunRepository
 	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
 	InvestmentTradeRepository repository.InvestmentTradeRepository
+	BacktestHandler           BacktestHandler
 }
 
 func NewInvestmentService(
@@ -101,6 +104,7 @@ func NewInvestmentService(
 	rebalancerRunRepository repository.RebalancerRunRepository,
 	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
 	investmentTradeRepository repository.InvestmentTradeRepository,
+	backtestHandler BacktestHandler,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                        db,
@@ -113,6 +117,7 @@ func NewInvestmentService(
 		RebalancerRunRepository:   rebalancerRunRepository,
 		HoldingsVersionRepository: holdingsVersionRepository,
 		InvestmentTradeRepository: investmentTradeRepository,
+		BacktestHandler:           backtestHandler,
 	}
 }
 
@@ -409,4 +414,117 @@ func transitionToTarget(
 	}
 
 	return trades, nil
+}
+
+func (h investmentServiceHandler) Reconcile(ctx context.Context, investmentID uuid.UUID) error {
+	// check deviance from backtested result
+	// check that positions are > 0
+	// are we planning to flag when trades executed at varying
+	// prices
+	// maybe check for trades in error states
+	investment, err := h.InvestmentRepository.Get(investmentID)
+	if err != nil {
+		return err
+	}
+	strategy, err := h.SavedStrategyRepository.Get(investment.SavedStragyID)
+	if err != nil {
+		return err
+	}
+
+	targetWeights := map[string]float64{}
+
+	interval := time.Hour * 24
+	// if strings.EqualFold(strategy.RebalanceInterval, "weekly") {
+	// 	interval *= 7
+	// } else if strings.EqualFold(strategy.RebalanceInterval, "monthly") {
+	// 	interval *= 30
+	// } else if strings.EqualFold(strategy.RebalanceInterval, "yearly") {
+	// 	interval *= 365
+	// }
+
+	// todo - figure out how to call the backtest
+	backtestInput := BacktestInput{
+		FactorExpression:  strategy.FactorExpression,
+		BacktestStart:     investment.StartDate,
+		BacktestEnd:       time.Now().UTC(),
+		RebalanceInterval: interval,
+		StartingCash:      float64(investment.AmountDollars),
+		NumTickers:        int(strategy.NumAssets),
+		AssetUniverse:     strategy.AssetUniverse,
+	}
+
+	backtestResponse, err := h.BacktestHandler.Backtest(ctx, backtestInput)
+	if err != nil && strings.Contains(err.Error(), "no calculated trading days in given range") {
+		backtestResponse = &BacktestResponse{
+			Snapshots: map[string]BacktestSnapshot{},
+		}
+	} else if err != nil {
+		return err
+	}
+
+	// since we're dealing with weights from the last rebalance,
+	// we can't compare with quantity we're holding rn. best we
+	// can do is take the current weights, and figure out what
+	// their value was when we rebalanced maybe
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
+	if err != nil {
+		return err
+	}
+
+	if currentHoldings.Cash.LessThan(decimal.NewFromInt(-1)) {
+		logger.Warn("investment %s is holding %f cash", investmentID.String(), currentHoldings.Cash.InexactFloat64())
+	}
+
+	for _, position := range currentHoldings.Positions {
+		if position.ExactQuantity.LessThan(decimal.Zero) {
+			logger.Error(fmt.Errorf("investment %s has %f of %s", investmentID.String(), position.ExactQuantity.InexactFloat64(), position.Symbol))
+		}
+	}
+
+	if len(backtestResponse.Snapshots) > 0 {
+		latestResult := ""
+		for k := range backtestResponse.Snapshots {
+			if k > latestResult {
+				latestResult = k
+			}
+		}
+		latestSnapshot := backtestResponse.Snapshots[latestResult]
+		for symbol, metrics := range latestSnapshot.AssetMetrics {
+			targetWeights[symbol] = metrics.AssetWeight
+		}
+
+		// tbh just see if the assets line up for now, figure out weights
+		// later maybe
+		for k := range targetWeights {
+			found := false
+			for _, p := range currentHoldings.Positions {
+				if p.Symbol == k {
+					found = true
+				}
+			}
+			if !found {
+				logger.Error(fmt.Errorf("investment %s expected to hold %s, but is not", investmentID.String(), k))
+			}
+		}
+		for _, p := range currentHoldings.Positions {
+			found := false
+			for k := range targetWeights {
+				if p.Symbol == k {
+					found = true
+				}
+			}
+			if !found {
+				logger.Error(fmt.Errorf("investment %s holding %s, but is not expected to", investmentID.String(), p.Symbol))
+			}
+		}
+	}
+
+	return nil
+}
+
+func ReconcileAggregatePortfolio() {
+	// after we ensure all the individual portfolios
+	// are good, we should figure out if they sum to
+	// an amount that we actually own. we can also check
+	// for any excess holdings
 }

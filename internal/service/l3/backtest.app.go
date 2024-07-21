@@ -1,4 +1,4 @@
-package app
+package l3_service
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l2_service "factorbacktest/internal/service/l2"
-	l3_service "factorbacktest/internal/service/l3"
 	"fmt"
 	"time"
 
@@ -51,7 +50,6 @@ type SnapshotAssetMetrics struct {
 }
 
 type BacktestInput struct {
-	FactorName        string
 	FactorExpression  string
 	BacktestStart     time.Time
 	BacktestEnd       time.Time
@@ -142,7 +140,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// backtestErrors = append(backtestErrors, scoringErrors...)
 
 		// TODO - find a better place for this function to live
-		computeTargetPortfolioResponse, err := l3_service.ComputeTargetPortfolio(l3_service.ComputeTargetPortfolioInput{
+		computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
 			FactorScores:     valuesFromDay.SymbolScores,
@@ -215,7 +213,7 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
 	scoreResults := factorScoresOnLatestDay[*latestTradingDay]
-	computeTargetPortfolioResponse, err := l3_service.ComputeTargetPortfolio(l3_service.ComputeTargetPortfolioInput{
+	computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 		Date:             *latestTradingDay,
 		TargetNumTickers: in.NumTickers,
 		FactorScores:     scoreResults.SymbolScores,
