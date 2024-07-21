@@ -286,6 +286,8 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 	}
 	defer tx.Rollback()
 
+	rebalancerRuns := []uuid.UUID{}
+
 	completedTrades := []model.InvestmentTradeStatus{}
 	for _, trade := range trades {
 		if trade.Status == model.TradeOrderStatus_Pending {
@@ -300,6 +302,7 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 				if err != nil {
 					return err
 				}
+				rebalancerRuns = append(rebalancerRuns, updatedTrade.RebalancerRunID)
 				completedTrades = append(completedTrades, relevantInvestmentTrades...)
 			}
 		}
@@ -337,18 +340,12 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 
 			if *t.Side == model.TradeOrderSide_Sell {
 				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Sub(orderQuantity)
-				fmt.Println("new cash", newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
 				newPortfolio.SetCash(newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
 			} else {
 				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Add(orderQuantity)
-				fmt.Println("new cash", newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
 				newPortfolio.SetCash(newPortfolio.Cash.Sub(orderQuantity.Mul(orderPrice)))
 			}
-			fmt.Println(newPortfolio.Cash)
-
 		}
-		fmt.Println("here")
-		fmt.Println(newPortfolio.Cash)
 
 		// validate the portfolio
 		// - ensure cash >= 0
@@ -382,6 +379,32 @@ func (h RebalancerHandler) UpdateAllPendingOrders() error {
 				TickerID:                    cashTicker.TickerID,
 				Quantity:                    *newPortfolio.Cash,
 				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, rebalancerRunID := range rebalancerRuns {
+		relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
+			RebalancerRunID: &rebalancerRunID,
+		})
+		if err != nil {
+			return err
+		}
+		allCompleted := true
+		for _, t := range relevantInvestmentTrades {
+			if *t.Status != model.TradeOrderStatus_Completed {
+				allCompleted = false
+			}
+		}
+		if allCompleted {
+			_, err = h.RebalancerRunRepository.Update(tx, &model.RebalancerRun{
+				RebalancerRunID:    rebalancerRunID,
+				RebalancerRunState: model.RebalancerRunState_Completed,
+			}, []postgres.Column{
+				table.RebalancerRun.RebalancerRunState,
 			})
 			if err != nil {
 				return err

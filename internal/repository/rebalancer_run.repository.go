@@ -55,6 +55,9 @@ func (h rebalancerRunRepositoryHandler) Add(tx *sql.Tx, rr model.RebalancerRun) 
 
 func (h rebalancerRunRepositoryHandler) Update(tx *sql.Tx, rr *model.RebalancerRun, columns postgres.ColumnList) (*model.RebalancerRun, error) {
 	rr.ModifiedAt = time.Now().UTC()
+	if rr.RebalancerRunID == uuid.Nil {
+		return nil, fmt.Errorf("failed to update rebalancer run - id not provided in inputted model")
+	}
 	query := table.RebalancerRun.
 		UPDATE(columns).
 		MODEL(rr).

@@ -6,7 +6,6 @@ import (
 	"factorbacktest/api"
 	"factorbacktest/cmd"
 	"factorbacktest/internal"
-	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/pkg/datajockey"
 	"fmt"
@@ -37,14 +36,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	profile, endProfile := domain.NewProfile()
-	defer endProfile()
-	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+	// profile, endProfile := domain.NewProfile()
+	// defer endProfile()
+	// ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
-	err = handler.RebalancerHandler.Rebalance(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// err = handler.RebalancerHandler.Rebalance(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	updateOrders(handler)
 }
