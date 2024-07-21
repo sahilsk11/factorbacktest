@@ -56,5 +56,6 @@ func Error(err error, args ...interface{}) {
 }
 
 func Debug(msg string, args ...interface{}) {
+	return // lol i cant figure out how to disable them
 	zap.L().Sugar().Debugf(msg, args...)
 }

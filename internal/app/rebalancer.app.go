@@ -6,6 +6,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l3_service "factorbacktest/internal/service/l3"
@@ -120,9 +121,11 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 
 	rebalancerRun.RebalancerRunState = model.RebalancerRunState_Pending
 	if len(investmentsToRebalance) == 0 {
+		logger.Info("no investments to rebalance")
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investments to rebalance")
 	} else if len(insertedInvestmentTrades) == 0 {
+		logger.Info("no investment trades generated")
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investment trades generated")
 	}
