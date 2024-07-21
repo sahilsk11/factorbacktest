@@ -140,7 +140,7 @@ func (h RebalancerHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
-	if len(insertedInvestmentTrades) == 0 {
+	if len(insertedInvestmentTrades) == 0 || len(investmentsToRebalance) == 0 {
 		return nil
 	}
 
