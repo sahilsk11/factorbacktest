@@ -67,8 +67,6 @@ func (h investmentTradeRepositoryHandler) AddMany(tx *sql.Tx, models []*model.In
 		MODELS(models).
 		RETURNING(table.InvestmentTrade.AllColumns)
 
-	fmt.Println(query.DebugSql())
-
 	out := []model.InvestmentTrade{}
 	err := query.Query(tx, &out)
 	if err != nil {

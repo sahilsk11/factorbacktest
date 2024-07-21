@@ -108,8 +108,6 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	currentPortfolio := domain.NewPortfolio()
 	currentPortfolio.SetCash(startValue)
 
-	fmt.Println(currentPortfolio.TotalValue(map[string]decimal.Decimal{}))
-
 	out := []BacktestSample{}
 
 	const errThreshold = 0.1
