@@ -14,6 +14,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// Responsible for executing trades, including
+// aggregation and ensuring it meets Alpaca's spec
 type TradeService interface {
 	Buy(input BuyInput) (*model.TradeOrder, error)
 	Sell(input SellInput) (*model.TradeOrder, error)
@@ -156,12 +158,58 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 	return order, nil
 }
 
+// coalesces trades by symbol and ensures nominal amount > $2
+// for Alpaca's min order rule
+func aggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.ProposedTrade {
+	// Map to hold aggregated trades by symbol
+	aggregatedTrades := make(map[string]*domain.ProposedTrade)
+
+	// Aggregate trades by symbol
+	for _, trade := range trades {
+		if existingTrade, exists := aggregatedTrades[trade.Symbol]; exists {
+			// Update the existing trade quantity
+			existingTrade.ExactQuantity = existingTrade.ExactQuantity.Add(trade.ExactQuantity)
+			aggregatedTrades[trade.Symbol] = existingTrade
+		} else {
+			// Add a new trade to the map
+			aggregatedTrades[trade.Symbol] = trade
+		}
+	}
+
+	// Create a slice to hold the formatted trades
+	var result []*domain.ProposedTrade
+	for _, trade := range aggregatedTrades {
+		if !trade.ExactQuantity.IsZero() {
+			result = append(result, trade)
+		}
+	}
+
+	// we could round all trades up to $1 but
+	// if they have tons of little trades, that
+	// could get expensive
+	// round all buy orders to $1
+	// TODO - i think we should use market value
+	// and figure out whether to round up or down
+	// also since price is stale, it could be just under $1
+	// also we need to ledger these somewhere, as excess that
+	// I own
+	for _, t := range trades {
+		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(decimal.NewFromInt(1)) {
+			t.ExactQuantity = (decimal.NewFromInt(2).Div(t.ExpectedPrice))
+		}
+	}
+
+	return result
+}
+
 // assumes trades are already aggregated by symbol
 func (h tradeServiceHandler) ExecuteBlock(trades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
 	// TODO - should we still store the trade order if it failed,
 	// but give it status failed? i think that will be easier to
 	// look up later and understand what happened instead of
 	// leaving the col null in investmentTrade
+
+	trades = aggregateAndFormatTrades(trades)
 
 	// first ensure that we have enough quantity for the order
 	currentHoldings, err := h.AlpacaRepository.GetPositions()
