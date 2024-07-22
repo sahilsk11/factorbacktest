@@ -9,7 +9,7 @@ import (
 
 type Portfolio struct {
 	Positions map[string]*Position
-	Cash      *decimal.Decimal
+	Cash      *decimal.Decimal // todo - idt this needs to be a decimal? check
 }
 
 func NewPortfolio() *Portfolio {
