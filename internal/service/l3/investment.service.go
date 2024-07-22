@@ -504,6 +504,8 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
+	logger.Info("found %d investments to rebalance", len(investmentsToRebalance))
+
 	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
 		Date:                    date,
 		RebalancerRunType:       model.RebalancerRunType_ManualInvestmentRebalance,
@@ -542,6 +544,8 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			)...)
 	}
 
+	logger.Info("generated %d investment trades", len(investmentTrades))
+
 	tx, err := h.Db.Begin()
 	if err != nil {
 		return err
@@ -555,11 +559,9 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 	rebalancerRun.RebalancerRunState = model.RebalancerRunState_Pending
 	if len(investmentsToRebalance) == 0 {
-		logger.Info("no investments to rebalance")
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investments to rebalance")
 	} else if len(insertedInvestmentTrades) == 0 {
-		logger.Info("no investment trades generated")
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investment trades generated")
 	}
