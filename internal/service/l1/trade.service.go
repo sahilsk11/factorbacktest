@@ -5,6 +5,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"fmt"
 
@@ -160,7 +161,7 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 
 // coalesces trades by symbol and ensures nominal amount > $2
 // for Alpaca's min order rule
-func aggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.ProposedTrade {
+func aggregateAndFormatTrades(trades []*domain.ProposedTrade) ([]*domain.ProposedTrade, map[uuid.UUID]decimal.Decimal) {
 	// Map to hold aggregated trades by symbol
 	aggregatedTrades := make(map[string]*domain.ProposedTrade)
 
@@ -193,23 +194,37 @@ func aggregateAndFormatTrades(trades []*domain.ProposedTrade) []*domain.Proposed
 	// also since price is stale, it could be just under $1
 	// also we need to ledger these somewhere, as excess that
 	// I own
+	excess := map[uuid.UUID]decimal.Decimal{}
 	for _, t := range trades {
 		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(decimal.NewFromInt(1)) {
-			t.ExactQuantity = (decimal.NewFromInt(2).Div(t.ExpectedPrice))
+			newQuantity := decimal.NewFromInt(2).Div(t.ExpectedPrice)
+			excess[t.TickerID] = (newQuantity.Sub(t.ExactQuantity)).Mul(t.ExpectedPrice)
+			t.ExactQuantity = newQuantity
 		}
 	}
 
-	return result
+	return result, excess
 }
 
 // assumes trades are already aggregated by symbol
-func (h tradeServiceHandler) ExecuteBlock(trades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
+func (h tradeServiceHandler) ExecuteBlock(rawTrades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
 	// TODO - should we still store the trade order if it failed,
 	// but give it status failed? i think that will be easier to
 	// look up later and understand what happened instead of
 	// leaving the col null in investmentTrade
 
-	trades = aggregateAndFormatTrades(trades)
+	trades, excess := aggregateAndFormatTrades(rawTrades)
+	logger.Info("excess amounts", excess)
+
+	// todo - ledger this in db and maybe use this
+	// when trading idk
+	totalExcess := decimal.Zero
+	for _, e := range excess {
+		totalExcess = totalExcess.Add(e)
+	}
+	if totalExcess.GreaterThan(decimal.NewFromInt(10)) {
+		return nil, fmt.Errorf("excess amount exceeds $10: calculated %f", totalExcess.InexactFloat64())
+	}
 
 	// first ensure that we have enough quantity for the order
 	currentHoldings, err := h.AlpacaRepository.GetPositions()
