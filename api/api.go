@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/internal"
-	"factorbacktest/internal/app"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
@@ -42,7 +41,7 @@ type ApiHandler struct {
 	UserAccountRepository        repository.UserAccountRepository
 	SavedStrategyRepository      repository.SavedStrategyRepository
 	InvestmentRepository         repository.InvestmentRepository
-	RebalancerHandler            app.RebalancerHandler
+	TradingService               l1_service.TradeService
 }
 
 func int64Ptr(i int64) *int64 {

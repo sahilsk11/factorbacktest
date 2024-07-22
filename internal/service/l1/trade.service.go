@@ -18,20 +18,39 @@ type TradeService interface {
 	Buy(input BuyInput) (*model.TradeOrder, error)
 	Sell(input SellInput) (*model.TradeOrder, error)
 	ExecuteBlock([]*domain.ProposedTrade, uuid.UUID) ([]model.TradeOrder, error)
-	UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error)
+	UpdateAllPendingOrders() error
 }
 
 type tradeServiceHandler struct {
-	Db                   *sql.DB
-	AlpacaRepository     repository.AlpacaRepository
-	TradeOrderRepository repository.TradeOrderRepository
+	Db                        *sql.DB
+	AlpacaRepository          repository.AlpacaRepository
+	TradeOrderRepository      repository.TradeOrderRepository
+	TickerRepository          repository.TickerRepository
+	InvestmentTradeRepository repository.InvestmentTradeRepository
+	HoldingsRepository        repository.InvestmentHoldingsRepository
+	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
+	RebalancerRunRepository   repository.RebalancerRunRepository
 }
 
-func NewTradeService(db *sql.DB, alpacaRepository repository.AlpacaRepository, tradeOrderRepository repository.TradeOrderRepository) TradeService {
+func NewTradeService(
+	db *sql.DB,
+	alpacaRepository repository.AlpacaRepository,
+	tradeOrderRepository repository.TradeOrderRepository,
+	tickerRepository repository.TickerRepository,
+	itRepository repository.InvestmentTradeRepository,
+	holdingsRepository repository.InvestmentHoldingsRepository,
+	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
+	RebalancerRunRepository repository.RebalancerRunRepository,
+) TradeService {
 	return tradeServiceHandler{
-		Db:                   db,
-		AlpacaRepository:     alpacaRepository,
-		TradeOrderRepository: tradeOrderRepository,
+		Db:                        db,
+		AlpacaRepository:          alpacaRepository,
+		TradeOrderRepository:      tradeOrderRepository,
+		TickerRepository:          tickerRepository,
+		InvestmentTradeRepository: itRepository,
+		HoldingsRepository:        holdingsRepository,
+		HoldingsVersionRepository: holdingsVersionRepository,
+		RebalancerRunRepository:   RebalancerRunRepository,
 	}
 }
 
@@ -137,52 +156,6 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 	return order, nil
 }
 
-func (h tradeServiceHandler) UpdateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error) {
-	tradeOrder, err := h.TradeOrderRepository.Get(repository.TradeOrderGetFilter{
-		TradeOrderID: &tradeOrderID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if tradeOrder.ProviderID == nil {
-		return nil, fmt.Errorf("failed to update order: %s has no provider id", tradeOrderID.String())
-	}
-
-	order, err := h.AlpacaRepository.GetOrder(*tradeOrder.ProviderID)
-	if err != nil {
-		return nil, err
-	}
-
-	// todo - should we check order.Status
-
-	state := tradeOrder.Status
-	// check valid state transition
-	if state == model.TradeOrderStatus_Pending && order.FilledAt != nil {
-		state = model.TradeOrderStatus_Completed
-	} else if state == model.TradeOrderStatus_Pending && order.FailedAt != nil {
-		state = model.TradeOrderStatus_Error
-	}
-
-	updatedTrade, err := h.TradeOrderRepository.Update(tx,
-		tradeOrderID,
-		model.TradeOrder{
-			Status:         state,
-			FilledQuantity: order.FilledQty,
-			FilledPrice:    order.FilledAvgPrice,
-			FilledAt:       order.FilledAt,
-		}, postgres.ColumnList{
-			table.TradeOrder.Status,
-			table.TradeOrder.FilledQuantity,
-			table.TradeOrder.FilledPrice,
-			table.TradeOrder.FilledAt,
-		})
-	if err != nil {
-		return nil, err
-	}
-
-	return updatedTrade, nil
-}
-
 // assumes trades are already aggregated by symbol
 func (h tradeServiceHandler) ExecuteBlock(trades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
 	// TODO - should we still store the trade order if it failed,
@@ -245,4 +218,204 @@ func (h tradeServiceHandler) ExecuteBlock(trades []*domain.ProposedTrade, rebala
 	}
 
 	return generatedOrders, nil
+}
+
+// not safe to call in isolation - needs to update rebalancer run
+// status and update holdings
+func (h tradeServiceHandler) updateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*model.TradeOrder, error) {
+	tradeOrder, err := h.TradeOrderRepository.Get(repository.TradeOrderGetFilter{
+		TradeOrderID: &tradeOrderID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if tradeOrder.ProviderID == nil {
+		return nil, fmt.Errorf("failed to update order: %s has no provider id", tradeOrderID.String())
+	}
+
+	order, err := h.AlpacaRepository.GetOrder(*tradeOrder.ProviderID)
+	if err != nil {
+		return nil, err
+	}
+
+	// todo - should we check order.Status
+
+	state := tradeOrder.Status
+	// check valid state transition
+	if state == model.TradeOrderStatus_Pending && order.FilledAt != nil {
+		state = model.TradeOrderStatus_Completed
+	} else if state == model.TradeOrderStatus_Pending && order.FailedAt != nil {
+		state = model.TradeOrderStatus_Error
+	}
+
+	updatedTrade, err := h.TradeOrderRepository.Update(tx,
+		tradeOrderID,
+		model.TradeOrder{
+			Status:         state,
+			FilledQuantity: order.FilledQty,
+			FilledPrice:    order.FilledAvgPrice,
+			FilledAt:       order.FilledAt,
+		}, postgres.ColumnList{
+			table.TradeOrder.Status,
+			table.TradeOrder.FilledQuantity,
+			table.TradeOrder.FilledPrice,
+			table.TradeOrder.FilledAt,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedTrade, nil
+}
+
+func (h tradeServiceHandler) UpdateAllPendingOrders() error {
+	cashTicker, err := h.TickerRepository.GetCashTicker()
+	if err != nil {
+		return err
+	}
+
+	trades, err := h.TradeOrderRepository.List()
+	if err != nil {
+		return err
+	}
+
+	tx, err := h.Db.Begin() // this used to be level: read uncommitted. if it fails, revert
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	rebalancerRuns := []uuid.UUID{}
+
+	completedTrades := []model.InvestmentTradeStatus{}
+	for _, trade := range trades {
+		if trade.Status == model.TradeOrderStatus_Pending {
+			updatedTrade, err := h.updateOrder(tx, trade.TradeOrderID)
+			if err != nil {
+				return err
+			}
+			if updatedTrade.Status == model.TradeOrderStatus_Completed {
+				relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
+					TradeOrderID: &updatedTrade.TradeOrderID,
+				})
+				if err != nil {
+					return err
+				}
+				rebalancerRuns = append(rebalancerRuns, updatedTrade.RebalancerRunID)
+				completedTrades = append(completedTrades, relevantInvestmentTrades...)
+			}
+		}
+	}
+
+	completedTradesByInvestment := map[uuid.UUID][]model.InvestmentTradeStatus{}
+	for _, t := range completedTrades {
+		if _, ok := completedTradesByInvestment[*t.InvestmentID]; !ok {
+			completedTradesByInvestment[*t.InvestmentID] = []model.InvestmentTradeStatus{}
+		}
+		completedTradesByInvestment[*t.InvestmentID] = append(completedTradesByInvestment[*t.InvestmentID], t)
+	}
+
+	for investmentID, newTrades := range completedTradesByInvestment {
+		// should be the holdings prior to the new trades being completed
+		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(tx, investmentID)
+		if err != nil {
+			return err
+		}
+		newPortfolio := currentHoldings.DeepCopy()
+		for _, t := range newTrades {
+			oldQuantity := decimal.Zero
+			if p, ok := newPortfolio.Positions[*t.Symbol]; ok {
+				oldQuantity = p.ExactQuantity
+			} else {
+				newPortfolio.Positions[*t.Symbol] = &domain.Position{
+					Symbol:        *t.Symbol,
+					Quantity:      0,
+					ExactQuantity: decimal.Zero,
+					TickerID:      *t.TickerID,
+				}
+			}
+			orderQuantity := *t.Quantity
+			orderPrice := *t.FilledPrice
+
+			if *t.Side == model.TradeOrderSide_Sell {
+				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Sub(orderQuantity)
+				newPortfolio.SetCash(newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
+			} else {
+				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Add(orderQuantity)
+				newPortfolio.SetCash(newPortfolio.Cash.Sub(orderQuantity.Mul(orderPrice)))
+			}
+		}
+
+		// validate the portfolio
+		// - ensure cash >= 0
+		// - ensure position quantity >= 0
+		// ensure allocations line up with expected
+
+		version, err := h.HoldingsVersionRepository.Add(tx, model.InvestmentHoldingsVersion{
+			InvestmentID: investmentID,
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, position := range newPortfolio.Positions {
+			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+				InvestmentID:                investmentID,
+				TickerID:                    position.TickerID,
+				Quantity:                    position.ExactQuantity,
+				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		// record even small slippage in cash, so we know
+		// their actual account balances
+		if newPortfolio.Cash.Abs().GreaterThan(decimal.Zero) {
+			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+				InvestmentID:                investmentID,
+				TickerID:                    cashTicker.TickerID,
+				Quantity:                    *newPortfolio.Cash,
+				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, rebalancerRunID := range rebalancerRuns {
+		relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
+			RebalancerRunID: &rebalancerRunID,
+		})
+		if err != nil {
+			return err
+		}
+		allCompleted := true
+		for _, t := range relevantInvestmentTrades {
+			if *t.Status != model.TradeOrderStatus_Completed {
+				allCompleted = false
+			}
+		}
+		if allCompleted {
+			_, err = h.RebalancerRunRepository.Update(tx, &model.RebalancerRun{
+				RebalancerRunID:    rebalancerRunID,
+				RebalancerRunState: model.RebalancerRunState_Completed,
+			}, []postgres.Column{
+				table.RebalancerRun.RebalancerRunState,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// todo - update holdings from these trades
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

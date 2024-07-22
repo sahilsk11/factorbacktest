@@ -42,7 +42,7 @@ func main() {
 	defer endProfile()
 	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
-	err = handler.RebalancerHandler.Rebalance(ctx)
+	err = handler.InvestmentService.Rebalance(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func main() {
 }
 
 func updateOrders(handler *api.ApiHandler) {
-	err := handler.RebalancerHandler.UpdateAllPendingOrders()
+	err := handler.TradingService.UpdateAllPendingOrders()
 	if err != nil {
 		log.Fatal(err)
 	}
