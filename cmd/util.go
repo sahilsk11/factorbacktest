@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"factorbacktest/api"
 	"factorbacktest/internal"
-	"factorbacktest/internal/app"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l2_service "factorbacktest/internal/service/l2"
@@ -75,6 +74,16 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		PriceService:            priceService,
 		FactorExpressionService: factorExpressionService,
 	}
+	tradingService := l1_service.NewTradeService(
+		dbConn,
+		alpacaRepository,
+		tradeOrderRepository,
+		tickerRepository,
+		investmentTradeRepository,
+		holdingsRepository,
+		holdingsVersionRepository,
+		rebalancerRunRepository,
+	)
 	investmentService := l3_service.NewInvestmentService(
 		dbConn,
 		strategyInvestmentRepository,
@@ -87,25 +96,10 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		holdingsVersionRepository,
 		investmentTradeRepository,
 		backtestHandler,
-	)
-	tradingService := l1_service.NewTradeService(
-		dbConn,
 		alpacaRepository,
-		tradeOrderRepository,
+		tradingService,
 	)
 
-	rebalancerHandler := app.RebalancerHandler{
-		Db:                        dbConn,
-		InvestmentService:         investmentService,
-		TradingService:            tradingService,
-		RebalancerRunRepository:   rebalancerRunRepository,
-		AlpacaRepository:          alpacaRepository,
-		TickerRepository:          tickerRepository,
-		InvestmentTradeRepository: investmentTradeRepository,
-		HoldingsRepository:        holdingsRepository,
-		TradeOrderRepository:      tradeOrderRepository,
-		HoldingsVersionRepository: holdingsVersionRepository,
-	}
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
@@ -125,7 +119,6 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		SavedStrategyRepository:      savedStrategyRepository,
 		InvestmentRepository:         strategyInvestmentRepository,
 		InvestmentService:            investmentService,
-		RebalancerHandler:            rebalancerHandler,
 	}
 
 	return apiHandler, nil
