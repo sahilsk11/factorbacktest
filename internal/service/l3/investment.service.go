@@ -557,6 +557,8 @@ func (h investmentServiceHandler) ReconcileAggregatePortfolio() error {
 		logger.Error(fmt.Errorf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()))
 	}
 
+	excessHoldingThreshold := decimal.NewFromInt(2)
+
 	actuallyHeld, err := h.AlpacaRepository.GetPositions()
 	if err != nil {
 		return err
@@ -566,6 +568,8 @@ func (h investmentServiceHandler) ReconcileAggregatePortfolio() error {
 			if a.Symbol == p.Symbol {
 				if a.Qty.LessThan(p.ExactQuantity) {
 					logger.Error(fmt.Errorf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64()))
+				} else if a.Qty.GreaterThan(p.ExactQuantity.Add(excessHoldingThreshold)) {
+					logger.Warn("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64())
 				}
 			}
 		}
