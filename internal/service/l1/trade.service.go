@@ -214,7 +214,7 @@ func (h tradeServiceHandler) ExecuteBlock(rawTrades []*domain.ProposedTrade, reb
 	// leaving the col null in investmentTrade
 
 	trades, excess := aggregateAndFormatTrades(rawTrades)
-	logger.Info("excess amounts", excess)
+	logger.Info("excess amounts: %v", excess)
 
 	// todo - ledger this in db and maybe use this
 	// when trading idk

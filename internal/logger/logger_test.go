@@ -15,6 +15,11 @@ func TestLogger(t *testing.T) {
 
 	Info("hello %s", "sahil")
 
+	x := map[string]string{
+		"hi": "ok",
+	}
+	Info("hi %v", x)
+
 	Error(fmt.Errorf("ah man"))
 
 	t.Fail()
