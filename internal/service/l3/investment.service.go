@@ -91,6 +91,7 @@ type investmentServiceHandler struct {
 	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
 	InvestmentTradeRepository repository.InvestmentTradeRepository
 	BacktestHandler           BacktestHandler
+	AlpacaRepository          repository.AlpacaRepository
 }
 
 func NewInvestmentService(
@@ -522,9 +523,53 @@ func (h investmentServiceHandler) Reconcile(ctx context.Context, investmentID uu
 	return nil
 }
 
-func ReconcileAggregatePortfolio() {
-	// after we ensure all the individual portfolios
-	// are good, we should figure out if they sum to
-	// an amount that we actually own. we can also check
-	// for any excess holdings
+func (h investmentServiceHandler) ReconcileAggregatePortfolio() error {
+	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+	if err != nil {
+		return err
+	}
+	totalHoldings := domain.NewPortfolio()
+	for _, i := range investments {
+		holdings, err := h.HoldingsRepository.GetLatestHoldings(nil, i.InvestmentID)
+		if err != nil {
+			return err
+		}
+		totalHoldings.SetCash(totalHoldings.Cash.Add(*holdings.Cash))
+		for _, p := range holdings.Positions {
+			if _, ok := totalHoldings.Positions[p.Symbol]; !ok {
+				totalHoldings.Positions[p.Symbol] = &domain.Position{
+					Symbol:        p.Symbol,
+					Quantity:      0,
+					ExactQuantity: decimal.Zero,
+					TickerID:      p.TickerID,
+				}
+			}
+			totalHoldings.Positions[p.Symbol].Quantity += p.Quantity
+			totalHoldings.Positions[p.Symbol].ExactQuantity = totalHoldings.Positions[p.Symbol].ExactQuantity.Add(p.ExactQuantity)
+		}
+	}
+
+	account, err := h.AlpacaRepository.GetAccount()
+	if err != nil {
+		return err
+	}
+	if account.Cash.LessThan(*totalHoldings.Cash) {
+		logger.Error(fmt.Errorf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()))
+	}
+
+	actuallyHeld, err := h.AlpacaRepository.GetPositions()
+	if err != nil {
+		return err
+	}
+	for _, p := range totalHoldings.Positions {
+		for _, a := range actuallyHeld {
+			if a.Symbol == p.Symbol {
+				if a.Qty.LessThan(p.ExactQuantity) {
+					logger.Error(fmt.Errorf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64()))
+				}
+			}
+		}
+	}
+
+	return nil
 }
