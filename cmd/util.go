@@ -68,6 +68,13 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	priceService := l1_service.NewPriceService(dbConn, priceRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
 	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
+	backtestHandler := l3_service.BacktestHandler{
+		PriceRepository:         priceRepository,
+		AssetUniverseRepository: assetUniverseRepository,
+		Db:                      dbConn,
+		PriceService:            priceService,
+		FactorExpressionService: factorExpressionService,
+	}
 	investmentService := l3_service.NewInvestmentService(
 		dbConn,
 		strategyInvestmentRepository,
@@ -79,6 +86,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		rebalancerRunRepository,
 		holdingsVersionRepository,
 		investmentTradeRepository,
+		backtestHandler,
 	)
 	tradingService := l1_service.NewTradeService(
 		dbConn,
@@ -98,18 +106,11 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		TradeOrderRepository:      tradeOrderRepository,
 		HoldingsVersionRepository: holdingsVersionRepository,
 	}
-
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
 		},
-		BacktestHandler: app.BacktestHandler{
-			PriceRepository:         priceRepository,
-			AssetUniverseRepository: assetUniverseRepository,
-			Db:                      dbConn,
-			PriceService:            priceService,
-			FactorExpressionService: factorExpressionService,
-		},
+		BacktestHandler:              backtestHandler,
 		UserStrategyRepository:       repository.UserStrategyRepositoryHandler{},
 		ContactRepository:            repository.ContactRepositoryHandler{},
 		Db:                           dbConn,

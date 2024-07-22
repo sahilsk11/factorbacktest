@@ -27,7 +27,7 @@ import (
 
 type ApiHandler struct {
 	Db                           *sql.DB
-	BacktestHandler              app.BacktestHandler
+	BacktestHandler              l3_service.BacktestHandler
 	BenchmarkHandler             internal.BenchmarkHandler
 	UserStrategyRepository       repository.UserStrategyRepository
 	ContactRepository            repository.ContactRepository

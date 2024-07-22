@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
@@ -42,12 +43,18 @@ func main() {
 	defer endProfile()
 	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
-	err = handler.RebalancerHandler.Rebalance(ctx)
+	// err = handler.RebalancerHandler.Rebalance(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// updateOrders(handler)
+
+	err = handler.InvestmentService.Reconcile(ctx, uuid.MustParse("b50cba85-45c1-4182-8172-b5a1166fea3d"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	updateOrders(handler)
 }
 
 func updateOrders(handler *api.ApiHandler) {
