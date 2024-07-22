@@ -26,19 +26,8 @@ import (
 // on trajectory. It maintains the concept of the aggregate investment
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
-	ListForRebalance() ([]model.Investment, error)
-	// ledgers a new request to invest in a strategy
-	AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
-	// assumes investment should be rebalanced and determines
-	// holdings and necessary trades
-	GenerateRebalanceResults(
-		ctx context.Context,
-		strategyInvestment model.Investment,
-		date time.Time,
-		pm map[string]decimal.Decimal,
-		tickerIDMap map[string]uuid.UUID,
-	) (*domain.Portfolio, []*domain.ProposedTrade, error)
-	Reconcile(ctx context.Context, investmentID uuid.UUID) error
+	Add(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
+	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
 }
 
@@ -132,7 +121,7 @@ func NewInvestmentService(
 	}
 }
 
-func (h investmentServiceHandler) ListForRebalance() ([]model.Investment, error) {
+func (h investmentServiceHandler) listForRebalance() ([]model.Investment, error) {
 	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
 		return nil, err
@@ -163,7 +152,7 @@ func (h investmentServiceHandler) ListForRebalance() ([]model.Investment, error)
 	return investmentsToRebalance, nil
 }
 
-func (h investmentServiceHandler) AddStrategyInvestment(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error {
+func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error {
 	tx, err := h.Db.Begin()
 	if err != nil {
 		return err
@@ -349,7 +338,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	return computeTargetPortfolioResponse.TargetPortfolio, nil
 }
 
-func (h investmentServiceHandler) GenerateRebalanceResults(
+func (h investmentServiceHandler) generateRebalanceResults(
 	ctx context.Context,
 	strategyInvestment model.Investment,
 	date time.Time,
@@ -427,7 +416,7 @@ func transitionToTarget(
 	return trades, nil
 }
 
-func (h investmentServiceHandler) Reconcile(ctx context.Context, investmentID uuid.UUID) error {
+func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, investmentID uuid.UUID) error {
 	// check deviance from backtested result
 	// check that positions are > 0
 	// are we planning to flag when trades executed at varying
@@ -533,7 +522,7 @@ func (h investmentServiceHandler) Reconcile(ctx context.Context, investmentID uu
 	return nil
 }
 
-func (h investmentServiceHandler) ReconcileAggregatePortfolio() error {
+func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
 	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
 		return err
@@ -588,6 +577,25 @@ func (h investmentServiceHandler) ReconcileAggregatePortfolio() error {
 	return nil
 }
 
+func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
+	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+	if err != nil {
+		return err
+	}
+	for _, i := range investments {
+		err = h.reconcileInvestment(ctx, i.InvestmentID)
+		if err != nil {
+			return err
+		}
+	}
+	err = h.reconcileAggregatePortfolio()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	date := time.Now().UTC()
 
@@ -612,7 +620,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	}
 
 	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
-	investmentsToRebalance, err := h.ListForRebalance()
+	investmentsToRebalance, err := h.listForRebalance()
 	if err != nil {
 		return err
 	}
@@ -633,7 +641,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	mappedPortfolios := map[uuid.UUID]*domain.Portfolio{}
 
 	for _, investment := range investmentsToRebalance {
-		portfolio, trades, err := h.GenerateRebalanceResults(
+		portfolio, trades, err := h.generateRebalanceResults(
 			ctx,
 			investment,
 			rebalancerRun.Date,
