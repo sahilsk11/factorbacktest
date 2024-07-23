@@ -64,6 +64,10 @@ type Position struct {
 	// todo - migrate off quantity
 	ExactQuantity decimal.Decimal
 	TickerID      uuid.UUID
+
+	// we're getting to a point where the models are overloaded
+	// this may not be set in some places
+	Value *decimal.Decimal
 }
 
 func (p Position) DeepCopy() *Position {

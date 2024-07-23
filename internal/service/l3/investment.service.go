@@ -149,10 +149,12 @@ func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UU
 
 type GetStatsResponse struct {
 	Holdings              []domain.Position
-	Inception             time.Time
+	OriginalAmount        int32
+	StartDate             time.Time
 	PercentReturnFraction decimal.Decimal
 	CurrentValue          decimal.Decimal
 	CompletedTrades       []domain.FilledTrade
+	SavedStrategy         model.SavedStrategy
 }
 
 func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsResponse, error) {
@@ -160,6 +162,11 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 	if err != nil {
 		return nil, err
 	}
+	strategy, err := h.SavedStrategyRepository.Get(investment.SavedStragyID)
+	if err != nil {
+		return nil, err
+	}
+
 	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
 	if err != nil {
 		return nil, err
@@ -181,6 +188,7 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 
 	positions := []domain.Position{}
 	for _, p := range currentHoldings.Positions {
+		p.Value = util.DecimalPointer(p.ExactQuantity.Mul(latestPrices[p.Symbol]))
 		positions = append(positions, *p)
 	}
 
@@ -206,10 +214,12 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 
 	return &GetStatsResponse{
 		Holdings:              positions,
-		Inception:             investment.StartDate,
+		StartDate:             investment.StartDate,
 		CurrentValue:          totalValue,
 		PercentReturnFraction: returnFraction,
 		CompletedTrades:       completedTrades,
+		SavedStrategy:         *strategy,
+		OriginalAmount:        investment.AmountDollars,
 	}, nil
 }
 
