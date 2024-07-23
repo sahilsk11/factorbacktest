@@ -98,25 +98,30 @@ type InvestmentTradeListFilter struct {
 
 func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
 	query := view.InvestmentTradeStatus.SELECT(view.InvestmentTradeStatus.AllColumns)
+
+	whereClauses := []postgres.BoolExpression{}
 	if listFilter.TradeOrderID != nil {
-		query = query.WHERE(
+		whereClauses = append(whereClauses,
 			view.InvestmentTradeStatus.TradeOrderID.EQ(
 				postgres.UUID(listFilter.TradeOrderID),
-			),
-		)
-	} else if listFilter.RebalancerRunID != nil {
-		query = query.WHERE(
+			))
+	}
+	if listFilter.RebalancerRunID != nil {
+		whereClauses = append(whereClauses,
 			view.InvestmentTradeStatus.RebalancerRunID.EQ(
 				postgres.UUID(listFilter.RebalancerRunID),
 			),
 		)
-	} else if listFilter.InvestmentID != nil {
-		query = query.WHERE(
+	}
+	if listFilter.InvestmentID != nil {
+		whereClauses = append(whereClauses,
 			view.InvestmentTradeStatus.InvestmentID.EQ(
 				postgres.UUID(listFilter.InvestmentID),
 			),
 		)
 	}
+
+	query = query.WHERE(postgres.AND(whereClauses...))
 
 	var db qrm.Queryable = h.Db
 	if tx != nil {

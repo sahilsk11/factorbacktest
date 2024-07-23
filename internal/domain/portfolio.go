@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -18,6 +19,14 @@ func NewPortfolio() *Portfolio {
 		Positions: map[string]*Position{},
 		Cash:      &d,
 	}
+}
+
+func (p Portfolio) HeldSymbols() []string {
+	symbols := []string{}
+	for symbol := range p.Positions {
+		symbols = append(symbols, symbol)
+	}
+	return symbols
 }
 
 func (p *Portfolio) SetCash(newCash decimal.Decimal) {
@@ -55,6 +64,10 @@ type Position struct {
 	// todo - migrate off quantity
 	ExactQuantity decimal.Decimal
 	TickerID      uuid.UUID
+
+	// we're getting to a point where the models are overloaded
+	// this may not be set in some places
+	Value *decimal.Decimal
 }
 
 func (p Position) DeepCopy() *Position {
@@ -85,4 +98,10 @@ type ProposedTrade struct {
 	ExpectedPrice decimal.Decimal
 }
 
-type ProposedTrades []ProposedTrade
+type FilledTrade struct {
+	Symbol    string
+	TickerID  uuid.UUID
+	Quantity  decimal.Decimal
+	FillPrice decimal.Decimal
+	FilledAt  time.Time
+}
