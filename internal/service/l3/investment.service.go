@@ -26,6 +26,7 @@ import (
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
 	Add(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
+	GetStats(investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
 }
@@ -144,6 +145,72 @@ func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UU
 	}
 
 	return nil
+}
+
+type GetStatsResponse struct {
+	Holdings              []domain.Position
+	Inception             time.Time
+	PercentReturnFraction decimal.Decimal
+	CurrentValue          decimal.Decimal
+	CompletedTrades       []domain.FilledTrade
+}
+
+func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsResponse, error) {
+	investment, err := h.InvestmentRepository.Get(investmentID)
+	if err != nil {
+		return nil, err
+	}
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
+	if err != nil {
+		return nil, err
+	}
+	heldSymbols := currentHoldings.HeldSymbols()
+
+	latestPrices, err := h.AlpacaRepository.GetLatestPrices(heldSymbols)
+	if err != nil {
+		return nil, err
+	}
+
+	totalValue, err := currentHoldings.TotalValue(latestPrices)
+	if err != nil {
+		return nil, err
+	}
+
+	startValue := decimal.NewFromInt32(investment.AmountDollars)
+	returnFraction := (totalValue.Sub(startValue)).Div(startValue)
+
+	positions := []domain.Position{}
+	for _, p := range currentHoldings.Positions {
+		positions = append(positions, *p)
+	}
+
+	allTradesWithStatus, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
+		InvestmentID: &investmentID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	completedTrades := []domain.FilledTrade{}
+	for _, t := range allTradesWithStatus {
+		if *t.Status == model.TradeOrderStatus_Completed {
+			completedTrades = append(completedTrades, domain.FilledTrade{
+				Symbol:    *t.Symbol,
+				TickerID:  *t.TickerID,
+				Quantity:  *t.Quantity,
+				FillPrice: *t.FilledPrice,
+				FilledAt:  *t.FilledAt,
+			})
+		}
+	}
+
+	return &GetStatsResponse{
+		Holdings:              positions,
+		Inception:             investment.StartDate,
+		CurrentValue:          totalValue,
+		PercentReturnFraction: returnFraction,
+		CompletedTrades:       completedTrades,
+	}, nil
 }
 
 // listForRebalance retrieves all investments that should be
