@@ -59,7 +59,7 @@ const AppWrapper = () => {
           <Route index element={app} />
           <Route path="backtest" element={app} />
           <Route path="bonds" element={<BondBuilder user={user} setUser={setUser} />} />
-          <Route path="invest" element={<Invest user={user} setUser={setUser} />} />
+          <Route path="investments" element={<Invest user={user} setUser={setUser} />} />
           <Route path="*" element={<p>not found</p>} />
         </Routes>
       </BrowserRouter>

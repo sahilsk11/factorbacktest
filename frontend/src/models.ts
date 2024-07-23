@@ -92,13 +92,38 @@ export interface InvestInStrategyRequest {
 }
 
 export interface GetInvestmentsResponse {
-  strategyInvestmentID: string;
-  amountDollars: number;
-  startDate: string; // Using string to represent ISO 8601 date format
-  savedStrategyID: string;
-  userAccountID: string;
-  createdAt: string; // Using string to represent ISO 8601 date format
+  investmentID: string; // UUID
+  originalAmountDollars: number;
+  startDate: string;
+  savedStrategy: SavedStrategy;
+  holdings: Holdings[];
+  percentReturnFraction: number;
+  currentValue: number;
+  completedTrades: FilledTrade[];
 }
+
+export interface Holdings {
+  symbol: string;
+  quantity: number;
+  marketValue: number;
+}
+
+export interface FilledTrade {
+  symbol: string;
+  quantity: number;
+  fillPrice: number;
+  filledAt: string;
+}
+
+export interface SavedStrategy {
+  savedStrategyID: string; // UUID
+  strategyName: string;
+  factorExpression: string;
+  numAssets: number;
+  assetUniverse: string;
+  rebalanceInterval: string;
+}
+
 
 export interface BacktestInputs {
   factorExpression: string,

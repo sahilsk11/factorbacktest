@@ -41,8 +41,8 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
       <NavDropdown.Item href="#action/3.2">
         Another action
       </NavDropdown.Item>*/}
-      <NavDropdown.Item onClick={() => navigate("/invest")} className={styles.nav_link}>
-        Invest in Strategy
+      <NavDropdown.Item onClick={() => navigate("/investments")} className={styles.nav_link}>
+        Your Investments
       </NavDropdown.Item> 
       <NavDropdown.Divider />
       <NavDropdown.Item onClick={() => {

@@ -21,6 +21,7 @@ import { getStrategies, updateBookmarked } from "./Form";
 import modalsStyle from "./Modals.module.css";
 import { useGoogleLogin } from "@react-oauth/google";
 import ConfettiExplosion from "react-confetti-explosion";
+import { useNavigate } from "react-router-dom";
 
 export default function Inspector({
   fdIndex,
@@ -313,6 +314,8 @@ function InvestModal({
   //   }
   // }, [bookmarked])
 
+  const navigate = useNavigate();
+
   if (!show) return null;
 
   async function bookmarkStrategy() {
@@ -343,6 +346,7 @@ function InvestModal({
       closeWrapper();
     }
   };
+
 
   async function invest() {
     if (!user) {
@@ -428,7 +432,7 @@ function InvestModal({
             <ConfettiExplosion zIndex={1000} duration={3000} />
           </div>
           <label className={formStyles.label}>Thanks</label>
-          You're all set. Track your investments here.
+          You're all set. Track your investments <a href="" onClick={() => navigate("/investments")}>here</a>.
         </div>
         {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
       </>),
@@ -570,7 +574,7 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const AssetBreakdown = ({
+export const AssetBreakdown = ({
   assetWeights
 }: {
   assetWeights: Record<string, number>

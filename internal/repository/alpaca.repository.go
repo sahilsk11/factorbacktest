@@ -48,6 +48,9 @@ type alpacaRepositoryHandler struct {
 }
 
 func (h alpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {
+	if len(symbols) == 0 {
+		return map[string]decimal.Decimal{}, nil
+	}
 	results, err := h.MdClient.GetLatestQuotes(symbols, marketdata.GetLatestQuoteRequest{})
 	if err != nil {
 		return nil, err

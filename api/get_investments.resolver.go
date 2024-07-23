@@ -4,6 +4,7 @@ import (
 	"factorbacktest/internal/repository"
 	l3_service "factorbacktest/internal/service/l3"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,11 +15,11 @@ type GetInvestmentsResponse struct {
 	InvestmentID          uuid.UUID     `json:"investmentID"`
 	OriginalAmountDollars int32         `json:"originalAmountDollars"`
 	StartDate             string        `json:"startDate"`
-	SavedStragyID         uuid.UUID     `json:"savedStrategyID"`
+	SavedStragy           SavedStrategy `json:"savedStrategy"`
 	Holdings              []Holdings    `json:"holdings"`
 	PercentReturnFraction float64       `json:"percentReturnFraction"`
 	CurrentValue          float64       `json:"currentValue"`
-	CompletedTrades       []FilledTrade `json:"filledTrades"`
+	CompletedTrades       []FilledTrade `json:"completedTrades"`
 }
 
 type Holdings struct {
@@ -34,10 +35,19 @@ type FilledTrade struct {
 	FilledAt  string  `json:"filledAt"`
 }
 
+type SavedStrategy struct {
+	SavedStrategyID   uuid.UUID `json:"savedStrategyID"`
+	StrategyName      string    `json:"strategyName"`
+	FactorExpression  string    `json:"factorExpression"`
+	NumAssets         int32     `json:"numAssets"`
+	AssetUniverse     string    `json:"assetUniverse"`
+	RebalanceInterval string    `json:"rebalanceInterval"`
+}
+
 func (m ApiHandler) getInvestments(c *gin.Context) {
 	ginUserAccountID, ok := c.Get("userAccountID")
 	if !ok {
-		returnErrorJson(fmt.Errorf("must be logged in to save strategy"), c)
+		returnErrorJson(fmt.Errorf("must be logged in to view investments"), c)
 		return
 	}
 	userAccountIDStr, ok := ginUserAccountID.(string)
@@ -75,8 +85,8 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 	c.JSON(200, out)
 }
 
-func getInvestmentsResponseFromDomain(in map[uuid.UUID]l3_service.GetStatsResponse) map[string]GetInvestmentsResponse {
-	out := map[string]GetInvestmentsResponse{}
+func getInvestmentsResponseFromDomain(in map[uuid.UUID]l3_service.GetStatsResponse) []GetInvestmentsResponse {
+	out := []GetInvestmentsResponse{}
 	for investmentID, stats := range in {
 		holdings := []Holdings{}
 		for _, h := range stats.Holdings {
@@ -93,21 +103,32 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]l3_service.GetStatsRespon
 				Symbol:    t.Symbol,
 				Quantity:  t.Quantity.InexactFloat64(),
 				FillPrice: t.FillPrice.InexactFloat64(),
-				FilledAt:  t.FilledAt.Format(time.DateOnly),
+				FilledAt:  t.FilledAt.Format(time.RFC3339),
 			})
 		}
 
-		out[investmentID.String()] = GetInvestmentsResponse{
+		out = append(out, GetInvestmentsResponse{
 			InvestmentID:          investmentID,
 			OriginalAmountDollars: stats.OriginalAmount,
-			StartDate:             stats.StartDate.Format(time.RFC3339),
-			SavedStragyID:         stats.SavedStrategy.SavedStragyID,
+			StartDate:             stats.StartDate.Format(time.DateOnly),
+			SavedStragy: SavedStrategy{
+				SavedStrategyID:   stats.SavedStrategy.SavedStragyID,
+				StrategyName:      stats.SavedStrategy.StrategyName,
+				FactorExpression:  stats.SavedStrategy.FactorExpression,
+				NumAssets:         stats.SavedStrategy.NumAssets,
+				AssetUniverse:     stats.SavedStrategy.AssetUniverse,
+				RebalanceInterval: stats.SavedStrategy.RebalanceInterval,
+			},
 			Holdings:              holdings,
 			PercentReturnFraction: stats.PercentReturnFraction.InexactFloat64(),
 			CurrentValue:          stats.CurrentValue.InexactFloat64(),
 			CompletedTrades:       completedTrades,
-		}
+		})
 	}
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].StartDate < out[j].StartDate
+	})
 
 	return out
 }
