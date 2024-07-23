@@ -119,6 +119,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		SavedStrategyRepository:      savedStrategyRepository,
 		InvestmentRepository:         strategyInvestmentRepository,
 		InvestmentService:            investmentService,
+		TradingService:               tradingService,
 	}
 
 	return apiHandler, nil

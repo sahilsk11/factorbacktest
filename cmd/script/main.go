@@ -20,17 +20,17 @@ func main() {
 	defer endProfile()
 	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
-	err = handler.InvestmentService.Rebalance(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// updateOrders(handler)
-
-	// err = handler.InvestmentService.Reconcile(ctx, uuid.MustParse("b50cba85-45c1-4182-8172-b5a1166fea3d"))
+	// err = handler.TradingService.Re()
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
+
+	// updateOrders(handler)
+
+	err = handler.InvestmentService.Reconcile(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
 

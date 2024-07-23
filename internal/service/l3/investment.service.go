@@ -441,10 +441,11 @@ func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
 	if err != nil {
 		return err
 	}
+	epsilonZero := decimal.NewFromFloat(1e-9)
 	for _, p := range totalHoldings.Positions {
 		for _, a := range actuallyHeld {
 			if a.Symbol == p.Symbol {
-				if a.Qty.LessThan(p.ExactQuantity) {
+				if a.Qty.LessThan(p.ExactQuantity.Sub(epsilonZero)) {
 					logger.Error(fmt.Errorf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64()))
 				} else if a.Qty.GreaterThan(p.ExactQuantity.Add(excessHoldingThreshold)) {
 					logger.Warn("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64())
