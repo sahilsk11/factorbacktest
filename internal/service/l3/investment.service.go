@@ -3,6 +3,7 @@ package l3_service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
@@ -32,19 +33,20 @@ type InvestmentService interface {
 }
 
 type investmentServiceHandler struct {
-	Db                        *sql.DB
-	InvestmentRepository      repository.InvestmentRepository
-	HoldingsRepository        repository.InvestmentHoldingsRepository
-	UniverseRepository        repository.AssetUniverseRepository
-	SavedStrategyRepository   repository.SavedStrategyRepository
-	FactorExpressionService   l2_service.FactorExpressionService
-	TickerRepository          repository.TickerRepository
-	RebalancerRunRepository   repository.RebalancerRunRepository
-	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
-	InvestmentTradeRepository repository.InvestmentTradeRepository
-	BacktestHandler           BacktestHandler
-	AlpacaRepository          repository.AlpacaRepository
-	TradingService            l1_service.TradeService
+	Db                            *sql.DB
+	InvestmentRepository          repository.InvestmentRepository
+	HoldingsRepository            repository.InvestmentHoldingsRepository
+	UniverseRepository            repository.AssetUniverseRepository
+	SavedStrategyRepository       repository.SavedStrategyRepository
+	FactorExpressionService       l2_service.FactorExpressionService
+	TickerRepository              repository.TickerRepository
+	RebalancerRunRepository       repository.RebalancerRunRepository
+	HoldingsVersionRepository     repository.InvestmentHoldingsVersionRepository
+	InvestmentTradeRepository     repository.InvestmentTradeRepository
+	BacktestHandler               BacktestHandler
+	AlpacaRepository              repository.AlpacaRepository
+	TradingService                l1_service.TradeService
+	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
 }
 
 func NewInvestmentService(
@@ -61,21 +63,23 @@ func NewInvestmentService(
 	backtestHandler BacktestHandler,
 	alpacaRepository repository.AlpacaRepository,
 	tradeService l1_service.TradeService,
+	investmentRebalanceRepository repository.InvestmentRebalanceRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
-		Db:                        db,
-		InvestmentRepository:      strategyInvestmentRepository,
-		HoldingsRepository:        holdingsRepository,
-		UniverseRepository:        universeRepository,
-		SavedStrategyRepository:   savedStrategyRepository,
-		FactorExpressionService:   factorExpressionService,
-		TickerRepository:          tickerRepository,
-		RebalancerRunRepository:   rebalancerRunRepository,
-		HoldingsVersionRepository: holdingsVersionRepository,
-		InvestmentTradeRepository: investmentTradeRepository,
-		BacktestHandler:           backtestHandler,
-		AlpacaRepository:          alpacaRepository,
-		TradingService:            tradeService,
+		Db:                            db,
+		InvestmentRepository:          strategyInvestmentRepository,
+		HoldingsRepository:            holdingsRepository,
+		UniverseRepository:            universeRepository,
+		SavedStrategyRepository:       savedStrategyRepository,
+		FactorExpressionService:       factorExpressionService,
+		TickerRepository:              tickerRepository,
+		RebalancerRunRepository:       rebalancerRunRepository,
+		HoldingsVersionRepository:     holdingsVersionRepository,
+		InvestmentTradeRepository:     investmentTradeRepository,
+		BacktestHandler:               backtestHandler,
+		AlpacaRepository:              alpacaRepository,
+		TradingService:                tradeService,
+		InvestmentRebalanceRepository: investmentRebalanceRepository,
 	}
 }
 
@@ -242,7 +246,7 @@ func (h investmentServiceHandler) listForRebalance() ([]model.Investment, error)
 		}
 		pendingInvestmentTradeID := uuid.Nil
 		for _, t := range tradeOrders {
-			if *t.Status == model.TradeOrderStatus_Pending {
+			if t.Status != nil && *t.Status == model.TradeOrderStatus_Pending {
 				pendingInvestmentTradeID = *t.InvestmentTradeID
 			}
 		}
@@ -294,48 +298,96 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	return computeTargetPortfolioResponse.TargetPortfolio, nil
 }
 
-func (h investmentServiceHandler) generateRebalanceResults(
+type rebalanceInvestmentResponse struct {
+	ProposedTrades           []*domain.ProposedTrade
+	InsertedInvestmentTrades []model.InvestmentTrade
+}
+
+// rebalanceInvestment creates the InvestmentRebalance entry
+// and figures out the trades to rebalance
+func (h investmentServiceHandler) rebalanceInvestment(
 	ctx context.Context,
-	strategyInvestment model.Investment,
-	date time.Time,
-	pm map[string]decimal.Decimal, tickerIDMap map[string]uuid.UUID,
-) (*domain.Portfolio, []*domain.ProposedTrade, error) {
-	// get current holdings to figure out what the
-	// total investment is worth
-	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, strategyInvestment.InvestmentID)
+	tx *sql.Tx,
+	investment model.Investment,
+	rebalancerRun model.RebalancerRun,
+	pm map[string]decimal.Decimal,
+	tickerIDMap map[string]uuid.UUID,
+) (*rebalanceInvestmentResponse, error) {
+	// should add this to the latest view and remove this call
+	versionID, err := h.HoldingsRepository.GetLatestVersionID(investment.InvestmentID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get holdings from investment id %s: %w", strategyInvestment.InvestmentID.String(), err)
+		return nil, err
 	}
 
-	// we need to get this in decimal and potentially use a different
-	// set of prices? should we use live pricing from Alpaca?
-	currentHoldingsValue, err := currentHoldings.TotalValue(pm)
+	initialPortfolio, err := h.HoldingsRepository.GetLatestHoldings(nil, investment.InvestmentID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	currentHoldingsValue, err := initialPortfolio.TotalValue(pm)
+	if err != nil {
+		return nil, err
 	}
 
 	if currentHoldingsValue.Equal(decimal.Zero) {
-		return nil, nil, fmt.Errorf("holdings have no value")
+		return nil, fmt.Errorf("holdings have no value")
 	}
 
 	targetPortfolio, err := h.getTargetPortfolio(
 		ctx,
-		strategyInvestment,
-		date,
+		investment,
+		rebalancerRun.Date,
 		currentHoldingsValue,
 		pm,
 		tickerIDMap,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get target portfolio: %w", err)
+		return nil, fmt.Errorf("failed to get target portfolio: %w", err)
 	}
 
-	proposedTrades, err := transitionToTarget(*currentHoldings, *targetPortfolio, pm)
+	proposedTrades, err := transitionToTarget(*initialPortfolio, *targetPortfolio, pm)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return targetPortfolio, proposedTrades, nil
+	startingPortfolioJson, err := portfolioToJson(initialPortfolio)
+	if err != nil {
+		return nil, err
+	}
+
+	targetPortfolioJson, err := portfolioToJson(targetPortfolio)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(versionID)
+
+	investmentRebalance, err := h.InvestmentRebalanceRepository.Add(tx, model.InvestmentRebalance{
+		RebalancerRunID:           rebalancerRun.RebalancerRunID,
+		InvestmentID:              investment.InvestmentID,
+		State:                     model.RebalancerRunState_Pending,
+		StartingHoldingsVersionID: *versionID,
+		StartingPortfolio:         string(startingPortfolioJson),
+		TargetPortfolio:           string(targetPortfolioJson),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	investmentTrades := proposedTradesToInvestmentTradeModels(
+		proposedTrades,
+		investmentRebalance.InvestmentRebalanceID,
+	)
+
+	insertedInvestmentTrades, err := h.InvestmentTradeRepository.AddMany(tx, investmentTrades)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rebalanceInvestmentResponse{
+		ProposedTrades:           proposedTrades,
+		InsertedInvestmentTrades: insertedInvestmentTrades,
+	}, nil
 }
 
 func transitionToTarget(
@@ -599,34 +651,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	}
 
 	proposedTrades := []*domain.ProposedTrade{}
-	investmentTrades := []*model.InvestmentTrade{}
-	// keyed by investment id
-	mappedPortfolios := map[uuid.UUID]*domain.Portfolio{}
-
-	for _, investment := range investmentsToRebalance {
-		portfolio, trades, err := h.generateRebalanceResults(
-			ctx,
-			investment,
-			rebalancerRun.Date,
-			pm,
-			tickerIDMap,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to rebalance: failed to generate results for investment %s: %w", investment.InvestmentID.String(), err)
-		}
-
-		mappedPortfolios[investment.InvestmentID] = portfolio
-
-		proposedTrades = append(proposedTrades, trades...)
-		investmentTrades = append(investmentTrades,
-			proposedTradesToInvestmentTradeModels(
-				proposedTrades,
-				investment.InvestmentID,
-				rebalancerRun.RebalancerRunID,
-			)...)
-	}
-
-	logger.Info("generated %d investment trades", len(investmentTrades))
+	investmentTrades := []model.InvestmentTrade{}
 
 	tx, err := h.Db.Begin()
 	if err != nil {
@@ -634,16 +659,32 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	}
 	defer tx.Rollback()
 
-	insertedInvestmentTrades, err := h.InvestmentTradeRepository.AddMany(tx, investmentTrades)
-	if err != nil {
-		return err
+	// todo - break this up so one investment doesn't cause all rebalances
+	// to fail
+	for _, investment := range investmentsToRebalance {
+		result, err := h.rebalanceInvestment(
+			ctx,
+			tx,
+			investment,
+			*rebalancerRun,
+			pm,
+			tickerIDMap,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to rebalance: failed to generate results for investment %s: %w", investment.InvestmentID.String(), err)
+		}
+
+		proposedTrades = append(proposedTrades, result.ProposedTrades...)
+		investmentTrades = append(investmentTrades, result.InsertedInvestmentTrades...)
 	}
+
+	logger.Info("generated %d investment trades", len(investmentTrades))
 
 	rebalancerRun.RebalancerRunState = model.RebalancerRunState_Pending
 	if len(investmentsToRebalance) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investments to rebalance")
-	} else if len(insertedInvestmentTrades) == 0 {
+	} else if len(investmentTrades) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investment trades generated")
 	}
@@ -656,7 +697,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
-	if len(insertedInvestmentTrades) == 0 || len(investmentsToRebalance) == 0 {
+	if len(investmentTrades) == 0 || len(investmentsToRebalance) == 0 {
 		return nil
 	}
 
@@ -667,7 +708,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 	// kinda weird but if the trade block failed without trades being
 	// run, we can just revert the whole thing and say the run failed
-	if len(executedTrades) > 0 && tradeExecutionErr != nil {
+	if len(executedTrades) > 0 {
 		err = tx.Commit()
 		if err != nil {
 			return err
@@ -676,7 +717,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 	updateInvesmtentTradeErrors := []error{}
 	for _, tradeOrder := range executedTrades {
-		for _, investmentTrade := range insertedInvestmentTrades {
+		for _, investmentTrade := range investmentTrades {
 			if tradeOrder.TickerID == investmentTrade.TickerID {
 				investmentTrade.TradeOrderID = &tradeOrder.TradeOrderID
 				_, err = h.InvestmentTradeRepository.Update(
@@ -718,7 +759,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	return nil
 }
 
-func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, investmentID, rebalancerRunID uuid.UUID) []*model.InvestmentTrade {
+func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, investmentRebalanceID uuid.UUID) []*model.InvestmentTrade {
 	out := []*model.InvestmentTrade{}
 	for _, t := range trades {
 		side := model.TradeOrderSide_Buy
@@ -726,13 +767,44 @@ func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, inves
 			side = model.TradeOrderSide_Sell
 		}
 		out = append(out, &model.InvestmentTrade{
-			TickerID:        t.TickerID,
-			Side:            side,
-			InvestmentID:    investmentID,
-			RebalancerRunID: rebalancerRunID,
-			Quantity:        t.ExactQuantity,
-			TradeOrderID:    nil, // need to update and set this
+			TickerID:              t.TickerID,
+			Side:                  side,
+			Quantity:              t.ExactQuantity,
+			TradeOrderID:          nil, // need to update and set this
+			InvestmentRebalanceID: investmentRebalanceID,
 		})
 	}
 	return out
+}
+
+func portfolioToJson(p *domain.Portfolio) ([]byte, error) {
+	type position struct {
+		Quantity float64 `json:"quantity"`
+		Value    float64 `json:"value,omitempty"`
+	}
+	type portfolio struct {
+		Cash      float64             `json:"cash"`
+		Positions map[string]position `json:"positions"`
+	}
+
+	out := portfolio{
+		Positions: map[string]position{},
+	}
+	out.Cash = p.Cash.InexactFloat64()
+	for symbol, pos := range p.Positions {
+		ps := &position{
+			Quantity: pos.ExactQuantity.InexactFloat64(),
+		}
+		if pos.Value != nil {
+			ps.Value = pos.Value.InexactFloat64()
+		}
+		out.Positions[symbol] = *ps
+	}
+
+	bytes, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }

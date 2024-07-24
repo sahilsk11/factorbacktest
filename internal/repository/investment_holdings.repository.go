@@ -17,6 +17,7 @@ import (
 
 type InvestmentHoldingsRepository interface {
 	Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error)
+	GetLatestVersionID(investmentID uuid.UUID) (*uuid.UUID, error)
 	Get(id uuid.UUID) (*model.InvestmentHoldings, error)
 	List(HoldingsListFilter) ([]model.InvestmentHoldings, error)
 	GetLatestHoldings(tx *sql.Tx, investmentID uuid.UUID) (*domain.Portfolio, error)
@@ -31,6 +32,28 @@ type investmentHoldingsRepositoryHandler struct {
 
 func NewInvestmentHoldingsRepository(db *sql.DB) InvestmentHoldingsRepository {
 	return investmentHoldingsRepositoryHandler{Db: db}
+}
+
+func (h investmentHoldingsRepositoryHandler) GetLatestVersionID(investmentID uuid.UUID) (*uuid.UUID, error) {
+	query := table.InvestmentHoldingsVersion.SELECT(
+		table.InvestmentHoldingsVersion.InvestmentHoldingsVersionID,
+	).WHERE(
+		table.InvestmentHoldingsVersion.InvestmentID.EQ(postgres.UUID(investmentID)),
+	).ORDER_BY(
+		table.InvestmentHoldingsVersion.CreatedAt.DESC(),
+	).LIMIT(1)
+
+	type InvestmentHoldingsVersion struct {
+		InvestmentHoldingsVersionID uuid.UUID
+	}
+
+	var out InvestmentHoldingsVersion
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, fmt.Errorf("could not get latest holdings version for investment %s: %w", investmentID.String(), err)
+	}
+
+	return &out.InvestmentHoldingsVersionID, nil
 }
 
 func (h investmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error) {

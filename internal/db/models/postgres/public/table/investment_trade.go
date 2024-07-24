@@ -17,15 +17,14 @@ type investmentTradeTable struct {
 	postgres.Table
 
 	//Columns
-	InvestmentTradeID postgres.ColumnString
-	TickerID          postgres.ColumnString
-	Side              postgres.ColumnString
-	CreatedAt         postgres.ColumnTimestampz
-	InvestmentID      postgres.ColumnString
-	RebalancerRunID   postgres.ColumnString
-	Quantity          postgres.ColumnFloat
-	TradeOrderID      postgres.ColumnString
-	ModifiedAt        postgres.ColumnTimestampz
+	InvestmentTradeID     postgres.ColumnString
+	TickerID              postgres.ColumnString
+	Side                  postgres.ColumnString
+	CreatedAt             postgres.ColumnTimestampz
+	Quantity              postgres.ColumnFloat
+	TradeOrderID          postgres.ColumnString
+	ModifiedAt            postgres.ColumnTimestampz
+	InvestmentRebalanceID postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -56,32 +55,30 @@ func newInvestmentTradeTable(schemaName, tableName, alias string) *InvestmentTra
 
 func newInvestmentTradeTableImpl(schemaName, tableName, alias string) investmentTradeTable {
 	var (
-		InvestmentTradeIDColumn = postgres.StringColumn("investment_trade_id")
-		TickerIDColumn          = postgres.StringColumn("ticker_id")
-		SideColumn              = postgres.StringColumn("side")
-		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
-		InvestmentIDColumn      = postgres.StringColumn("investment_id")
-		RebalancerRunIDColumn   = postgres.StringColumn("rebalancer_run_id")
-		QuantityColumn          = postgres.FloatColumn("quantity")
-		TradeOrderIDColumn      = postgres.StringColumn("trade_order_id")
-		ModifiedAtColumn        = postgres.TimestampzColumn("modified_at")
-		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn, ModifiedAtColumn}
-		mutableColumns          = postgres.ColumnList{TickerIDColumn, SideColumn, CreatedAtColumn, InvestmentIDColumn, RebalancerRunIDColumn, QuantityColumn, TradeOrderIDColumn, ModifiedAtColumn}
+		InvestmentTradeIDColumn     = postgres.StringColumn("investment_trade_id")
+		TickerIDColumn              = postgres.StringColumn("ticker_id")
+		SideColumn                  = postgres.StringColumn("side")
+		CreatedAtColumn             = postgres.TimestampzColumn("created_at")
+		QuantityColumn              = postgres.FloatColumn("quantity")
+		TradeOrderIDColumn          = postgres.StringColumn("trade_order_id")
+		ModifiedAtColumn            = postgres.TimestampzColumn("modified_at")
+		InvestmentRebalanceIDColumn = postgres.StringColumn("investment_rebalance_id")
+		allColumns                  = postgres.ColumnList{InvestmentTradeIDColumn, TickerIDColumn, SideColumn, CreatedAtColumn, QuantityColumn, TradeOrderIDColumn, ModifiedAtColumn, InvestmentRebalanceIDColumn}
+		mutableColumns              = postgres.ColumnList{TickerIDColumn, SideColumn, CreatedAtColumn, QuantityColumn, TradeOrderIDColumn, ModifiedAtColumn, InvestmentRebalanceIDColumn}
 	)
 
 	return investmentTradeTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		InvestmentTradeID: InvestmentTradeIDColumn,
-		TickerID:          TickerIDColumn,
-		Side:              SideColumn,
-		CreatedAt:         CreatedAtColumn,
-		InvestmentID:      InvestmentIDColumn,
-		RebalancerRunID:   RebalancerRunIDColumn,
-		Quantity:          QuantityColumn,
-		TradeOrderID:      TradeOrderIDColumn,
-		ModifiedAt:        ModifiedAtColumn,
+		InvestmentTradeID:     InvestmentTradeIDColumn,
+		TickerID:              TickerIDColumn,
+		Side:                  SideColumn,
+		CreatedAt:             CreatedAtColumn,
+		Quantity:              QuantityColumn,
+		TradeOrderID:          TradeOrderIDColumn,
+		ModifiedAt:            ModifiedAtColumn,
+		InvestmentRebalanceID: InvestmentRebalanceIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

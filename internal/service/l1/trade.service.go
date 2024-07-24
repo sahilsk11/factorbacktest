@@ -185,6 +185,9 @@ func aggregateAndFormatTrades(trades []*domain.ProposedTrade) ([]*domain.Propose
 		}
 	}
 
+	// alpaca requires orders to be >= $1
+	minOrderSize := decimal.NewFromFloat(1.5)
+
 	// we could round all trades up to $1 but
 	// if they have tons of little trades, that
 	// could get expensive
@@ -196,8 +199,8 @@ func aggregateAndFormatTrades(trades []*domain.ProposedTrade) ([]*domain.Propose
 	// I own
 	excess := map[uuid.UUID]decimal.Decimal{}
 	for _, t := range trades {
-		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(decimal.NewFromInt(1)) {
-			newQuantity := decimal.NewFromInt(2).Div(t.ExpectedPrice)
+		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(minOrderSize) {
+			newQuantity := minOrderSize.Div(t.ExpectedPrice)
 			excess[t.TickerID] = (newQuantity.Sub(t.ExactQuantity)).Mul(t.ExpectedPrice)
 			t.ExactQuantity = newQuantity
 		}
