@@ -268,7 +268,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	portfolioValue decimal.Decimal,
 	pm map[string]decimal.Decimal,
 	tickerIDMap map[string]uuid.UUID,
-) (*domain.Portfolio, error) {
+) (*ComputeTargetPortfolioResponse, error) {
 	// figure out what the strategy should hold if we rebalance
 	// now
 	savedStrategyDetails, err := h.SavedStrategyRepository.Get(strategyInvestment.SavedStragyID)
@@ -295,7 +295,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 		return nil, fmt.Errorf("failed to compute target portfolio: %w", err)
 	}
 
-	return computeTargetPortfolioResponse.TargetPortfolio, nil
+	return computeTargetPortfolioResponse, nil
 }
 
 type rebalanceInvestmentResponse struct {
@@ -333,7 +333,7 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, fmt.Errorf("holdings have no value")
 	}
 
-	targetPortfolio, err := h.getTargetPortfolio(
+	computeTargetPortfolioResponse, err := h.getTargetPortfolio(
 		ctx,
 		investment,
 		rebalancerRun.Date,
@@ -345,7 +345,7 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, fmt.Errorf("failed to get target portfolio: %w", err)
 	}
 
-	proposedTrades, err := transitionToTarget(*initialPortfolio, *targetPortfolio, pm)
+	proposedTrades, err := transitionToTarget(*initialPortfolio, *computeTargetPortfolioResponse.TargetPortfolio, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +355,7 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, err
 	}
 
-	targetPortfolioJson, err := portfolioToJson(targetPortfolio)
+	targetPortfolioJson, err := targetPortfolioToJson(*computeTargetPortfolioResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -783,25 +783,52 @@ func portfolioToJson(p *domain.Portfolio) ([]byte, error) {
 		Value    float64 `json:"value,omitempty"`
 	}
 	type portfolio struct {
-		Cash      float64             `json:"cash"`
-		Positions map[string]position `json:"positions"`
+		Cash      float64            `json:"cash"`
+		Positions map[string]float64 `json:"positions"`
 	}
 
 	out := portfolio{
-		Positions: map[string]position{},
+		Positions: map[string]float64{},
 	}
 	out.Cash = p.Cash.InexactFloat64()
 	for symbol, pos := range p.Positions {
-		ps := &position{
-			Quantity: pos.ExactQuantity.InexactFloat64(),
-		}
-		if pos.Value != nil {
-			ps.Value = pos.Value.InexactFloat64()
-		}
-		out.Positions[symbol] = *ps
+		out.Positions[symbol] = pos.ExactQuantity.InexactFloat64()
 	}
 
 	bytes, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
+}
+
+func targetPortfolioToJson(c ComputeTargetPortfolioResponse) ([]byte, error) {
+	type details struct {
+		Quantity    float64 `json:"quantity"`
+		Weight      float64 `json:"weight"`
+		FactorScore float64 `json:"factorScore"`
+	}
+
+	type out struct {
+		Cash      float64            `json:"cash"`
+		Positions map[string]details `json:"positions"`
+	}
+
+	o := &out{
+		Cash:      c.TargetPortfolio.Cash.InexactFloat64(),
+		Positions: map[string]details{},
+	}
+
+	for symbol, position := range c.TargetPortfolio.Positions {
+		o.Positions[symbol] = details{
+			Quantity:    position.ExactQuantity.InexactFloat64(),
+			Weight:      c.AssetWeights[symbol],
+			FactorScore: c.FactorScores[symbol],
+		}
+	}
+
+	bytes, err := json.Marshal(o)
 	if err != nil {
 		return nil, err
 	}
