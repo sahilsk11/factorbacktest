@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
@@ -25,6 +26,7 @@ type MockAlpacaRepository interface {
 	GetAccount() (*alpaca.Account, error)
 	GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error)
 	GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error)
+	GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error)
 }
 
 type mockAlpacaRepositoryHandler struct {
@@ -48,6 +50,10 @@ WARNING: Using mock Alpaca service. May not reflect real conditions
 }
 func (m mockAlpacaRepositoryHandler) PlaceOrder(req repository.AlpacaPlaceOrderRequest) (*alpaca.Order, error) {
 	return m.realAlpacaRepository.PlaceOrder(req)
+}
+
+func (m mockAlpacaRepositoryHandler) GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error) {
+	return m.realAlpacaRepository.GetLatestPricesWithTs(symbols)
 }
 
 func (m mockAlpacaRepositoryHandler) CancelOpenOrders() error {

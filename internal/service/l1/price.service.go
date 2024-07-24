@@ -45,6 +45,7 @@ type LoadStdevCacheInput struct {
 type priceServiceHandler struct {
 	AdjPriceRepository repository.AdjustedPriceRepository
 	Db                 *sql.DB
+	AlpacaRepository   repository.AlpacaRepository
 }
 
 type stdevCache struct {
@@ -191,10 +192,11 @@ func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end ti
 	return 0, fmt.Errorf("stdev cache miss %s %s to %s", symbol, start.Format(time.DateOnly), end.Format(time.DateOnly))
 }
 
-func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository) PriceService {
+func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository, alpacaRepository repository.AlpacaRepository) PriceService {
 	return &priceServiceHandler{
 		AdjPriceRepository: adjPriceRepository,
 		Db:                 db,
+		AlpacaRepository:   alpacaRepository,
 	}
 }
 
@@ -211,6 +213,7 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 	defer endProfile()
 	absMin, absMax, minMaxMap := constructMinMaxMap(inputs, stdevInputs)
 
+	symbols := []string{}
 	// uhh so the getInput technically tells us which date the equation will
 	// want to fetch on, but if it's not on a trading day, we're kinda fucked?
 	// i think we should just do like 7 days before absMin so we have the price
@@ -219,6 +222,7 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 	// need to fetch price from the like prev Friday
 	getInputs := []repository.GetManyInput{}
 	for symbol, minMaxValues := range minMaxMap {
+		symbols = append(symbols, symbol)
 		getInputs = append(getInputs, repository.GetManyInput{
 			Symbol:  symbol,
 			MinDate: (*minMaxValues.min).AddDate(0, 0, -7),
@@ -275,6 +279,28 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 	_, endNewSpan = newProfile.StartNewSpan("filling price cache gaps")
 	fillPriceCacheGaps(inputs, cache)
 	endNewSpan()
+
+	latestPrices, err := h.AlpacaRepository.GetLatestPricesWithTs(symbols)
+	if err != nil {
+		return nil, err
+	}
+	for symbol, price := range latestPrices {
+		if len(tradingDays) == 0 || price.Date.Format(time.DateOnly) > tradingDays[len(tradingDays)-1].Format(time.DateOnly) {
+			// might wanna set time to 0
+			zeroedDate := time.Date(
+				price.Date.Year(),
+				price.Date.Month(),
+				price.Date.Day(),
+				0,
+				0,
+				0,
+				0,
+				time.UTC,
+			)
+			tradingDays = append(tradingDays, zeroedDate)
+		}
+		cache[symbol][price.Date.Format(time.DateOnly)] = price.Price.InexactFloat64()
+	}
 
 	_, endNewSpan = newProfile.StartNewSpan("populating stdev cache")
 	stdevCache, err := stdevsFromPriceMap(minMaxMap, cache, stdevInputs, tradingDays)

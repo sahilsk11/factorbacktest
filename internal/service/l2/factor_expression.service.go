@@ -202,6 +202,18 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	// endNewProfile()
 	endSpan()
 
+	numErrors := 0
+	var lastErr error
+	for _, o := range results {
+		if o.Err != nil {
+			numErrors++
+			lastErr = o.Err
+		}
+	}
+	if numErrors >= int(len(results)/2) {
+		return nil, fmt.Errorf("failed to evaluate expression: over 50%% of score calculations failed. last err: %w", lastErr)
+	}
+
 	_, endSpan = profile.StartNewSpan("adding factor scores to db")
 	addManyInput := []*model.FactorScore{}
 	for _, res := range results {

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"fmt"
 	"time"
@@ -19,6 +20,7 @@ type AlpacaRepository interface {
 	GetAccount() (*alpaca.Account, error)
 	GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error)
 	GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error)
+	GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error)
 }
 
 func NewAlpacaRepository(apiKey, apiSecret string) AlpacaRepository {
@@ -45,6 +47,29 @@ func NewAlpacaRepository(apiKey, apiSecret string) AlpacaRepository {
 type alpacaRepositoryHandler struct {
 	Client   *alpaca.Client
 	MdClient *marketdata.Client
+}
+
+func (h alpacaRepositoryHandler) GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error) {
+	if len(symbols) == 0 {
+		return map[string]domain.AssetPrice{}, nil
+	}
+	results, err := h.MdClient.GetLatestQuotes(symbols, marketdata.GetLatestQuoteRequest{})
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]domain.AssetPrice{}
+	for symbol, result := range results {
+		out[symbol] = domain.AssetPrice{
+			Symbol: symbol,
+			Price:  decimal.NewFromFloat(result.BidPrice),
+			Date:   result.Timestamp.UTC(),
+		}
+		if out[symbol].Price.IsZero() {
+			return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
+		}
+	}
+
+	return out, nil
 }
 
 func (h alpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {

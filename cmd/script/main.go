@@ -5,6 +5,7 @@ import (
 	"factorbacktest/api"
 	"factorbacktest/cmd"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"log"
 
 	_ "github.com/lib/pq"
@@ -27,8 +28,9 @@ func main() {
 
 	// updateOrders(handler)
 
-	err = handler.InvestmentService.Reconcile(ctx)
+	err = handler.InvestmentService.Rebalance(ctx)
 	if err != nil {
+		logger.Error(err)
 		log.Fatal(err)
 	}
 

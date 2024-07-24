@@ -64,7 +64,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		alpacaRepository = NewMockAlpacaRepository(alpacaRepository, tradeOrderRepository, tickerRepository)
 	}
 
-	priceService := l1_service.NewPriceService(dbConn, priceRepository)
+	priceService := l1_service.NewPriceService(dbConn, priceRepository, alpacaRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
 	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
 	backtestHandler := l3_service.BacktestHandler{

@@ -5,6 +5,7 @@
 package mock_repository
 
 import (
+	domain "factorbacktest/internal/domain"
 	repository "factorbacktest/internal/repository"
 	reflect "reflect"
 
@@ -79,6 +80,21 @@ func (m *MockAlpacaRepository) GetLatestPrices(symbols []string) (map[string]dec
 func (mr *MockAlpacaRepositoryMockRecorder) GetLatestPrices(symbols interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPrices", reflect.TypeOf((*MockAlpacaRepository)(nil).GetLatestPrices), symbols)
+}
+
+// GetLatestPricesWithTs mocks base method.
+func (m *MockAlpacaRepository) GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestPricesWithTs", symbols)
+	ret0, _ := ret[0].(map[string]domain.AssetPrice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestPricesWithTs indicates an expected call of GetLatestPricesWithTs.
+func (mr *MockAlpacaRepositoryMockRecorder) GetLatestPricesWithTs(symbols interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPricesWithTs", reflect.TypeOf((*MockAlpacaRepository)(nil).GetLatestPricesWithTs), symbols)
 }
 
 // GetOrder mocks base method.

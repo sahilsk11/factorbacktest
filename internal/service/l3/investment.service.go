@@ -314,6 +314,10 @@ func (h investmentServiceHandler) generateRebalanceResults(
 		return nil, nil, err
 	}
 
+	if currentHoldingsValue.Equal(decimal.Zero) {
+		return nil, nil, fmt.Errorf("holdings have no value")
+	}
+
 	targetPortfolio, err := h.getTargetPortfolio(
 		ctx,
 		strategyInvestment,
@@ -652,11 +656,6 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
 	if len(insertedInvestmentTrades) == 0 || len(investmentsToRebalance) == 0 {
 		return nil
 	}
@@ -665,6 +664,15 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	// treat any failure here as fatal
 	// TODO - improve reconciliation + partial trade completion
 	executedTrades, tradeExecutionErr := h.TradingService.ExecuteBlock(proposedTrades, rebalancerRun.RebalancerRunID)
+
+	// kinda weird but if the trade block failed without trades being
+	// run, we can just revert the whole thing and say the run failed
+	if len(executedTrades) > 0 && tradeExecutionErr != nil {
+		err = tx.Commit()
+		if err != nil {
+			return err
+		}
+	}
 
 	updateInvesmtentTradeErrors := []error{}
 	for _, tradeOrder := range executedTrades {
