@@ -360,8 +360,6 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, err
 	}
 
-	fmt.Println(versionID)
-
 	investmentRebalance, err := h.InvestmentRebalanceRepository.Add(tx, model.InvestmentRebalance{
 		RebalancerRunID:           rebalancerRun.RebalancerRunID,
 		InvestmentID:              investment.InvestmentID,
@@ -713,6 +711,8 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		logger.Warn("rolling back")
 	}
 
 	updateInvesmtentTradeErrors := []error{}
