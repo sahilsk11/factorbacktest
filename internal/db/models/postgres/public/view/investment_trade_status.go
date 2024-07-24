@@ -23,6 +23,7 @@ type investmentTradeStatusTable struct {
 	Status            postgres.ColumnString
 	Quantity          postgres.ColumnFloat
 	FilledPrice       postgres.ColumnFloat
+	FilledAmount      postgres.ColumnFloat
 	FilledAt          postgres.ColumnTimestampz
 	RebalancerRunID   postgres.ColumnString
 	InvestmentID      postgres.ColumnString
@@ -64,13 +65,14 @@ func newInvestmentTradeStatusTableImpl(schemaName, tableName, alias string) inve
 		StatusColumn            = postgres.StringColumn("status")
 		QuantityColumn          = postgres.FloatColumn("quantity")
 		FilledPriceColumn       = postgres.FloatColumn("filled_price")
+		FilledAmountColumn      = postgres.FloatColumn("filled_amount")
 		FilledAtColumn          = postgres.TimestampzColumn("filled_at")
 		RebalancerRunIDColumn   = postgres.StringColumn("rebalancer_run_id")
 		InvestmentIDColumn      = postgres.StringColumn("investment_id")
 		TradeOrderIDColumn      = postgres.StringColumn("trade_order_id")
 		TickerIDColumn          = postgres.StringColumn("ticker_id")
-		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, FilledPriceColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn}
-		mutableColumns          = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, FilledPriceColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn}
+		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, FilledPriceColumn, FilledAmountColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn}
+		mutableColumns          = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, FilledPriceColumn, FilledAmountColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn}
 	)
 
 	return investmentTradeStatusTable{
@@ -83,6 +85,7 @@ func newInvestmentTradeStatusTableImpl(schemaName, tableName, alias string) inve
 		Status:            StatusColumn,
 		Quantity:          QuantityColumn,
 		FilledPrice:       FilledPriceColumn,
+		FilledAmount:      FilledAmountColumn,
 		FilledAt:          FilledAtColumn,
 		RebalancerRunID:   RebalancerRunIDColumn,
 		InvestmentID:      InvestmentIDColumn,

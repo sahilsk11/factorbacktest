@@ -21,6 +21,7 @@ type InvestmentTradeStatus struct {
 	Status            *TradeOrderStatus
 	Quantity          *decimal.Decimal
 	FilledPrice       *decimal.Decimal
+	FilledAmount      *decimal.Decimal
 	FilledAt          *time.Time
 	RebalancerRunID   *uuid.UUID
 	InvestmentID      *uuid.UUID

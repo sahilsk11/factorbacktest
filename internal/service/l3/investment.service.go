@@ -201,7 +201,7 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 
 	completedTrades := []domain.FilledTrade{}
 	for _, t := range allTradesWithStatus {
-		if *t.Status == model.TradeOrderStatus_Completed {
+		if t.Status != nil && *t.Status == model.TradeOrderStatus_Completed {
 			completedTrades = append(completedTrades, domain.FilledTrade{
 				Symbol:    *t.Symbol,
 				TickerID:  *t.TickerID,
