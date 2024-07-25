@@ -11,6 +11,8 @@ import (
 	"factorbacktest/internal/util"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -65,7 +67,12 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		alpacaRepository = NewMockAlpacaRepository(alpacaRepository, tradeOrderRepository, tickerRepository)
 	}
 
-	priceService := l1_service.NewPriceService(dbConn, priceRepository, alpacaRepository)
+	var priceServiceAlpacaRepository repository.AlpacaRepository = nil
+	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "dev") {
+		priceServiceAlpacaRepository = alpacaRepository
+	}
+
+	priceService := l1_service.NewPriceService(dbConn, priceRepository, priceServiceAlpacaRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
 	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
 	backtestHandler := l3_service.BacktestHandler{
