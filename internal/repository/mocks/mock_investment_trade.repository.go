@@ -89,10 +89,10 @@ func (mr *MockInvestmentTradeRepositoryMockRecorder) Get(id any) *gomock.Call {
 }
 
 // List mocks base method.
-func (m *MockInvestmentTradeRepository) List(tx *sql.Tx, filter repository.InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
+func (m *MockInvestmentTradeRepository) List(tx *sql.Tx, filter repository.InvestmentTradeListFilter) ([]*model.InvestmentTradeStatus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", tx, filter)
-	ret0, _ := ret[0].([]model.InvestmentTradeStatus)
+	ret0, _ := ret[0].([]*model.InvestmentTradeStatus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -37,7 +37,7 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 		cashTickerID := uuid.New()
 		investmentID := uuid.New()
 		aaplTickerID := uuid.New()
-		completedTradesByInvestment := map[uuid.UUID][]model.InvestmentTradeStatus{
+		completedTradesByInvestment := map[uuid.UUID][]*model.InvestmentTradeStatus{
 			investmentID: {
 				newInvestmentTradeStatus(
 					model.TradeOrderSide_Sell,
@@ -90,8 +90,8 @@ func newInvestmentTradeStatus(
 	symbol string,
 	status model.TradeOrderStatus,
 	quantity decimal.Decimal,
-) model.InvestmentTradeStatus {
-	return model.InvestmentTradeStatus{
+) *model.InvestmentTradeStatus {
+	return &model.InvestmentTradeStatus{
 		Side:         &side,
 		Symbol:       &symbol,
 		Status:       &status,
@@ -122,7 +122,7 @@ func TestAddTradesToPortfolio(t *testing.T) {
 			},
 			Cash: util.DecimalPointer(decimal.Zero),
 		}
-		trades := []model.InvestmentTradeStatus{
+		trades := []*model.InvestmentTradeStatus{
 			{
 				Symbol:       util.StringPointer("AAPL"),
 				Quantity:     util.DecimalPointer(decimal.NewFromInt(100)),

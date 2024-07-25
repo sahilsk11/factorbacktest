@@ -353,7 +353,7 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 
 	rebalancerRuns := []uuid.UUID{}
 
-	completedTrades := []model.InvestmentTradeStatus{}
+	completedTrades := []*model.InvestmentTradeStatus{}
 	for _, trade := range trades {
 		if trade.Status == model.TradeOrderStatus_Pending {
 			updatedTrade, err := h.updateOrder(tx, trade.TradeOrderID)
@@ -373,10 +373,10 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 		}
 	}
 
-	completedTradesByInvestment := map[uuid.UUID][]model.InvestmentTradeStatus{}
+	completedTradesByInvestment := map[uuid.UUID][]*model.InvestmentTradeStatus{}
 	for _, t := range completedTrades {
 		if _, ok := completedTradesByInvestment[*t.InvestmentID]; !ok {
-			completedTradesByInvestment[*t.InvestmentID] = []model.InvestmentTradeStatus{}
+			completedTradesByInvestment[*t.InvestmentID] = []*model.InvestmentTradeStatus{}
 		}
 		completedTradesByInvestment[*t.InvestmentID] = append(completedTradesByInvestment[*t.InvestmentID], t)
 	}
@@ -421,7 +421,7 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 	return nil
 }
 
-func AddTradesToPortfolio(trades []model.InvestmentTradeStatus, portfolio *domain.Portfolio) *domain.Portfolio {
+func AddTradesToPortfolio(trades []*model.InvestmentTradeStatus, portfolio *domain.Portfolio) *domain.Portfolio {
 	// ensure we don't override given portfolio
 	portfolio = portfolio.DeepCopy()
 
@@ -455,7 +455,7 @@ func AddTradesToPortfolio(trades []model.InvestmentTradeStatus, portfolio *domai
 	return portfolio
 }
 
-func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
+func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]*model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
 	for investmentID, newTrades := range completedTradesByInvestment {
 		// should be the holdings prior to the new trades being completed
 		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(tx, investmentID)

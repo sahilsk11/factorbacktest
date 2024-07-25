@@ -18,7 +18,7 @@ type InvestmentTradeRepository interface {
 	Add(tx *sql.Tx, irt model.InvestmentTrade) (*model.InvestmentTrade, error)
 	AddMany(tx *sql.Tx, m []*model.InvestmentTrade) ([]model.InvestmentTrade, error)
 	Get(id uuid.UUID) (*model.InvestmentTrade, error)
-	List(tx *sql.Tx, filter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error)
+	List(tx *sql.Tx, filter InvestmentTradeListFilter) ([]*model.InvestmentTradeStatus, error)
 	Update(tx *sql.Tx, m model.InvestmentTrade, columns postgres.ColumnList) (*model.InvestmentTrade, error)
 }
 
@@ -97,7 +97,7 @@ type InvestmentTradeListFilter struct {
 	Status          *model.TradeOrderStatus
 }
 
-func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
+func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter InvestmentTradeListFilter) ([]*model.InvestmentTradeStatus, error) {
 	query := view.InvestmentTradeStatus.SELECT(view.InvestmentTradeStatus.AllColumns)
 
 	whereClauses := []postgres.BoolExpression{}
@@ -136,7 +136,7 @@ func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter Investment
 		db = tx
 	}
 
-	result := []model.InvestmentTradeStatus{}
+	result := []*model.InvestmentTradeStatus{}
 	err := query.Query(db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list investment rebalance trades: %w", err)

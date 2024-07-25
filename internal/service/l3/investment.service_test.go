@@ -137,26 +137,32 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 			Add(gomock.Any(), gomock.Any()).
 			Return(&model.InvestmentRebalance{}, nil)
 
+		expectedTradesStatus := []*model.InvestmentTradeStatus{
+			{
+				Symbol:   util.StringPointer("MSFT"),
+				Quantity: util.DecimalPointer(decimal.NewFromFloat(0.999)),
+				Side:     util.TradeOrderSidePointer(model.TradeOrderSide_Buy),
+			},
+			{
+				Side:     util.TradeOrderSidePointer(model.TradeOrderSide_Sell),
+				Symbol:   util.StringPointer("AAPL"),
+				Quantity: util.DecimalPointer(decimal.NewFromFloat(0.999)),
+			},
+		}
+		expectedInvestmentTrades := []*model.InvestmentTrade{}
+		for _, t := range expectedTradesStatus {
+			expectedInvestmentTrades = append(expectedInvestmentTrades, &model.InvestmentTrade{
+				Side:     *t.Side,
+				TickerID: tickerIDMap[*t.Symbol],
+				Quantity: *t.Quantity,
+			})
+		}
+
 		investmentTradeRepository.EXPECT().
 			AddMany(tx, gomock.Any()).
 			DoAndReturn(func(tx *sql.Tx, investmentTrades []*model.InvestmentTrade) ([]model.InvestmentTrade, error) {
 				require.Equal(t, "", cmp.Diff(
-					[]*model.InvestmentTrade{
-						{
-							Side:                  model.TradeOrderSide_Buy,
-							TickerID:              tickerIDMap["MSFT"],
-							Quantity:              decimal.NewFromFloat(0.999),
-							ModifiedAt:            time.Time{},
-							InvestmentRebalanceID: [16]byte{},
-						},
-						{
-							Side:                  model.TradeOrderSide_Sell,
-							TickerID:              tickerIDMap["AAPL"],
-							Quantity:              decimal.NewFromFloat(0.999),
-							ModifiedAt:            time.Time{},
-							InvestmentRebalanceID: [16]byte{},
-						},
-					},
+					expectedInvestmentTrades,
 					investmentTrades,
 					cmp.Comparer(func(i, j uuid.UUID) bool {
 						return i.String() == j.String()
@@ -177,13 +183,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 				InvestmentID:    &investment.InvestmentID,
 				RebalancerRunID: &rebalancerRun.RebalancerRunID,
 			}).
-			Return([]model.InvestmentTradeStatus{
-				{
-					Symbol:   util.StringPointer("MSFT"),
-					Quantity: util.DecimalPointer(decimal.NewFromFloat(0.999)),
-					Side:     util.TradeOrderSidePointer(model.TradeOrderSide_Buy),
-				},
-			}, nil)
+			Return(expectedTradesStatus, nil)
 
 		response, err := handler.rebalanceInvestment(context.Background(), tx, investment, rebalancerRun, priceMap, tickerIDMap)
 		require.NoError(t, err)
@@ -238,6 +238,9 @@ func Test_transitionToTarget(t *testing.T) {
 				},
 			},
 			trades,
+			cmpopts.SortSlices(func(i, j *domain.ProposedTrade) bool {
+				return i.Symbol > j.Symbol
+			}),
 		))
 	})
 }
