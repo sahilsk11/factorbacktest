@@ -46,10 +46,10 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 			HoldingsVersionRepository:     holdingsVersionRepository,
 		}
 
+		// inputs to func
 		tx, err := db.Begin()
 		require.NoError(t, err)
 		defer tx.Rollback()
-
 		investment := model.Investment{
 			InvestmentID:  uuid.New(),
 			AmountDollars: 10,
@@ -81,62 +81,35 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 			"MSFT": uuid.New(),
 		}
 
-		latestVersionID := uuid.New()
-		holdingsVersionRepository.EXPECT().
-			GetLatestVersionID(investment.InvestmentID).
-			Return(&latestVersionID, nil)
-
-		holdingsRepository.EXPECT().
-			GetLatestHoldings(nil, investment.InvestmentID).
-			Return(&domain.Portfolio{
-				Positions: map[string]*domain.Position{
-					"AAPL": {
-						Quantity:      1,
-						ExactQuantity: decimal.NewFromInt(1),
-						TickerID:      uuid.New(),
-					},
-					"GOOG": {
-						Quantity:      1,
-						ExactQuantity: decimal.NewFromInt(1),
-						TickerID:      uuid.New(),
-					},
-					"MSFT": {
-						Quantity:      1,
-						ExactQuantity: decimal.NewFromInt(1),
-						TickerID:      uuid.New(),
-					},
+		// mocked values
+		startPortfolio := &domain.Portfolio{
+			Positions: map[string]*domain.Position{
+				"AAPL": {
+					Quantity:      1,
+					ExactQuantity: decimal.NewFromInt(1),
+					TickerID:      uuid.New(),
 				},
-				Cash: util.DecimalPointer(decimal.Zero),
-			}, nil)
-
-		ssRepo.EXPECT().
-			Get(gomock.Any()).
-			Return(&model.SavedStrategy{
-				AssetUniverse: "universe",
-				NumAssets:     3,
-			}, nil)
-
-		universeRepository.EXPECT().
-			GetAssets("universe").
-			Return([]model.Ticker{}, nil)
-
-		feService.EXPECT().
-			CalculateFactorScoresOnDay(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(
-				&l2_service.ScoresResultsOnDay{
-					SymbolScores: map[string]*float64{
-						"AAPL": util.FloatPointer(100),
-						"GOOG": util.FloatPointer(200),
-						"MSFT": util.FloatPointer(300),
-					},
-					Errors: []error{},
-				}, nil,
-			)
-
-		investmentRebalanceRepository.EXPECT().
-			Add(gomock.Any(), gomock.Any()).
-			Return(&model.InvestmentRebalance{}, nil)
-
+				"GOOG": {
+					Quantity:      1,
+					ExactQuantity: decimal.NewFromInt(1),
+					TickerID:      uuid.New(),
+				},
+				"MSFT": {
+					Quantity:      1,
+					ExactQuantity: decimal.NewFromInt(1),
+					TickerID:      uuid.New(),
+				},
+			},
+			Cash: util.DecimalPointer(decimal.Zero),
+		}
+		scoresOnDay := &l2_service.ScoresResultsOnDay{
+			SymbolScores: map[string]*float64{
+				"AAPL": util.FloatPointer(100),
+				"GOOG": util.FloatPointer(200),
+				"MSFT": util.FloatPointer(300),
+			},
+			Errors: []error{},
+		}
 		expectedTradesStatus := []*model.InvestmentTradeStatus{
 			{
 				Symbol:   util.StringPointer("MSFT"),
@@ -149,41 +122,75 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 				Quantity: util.DecimalPointer(decimal.NewFromFloat(0.999)),
 			},
 		}
-		expectedInvestmentTrades := []*model.InvestmentTrade{}
-		for _, t := range expectedTradesStatus {
-			expectedInvestmentTrades = append(expectedInvestmentTrades, &model.InvestmentTrade{
-				Side:     *t.Side,
-				TickerID: tickerIDMap[*t.Symbol],
-				Quantity: *t.Quantity,
-			})
+
+		// mocks
+		{
+			latestVersionID := uuid.New()
+			holdingsVersionRepository.EXPECT().
+				GetLatestVersionID(investment.InvestmentID).
+				Return(&latestVersionID, nil)
+
+			holdingsRepository.EXPECT().
+				GetLatestHoldings(nil, investment.InvestmentID).
+				Return(startPortfolio, nil)
+
+			ssRepo.EXPECT().
+				Get(gomock.Any()).
+				Return(&model.SavedStrategy{
+					AssetUniverse: "universe",
+					NumAssets:     3,
+				}, nil)
+
+			universeRepository.EXPECT().
+				GetAssets("universe").
+				Return([]model.Ticker{}, nil)
+
+			feService.EXPECT().
+				CalculateFactorScoresOnDay(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(
+					scoresOnDay, nil,
+				)
+
+			investmentRebalanceRepository.EXPECT().
+				Add(gomock.Any(), gomock.Any()).
+				Return(&model.InvestmentRebalance{}, nil)
+
+			expectedInvestmentTrades := []*model.InvestmentTrade{}
+			for _, t := range expectedTradesStatus {
+				expectedInvestmentTrades = append(expectedInvestmentTrades, &model.InvestmentTrade{
+					Side:     *t.Side,
+					TickerID: tickerIDMap[*t.Symbol],
+					Quantity: *t.Quantity,
+				})
+			}
+
+			investmentTradeRepository.EXPECT().
+				AddMany(tx, gomock.Any()).
+				DoAndReturn(func(tx *sql.Tx, investmentTrades []*model.InvestmentTrade) ([]model.InvestmentTrade, error) {
+					require.Equal(t, "", cmp.Diff(
+						expectedInvestmentTrades,
+						investmentTrades,
+						cmp.Comparer(func(i, j uuid.UUID) bool {
+							return i.String() == j.String()
+						}),
+						cmpopts.SortSlices(func(i, j *model.InvestmentTrade) bool {
+							return i.TickerID.String() < j.TickerID.String()
+						}),
+					))
+					out := []model.InvestmentTrade{}
+					for _, t := range investmentTrades {
+						out = append(out, *t)
+					}
+					return out, nil
+				})
+
+			investmentTradeRepository.EXPECT().
+				List(tx, repository.InvestmentTradeListFilter{
+					InvestmentID:    &investment.InvestmentID,
+					RebalancerRunID: &rebalancerRun.RebalancerRunID,
+				}).
+				Return(expectedTradesStatus, nil)
 		}
-
-		investmentTradeRepository.EXPECT().
-			AddMany(tx, gomock.Any()).
-			DoAndReturn(func(tx *sql.Tx, investmentTrades []*model.InvestmentTrade) ([]model.InvestmentTrade, error) {
-				require.Equal(t, "", cmp.Diff(
-					expectedInvestmentTrades,
-					investmentTrades,
-					cmp.Comparer(func(i, j uuid.UUID) bool {
-						return i.String() == j.String()
-					}),
-					cmpopts.SortSlices(func(i, j *model.InvestmentTrade) bool {
-						return i.TickerID.String() < j.TickerID.String()
-					}),
-				))
-				out := []model.InvestmentTrade{}
-				for _, t := range investmentTrades {
-					out = append(out, *t)
-				}
-				return out, nil
-			})
-
-		investmentTradeRepository.EXPECT().
-			List(tx, repository.InvestmentTradeListFilter{
-				InvestmentID:    &investment.InvestmentID,
-				RebalancerRunID: &rebalancerRun.RebalancerRunID,
-			}).
-			Return(expectedTradesStatus, nil)
 
 		response, err := handler.rebalanceInvestment(context.Background(), tx, investment, rebalancerRun, priceMap, tickerIDMap)
 		require.NoError(t, err)

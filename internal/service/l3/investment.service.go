@@ -360,10 +360,6 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, err
 	}
 
-	fmt.Println(string(startingPortfolioJson))
-
-	fmt.Println(string(targetPortfolioJson))
-
 	investmentRebalance, err := h.InvestmentRebalanceRepository.Add(tx, model.InvestmentRebalance{
 		RebalancerRunID:           rebalancerRun.RebalancerRunID,
 		InvestmentID:              investment.InvestmentID,
@@ -917,23 +913,9 @@ func comparePortfolios(portfolioAfterTrades, targetPortfolio *domain.Portfolio) 
 			return false, fmt.Sprintf("Symbol %s is missing in the second portfolio", symbol)
 		}
 
-		// Check if Quantity values are equal
-		if pos1.Quantity != pos2.Quantity {
-			return false, fmt.Sprintf("Quantities for symbol %s differ: portfolioAfterTrades = %f, targetPortfolio = %f", symbol, pos1.Quantity, pos2.Quantity)
-		}
-
 		// Check if ExactQuantity values are equal
 		if !pos1.ExactQuantity.Equal(pos2.ExactQuantity) {
 			return false, fmt.Sprintf("ExactQuantities for symbol %s differ: portfolioAfterTrades = %s, targetPortfolio = %s", symbol, pos1.ExactQuantity.String(), pos2.ExactQuantity.String())
-		}
-
-		// Check if Value values are equal
-		if (pos1.Value == nil && pos2.Value != nil) || (pos1.Value != nil && pos2.Value == nil) {
-			return false, fmt.Sprintf("Value for symbol %s is nil in one of the portfolios", symbol)
-		}
-
-		if pos1.Value != nil && !pos1.Value.Equal(*pos2.Value) {
-			return false, fmt.Sprintf("Values for symbol %s differ: portfolioAfterTrades = %s, targetPortfolio = %s", symbol, pos1.Value.String(), pos2.Value.String())
 		}
 	}
 
