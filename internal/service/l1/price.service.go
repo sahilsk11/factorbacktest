@@ -280,26 +280,28 @@ func (h priceServiceHandler) LoadPriceCache(ctx context.Context, inputs []LoadPr
 	fillPriceCacheGaps(inputs, cache)
 	endNewSpan()
 
-	latestPrices, err := h.AlpacaRepository.GetLatestPricesWithTs(symbols)
-	if err != nil {
-		return nil, err
-	}
-	for symbol, price := range latestPrices {
-		if len(tradingDays) == 0 || price.Date.Format(time.DateOnly) > tradingDays[len(tradingDays)-1].Format(time.DateOnly) {
-			// might wanna set time to 0
-			zeroedDate := time.Date(
-				price.Date.Year(),
-				price.Date.Month(),
-				price.Date.Day(),
-				0,
-				0,
-				0,
-				0,
-				time.UTC,
-			)
-			tradingDays = append(tradingDays, zeroedDate)
+	if h.AlpacaRepository != nil {
+		latestPrices, err := h.AlpacaRepository.GetLatestPricesWithTs(symbols)
+		if err != nil {
+			return nil, err
 		}
-		cache[symbol][price.Date.Format(time.DateOnly)] = price.Price.InexactFloat64()
+		for symbol, price := range latestPrices {
+			if len(tradingDays) == 0 || price.Date.Format(time.DateOnly) > tradingDays[len(tradingDays)-1].Format(time.DateOnly) {
+				// might wanna set time to 0
+				zeroedDate := time.Date(
+					price.Date.Year(),
+					price.Date.Month(),
+					price.Date.Day(),
+					0,
+					0,
+					0,
+					0,
+					time.UTC,
+				)
+				tradingDays = append(tradingDays, zeroedDate)
+			}
+			cache[symbol][price.Date.Format(time.DateOnly)] = price.Price.InexactFloat64()
+		}
 	}
 
 	_, endNewSpan = newProfile.StartNewSpan("populating stdev cache")
