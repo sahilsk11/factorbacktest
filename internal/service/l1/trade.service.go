@@ -381,6 +381,47 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 		completedTradesByInvestment[*t.InvestmentID] = append(completedTradesByInvestment[*t.InvestmentID], t)
 	}
 
+	err = h.updatePortfoliosFromTrades(tx, completedTradesByInvestment, cashTicker.TickerID)
+	if err != nil {
+		return err
+	}
+
+	for _, rebalancerRunID := range rebalancerRuns {
+		relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
+			RebalancerRunID: &rebalancerRunID,
+		})
+		if err != nil {
+			return err
+		}
+		allCompleted := true
+		for _, t := range relevantInvestmentTrades {
+			if *t.Status != model.TradeOrderStatus_Completed {
+				allCompleted = false
+			}
+		}
+		if allCompleted {
+			_, err = h.RebalancerRunRepository.Update(tx, &model.RebalancerRun{
+				RebalancerRunID:    rebalancerRunID,
+				RebalancerRunState: model.RebalancerRunState_Completed,
+			}, []postgres.Column{
+				table.RebalancerRun.RebalancerRunState,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// todo - update holdings from these trades
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
 	for investmentID, newTrades := range completedTradesByInvestment {
 		// should be the holdings prior to the new trades being completed
 		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(tx, investmentID)
@@ -425,62 +466,28 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 		}
 
 		for _, position := range newPortfolio.Positions {
-			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
-				InvestmentID:                investmentID,
-				TickerID:                    position.TickerID,
-				Quantity:                    position.ExactQuantity,
-				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
-			})
-			if err != nil {
-				return err
+			if !position.ExactQuantity.Equal(decimal.Zero) {
+				_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+					InvestmentID:                investmentID,
+					TickerID:                    position.TickerID,
+					Quantity:                    position.ExactQuantity,
+					InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
+				})
+				if err != nil {
+					return err
+				}
 			}
 		}
 
-		// record even small slippage in cash, so we know
-		// their actual account balances
-		if newPortfolio.Cash.Abs().GreaterThan(decimal.Zero) {
-			_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
-				InvestmentID:                investmentID,
-				TickerID:                    cashTicker.TickerID,
-				Quantity:                    *newPortfolio.Cash,
-				InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
-			})
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, rebalancerRunID := range rebalancerRuns {
-		relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
-			RebalancerRunID: &rebalancerRunID,
+		_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
+			InvestmentID:                investmentID,
+			TickerID:                    cashTickerID,
+			Quantity:                    *newPortfolio.Cash,
+			InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
 		})
 		if err != nil {
 			return err
 		}
-		allCompleted := true
-		for _, t := range relevantInvestmentTrades {
-			if *t.Status != model.TradeOrderStatus_Completed {
-				allCompleted = false
-			}
-		}
-		if allCompleted {
-			_, err = h.RebalancerRunRepository.Update(tx, &model.RebalancerRun{
-				RebalancerRunID:    rebalancerRunID,
-				RebalancerRunState: model.RebalancerRunState_Completed,
-			}, []postgres.Column{
-				table.RebalancerRun.RebalancerRunState,
-			})
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// todo - update holdings from these trades
-	err = tx.Commit()
-	if err != nil {
-		return err
 	}
 
 	return nil
