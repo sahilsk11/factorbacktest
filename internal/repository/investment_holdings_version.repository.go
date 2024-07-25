@@ -16,6 +16,8 @@ type InvestmentHoldingsVersionRepository interface {
 	Add(tx *sql.Tx, ihv model.InvestmentHoldingsVersion) (*model.InvestmentHoldingsVersion, error)
 	Get(id uuid.UUID) (*model.InvestmentHoldingsVersion, error)
 	List() ([]model.InvestmentHoldingsVersion, error)
+	GetLatestVersionID(investmentID uuid.UUID) (*uuid.UUID, error)
+	GetEarliestVersionID(investmentID uuid.UUID) (*uuid.UUID, error)
 }
 
 type investmentHoldingsVersionRepositoryHandler struct {
@@ -68,4 +70,48 @@ func (h investmentHoldingsVersionRepositoryHandler) List() ([]model.InvestmentHo
 	}
 
 	return result, nil
+}
+
+func (h investmentHoldingsVersionRepositoryHandler) GetLatestVersionID(investmentID uuid.UUID) (*uuid.UUID, error) {
+	query := table.InvestmentHoldingsVersion.SELECT(
+		table.InvestmentHoldingsVersion.InvestmentHoldingsVersionID,
+	).WHERE(
+		table.InvestmentHoldingsVersion.InvestmentID.EQ(postgres.UUID(investmentID)),
+	).ORDER_BY(
+		table.InvestmentHoldingsVersion.CreatedAt.DESC(),
+	).LIMIT(1)
+
+	type InvestmentHoldingsVersion struct {
+		InvestmentHoldingsVersionID uuid.UUID
+	}
+
+	var out InvestmentHoldingsVersion
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, fmt.Errorf("could not get latest holdings version for investment %s: %w", investmentID.String(), err)
+	}
+
+	return &out.InvestmentHoldingsVersionID, nil
+}
+
+func (h investmentHoldingsVersionRepositoryHandler) GetEarliestVersionID(investmentID uuid.UUID) (*uuid.UUID, error) {
+	query := table.InvestmentHoldingsVersion.SELECT(
+		table.InvestmentHoldingsVersion.InvestmentHoldingsVersionID,
+	).WHERE(
+		table.InvestmentHoldingsVersion.InvestmentID.EQ(postgres.UUID(investmentID)),
+	).ORDER_BY(
+		table.InvestmentHoldingsVersion.CreatedAt.ASC(),
+	).LIMIT(1)
+
+	type InvestmentHoldingsVersion struct {
+		InvestmentHoldingsVersionID uuid.UUID
+	}
+
+	var out InvestmentHoldingsVersion
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, fmt.Errorf("could not get latest holdings version for investment %s: %w", investmentID.String(), err)
+	}
+
+	return &out.InvestmentHoldingsVersionID, nil
 }

@@ -17,8 +17,7 @@ import (
 
 type InvestmentHoldingsRepository interface {
 	Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error)
-	GetLatestVersionID(investmentID uuid.UUID) (*uuid.UUID, error)
-	Get(id uuid.UUID) (*model.InvestmentHoldings, error)
+	Get(holdingsVersionID uuid.UUID) (*domain.Portfolio, error)
 	List(HoldingsListFilter) ([]model.InvestmentHoldings, error)
 	GetLatestHoldings(tx *sql.Tx, investmentID uuid.UUID) (*domain.Portfolio, error)
 }
@@ -32,28 +31,6 @@ type investmentHoldingsRepositoryHandler struct {
 
 func NewInvestmentHoldingsRepository(db *sql.DB) InvestmentHoldingsRepository {
 	return investmentHoldingsRepositoryHandler{Db: db}
-}
-
-func (h investmentHoldingsRepositoryHandler) GetLatestVersionID(investmentID uuid.UUID) (*uuid.UUID, error) {
-	query := table.InvestmentHoldingsVersion.SELECT(
-		table.InvestmentHoldingsVersion.InvestmentHoldingsVersionID,
-	).WHERE(
-		table.InvestmentHoldingsVersion.InvestmentID.EQ(postgres.UUID(investmentID)),
-	).ORDER_BY(
-		table.InvestmentHoldingsVersion.CreatedAt.DESC(),
-	).LIMIT(1)
-
-	type InvestmentHoldingsVersion struct {
-		InvestmentHoldingsVersionID uuid.UUID
-	}
-
-	var out InvestmentHoldingsVersion
-	err := query.Query(h.Db, &out)
-	if err != nil {
-		return nil, fmt.Errorf("could not get latest holdings version for investment %s: %w", investmentID.String(), err)
-	}
-
-	return &out.InvestmentHoldingsVersionID, nil
 }
 
 func (h investmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.InvestmentHoldings) (*model.InvestmentHoldings, error) {
@@ -79,18 +56,30 @@ func (h investmentHoldingsRepositoryHandler) Add(tx *sql.Tx, sih model.Investmen
 	return &out, nil
 }
 
-func (h investmentHoldingsRepositoryHandler) Get(id uuid.UUID) (*model.InvestmentHoldings, error) {
-	query := table.InvestmentHoldings.
-		SELECT(table.InvestmentHoldings.AllColumns).
-		WHERE(table.InvestmentHoldings.InvestmentHoldingsID.EQ(postgres.UUID(id)))
+func (h investmentHoldingsRepositoryHandler) Get(holdingsVersionID uuid.UUID) (*domain.Portfolio, error) {
+	t := table.InvestmentHoldings.AS("LatestInvestmentHoldings")
+	query := t.
+		SELECT(
+			t.AllColumns,
+			table.Ticker.Symbol.AS("LatestInvestmentHoldings.Symbol"),
+		).
+		FROM(
+			t.INNER_JOIN(
+				table.Ticker,
+				table.Ticker.TickerID.EQ(t.TickerID),
+			),
+		).
+		WHERE(t.InvestmentHoldingsVersionID.EQ(postgres.UUID(holdingsVersionID)))
 
-	result := model.InvestmentHoldings{}
+	result := []model.LatestInvestmentHoldings{}
 	err := query.Query(h.Db, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get strategy investment holding: %w", err)
 	}
 
-	return &result, nil
+	portfolio := portfolioFromHoldings(result)
+
+	return portfolio, nil
 }
 
 // kind useless bc this gets all holdings, for all time

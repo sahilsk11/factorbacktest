@@ -421,6 +421,34 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 	return nil
 }
 
+func AddTradesToPortfolio(trades []model.InvestmentTradeStatus, portfolio *domain.Portfolio) *domain.Portfolio {
+	for _, t := range trades {
+		oldQuantity := decimal.Zero
+		if p, ok := portfolio.Positions[*t.Symbol]; ok {
+			oldQuantity = p.ExactQuantity
+		} else {
+			portfolio.Positions[*t.Symbol] = &domain.Position{
+				Symbol:        *t.Symbol,
+				Quantity:      0,
+				ExactQuantity: decimal.Zero,
+				TickerID:      *t.TickerID,
+			}
+		}
+		orderQuantity := *t.Quantity
+		orderPrice := *t.FilledPrice
+
+		if *t.Side == model.TradeOrderSide_Sell {
+			portfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Sub(orderQuantity)
+			portfolio.SetCash(portfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
+		} else {
+			portfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Add(orderQuantity)
+			portfolio.SetCash(portfolio.Cash.Sub(orderQuantity.Mul(orderPrice)))
+		}
+	}
+
+	return portfolio
+}
+
 func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
 	for investmentID, newTrades := range completedTradesByInvestment {
 		// should be the holdings prior to the new trades being completed
@@ -428,30 +456,7 @@ func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTra
 		if err != nil {
 			return err
 		}
-		newPortfolio := currentHoldings.DeepCopy()
-		for _, t := range newTrades {
-			oldQuantity := decimal.Zero
-			if p, ok := newPortfolio.Positions[*t.Symbol]; ok {
-				oldQuantity = p.ExactQuantity
-			} else {
-				newPortfolio.Positions[*t.Symbol] = &domain.Position{
-					Symbol:        *t.Symbol,
-					Quantity:      0,
-					ExactQuantity: decimal.Zero,
-					TickerID:      *t.TickerID,
-				}
-			}
-			orderQuantity := *t.Quantity
-			orderPrice := *t.FilledPrice
-
-			if *t.Side == model.TradeOrderSide_Sell {
-				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Sub(orderQuantity)
-				newPortfolio.SetCash(newPortfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
-			} else {
-				newPortfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Add(orderQuantity)
-				newPortfolio.SetCash(newPortfolio.Cash.Sub(orderQuantity.Mul(orderPrice)))
-			}
-		}
+		newPortfolio := AddTradesToPortfolio(newTrades, currentHoldings)
 
 		// validate the portfolio
 		// - ensure cash >= 0

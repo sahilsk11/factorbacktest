@@ -314,7 +314,7 @@ func (h investmentServiceHandler) rebalanceInvestment(
 	tickerIDMap map[string]uuid.UUID,
 ) (*rebalanceInvestmentResponse, error) {
 	// should add this to the latest view and remove this call
-	versionID, err := h.HoldingsRepository.GetLatestVersionID(investment.InvestmentID)
+	versionID, err := h.HoldingsVersionRepository.GetLatestVersionID(investment.InvestmentID)
 	if err != nil {
 		return nil, err
 	}
@@ -424,187 +424,6 @@ func transitionToTarget(
 	}
 
 	return trades, nil
-}
-
-func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, investmentID uuid.UUID) error {
-	// check deviance from backtested result
-	// check that positions are > 0
-	// are we planning to flag when trades executed at varying
-	// prices
-	// maybe check for trades in error states
-	investment, err := h.InvestmentRepository.Get(investmentID)
-	if err != nil {
-		return err
-	}
-	strategy, err := h.SavedStrategyRepository.Get(investment.SavedStragyID)
-	if err != nil {
-		return err
-	}
-
-	targetWeights := map[string]float64{}
-
-	interval := time.Hour * 24
-	// if strings.EqualFold(strategy.RebalanceInterval, "weekly") {
-	// 	interval *= 7
-	// } else if strings.EqualFold(strategy.RebalanceInterval, "monthly") {
-	// 	interval *= 30
-	// } else if strings.EqualFold(strategy.RebalanceInterval, "yearly") {
-	// 	interval *= 365
-	// }
-
-	// todo - figure out how to call the backtest
-	backtestInput := BacktestInput{
-		FactorExpression:  strategy.FactorExpression,
-		BacktestStart:     investment.StartDate,
-		BacktestEnd:       time.Now().UTC(),
-		RebalanceInterval: interval,
-		StartingCash:      float64(investment.AmountDollars),
-		NumTickers:        int(strategy.NumAssets),
-		AssetUniverse:     strategy.AssetUniverse,
-	}
-
-	backtestResponse, err := h.BacktestHandler.Backtest(ctx, backtestInput)
-	if err != nil && strings.Contains(err.Error(), "no calculated trading days in given range") {
-		backtestResponse = &BacktestResponse{
-			Snapshots: map[string]BacktestSnapshot{},
-		}
-	} else if err != nil {
-		return err
-	}
-
-	// since we're dealing with weights from the last rebalance,
-	// we can't compare with quantity we're holding rn. best we
-	// can do is take the current weights, and figure out what
-	// their value was when we rebalanced maybe
-	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
-	if err != nil {
-		return err
-	}
-
-	if currentHoldings.Cash.LessThan(decimal.NewFromInt(-1)) {
-		logger.Warn("investment %s is holding %f cash", investmentID.String(), currentHoldings.Cash.InexactFloat64())
-	}
-
-	for _, position := range currentHoldings.Positions {
-		if position.ExactQuantity.LessThan(decimal.Zero) {
-			logger.Error(fmt.Errorf("investment %s has %f of %s", investmentID.String(), position.ExactQuantity.InexactFloat64(), position.Symbol))
-		}
-	}
-
-	if len(backtestResponse.Snapshots) > 0 {
-		latestResult := ""
-		for k := range backtestResponse.Snapshots {
-			if k > latestResult {
-				latestResult = k
-			}
-		}
-		latestSnapshot := backtestResponse.Snapshots[latestResult]
-		for symbol, metrics := range latestSnapshot.AssetMetrics {
-			targetWeights[symbol] = metrics.AssetWeight
-		}
-
-		// tbh just see if the assets line up for now, figure out weights
-		// later maybe
-		for k := range targetWeights {
-			found := false
-			for _, p := range currentHoldings.Positions {
-				if p.Symbol == k {
-					found = true
-				}
-			}
-			if !found {
-				logger.Error(fmt.Errorf("investment %s expected to hold %s, but is not", investmentID.String(), k))
-			}
-		}
-		for _, p := range currentHoldings.Positions {
-			found := false
-			for k := range targetWeights {
-				if p.Symbol == k {
-					found = true
-				}
-			}
-			if !found {
-				logger.Error(fmt.Errorf("investment %s holding %s, but is not expected to", investmentID.String(), p.Symbol))
-			}
-		}
-	}
-
-	return nil
-}
-
-func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
-	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
-	if err != nil {
-		return err
-	}
-	totalHoldings := domain.NewPortfolio()
-	for _, i := range investments {
-		holdings, err := h.HoldingsRepository.GetLatestHoldings(nil, i.InvestmentID)
-		if err != nil {
-			return err
-		}
-		totalHoldings.SetCash(totalHoldings.Cash.Add(*holdings.Cash))
-		for _, p := range holdings.Positions {
-			if _, ok := totalHoldings.Positions[p.Symbol]; !ok {
-				totalHoldings.Positions[p.Symbol] = &domain.Position{
-					Symbol:        p.Symbol,
-					Quantity:      0,
-					ExactQuantity: decimal.Zero,
-					TickerID:      p.TickerID,
-				}
-			}
-			totalHoldings.Positions[p.Symbol].Quantity += p.Quantity
-			totalHoldings.Positions[p.Symbol].ExactQuantity = totalHoldings.Positions[p.Symbol].ExactQuantity.Add(p.ExactQuantity)
-		}
-	}
-
-	account, err := h.AlpacaRepository.GetAccount()
-	if err != nil {
-		return err
-	}
-	if account.Cash.LessThan(*totalHoldings.Cash) {
-		logger.Error(fmt.Errorf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()))
-	}
-
-	excessHoldingThreshold := decimal.NewFromInt(2)
-
-	actuallyHeld, err := h.AlpacaRepository.GetPositions()
-	if err != nil {
-		return err
-	}
-	epsilonZero := decimal.NewFromFloat(1e-9)
-	for _, p := range totalHoldings.Positions {
-		for _, a := range actuallyHeld {
-			if a.Symbol == p.Symbol {
-				if a.Qty.LessThan(p.ExactQuantity.Sub(epsilonZero)) {
-					logger.Error(fmt.Errorf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64()))
-				} else if a.Qty.GreaterThan(p.ExactQuantity.Add(excessHoldingThreshold)) {
-					logger.Warn("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64())
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
-	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
-	if err != nil {
-		return err
-	}
-	for _, i := range investments {
-		err = h.reconcileInvestment(ctx, i.InvestmentID)
-		if err != nil {
-			return err
-		}
-	}
-	err = h.reconcileAggregatePortfolio()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
@@ -834,4 +653,262 @@ func targetPortfolioToJson(c ComputeTargetPortfolioResponse) ([]byte, error) {
 	}
 
 	return bytes, nil
+}
+
+func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, investmentID uuid.UUID) error {
+	// check deviance from backtested result
+	// check that positions are > 0
+	// are we planning to flag when trades executed at varying
+	// prices
+	// maybe check for trades in error states
+	investment, err := h.InvestmentRepository.Get(investmentID)
+	if err != nil {
+		return err
+	}
+	strategy, err := h.SavedStrategyRepository.Get(investment.SavedStragyID)
+	if err != nil {
+		return err
+	}
+
+	targetWeights := map[string]float64{}
+
+	interval := time.Hour * 24
+	// if strings.EqualFold(strategy.RebalanceInterval, "weekly") {
+	// 	interval *= 7
+	// } else if strings.EqualFold(strategy.RebalanceInterval, "monthly") {
+	// 	interval *= 30
+	// } else if strings.EqualFold(strategy.RebalanceInterval, "yearly") {
+	// 	interval *= 365
+	// }
+
+	// todo - figure out how to call the backtest
+	backtestInput := BacktestInput{
+		FactorExpression:  strategy.FactorExpression,
+		BacktestStart:     investment.StartDate,
+		BacktestEnd:       time.Now().UTC(),
+		RebalanceInterval: interval,
+		StartingCash:      float64(investment.AmountDollars),
+		NumTickers:        int(strategy.NumAssets),
+		AssetUniverse:     strategy.AssetUniverse,
+	}
+
+	backtestResponse, err := h.BacktestHandler.Backtest(ctx, backtestInput)
+	if err != nil && strings.Contains(err.Error(), "no calculated trading days in given range") {
+		backtestResponse = &BacktestResponse{
+			Snapshots: map[string]BacktestSnapshot{},
+		}
+	} else if err != nil {
+		return err
+	}
+
+	// since we're dealing with weights from the last rebalance,
+	// we can't compare with quantity we're holding rn. best we
+	// can do is take the current weights, and figure out what
+	// their value was when we rebalanced maybe
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
+	if err != nil {
+		return err
+	}
+
+	if currentHoldings.Cash.LessThan(decimal.NewFromInt(-1)) {
+		logger.Warn("investment %s is holding %f cash", investmentID.String(), currentHoldings.Cash.InexactFloat64())
+	}
+
+	for _, position := range currentHoldings.Positions {
+		if position.ExactQuantity.LessThan(decimal.Zero) {
+			logger.Error(fmt.Errorf("investment %s has %f of %s", investmentID.String(), position.ExactQuantity.InexactFloat64(), position.Symbol))
+		}
+	}
+
+	if len(backtestResponse.Snapshots) > 0 {
+		latestResult := ""
+		for k := range backtestResponse.Snapshots {
+			if k > latestResult {
+				latestResult = k
+			}
+		}
+		latestSnapshot := backtestResponse.Snapshots[latestResult]
+		for symbol, metrics := range latestSnapshot.AssetMetrics {
+			targetWeights[symbol] = metrics.AssetWeight
+		}
+
+		// tbh just see if the assets line up for now, figure out weights
+		// later maybe
+		for k := range targetWeights {
+			found := false
+			for _, p := range currentHoldings.Positions {
+				if p.Symbol == k {
+					found = true
+				}
+			}
+			if !found {
+				logger.Error(fmt.Errorf("investment %s expected to hold %s, but is not", investmentID.String(), k))
+			}
+		}
+		for _, p := range currentHoldings.Positions {
+			found := false
+			for k := range targetWeights {
+				if p.Symbol == k {
+					found = true
+				}
+			}
+			if !found {
+				logger.Error(fmt.Errorf("investment %s holding %s, but is not expected to", investmentID.String(), p.Symbol))
+			}
+		}
+	}
+
+	return nil
+}
+
+func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
+	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+	if err != nil {
+		return err
+	}
+	totalHoldings := domain.NewPortfolio()
+	for _, i := range investments {
+		holdings, err := h.HoldingsRepository.GetLatestHoldings(nil, i.InvestmentID)
+		if err != nil {
+			return err
+		}
+		totalHoldings.SetCash(totalHoldings.Cash.Add(*holdings.Cash))
+		for _, p := range holdings.Positions {
+			if _, ok := totalHoldings.Positions[p.Symbol]; !ok {
+				totalHoldings.Positions[p.Symbol] = &domain.Position{
+					Symbol:        p.Symbol,
+					Quantity:      0,
+					ExactQuantity: decimal.Zero,
+					TickerID:      p.TickerID,
+				}
+			}
+			totalHoldings.Positions[p.Symbol].Quantity += p.Quantity
+			totalHoldings.Positions[p.Symbol].ExactQuantity = totalHoldings.Positions[p.Symbol].ExactQuantity.Add(p.ExactQuantity)
+		}
+	}
+
+	account, err := h.AlpacaRepository.GetAccount()
+	if err != nil {
+		return err
+	}
+	if account.Cash.LessThan(*totalHoldings.Cash) {
+		logger.Error(fmt.Errorf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()))
+	}
+
+	excessHoldingThreshold := decimal.NewFromInt(2)
+
+	actuallyHeld, err := h.AlpacaRepository.GetPositions()
+	if err != nil {
+		return err
+	}
+	epsilonZero := decimal.NewFromFloat(1e-6)
+	for _, p := range totalHoldings.Positions {
+		for _, a := range actuallyHeld {
+			if a.Symbol == p.Symbol {
+				if a.Qty.LessThan(p.ExactQuantity.Sub(epsilonZero)) {
+					logger.Error(fmt.Errorf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f (%f)", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64(), a.Qty.Sub(p.ExactQuantity).InexactFloat64()))
+				} else if a.Qty.GreaterThan(p.ExactQuantity.Add(excessHoldingThreshold)) {
+					logger.Warn("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64())
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
+	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+	if err != nil {
+		return err
+	}
+	for _, i := range investments {
+		err = h.reconcileInvestment(ctx, i.InvestmentID)
+		if err != nil {
+			return err
+		}
+
+		err = h.reconcileTrades(i.InvestmentID)
+		if err != nil {
+			return err
+		}
+	}
+	err = h.reconcileAggregatePortfolio()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) error {
+	initialVersionID, err := h.HoldingsVersionRepository.GetEarliestVersionID(investmentID)
+	if err != nil {
+		return err
+	}
+
+	initialHoldings, err := h.HoldingsRepository.Get(*initialVersionID)
+	if err != nil {
+		return err
+	}
+
+	trades, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
+		InvestmentID: &investmentID,
+	})
+	if err != nil {
+		return err
+	}
+
+	newPortfolio := l1_service.AddTradesToPortfolio(trades, initialHoldings)
+
+	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
+	if err != nil {
+		return err
+	}
+
+	if portfoliosMatch, reason := comparePortfolios(newPortfolio, currentHoldings); !portfoliosMatch {
+		logger.Error(fmt.Errorf("investment %s failed trade recon: %s", investmentID.String(), reason))
+	}
+
+	return nil
+}
+
+func comparePortfolios(p1, p2 *domain.Portfolio) (bool, string) {
+	// Check if cash values are equal
+	if !p1.Cash.Equal(*p2.Cash) {
+		return false, fmt.Sprintf("Cash values differ: p1 = %s, p2 = %s", p1.Cash.String(), p2.Cash.String())
+	}
+
+	// Check if the same symbols are held in both portfolios
+	if len(p1.Positions) != len(p2.Positions) {
+		return false, "The number of positions differs between the two portfolios"
+	}
+
+	for symbol, pos1 := range p1.Positions {
+		pos2, exists := p2.Positions[symbol]
+		if !exists {
+			return false, fmt.Sprintf("Symbol %s is missing in the second portfolio", symbol)
+		}
+
+		// Check if Quantity values are equal
+		if pos1.Quantity != pos2.Quantity {
+			return false, fmt.Sprintf("Quantities for symbol %s differ: p1 = %f, p2 = %f", symbol, pos1.Quantity, pos2.Quantity)
+		}
+
+		// Check if ExactQuantity values are equal
+		if !pos1.ExactQuantity.Equal(pos2.ExactQuantity) {
+			return false, fmt.Sprintf("ExactQuantities for symbol %s differ: p1 = %s, p2 = %s", symbol, pos1.ExactQuantity.String(), pos2.ExactQuantity.String())
+		}
+
+		// Check if Value values are equal
+		if (pos1.Value == nil && pos2.Value != nil) || (pos1.Value != nil && pos2.Value == nil) {
+			return false, fmt.Sprintf("Value for symbol %s is nil in one of the portfolios", symbol)
+		}
+
+		if pos1.Value != nil && !pos1.Value.Equal(*pos2.Value) {
+			return false, fmt.Sprintf("Values for symbol %s differ: p1 = %s, p2 = %s", symbol, pos1.Value.String(), pos2.Value.String())
+		}
+	}
+
+	return true, ""
 }

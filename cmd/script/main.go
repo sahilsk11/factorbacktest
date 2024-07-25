@@ -26,7 +26,7 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
-	updateOrders(handler)
+	// updateOrders(handler)
 
 	err = handler.InvestmentService.Reconcile(ctx)
 	if err != nil {
