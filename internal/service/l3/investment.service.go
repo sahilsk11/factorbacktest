@@ -399,7 +399,8 @@ func (h investmentServiceHandler) rebalanceInvestment(
 	// add a lil recon
 	newPortfolio := l1_service.AddTradesToPortfolio(insertedTradesStatus, initialPortfolio)
 
-	if match, reason := comparePortfolios(newPortfolio, computeTargetPortfolioResponse.TargetPortfolio); !match {
+	epsilon := decimal.NewFromFloat(0.01)
+	if match, reason := comparePortfolios(newPortfolio, computeTargetPortfolioResponse.TargetPortfolio, epsilon); !match {
 		return nil, fmt.Errorf("portfolios don't match: %s", reason)
 	}
 
@@ -889,16 +890,17 @@ func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) error 
 		return err
 	}
 
-	if portfoliosMatch, reason := comparePortfolios(newPortfolio, currentHoldings); !portfoliosMatch {
+	epsilon := decimal.NewFromFloat(0.00001)
+	if portfoliosMatch, reason := comparePortfolios(newPortfolio, currentHoldings, epsilon); !portfoliosMatch {
 		logger.Error(fmt.Errorf("investment %s failed trade recon: %s", investmentID.String(), reason))
 	}
 
 	return nil
 }
 
-func comparePortfolios(portfolioAfterTrades, targetPortfolio *domain.Portfolio) (bool, string) {
-	// Check if cash values are equal
-	if !portfolioAfterTrades.Cash.Equal(*targetPortfolio.Cash) {
+func comparePortfolios(portfolioAfterTrades, targetPortfolio *domain.Portfolio, epsilon decimal.Decimal) (bool, string) {
+	// Check if cash values are within epsilon
+	if !portfolioAfterTrades.Cash.Sub(*targetPortfolio.Cash).Abs().LessThan(epsilon) {
 		return false, fmt.Sprintf("Cash values differ: portfolioAfterTrades = %s, targetPortfolio = %s", portfolioAfterTrades.Cash.String(), targetPortfolio.Cash.String())
 	}
 
@@ -913,8 +915,8 @@ func comparePortfolios(portfolioAfterTrades, targetPortfolio *domain.Portfolio) 
 			return false, fmt.Sprintf("Symbol %s is missing in the second portfolio", symbol)
 		}
 
-		// Check if ExactQuantity values are equal
-		if !pos1.ExactQuantity.Equal(pos2.ExactQuantity) {
+		// Check if ExactQuantity values are within epsilon
+		if !pos1.ExactQuantity.Sub(pos2.ExactQuantity).Abs().LessThan(epsilon) {
 			return false, fmt.Sprintf("ExactQuantities for symbol %s differ: portfolioAfterTrades = %s, targetPortfolio = %s", symbol, pos1.ExactQuantity.String(), pos2.ExactQuantity.String())
 		}
 	}
