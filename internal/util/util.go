@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"factorbacktest/internal/db/models/postgres/public/model"
 	"fmt"
 	"os"
 	"regexp"
@@ -35,6 +36,10 @@ func TimePointer(t time.Time) *time.Time {
 
 func DecimalPointer(d decimal.Decimal) *decimal.Decimal {
 	return &d
+}
+
+func TradeOrderSidePointer(m model.TradeOrderSide) *model.TradeOrderSide {
+	return &m
 }
 
 type Secrets struct {

@@ -94,6 +94,7 @@ type InvestmentTradeListFilter struct {
 	TradeOrderID    *uuid.UUID
 	RebalancerRunID *uuid.UUID
 	InvestmentID    *uuid.UUID
+	Status          *model.TradeOrderStatus
 }
 
 func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter InvestmentTradeListFilter) ([]model.InvestmentTradeStatus, error) {
@@ -117,6 +118,13 @@ func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter Investment
 		whereClauses = append(whereClauses,
 			view.InvestmentTradeStatus.InvestmentID.EQ(
 				postgres.UUID(listFilter.InvestmentID),
+			),
+		)
+	}
+	if listFilter.Status != nil {
+		whereClauses = append(whereClauses,
+			view.InvestmentTradeStatus.Status.EQ(
+				postgres.String(listFilter.Status.String()),
 			),
 		)
 	}

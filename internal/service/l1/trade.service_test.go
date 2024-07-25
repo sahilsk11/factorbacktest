@@ -5,15 +5,15 @@ import (
 	"factorbacktest/internal/domain"
 	mock_repository "factorbacktest/internal/repository/mocks"
 	"factorbacktest/internal/util"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-
-	_ "github.com/lib/pq"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_updatePortfoliosFromTrades(t *testing.T) {
@@ -103,5 +103,26 @@ func newInvestmentTradeStatus(
 		// InvestmentID:    &[16]byte{},
 		// TradeOrderID:    &[16]byte{},
 		// TickerID:        &[16]byte{},
+	}
+}
+
+func TestAddTradesToPortfolio(t *testing.T) {
+	type args struct {
+		trades    []model.InvestmentTradeStatus
+		portfolio *domain.Portfolio
+	}
+	tests := []struct {
+		name string
+		args args
+		want *domain.Portfolio
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := AddTradesToPortfolio(tt.args.trades, tt.args.portfolio); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AddTradesToPortfolio() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

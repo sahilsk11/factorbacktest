@@ -360,6 +360,10 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, err
 	}
 
+	fmt.Println(string(startingPortfolioJson))
+
+	fmt.Println(string(targetPortfolioJson))
+
 	investmentRebalance, err := h.InvestmentRebalanceRepository.Add(tx, model.InvestmentRebalance{
 		RebalancerRunID:           rebalancerRun.RebalancerRunID,
 		InvestmentID:              investment.InvestmentID,
@@ -380,6 +384,27 @@ func (h investmentServiceHandler) rebalanceInvestment(
 	insertedInvestmentTrades, err := h.InvestmentTradeRepository.AddMany(tx, investmentTrades)
 	if err != nil {
 		return nil, err
+	}
+
+	// these two should be enough to only include what we
+	// just inserted, but it may not be
+	insertedTradesStatus, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
+		InvestmentID:    &investment.InvestmentID,
+		RebalancerRunID: &rebalancerRun.RebalancerRunID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for i, t := range insertedTradesStatus {
+		insertedTradesStatus[i].FilledPrice = util.DecimalPointer(pm[*t.Symbol])
+	}
+
+	// add a lil recon
+	newPortfolio := l1_service.AddTradesToPortfolio(insertedTradesStatus, initialPortfolio)
+
+	if match, reason := comparePortfolios(newPortfolio, computeTargetPortfolioResponse.TargetPortfolio); !match {
+		return nil, fmt.Errorf("portfolios don't match: %s", reason)
 	}
 
 	return &rebalanceInvestmentResponse{
@@ -403,7 +428,7 @@ func transitionToTarget(
 		if ok {
 			diff = position.ExactQuantity.Sub(prevPosition.ExactQuantity)
 		}
-		if diff.GreaterThan(decimal.Zero) {
+		if !diff.Equal(decimal.Zero) {
 			trades = append(trades, &domain.ProposedTrade{
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
@@ -852,8 +877,10 @@ func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) error 
 		return err
 	}
 
+	status := model.TradeOrderStatus_Completed
 	trades, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
 		InvestmentID: &investmentID,
+		Status:       &status,
 	})
 	if err != nil {
 		return err
@@ -873,31 +900,31 @@ func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) error 
 	return nil
 }
 
-func comparePortfolios(p1, p2 *domain.Portfolio) (bool, string) {
+func comparePortfolios(portfolioAfterTrades, targetPortfolio *domain.Portfolio) (bool, string) {
 	// Check if cash values are equal
-	if !p1.Cash.Equal(*p2.Cash) {
-		return false, fmt.Sprintf("Cash values differ: p1 = %s, p2 = %s", p1.Cash.String(), p2.Cash.String())
+	if !portfolioAfterTrades.Cash.Equal(*targetPortfolio.Cash) {
+		return false, fmt.Sprintf("Cash values differ: portfolioAfterTrades = %s, targetPortfolio = %s", portfolioAfterTrades.Cash.String(), targetPortfolio.Cash.String())
 	}
 
 	// Check if the same symbols are held in both portfolios
-	if len(p1.Positions) != len(p2.Positions) {
+	if len(portfolioAfterTrades.Positions) != len(targetPortfolio.Positions) {
 		return false, "The number of positions differs between the two portfolios"
 	}
 
-	for symbol, pos1 := range p1.Positions {
-		pos2, exists := p2.Positions[symbol]
+	for symbol, pos1 := range portfolioAfterTrades.Positions {
+		pos2, exists := targetPortfolio.Positions[symbol]
 		if !exists {
 			return false, fmt.Sprintf("Symbol %s is missing in the second portfolio", symbol)
 		}
 
 		// Check if Quantity values are equal
 		if pos1.Quantity != pos2.Quantity {
-			return false, fmt.Sprintf("Quantities for symbol %s differ: p1 = %f, p2 = %f", symbol, pos1.Quantity, pos2.Quantity)
+			return false, fmt.Sprintf("Quantities for symbol %s differ: portfolioAfterTrades = %f, targetPortfolio = %f", symbol, pos1.Quantity, pos2.Quantity)
 		}
 
 		// Check if ExactQuantity values are equal
 		if !pos1.ExactQuantity.Equal(pos2.ExactQuantity) {
-			return false, fmt.Sprintf("ExactQuantities for symbol %s differ: p1 = %s, p2 = %s", symbol, pos1.ExactQuantity.String(), pos2.ExactQuantity.String())
+			return false, fmt.Sprintf("ExactQuantities for symbol %s differ: portfolioAfterTrades = %s, targetPortfolio = %s", symbol, pos1.ExactQuantity.String(), pos2.ExactQuantity.String())
 		}
 
 		// Check if Value values are equal
@@ -906,7 +933,7 @@ func comparePortfolios(p1, p2 *domain.Portfolio) (bool, string) {
 		}
 
 		if pos1.Value != nil && !pos1.Value.Equal(*pos2.Value) {
-			return false, fmt.Sprintf("Values for symbol %s differ: p1 = %s, p2 = %s", symbol, pos1.Value.String(), pos2.Value.String())
+			return false, fmt.Sprintf("Values for symbol %s differ: portfolioAfterTrades = %s, targetPortfolio = %s", symbol, pos1.Value.String(), pos2.Value.String())
 		}
 	}
 

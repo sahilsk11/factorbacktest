@@ -2,8 +2,10 @@ package l3_service
 
 import (
 	"context"
+	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/repository"
 	mock_repository "factorbacktest/internal/repository/mocks"
 	l2_service "factorbacktest/internal/service/l2"
 	mock_l2_service "factorbacktest/internal/service/l2/mocks"
@@ -11,14 +13,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
-func Test_rebalanceInvestment(t *testing.T) {
+func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 	t.Run("rebalance from existing holdings", func(t *testing.T) {
 		db, err := util.NewTestDb()
 		require.NoError(t, err)
@@ -30,6 +34,7 @@ func Test_rebalanceInvestment(t *testing.T) {
 		feService := mock_l2_service.NewMockFactorExpressionService(ctrl)
 		investmentRebalanceRepository := mock_repository.NewMockInvestmentRebalanceRepository(ctrl)
 		investmentTradeRepository := mock_repository.NewMockInvestmentTradeRepository(ctrl)
+		holdingsVersionRepository := mock_repository.NewMockInvestmentHoldingsVersionRepository(ctrl)
 
 		handler := investmentServiceHandler{
 			HoldingsRepository:            holdingsRepository,
@@ -38,6 +43,7 @@ func Test_rebalanceInvestment(t *testing.T) {
 			FactorExpressionService:       feService,
 			InvestmentRebalanceRepository: investmentRebalanceRepository,
 			InvestmentTradeRepository:     investmentTradeRepository,
+			HoldingsVersionRepository:     holdingsVersionRepository,
 		}
 
 		tx, err := db.Begin()
@@ -69,10 +75,14 @@ func Test_rebalanceInvestment(t *testing.T) {
 			"GOOG": decimal.NewFromInt(100),
 			"MSFT": decimal.NewFromInt(100),
 		}
-		tickerIDMap := map[string]uuid.UUID{}
+		tickerIDMap := map[string]uuid.UUID{
+			"AAPL": uuid.New(),
+			"GOOG": uuid.New(),
+			"MSFT": uuid.New(),
+		}
 
 		latestVersionID := uuid.New()
-		holdingsRepository.EXPECT().
+		holdingsVersionRepository.EXPECT().
 			GetLatestVersionID(investment.InvestmentID).
 			Return(&latestVersionID, nil)
 
@@ -82,17 +92,17 @@ func Test_rebalanceInvestment(t *testing.T) {
 				Positions: map[string]*domain.Position{
 					"AAPL": {
 						Quantity:      1,
-						ExactQuantity: decimal.NewFromInt(100),
+						ExactQuantity: decimal.NewFromInt(1),
 						TickerID:      uuid.New(),
 					},
 					"GOOG": {
 						Quantity:      1,
-						ExactQuantity: decimal.NewFromInt(100),
+						ExactQuantity: decimal.NewFromInt(1),
 						TickerID:      uuid.New(),
 					},
 					"MSFT": {
 						Quantity:      1,
-						ExactQuantity: decimal.NewFromInt(100),
+						ExactQuantity: decimal.NewFromInt(1),
 						TickerID:      uuid.New(),
 					},
 				},
@@ -128,12 +138,106 @@ func Test_rebalanceInvestment(t *testing.T) {
 			Return(&model.InvestmentRebalance{}, nil)
 
 		investmentTradeRepository.EXPECT().
-			AddMany(gomock.Any(), gomock.Any()).
-			Return([]model.InvestmentTrade{}, nil)
+			AddMany(tx, gomock.Any()).
+			DoAndReturn(func(tx *sql.Tx, investmentTrades []*model.InvestmentTrade) ([]model.InvestmentTrade, error) {
+				require.Equal(t, "", cmp.Diff(
+					[]*model.InvestmentTrade{
+						{
+							Side:                  model.TradeOrderSide_Buy,
+							TickerID:              tickerIDMap["MSFT"],
+							Quantity:              decimal.NewFromFloat(0.999),
+							ModifiedAt:            time.Time{},
+							InvestmentRebalanceID: [16]byte{},
+						},
+						{
+							Side:                  model.TradeOrderSide_Sell,
+							TickerID:              tickerIDMap["AAPL"],
+							Quantity:              decimal.NewFromFloat(0.999),
+							ModifiedAt:            time.Time{},
+							InvestmentRebalanceID: [16]byte{},
+						},
+					},
+					investmentTrades,
+					cmp.Comparer(func(i, j uuid.UUID) bool {
+						return i.String() == j.String()
+					}),
+					cmpopts.SortSlices(func(i, j *model.InvestmentTrade) bool {
+						return i.TickerID.String() < j.TickerID.String()
+					}),
+				))
+				out := []model.InvestmentTrade{}
+				for _, t := range investmentTrades {
+					out = append(out, *t)
+				}
+				return out, nil
+			})
+
+		investmentTradeRepository.EXPECT().
+			List(tx, repository.InvestmentTradeListFilter{
+				InvestmentID:    &investment.InvestmentID,
+				RebalancerRunID: &rebalancerRun.RebalancerRunID,
+			}).
+			Return([]model.InvestmentTradeStatus{
+				{
+					Symbol:   util.StringPointer("MSFT"),
+					Quantity: util.DecimalPointer(decimal.NewFromFloat(0.999)),
+					Side:     util.TradeOrderSidePointer(model.TradeOrderSide_Buy),
+				},
+			}, nil)
 
 		response, err := handler.rebalanceInvestment(context.Background(), tx, investment, rebalancerRun, priceMap, tickerIDMap)
 		require.NoError(t, err)
 
 		require.NotEmpty(t, response)
+	})
+}
+
+func Test_transitionToTarget(t *testing.T) {
+	t.Run("idk", func(t *testing.T) {
+		startingPortfolio := domain.Portfolio{
+			Positions: map[string]*domain.Position{
+				"AAPL": {
+					ExactQuantity: decimal.NewFromInt(1),
+				},
+				"GOOG": {
+					ExactQuantity: decimal.NewFromInt(1),
+				},
+				"MSFT": {
+					ExactQuantity: decimal.NewFromInt(1),
+				},
+			},
+			Cash: util.DecimalPointer(decimal.Zero),
+		}
+		targetPortfolio := domain.Portfolio{
+			Positions: map[string]*domain.Position{
+				"AAPL": {
+					ExactQuantity: decimal.NewFromFloat(0.001),
+				},
+				"GOOG": {
+					ExactQuantity: decimal.NewFromInt(1),
+				},
+				"MSFT": {
+					ExactQuantity: decimal.NewFromFloat(1.999),
+				},
+			},
+			Cash: util.DecimalPointer(decimal.Zero),
+		}
+		priceMap := map[string]decimal.Decimal{}
+		trades, err := transitionToTarget(startingPortfolio, targetPortfolio, priceMap)
+		require.NoError(t, err)
+
+		require.Equal(t, "", cmp.Diff(
+			[]*domain.ProposedTrade{
+				{
+					Symbol:        "MSFT",
+					ExactQuantity: decimal.NewFromFloat(0.999),
+				},
+				{
+					Symbol:        "AAPL",
+					ExactQuantity: decimal.NewFromFloat(-0.999),
+				},
+			},
+			trades,
+		))
 	})
 }

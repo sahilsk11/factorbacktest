@@ -422,6 +422,9 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 }
 
 func AddTradesToPortfolio(trades []model.InvestmentTradeStatus, portfolio *domain.Portfolio) *domain.Portfolio {
+	// ensure we don't override given portfolio
+	portfolio = portfolio.DeepCopy()
+
 	for _, t := range trades {
 		oldQuantity := decimal.Zero
 		if p, ok := portfolio.Positions[*t.Symbol]; ok {
