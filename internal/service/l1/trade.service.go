@@ -443,6 +443,9 @@ func AddTradesToPortfolio(trades []model.InvestmentTradeStatus, portfolio *domai
 		if *t.Side == model.TradeOrderSide_Sell {
 			portfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Sub(orderQuantity)
 			portfolio.SetCash(portfolio.Cash.Add(orderQuantity.Mul(orderPrice)))
+			if portfolio.Positions[*t.Symbol].ExactQuantity.Equal(decimal.Zero) {
+				delete(portfolio.Positions, *t.Symbol)
+			}
 		} else {
 			portfolio.Positions[*t.Symbol].ExactQuantity = oldQuantity.Add(orderQuantity)
 			portfolio.SetCash(portfolio.Cash.Sub(orderQuantity.Mul(orderPrice)))

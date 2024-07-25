@@ -5,7 +5,7 @@ import (
 	"factorbacktest/internal/domain"
 	mock_repository "factorbacktest/internal/repository/mocks"
 	"factorbacktest/internal/util"
-	"reflect"
+	"fmt"
 	"testing"
 	"time"
 
@@ -107,22 +107,44 @@ func newInvestmentTradeStatus(
 }
 
 func TestAddTradesToPortfolio(t *testing.T) {
-	type args struct {
-		trades    []model.InvestmentTradeStatus
-		portfolio *domain.Portfolio
-	}
-	tests := []struct {
-		name string
-		args args
-		want *domain.Portfolio
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := AddTradesToPortfolio(tt.args.trades, tt.args.portfolio); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AddTradesToPortfolio() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	t.Run("add a few trades to portfolio with positions", func(t *testing.T) {
+		startPortfolio := &domain.Portfolio{
+			Positions: map[string]*domain.Position{
+				"AAPL": {
+					ExactQuantity: decimal.NewFromInt(100),
+				},
+				"MSFT": {
+					ExactQuantity: decimal.NewFromInt(100),
+				},
+				"GOOG": {
+					ExactQuantity: decimal.NewFromInt(100),
+				},
+			},
+			Cash: util.DecimalPointer(decimal.Zero),
+		}
+		trades := []model.InvestmentTradeStatus{
+			{
+				Symbol:       util.StringPointer("AAPL"),
+				Quantity:     util.DecimalPointer(decimal.NewFromInt(100)),
+				Side:         util.TradeOrderSidePointer(model.TradeOrderSide_Buy),
+				FilledPrice:  util.DecimalPointer(decimal.NewFromInt(100)),
+				TradeOrderID: util.UUIDPointer(uuid.New()),
+			},
+			{
+				Symbol:       util.StringPointer("GOOG"),
+				Quantity:     util.DecimalPointer(decimal.NewFromInt(100)),
+				Side:         util.TradeOrderSidePointer(model.TradeOrderSide_Sell),
+				FilledPrice:  util.DecimalPointer(decimal.NewFromInt(50)),
+				TradeOrderID: util.UUIDPointer(uuid.New()),
+			},
+		}
+
+		newPortfolio := AddTradesToPortfolio(trades, startPortfolio)
+
+		require.Equal(t, decimal.NewFromInt(200), newPortfolio.Positions["AAPL"].ExactQuantity)
+
+		_, ok := newPortfolio.Positions["GOOG"]
+		require.True(t, !ok, fmt.Sprintf("GOOG was found in portfolio positions: %v", newPortfolio.Positions["GOOG"]))
+		require.Equal(t, decimal.NewFromInt(-5_000), *newPortfolio.Cash)
+	})
 }

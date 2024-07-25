@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -40,6 +41,10 @@ func DecimalPointer(d decimal.Decimal) *decimal.Decimal {
 
 func TradeOrderSidePointer(m model.TradeOrderSide) *model.TradeOrderSide {
 	return &m
+}
+
+func UUIDPointer(u uuid.UUID) *uuid.UUID {
+	return &u
 }
 
 type Secrets struct {
