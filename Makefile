@@ -11,6 +11,7 @@ mocks:
 	mockgen -source=internal/repository/ticker.repository.go -destination=internal/repository/mocks/mock_ticker.repository.go
 	mockgen -source=internal/repository/investment_rebalance.repository.go -destination=internal/repository/mocks/mock_investment_rebalance.repository.go
 	mockgen -source=internal/repository/investment_trade.repository.go -destination=internal/repository/mocks/mock_investment_trade.repository.go
+	mockgen -source=internal/repository/investment_holdings_version.repository.go -destination=internal/repository/mocks/mock_investment_holdings_version.repository.go
 
 	# l2 services
 	mockgen -source=internal/service/l2/factor_expression.service.go -destination=internal/service/l2/mocks/mock_factor_expression.service.go

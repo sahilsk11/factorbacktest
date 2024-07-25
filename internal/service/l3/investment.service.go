@@ -769,7 +769,7 @@ func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, inves
 		out = append(out, &model.InvestmentTrade{
 			TickerID:              t.TickerID,
 			Side:                  side,
-			Quantity:              t.ExactQuantity,
+			Quantity:              t.ExactQuantity.Abs(),
 			TradeOrderID:          nil, // need to update and set this
 			InvestmentRebalanceID: investmentRebalanceID,
 		})
