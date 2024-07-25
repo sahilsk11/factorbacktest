@@ -124,7 +124,7 @@ func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter Investment
 	if listFilter.Status != nil {
 		whereClauses = append(whereClauses,
 			view.InvestmentTradeStatus.Status.EQ(
-				postgres.String(listFilter.Status.String()),
+				postgres.NewEnumValue(listFilter.Status.String()),
 			),
 		)
 	}

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"factorbacktest/api"
 	"factorbacktest/cmd"
+	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"log"
 
 	_ "github.com/lib/pq"
@@ -14,22 +17,22 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// profile, endProfile := domain.NewProfile()
-	// defer endProfile()
-	// ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+	profile, endProfile := domain.NewProfile()
+	defer endProfile()
+	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
 	// err = handler.TradingService.Re()
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 
-	updateOrders(handler)
+	// updateOrders(handler)
 
-	// err = handler.InvestmentService.Rebalance(ctx)
-	// if err != nil {
-	// 	logger.Error(err)
-	// 	log.Fatal(err)
-	// }
+	err = handler.InvestmentService.Reconcile(ctx)
+	if err != nil {
+		logger.Error(err)
+		log.Fatal(err)
+	}
 
 }
 

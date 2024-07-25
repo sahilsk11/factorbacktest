@@ -12,7 +12,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const UseMockAlpaca = false
+const UseMockAlpaca = true
 
 // idk if alpaca has sandbox but this is a hacky way to
 // simulate markets being open and orders completed
