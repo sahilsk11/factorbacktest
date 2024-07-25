@@ -14,7 +14,7 @@ import (
 // 	"testing"
 // 	"time"
 
-// 	"github.com/golang/mock/gomock"
+// 	"go.uber.org/mock/mockgen/gomock"
 // 	"github.com/google/go-cmp/cmp"
 // 	"github.com/stretchr/testify/require"
 // )

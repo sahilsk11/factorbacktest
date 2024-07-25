@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"factorbacktest/internal/db/models/postgres/public/model"
 	"fmt"
 	"os"
 	"regexp"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -35,6 +37,14 @@ func TimePointer(t time.Time) *time.Time {
 
 func DecimalPointer(d decimal.Decimal) *decimal.Decimal {
 	return &d
+}
+
+func TradeOrderSidePointer(m model.TradeOrderSide) *model.TradeOrderSide {
+	return &m
+}
+
+func UUIDPointer(u uuid.UUID) *uuid.UUID {
+	return &u
 }
 
 type Secrets struct {

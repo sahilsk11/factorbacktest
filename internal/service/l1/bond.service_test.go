@@ -7,7 +7,7 @@ package l1_service_test
 // 	"testing"
 // 	"time"
 
-// 	"github.com/golang/mock/gomock"
+// 	"go.uber.org/mock/mockgen/gomock"
 // 	"github.com/google/go-cmp/cmp"
 // 	"github.com/google/go-cmp/cmp/cmpopts"
 // 	"github.com/google/uuid"

@@ -5,15 +5,15 @@ import (
 	"factorbacktest/internal/domain"
 	mock_repository "factorbacktest/internal/repository/mocks"
 	"factorbacktest/internal/util"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-
-	_ "github.com/lib/pq"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_updatePortfoliosFromTrades(t *testing.T) {
@@ -37,7 +37,7 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 		cashTickerID := uuid.New()
 		investmentID := uuid.New()
 		aaplTickerID := uuid.New()
-		completedTradesByInvestment := map[uuid.UUID][]model.InvestmentTradeStatus{
+		completedTradesByInvestment := map[uuid.UUID][]*model.InvestmentTradeStatus{
 			investmentID: {
 				newInvestmentTradeStatus(
 					model.TradeOrderSide_Sell,
@@ -90,8 +90,8 @@ func newInvestmentTradeStatus(
 	symbol string,
 	status model.TradeOrderStatus,
 	quantity decimal.Decimal,
-) model.InvestmentTradeStatus {
-	return model.InvestmentTradeStatus{
+) *model.InvestmentTradeStatus {
+	return &model.InvestmentTradeStatus{
 		Side:         &side,
 		Symbol:       &symbol,
 		Status:       &status,
@@ -104,4 +104,47 @@ func newInvestmentTradeStatus(
 		// TradeOrderID:    &[16]byte{},
 		// TickerID:        &[16]byte{},
 	}
+}
+
+func TestAddTradesToPortfolio(t *testing.T) {
+	t.Run("add a few trades to portfolio with positions", func(t *testing.T) {
+		startPortfolio := &domain.Portfolio{
+			Positions: map[string]*domain.Position{
+				"AAPL": {
+					ExactQuantity: decimal.NewFromInt(100),
+				},
+				"MSFT": {
+					ExactQuantity: decimal.NewFromInt(100),
+				},
+				"GOOG": {
+					ExactQuantity: decimal.NewFromInt(100),
+				},
+			},
+			Cash: util.DecimalPointer(decimal.Zero),
+		}
+		trades := []*model.InvestmentTradeStatus{
+			{
+				Symbol:       util.StringPointer("AAPL"),
+				Quantity:     util.DecimalPointer(decimal.NewFromInt(100)),
+				Side:         util.TradeOrderSidePointer(model.TradeOrderSide_Buy),
+				FilledPrice:  util.DecimalPointer(decimal.NewFromInt(100)),
+				TradeOrderID: util.UUIDPointer(uuid.New()),
+			},
+			{
+				Symbol:       util.StringPointer("GOOG"),
+				Quantity:     util.DecimalPointer(decimal.NewFromInt(100)),
+				Side:         util.TradeOrderSidePointer(model.TradeOrderSide_Sell),
+				FilledPrice:  util.DecimalPointer(decimal.NewFromInt(50)),
+				TradeOrderID: util.UUIDPointer(uuid.New()),
+			},
+		}
+
+		newPortfolio := AddTradesToPortfolio(trades, startPortfolio)
+
+		require.Equal(t, decimal.NewFromInt(200), newPortfolio.Positions["AAPL"].ExactQuantity)
+
+		_, ok := newPortfolio.Positions["GOOG"]
+		require.True(t, !ok, fmt.Sprintf("GOOG was found in portfolio positions: %v", newPortfolio.Positions["GOOG"]))
+		require.Equal(t, decimal.NewFromInt(-5_000), *newPortfolio.Cash)
+	})
 }
