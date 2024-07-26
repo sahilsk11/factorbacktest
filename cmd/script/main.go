@@ -22,6 +22,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(reconcileCmd)
+	rootCmd.AddCommand(rebalanceCmd)
 	rootCmd.AddCommand(updateOrdersCmd)
 }
 
@@ -98,6 +99,7 @@ func Execute() {
 }
 
 func main() {
+	os.Setenv("ALPHA_ENV", "dev")
 	Execute()
 }
 

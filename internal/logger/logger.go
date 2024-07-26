@@ -17,7 +17,7 @@ func New() *zap.SugaredLogger {
 	)
 	opts := []zap.Option{
 		zap.AddStacktrace(zap.ErrorLevel),
-		zap.AddCallerSkip(1),
+		// zap.AddCallerSkip(1),
 	}
 
 	if strings.ToLower(os.Getenv("ALPHA_ENV")) == "dev" {

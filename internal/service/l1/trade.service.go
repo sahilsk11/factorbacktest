@@ -219,7 +219,6 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 	// leaving the col null in investmentTrade
 
 	trades, excess := aggregateAndFormatTrades(rawTrades)
-	log.Infof("excess amounts: %v", excess)
 
 	// todo - ledger this in db and maybe use this
 	// when trading idk
@@ -227,6 +226,7 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 	for _, e := range excess {
 		totalExcess = totalExcess.Add(e)
 	}
+	log.Infof("total excess amount: %f. breakdown %v", totalExcess.InexactFloat64(), excess)
 	if totalExcess.GreaterThan(decimal.NewFromInt(10)) {
 		return nil, fmt.Errorf("excess amount exceeds $10: calculated %f", totalExcess.InexactFloat64())
 	}
