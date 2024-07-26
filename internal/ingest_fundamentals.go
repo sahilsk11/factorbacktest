@@ -6,7 +6,6 @@ import (
 	"factorbacktest/internal/repository"
 	"factorbacktest/pkg/datajockey"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"time"
@@ -24,7 +23,7 @@ func IngestUniverseFundamentals(
 ) error {
 	assets, err := tickerRepository.List()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to list tickers: %w", err)
 	}
 	errors := []error{}
 	for _, a := range assets {

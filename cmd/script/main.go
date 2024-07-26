@@ -41,7 +41,7 @@ var reconcileCmd = &cobra.Command{
 		l := logger.New()
 		ctx = context.WithValue(ctx, logger.ContextKey, l)
 
-		logger.Info("reconciling")
+		l.Info("reconciling")
 
 		err = handler.InvestmentService.Reconcile(ctx)
 		if err != nil {
@@ -66,7 +66,7 @@ var rebalanceCmd = &cobra.Command{
 		lg := logger.New()
 		ctx = context.WithValue(ctx, logger.ContextKey, lg)
 
-		logger.Info("rebalancing")
+		lg.Info("rebalancing")
 
 		err = handler.InvestmentService.Rebalance(ctx)
 		if err != nil {
@@ -83,7 +83,8 @@ var updateOrdersCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		logger.Info("updating orders")
+		log := logger.New()
+		log.Info("updating orders")
 
 		updateOrders(handler)
 	},

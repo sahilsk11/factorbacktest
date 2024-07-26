@@ -21,6 +21,8 @@ type addAssetsToUniverseRequest struct {
 }
 
 func (m ApiHandler) addAssetsToUniverse(c *gin.Context) {
+	log := logger.FromContext(c)
+
 	tx, err := m.Db.Begin()
 	if err != nil {
 		returnErrorJson(err, c)
@@ -64,7 +66,7 @@ func (m ApiHandler) addAssetsToUniverse(c *gin.Context) {
 		// try getting price on some random day to check if we already track the price
 		_, err = m.PriceRepository.Get(ticker.Symbol, time.Date(2024, 06, 12, 0, 0, 0, 0, time.UTC))
 		if err == nil {
-			logger.Info("skipping", ticker.Symbol)
+			log.Warnf("skipping %s", ticker.Symbol)
 			continue
 		}
 		err = l1_service.IngestPrices(tx, ticker.Symbol, m.PriceRepository, nil)

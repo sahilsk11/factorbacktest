@@ -810,16 +810,16 @@ func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, inves
 	return reconErrors, nil
 }
 
-func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
+func (h investmentServiceHandler) reconcileAggregatePortfolio() ([]ReconErr, error) {
 	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	totalHoldings := domain.NewPortfolio()
 	for _, i := range investments {
 		holdings, err := h.HoldingsRepository.GetLatestHoldings(nil, i.InvestmentID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		totalHoldings.SetCash(totalHoldings.Cash.Add(*holdings.Cash))
 		for _, p := range holdings.Positions {
@@ -838,34 +838,41 @@ func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
 
 	account, err := h.AlpacaRepository.GetAccount()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if account.Cash.LessThan(*totalHoldings.Cash) {
+	reconErrors := []ReconErr{}
 
-		logger.Error(fmt.Errorf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()))
+	if account.Cash.LessThan(*totalHoldings.Cash) {
+		reconErrors = append(reconErrors, ReconErr{
+			Message: fmt.Sprintf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()),
+		})
 	}
 
 	excessHoldingThreshold := decimal.NewFromInt(2)
 
 	actuallyHeld, err := h.AlpacaRepository.GetPositions()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	epsilonZero := decimal.NewFromFloat(1e-6)
 	for _, p := range totalHoldings.Positions {
 		for _, a := range actuallyHeld {
 			if a.Symbol == p.Symbol {
 				if a.Qty.LessThan(p.ExactQuantity.Sub(epsilonZero)) {
-					logger.Error(fmt.Errorf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f (%f)", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64(), a.Qty.Sub(p.ExactQuantity).InexactFloat64()))
+					reconErrors = append(reconErrors, ReconErr{
+						Message: fmt.Sprintf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f (%f)", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64(), a.Qty.Sub(p.ExactQuantity).InexactFloat64()),
+					})
 				} else if a.Qty.GreaterThan(p.ExactQuantity.Add(excessHoldingThreshold)) {
-					logger.Warn("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64())
+					reconErrors = append(reconErrors, ReconErr{
+						Message: fmt.Sprintf("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64()),
+					})
 				}
 			}
 		}
 	}
 
-	return nil
+	return reconErrors, nil
 }
 
 func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
@@ -890,9 +897,12 @@ func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
 			log.Warnf("trade recon err on investment %s: %s", reconErr.InvestmentID.String(), reconErr.Message)
 		}
 	}
-	err = h.reconcileAggregatePortfolio()
+	reconErrors, err := h.reconcileAggregatePortfolio()
 	if err != nil {
 		return err
+	}
+	for _, err := range reconErrors {
+		log.Warnf("recon err on aggregate portfolio %s: %s", err.InvestmentID.String(), err.Message)
 	}
 
 	return nil

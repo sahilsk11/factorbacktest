@@ -49,6 +49,7 @@ type LatestHoldings struct {
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
+	log := logger.FromContext(c)
 	profile, endProfile := domain.NewProfile()
 	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
@@ -99,10 +100,10 @@ func (h ApiHandler) backtest(c *gin.Context) {
 				requestId = &id
 			}
 		} else {
-			logger.Warn("failed to convert to str")
+			log.Warn("failed to convert to str")
 		}
 	} else {
-		logger.Warn("missing from ctx")
+		log.Warn("request id missing from ctx")
 	}
 	// ensure the user input is valid
 	err = saveUserStrategy(

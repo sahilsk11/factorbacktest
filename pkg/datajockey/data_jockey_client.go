@@ -2,11 +2,12 @@ package datajockey
 
 import (
 	"encoding/json"
-	"factorbacktest/internal/logger"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type Client struct {
@@ -88,7 +89,7 @@ func (c Client) GetAssetMetrics(symbol string) (*FinancialResponse, error) {
 	}
 
 	if response.StatusCode == 429 {
-		logger.Debug("hit rate limit. sleeping...")
+		zap.L().Warn("hit rate limit. sleeping...")
 		time.Sleep(60 * time.Second)
 		return c.GetAssetMetrics(symbol)
 	} else if response.StatusCode != 200 {

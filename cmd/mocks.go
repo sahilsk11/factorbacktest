@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"factorbacktest/internal/domain"
-	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 const UseMockAlpaca = true
@@ -37,7 +37,7 @@ type mockAlpacaRepositoryHandler struct {
 }
 
 func NewMockAlpacaRepository(alpacaRepository repository.AlpacaRepository, toRepository repository.TradeOrderRepository, tickerRepository repository.TickerRepository) MockAlpacaRepository {
-	logger.Info(`*******************
+	zap.L().Info(`*******************
 WARNING: Using mock Alpaca service. May not reflect real conditions
 *******************`)
 
