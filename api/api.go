@@ -186,6 +186,11 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		userID = GetUserIDUrlParam(ctx)
 	}
 
+	if userID != nil {
+		lg = lg.With("userID", userID.String())
+		ctx.Set(logger.ContextKey, lg)
+	}
+
 	var userAccountID *uuid.UUID
 	if id, ok := ctx.Get("userAccountID"); ok {
 		if idStr, ok := id.(string); ok {
@@ -212,8 +217,8 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	}
 
 	lg = lg.With("requestID", req.RequestID.String())
-
 	ctx.Set(logger.ContextKey, lg)
+
 	ctx.Next()
 
 	if req != nil {
