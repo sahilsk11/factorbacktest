@@ -38,11 +38,14 @@ var reconcileCmd = &cobra.Command{
 		defer endProfile()
 		ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
 
+		l := logger.New()
+		ctx = context.WithValue(ctx, logger.ContextKey, l)
+
 		logger.Info("reconciling")
 
 		err = handler.InvestmentService.Reconcile(ctx)
 		if err != nil {
-			logger.Error(err)
+			l.Error(err.Error())
 			log.Fatal(err)
 		}
 	},
@@ -60,13 +63,14 @@ var rebalanceCmd = &cobra.Command{
 		profile, endProfile := domain.NewProfile()
 		defer endProfile()
 		ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+		lg := logger.New()
+		ctx = context.WithValue(ctx, logger.ContextKey, lg)
 
 		logger.Info("rebalancing")
 
 		err = handler.InvestmentService.Rebalance(ctx)
 		if err != nil {
-			logger.Error(err)
-			log.Fatal(err)
+			lg.Fatal(err.Error())
 		}
 	},
 }

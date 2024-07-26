@@ -4,6 +4,7 @@ import (
 	"context"
 	"factorbacktest/api"
 	"factorbacktest/cmd"
+	"factorbacktest/internal/logger"
 	"log"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -16,7 +17,10 @@ type lambdaHandler struct {
 }
 
 func (m lambdaHandler) Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	engine := m.apiHandler.InitializeRouterEngine()
+	lg := logger.New()
+	ctx = context.WithValue(ctx, logger.ContextKey, lg)
+
+	engine := m.apiHandler.InitializeRouterEngine(ctx)
 	ginLambda := ginadapter.New(engine)
 
 	return ginLambda.ProxyWithContext(ctx, req)

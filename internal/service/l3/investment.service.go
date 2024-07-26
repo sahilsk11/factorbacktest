@@ -678,6 +678,12 @@ func targetPortfolioToJson(c ComputeTargetPortfolioResponse) ([]byte, error) {
 }
 
 func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, investmentID uuid.UUID) error {
+	lg := logger.FromContext(ctx).With(
+		"investmentID", investmentID.String(),
+	)
+	ctx = context.WithValue(ctx, logger.ContextKey, lg)
+
+	lg.Info("running investment reconciliation")
 	// check deviance from backtested result
 	// check that positions are > 0
 	// are we planning to flag when trades executed at varying

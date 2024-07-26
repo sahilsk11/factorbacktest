@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/internal"
@@ -13,7 +14,6 @@ import (
 	googleauth "factorbacktest/pkg/google-auth"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -54,29 +54,41 @@ func strPtr(s string) *string {
 	return &s
 }
 
-func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
-	router := gin.Default()
+func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
+	engine := gin.New()
+	engine.Use(gin.Recovery())
+	lg := logger.FromContext(ctx)
 
-	router.Use(blockBots)
-	router.Use(cors.New(cors.Config{
+	engine.Use(func(c *gin.Context) {
+		l := lg.With(
+			"method", c.Request.Method,
+			"route", c.Request.URL.Path,
+		)
+		c.Set(logger.ContextKey, l)
+	})
+	engine.Use(blockBots)
+	engine.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
 			"http://localhost:3000",
 			"https://factorbacktest.net",
 		},
 		AllowHeaders: []string{"Authorization", "Content-Type"},
 	}))
-	router.Use(m.getGoogleAuthMiddleware)
-	router.Use(m.logRequestMiddlware)
+	engine.Use(m.getGoogleAuthMiddleware)
+	engine.Use(m.logRequestMiddlware)
+	engine.Use(func(ctx *gin.Context) {
+		logger.FromContext(ctx).Info("new request")
+	})
 
-	router.GET("/", func(ctx *gin.Context) {
+	engine.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(200, map[string]string{"message": "welcome to alpha"})
 	})
 
-	router.POST("/backtest", m.backtest)
-	router.POST("/benchmark", m.benchmark)
-	router.POST("/contact", m.contact)
-	router.POST("/constructFactorEquation", m.constructFactorEquation)
-	router.GET("/usageStats", func(ctx *gin.Context) {
+	engine.POST("/backtest", m.backtest)
+	engine.POST("/benchmark", m.benchmark)
+	engine.POST("/contact", m.contact)
+	engine.POST("/constructFactorEquation", m.constructFactorEquation)
+	engine.GET("/usageStats", func(ctx *gin.Context) {
 		result, err := repository.GetUsageStats(m.Db)
 		if err != nil {
 			returnErrorJson(err, ctx)
@@ -84,34 +96,32 @@ func (m ApiHandler) InitializeRouterEngine() *gin.Engine {
 		}
 		ctx.JSON(200, result)
 	})
-	router.GET("/assetUniverses", m.getAssetUniverses)
+	engine.GET("/assetUniverses", m.getAssetUniverses)
 
-	router.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
-	router.POST("/updatePrices", m.updatePrices)
-	router.POST("/addAssetsToUniverse", m.addAssetsToUniverse)
-	router.POST("/bookmarkStrategy", m.bookmarkStrategy)
-	router.POST("/isStrategyBookmarked", m.isStrategyBookmarked)
-	router.GET("/savedStrategies", m.getSavedStrategies)
-	router.POST("/investInStrategy", m.investInStrategy)
-	router.GET("/activeInvestments", m.getInvestments)
+	engine.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
+	engine.POST("/updatePrices", m.updatePrices)
+	engine.POST("/addAssetsToUniverse", m.addAssetsToUniverse)
+	engine.POST("/bookmarkStrategy", m.bookmarkStrategy)
+	engine.POST("/isStrategyBookmarked", m.isStrategyBookmarked)
+	engine.GET("/savedStrategies", m.getSavedStrategies)
+	engine.POST("/investInStrategy", m.investInStrategy)
+	engine.GET("/activeInvestments", m.getInvestments)
 
-	return router
+	return engine
 }
 
-func (m ApiHandler) StartApi(port int) error {
-	router := m.InitializeRouterEngine()
-	return router.Run(fmt.Sprintf(":%d", port))
+func (m ApiHandler) StartApi(ctx context.Context, port int) error {
+	engine := m.InitializeRouterEngine(ctx)
+	return engine.Run(fmt.Sprintf(":%d", port))
 }
 
 func returnErrorJson(err error, c *gin.Context) {
-	logger.Error(err)
-	c.AbortWithStatusJSON(500, gin.H{
-		"error": err.Error(),
-	})
+	returnErrorJsonCode(err, c, 500)
 }
 
 func returnErrorJsonCode(err error, c *gin.Context, code int) {
-	logger.Error(err)
+	lg := logger.FromContext(c)
+	lg.Errorf("[%d] %s", code, err.Error())
 	c.AbortWithStatusJSON(code, gin.H{
 		"error": err.Error(),
 	})
@@ -141,6 +151,7 @@ func (r responseBodyWriter) Write(b []byte) (int, error) {
 }
 
 func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
+	lg := logger.FromContext(ctx)
 	w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: ctx.Writer}
 	ctx.Writer = w
 
@@ -152,7 +163,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	if method == "POST" {
 		body, err := ctx.GetRawData()
 		if err != nil {
-			log.Println(fmt.Errorf("failed to get raw data: %w", err))
+			lg.Warnf("failed to get raw data: %s", err.Error())
 		}
 		ctx.Request.Body = io.NopCloser(bytes.NewReader(body))
 		requestBody = strPtr(string(body))
@@ -164,7 +175,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		reqBody := userIdBody{}
 		err = json.Unmarshal(body, &reqBody)
 		if err != nil {
-			log.Println(fmt.Errorf("failed to get req body: %w", err))
+			lg.Warnf("failed to get req body: %s", err.Error())
 		}
 
 		if reqBody.UserID != uuid.Nil {
@@ -197,10 +208,12 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		UserAccountID: userAccountID,
 	})
 	if err != nil {
-		log.Println(err)
+		lg.Warn(err.Error())
 	}
 
-	ctx.Set("requestID", req.RequestID.String())
+	lg = lg.With("requestID", req.RequestID.String())
+
+	ctx.Set(logger.ContextKey, lg)
 	ctx.Next()
 
 	if req != nil {
@@ -210,7 +223,7 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 
 		err = m.ApiRequestRepository.Update(m.Db, *req)
 		if err != nil {
-			log.Println(err)
+			lg.Error(err)
 		}
 	}
 
@@ -223,23 +236,28 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 		return
 	}
 	if !strings.HasPrefix(jwt, "Bearer ") {
-		c.AbortWithStatusJSON(403, map[string]string{"error": "misformatted auth"})
+		returnErrorJsonCode(fmt.Errorf("misformatted auth"), c, 403)
 		return
 	}
 	jwt = jwt[len("Bearer "):]
 	userDetails, err := googleauth.GetUserDetails(jwt)
 	if err != nil {
-		c.AbortWithStatusJSON(403, map[string]string{"error": fmt.Sprintf("failed google auth: %s", err.Error())})
+		returnErrorJsonCode(fmt.Errorf("failed google auth: %s", err.Error()), c, 403)
 		return
 	}
 
 	user, err := m.UserAccountRepository.GetOrCreate(*userDetails)
 	if err != nil {
-		c.AbortWithStatusJSON(500, map[string]string{"error": fmt.Sprintf("failed create user: %s", err.Error())})
+		returnErrorJsonCode(fmt.Errorf("failed create user: %s", err.Error()), c, 500)
 		return
 	}
 
 	c.Set("userAccountID", user.UserAccountID.String())
+
+	lg := logger.FromContext(c).With(
+		"userAccountID", user.UserAccountID.String(),
+	)
+	c.Set(logger.ContextKey, lg)
 
 	c.Next()
 }
