@@ -72,6 +72,7 @@ type workResult struct {
 // using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
 // despite using workers, this is still the slowest part of the flow
 func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error) {
+	log := logger.FromContext(ctx)
 	profile, endProfile := domain.GetProfile(ctx)
 	defer endProfile()
 
@@ -90,7 +91,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	if len(inputs) == 0 {
 		return nil, fmt.Errorf("cannot calculate factor scores with 0 inputs")
 	}
-	logger.Debug("computing %d scores\n", len(inputs))
+	// logger.Debug("computing %d scores\n", len(inputs))
 
 	out := map[time.Time]*ScoresResultsOnDay{}
 
@@ -123,7 +124,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		}
 		endSpan()
 
-		logger.Info("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
+		log.Infof("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
 	}
 	span, endSpan := profile.StartNewSpan("load price cache")
 	cache, err := h.loadPriceCache(domain.NewCtxWithSubProfile(ctx, span), inputs)
@@ -198,7 +199,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		totalMs += float64(res.elapsedMs)
 		// newProfile.AddSpan(res.span)
 	}
-	logger.Debug("avg score processing: %f", totalMs/float64(len(results)))
+	// logger.Debug("avg score processing: %f", totalMs/float64(len(results)))
 	// endNewProfile()
 	endSpan()
 

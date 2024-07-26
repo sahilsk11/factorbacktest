@@ -1,6 +1,7 @@
 package l1_service
 
 import (
+	"context"
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
@@ -20,7 +21,7 @@ import (
 type TradeService interface {
 	Buy(input BuyInput) (*model.TradeOrder, error)
 	Sell(input SellInput) (*model.TradeOrder, error)
-	ExecuteBlock([]*domain.ProposedTrade, uuid.UUID) ([]model.TradeOrder, error)
+	ExecuteBlock(context.Context, []*domain.ProposedTrade, uuid.UUID) ([]model.TradeOrder, error)
 	UpdateAllPendingOrders() error
 }
 
@@ -210,14 +211,15 @@ func aggregateAndFormatTrades(trades []*domain.ProposedTrade) ([]*domain.Propose
 }
 
 // assumes trades are already aggregated by symbol
-func (h tradeServiceHandler) ExecuteBlock(rawTrades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
+func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
+	log := logger.FromContext(ctx)
 	// TODO - should we still store the trade order if it failed,
 	// but give it status failed? i think that will be easier to
 	// look up later and understand what happened instead of
 	// leaving the col null in investmentTrade
 
 	trades, excess := aggregateAndFormatTrades(rawTrades)
-	logger.Info("excess amounts: %v", excess)
+	log.Infof("excess amounts: %v", excess)
 
 	// todo - ledger this in db and maybe use this
 	// when trading idk

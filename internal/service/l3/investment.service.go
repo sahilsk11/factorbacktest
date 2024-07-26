@@ -230,7 +230,8 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 // listForRebalance retrieves all investments that should be
 // rebalanced right now
 // todo - fix so that it looks at rebalance interval
-func (h investmentServiceHandler) listForRebalance() ([]model.Investment, error) {
+func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model.Investment, error) {
+	log := logger.FromContext(ctx)
 	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
 		return nil, err
@@ -254,7 +255,7 @@ func (h investmentServiceHandler) listForRebalance() ([]model.Investment, error)
 		if pendingInvestmentTradeID == uuid.Nil {
 			investmentsToRebalance = append(investmentsToRebalance, investment)
 		} else {
-			logger.Info("skipping rebalancing investment id %s: has pending investment trade %s\n", investment.InvestmentID, pendingInvestmentTradeID)
+			log.Infof("skipping rebalancing investment id %s: has pending investment trade %s\n", investment.InvestmentID, pendingInvestmentTradeID)
 		}
 	}
 
@@ -449,6 +450,7 @@ func transitionToTarget(
 }
 
 func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
+	log := logger.FromContext(ctx)
 	date := time.Now().UTC()
 
 	// get all assets
@@ -472,12 +474,12 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	}
 
 	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
-	investmentsToRebalance, err := h.listForRebalance()
+	investmentsToRebalance, err := h.listForRebalance(ctx)
 	if err != nil {
 		return err
 	}
 
-	logger.Info("found %d investments to rebalance", len(investmentsToRebalance))
+	log.Infof("found %d investments to rebalance", len(investmentsToRebalance))
 
 	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
 		Date:                    date,
@@ -517,7 +519,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		investmentTrades = append(investmentTrades, result.InsertedInvestmentTrades...)
 	}
 
-	logger.Info("generated %d investment trades", len(investmentTrades))
+	log.Infof("generated %d investment trades", len(investmentTrades))
 
 	rebalancerRun.RebalancerRunState = model.RebalancerRunState_Pending
 	if len(investmentsToRebalance) == 0 {
@@ -543,7 +545,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	// until we have some fancier math for reconciling completed trades,
 	// treat any failure here as fatal
 	// TODO - improve reconciliation + partial trade completion
-	executedTrades, tradeExecutionErr := h.TradingService.ExecuteBlock(proposedTrades, rebalancerRun.RebalancerRunID)
+	executedTrades, tradeExecutionErr := h.TradingService.ExecuteBlock(ctx, proposedTrades, rebalancerRun.RebalancerRunID)
 
 	// kinda weird but if the trade block failed without trades being
 	// run, we can just revert the whole thing and say the run failed
@@ -553,7 +555,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			return err
 		}
 	} else {
-		logger.Warn("rolling back")
+		log.Warn("rolling back")
 	}
 
 	updateInvesmtentTradeErrors := []error{}
@@ -677,7 +679,12 @@ func targetPortfolioToJson(c ComputeTargetPortfolioResponse) ([]byte, error) {
 	return bytes, nil
 }
 
-func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, investmentID uuid.UUID) error {
+type ReconErr struct {
+	Message      string
+	InvestmentID *uuid.UUID
+}
+
+func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, investmentID uuid.UUID) ([]ReconErr, error) {
 	lg := logger.FromContext(ctx).With(
 		"investmentID", investmentID.String(),
 	)
@@ -691,11 +698,11 @@ func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, inves
 	// maybe check for trades in error states
 	investment, err := h.InvestmentRepository.Get(investmentID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	strategy, err := h.SavedStrategyRepository.Get(investment.SavedStragyID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	targetWeights := map[string]float64{}
@@ -726,7 +733,7 @@ func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, inves
 			Snapshots: map[string]BacktestSnapshot{},
 		}
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 
 	// since we're dealing with weights from the last rebalance,
@@ -735,58 +742,72 @@ func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, inves
 	// their value was when we rebalanced maybe
 	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	reconErrors := []ReconErr{}
+
 	if currentHoldings.Cash.LessThan(decimal.NewFromInt(-1)) {
-		logger.Warn("investment %s is holding %f cash", investmentID.String(), currentHoldings.Cash.InexactFloat64())
+		reconErrors = append(reconErrors, ReconErr{
+			Message:      fmt.Sprintf("investment %s is holding %f cash", investmentID.String(), currentHoldings.Cash.InexactFloat64()),
+			InvestmentID: &investmentID,
+		})
 	}
 
 	for _, position := range currentHoldings.Positions {
 		if position.ExactQuantity.LessThan(decimal.Zero) {
-			logger.Error(fmt.Errorf("investment %s has %f of %s", investmentID.String(), position.ExactQuantity.InexactFloat64(), position.Symbol))
-		}
-	}
-
-	if len(backtestResponse.Snapshots) > 0 {
-		latestResult := ""
-		for k := range backtestResponse.Snapshots {
-			if k > latestResult {
-				latestResult = k
-			}
-		}
-		latestSnapshot := backtestResponse.Snapshots[latestResult]
-		for symbol, metrics := range latestSnapshot.AssetMetrics {
-			targetWeights[symbol] = metrics.AssetWeight
+			reconErrors = append(reconErrors, ReconErr{
+				InvestmentID: &investmentID,
+				Message:      fmt.Sprintf("investment %s has %f of %s", investmentID.String(), position.ExactQuantity.InexactFloat64(), position.Symbol),
+			})
 		}
 
-		// tbh just see if the assets line up for now, figure out weights
-		// later maybe
-		for k := range targetWeights {
-			found := false
-			for _, p := range currentHoldings.Positions {
-				if p.Symbol == k {
-					found = true
+		if len(backtestResponse.Snapshots) > 0 {
+			latestResult := ""
+			for k := range backtestResponse.Snapshots {
+				if k > latestResult {
+					latestResult = k
 				}
 			}
-			if !found {
-				logger.Error(fmt.Errorf("investment %s expected to hold %s, but is not", investmentID.String(), k))
+			latestSnapshot := backtestResponse.Snapshots[latestResult]
+			for symbol, metrics := range latestSnapshot.AssetMetrics {
+				targetWeights[symbol] = metrics.AssetWeight
 			}
-		}
-		for _, p := range currentHoldings.Positions {
-			found := false
+
+			// tbh just see if the assets line up for now, figure out weights
+			// later maybe
 			for k := range targetWeights {
-				if p.Symbol == k {
-					found = true
+				found := false
+				for _, p := range currentHoldings.Positions {
+					if p.Symbol == k {
+						found = true
+					}
+				}
+				if !found {
+					reconErrors = append(reconErrors, ReconErr{
+						InvestmentID: &investmentID,
+						Message:      fmt.Sprintf("investment %s expected to hold %s, but is not", investmentID.String(), k),
+					})
 				}
 			}
-			if !found {
-				logger.Error(fmt.Errorf("investment %s holding %s, but is not expected to", investmentID.String(), p.Symbol))
+			for _, p := range currentHoldings.Positions {
+				found := false
+				for k := range targetWeights {
+					if p.Symbol == k {
+						found = true
+					}
+				}
+				if !found {
+					reconErrors = append(reconErrors, ReconErr{
+						InvestmentID: &investmentID,
+						Message:      fmt.Sprintf("investment %s holding %s, but is not expected to", investmentID.String(), p.Symbol),
+					})
+				}
 			}
 		}
 	}
 
-	return nil
+	return reconErrors, nil
 }
 
 func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
@@ -819,7 +840,9 @@ func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
 	if err != nil {
 		return err
 	}
+
 	if account.Cash.LessThan(*totalHoldings.Cash) {
+
 		logger.Error(fmt.Errorf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()))
 	}
 
@@ -846,19 +869,25 @@ func (h investmentServiceHandler) reconcileAggregatePortfolio() error {
 }
 
 func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
+	log := logger.FromContext(ctx)
 	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
 		return err
 	}
 	for _, i := range investments {
-		err = h.reconcileInvestment(ctx, i.InvestmentID)
+		reconErrors, err := h.reconcileInvestment(ctx, i.InvestmentID)
 		if err != nil {
 			return err
 		}
+		for _, err := range reconErrors {
+			log.Warnf("recon err on investment %s: %s", err.InvestmentID.String(), err.Message)
+		}
 
-		err = h.reconcileTrades(i.InvestmentID)
+		reconErr, err := h.reconcileTrades(i.InvestmentID)
 		if err != nil {
 			return err
+		} else if reconErr != nil {
+			log.Warnf("trade recon err on investment %s: %s", reconErr.InvestmentID.String(), reconErr.Message)
 		}
 	}
 	err = h.reconcileAggregatePortfolio()
@@ -869,15 +898,15 @@ func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) error {
+func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) (*ReconErr, error) {
 	initialVersionID, err := h.HoldingsVersionRepository.GetEarliestVersionID(investmentID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	initialHoldings, err := h.HoldingsRepository.Get(*initialVersionID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	status := model.TradeOrderStatus_Completed
@@ -886,22 +915,25 @@ func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) error 
 		Status:       &status,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	newPortfolio := l1_service.AddTradesToPortfolio(trades, initialHoldings)
 
 	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	epsilon := decimal.NewFromFloat(0.00001)
 	if portfoliosMatch, reason := comparePortfolios(newPortfolio, currentHoldings, epsilon); !portfoliosMatch {
-		logger.Error(fmt.Errorf("investment %s failed trade recon: %s", investmentID.String(), reason))
+		return &ReconErr{
+			InvestmentID: &investmentID,
+			Message:      reason,
+		}, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func comparePortfolios(portfolioAfterTrades, targetPortfolio *domain.Portfolio, epsilon decimal.Decimal) (bool, string) {

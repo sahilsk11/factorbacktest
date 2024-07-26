@@ -468,6 +468,7 @@ func UpdateUniversePrices(
 }
 
 func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPriceRepository repository.AdjustedPriceRepository) error {
+	log := logger.FromContext(ctx)
 	numGoroutines := 10
 
 	inputCh := make(chan string, len(symbols))
@@ -491,7 +492,7 @@ func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPri
 					}
 					err := IngestPrices(tx, symbol, adjPriceRepository, nil)
 					if err != nil {
-						logger.Warn("failed to ingest price for %s: %s\n", symbol, err.Error())
+						log.Warnf("failed to ingest price for %s: %s\n", symbol, err.Error())
 					}
 					wg.Done()
 				}

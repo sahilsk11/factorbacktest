@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 
 type AlpacaRepository interface {
 	PlaceOrder(req AlpacaPlaceOrderRequest) (*alpaca.Order, error)
-	CancelOpenOrders() error
+	CancelOpenOrders(context.Context) error
 	GetPositions() ([]alpaca.Position, error)
 	IsMarketOpen() (bool, error)
 	GetAccount() (*alpaca.Account, error)
@@ -91,7 +92,8 @@ func (h alpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]d
 	return out, nil
 }
 
-func (h alpacaRepositoryHandler) CancelOpenOrders() error {
+func (h alpacaRepositoryHandler) CancelOpenOrders(ctx context.Context) error {
+	log := logger.FromContext(ctx)
 	orders, err := h.Client.GetOrders(alpaca.GetOrdersRequest{
 		Status: "open",
 		Until:  time.Now(),
@@ -106,7 +108,7 @@ func (h alpacaRepositoryHandler) CancelOpenOrders() error {
 		}
 	}
 
-	logger.Info("%d order(s) cancelled\n", len(orders))
+	log.Info("%d order(s) cancelled\n", len(orders))
 	return nil
 }
 
