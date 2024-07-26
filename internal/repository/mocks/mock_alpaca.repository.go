@@ -10,6 +10,7 @@
 package mock_repository
 
 import (
+	context "context"
 	domain "factorbacktest/internal/domain"
 	repository "factorbacktest/internal/repository"
 	reflect "reflect"
@@ -44,17 +45,17 @@ func (m *MockAlpacaRepository) EXPECT() *MockAlpacaRepositoryMockRecorder {
 }
 
 // CancelOpenOrders mocks base method.
-func (m *MockAlpacaRepository) CancelOpenOrders() error {
+func (m *MockAlpacaRepository) CancelOpenOrders(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CancelOpenOrders")
+	ret := m.ctrl.Call(m, "CancelOpenOrders", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CancelOpenOrders indicates an expected call of CancelOpenOrders.
-func (mr *MockAlpacaRepositoryMockRecorder) CancelOpenOrders() *gomock.Call {
+func (mr *MockAlpacaRepositoryMockRecorder) CancelOpenOrders(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelOpenOrders", reflect.TypeOf((*MockAlpacaRepository)(nil).CancelOpenOrders))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelOpenOrders", reflect.TypeOf((*MockAlpacaRepository)(nil).CancelOpenOrders), arg0)
 }
 
 // GetAccount mocks base method.

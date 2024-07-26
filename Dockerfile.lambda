@@ -1,11 +1,31 @@
+# Stage 1: Build the Go application
 FROM golang:1.20 AS builder
-COPY . /go/src/app
-COPY secrets.json /go/src/app/secrets.json
+
+# Set the destination for the application
 WORKDIR /go/src/app
+
+# Copy the Go Modules manifests first and download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest of the application's source code
+COPY . .
+
+# Set build arguments and environment variables
 ARG commit_hash
 ENV commit_hash $commit_hash
+
+# Build the application
 RUN go build -tags lambda.norpc -o main cmd/lambda/main.go
+
+# Stage 2: Create the final image
 FROM public.ecr.aws/lambda/provided:al2023
+
+# Copy the built binary from the builder stage
 COPY --from=builder /go/src/app/main /main
+
+# Copy secrets if necessary
 COPY secrets.json /go/src/app/secrets.json
+
+# Set the entrypoint
 ENTRYPOINT [ "/main" ]

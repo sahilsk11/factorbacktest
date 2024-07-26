@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -51,7 +52,7 @@ func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 	handler, err := initializeHandler()
 	require.NoError(t, err)
 	defer func() {
-		handler.CancelOpenOrders()
+		handler.CancelOpenOrders(context.Background())
 	}()
 
 	order, err := handler.PlaceOrder(AlpacaPlaceOrderRequest{

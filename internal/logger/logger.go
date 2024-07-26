@@ -57,7 +57,8 @@ const ContextKey = "LOGGER"
 func FromContext(ctx context.Context) *zap.SugaredLogger {
 	logger, ok := ctx.Value(ContextKey).(*zap.SugaredLogger)
 	if !ok {
-		panic("logger not found in ctx")
+		logger := New()
+		logger.Warn("no logger found in ctx - creating new one")
 	}
 	return logger
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
@@ -20,7 +21,7 @@ const UseMockAlpaca = true
 
 type MockAlpacaRepository interface {
 	PlaceOrder(req repository.AlpacaPlaceOrderRequest) (*alpaca.Order, error)
-	CancelOpenOrders() error
+	CancelOpenOrders(context.Context) error
 	GetPositions() ([]alpaca.Position, error)
 	IsMarketOpen() (bool, error)
 	GetAccount() (*alpaca.Account, error)
@@ -56,8 +57,8 @@ func (m mockAlpacaRepositoryHandler) GetLatestPricesWithTs(symbols []string) (ma
 	return m.realAlpacaRepository.GetLatestPricesWithTs(symbols)
 }
 
-func (m mockAlpacaRepositoryHandler) CancelOpenOrders() error {
-	return m.realAlpacaRepository.CancelOpenOrders()
+func (m mockAlpacaRepositoryHandler) CancelOpenOrders(ctx context.Context) error {
+	return m.realAlpacaRepository.CancelOpenOrders(ctx)
 }
 
 func (m mockAlpacaRepositoryHandler) GetPositions() ([]alpaca.Position, error) {
