@@ -20,6 +20,8 @@ type InvestmentTradeStatus struct {
 	Symbol            *string
 	Status            *TradeOrderStatus
 	Quantity          *decimal.Decimal
+	ExpectedPrice     *decimal.Decimal
+	ExpectedAmount    *decimal.Decimal
 	FilledPrice       *decimal.Decimal
 	FilledAmount      *decimal.Decimal
 	FilledAt          *time.Time

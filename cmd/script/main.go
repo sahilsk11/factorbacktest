@@ -77,7 +77,7 @@ var rebalanceCmd = &cobra.Command{
 }
 
 var updateOrdersCmd = &cobra.Command{
-	Use:   "update-orders",
+	Use:   "update",
 	Short: "Update all pending orders",
 	Run: func(c *cobra.Command, args []string) {
 		handler, err := cmd.InitializeDependencies()

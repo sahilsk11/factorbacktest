@@ -23,4 +23,5 @@ type InvestmentTrade struct {
 	TradeOrderID          *uuid.UUID
 	ModifiedAt            time.Time
 	InvestmentRebalanceID uuid.UUID
+	ExpectedPrice         decimal.Decimal
 }

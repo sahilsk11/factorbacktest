@@ -542,21 +542,15 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		return nil
 	}
 
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
 	// until we have some fancier math for reconciling completed trades,
 	// treat any failure here as fatal
 	// TODO - improve reconciliation + partial trade completion
 	executedTrades, tradeExecutionErr := h.TradingService.ExecuteBlock(ctx, proposedTrades, rebalancerRun.RebalancerRunID)
-
-	// kinda weird but if the trade block failed without trades being
-	// run, we can just revert the whole thing and say the run failed
-	if len(executedTrades) > 0 {
-		err = tx.Commit()
-		if err != nil {
-			return err
-		}
-	} else {
-		log.Warn("rolling back")
-	}
 
 	updateInvesmtentTradeErrors := []error{}
 	for _, tradeOrder := range executedTrades {
@@ -615,6 +609,7 @@ func proposedTradesToInvestmentTradeModels(trades []*domain.ProposedTrade, inves
 			Quantity:              t.ExactQuantity.Abs(),
 			TradeOrderID:          nil, // need to update and set this
 			InvestmentRebalanceID: investmentRebalanceID,
+			ExpectedPrice:         t.ExpectedPrice,
 		})
 	}
 	return out
