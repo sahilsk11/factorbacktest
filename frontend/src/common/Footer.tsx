@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import footerStyles from  "./Footer.module.css";
 import { endpoint } from "./App";
-import { GoogleAuthUser } from "./models";
+import { GoogleAuthUser } from "../models";
 
 export default function StatsFooter({ userID, user }: { userID: string, user: GoogleAuthUser | null }) {
   const [uniqueUsers, setUniqueUsers] = useState<number | null>(null);

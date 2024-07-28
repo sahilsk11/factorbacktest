@@ -1,4 +1,4 @@
-import { GoogleAuthUser } from "./models";
+import { GoogleAuthUser } from "../models";
 import { googleLogout, useGoogleLogin } from '@react-oauth/google';
 import Navbar from 'react-bootstrap/Navbar';
 import Container from 'react-bootstrap/Container';

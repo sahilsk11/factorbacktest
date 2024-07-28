@@ -1,8 +1,8 @@
 import { useState } from "react";
 import modalsStyle from "./Modals.module.css";
 import formStyles from "./pages/Backtest/Form.module.css";
-import { ContactRequest, GoogleAuthUser } from "./models";
-import { endpoint } from "./App";
+import { ContactRequest, GoogleAuthUser } from "../models";
+import { endpoint } from "../App";
 
 export function HelpModal({ show, close }: {
   show: boolean;
