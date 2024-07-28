@@ -165,7 +165,7 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 
 // coalesces trades by symbol and ensures nominal amount > $2
 // for Alpaca's min order rule
-func (h tradeServiceHandler) aggregateAndFormatTrades(ctx context.Context, trades []*domain.ProposedTrade) ([]*domain.ProposedTrade, map[uuid.UUID]decimal.Decimal) {
+func aggregateAndFormatTrades(ctx context.Context, trades []*domain.ProposedTrade) ([]*domain.ProposedTrade, map[uuid.UUID]decimal.Decimal) {
 	log := logger.FromContext(ctx)
 	// Map to hold aggregated trades by symbol
 	aggregatedTrades := make(map[string]*domain.ProposedTrade)
@@ -232,7 +232,7 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 	// look up later and understand what happened instead of
 	// leaving the col null in investmentTrade
 
-	trades, excessQuantities := h.aggregateAndFormatTrades(ctx, rawTrades)
+	trades, excessQuantities := aggregateAndFormatTrades(ctx, rawTrades)
 
 	// first ensure that we have enough quantity for the order
 	currentHoldings, err := h.AlpacaRepository.GetPositions()
@@ -255,7 +255,7 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 
 	generatedOrders := []model.TradeOrder{}
 
-	// do a simple two pass to run all trades first
+	// do a simple two pass to run all sells first
 	for _, t := range trades {
 		if t.ExactQuantity.LessThan(decimal.Zero) {
 			order, err := h.Sell(SellInput{
