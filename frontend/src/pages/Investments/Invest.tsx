@@ -24,11 +24,16 @@ export default function Invest({
 
   useEffect(() => {
     if (user) {
+      console.log("got user")
       getInvestments()
     }
   }, [user])
 
   async function getInvestments() {
+    if (!user) {
+      alert("fhruei")
+    }
+    console.log(endpoint + "/activeInvestments")
     try {
       const response = await fetch(endpoint + "/activeInvestments", {
         headers: {
@@ -45,6 +50,7 @@ export default function Invest({
       }
     } catch (error) {
       alert((error as Error).message)
+      console.log("def this fuck")
       console.error("Error:", error);
     }
   }

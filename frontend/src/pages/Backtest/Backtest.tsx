@@ -59,7 +59,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   if (pathname === "/" && factorData.length > 0) {
     navigate("/backtest")
   } else if (pathname === "/backtest" && factorData.length === 0) {
-    navigate("/")
+    // navigate("/")
   }
 
   let takenNames: string[] = [];

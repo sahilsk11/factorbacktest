@@ -317,7 +317,7 @@ function InvestModal({
             <ConfettiExplosion zIndex={1000} duration={3000} />
           </div>
           <label className={formStyles.label}>Thanks</label>
-          You're all set. Track your investments <a href="" onClick={() => navigate("/investments")}>here</a>.
+          You're all set. Track your investments <a href="/investments">here</a>.
         </div>
         {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
       </>),

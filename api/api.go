@@ -57,6 +57,7 @@ func strPtr(s string) *string {
 func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
+	// engine.Use(gin.Logger())
 	lg := logger.FromContext(ctx)
 
 	engine.Use(func(c *gin.Context) {

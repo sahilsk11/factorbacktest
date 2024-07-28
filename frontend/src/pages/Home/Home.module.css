@@ -1,11 +1,13 @@
 .container {
   margin: 0px auto;
   display: block;
-  max-width: 1000px;
+  max-width: 1200px;
   width: 90%;
   margin-bottom: 40px;
   text-align: center;
 }
+
+.title_container {}
 
 .verbose_builder_subtitle {
   font-size: 13px;
@@ -16,5 +18,32 @@
 }
 
 .new_btn {
+  margin-top: 0px;
   width: 180px;
+}
+
+.btn_container {
+  margin-bottom: 20px;
+}
+
+.card_container {}
+
+.card_wrapper {
+  /* margin-bottom: 200px; */
+  border: "1px solid red"
+}
+
+.card {
+  width: 18rem;
+  margin-right: 20px;
+  margin-left: 20px;
+  margin-bottom: 20px;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  border: 1px solid rgb(232, 232, 232);
+  cursor: pointer;
+  transition-duration: 0.6s;
+}
+
+.card:hover {
+  box-shadow: rgba(149, 157, 165, 0.8) 0px 8px 24px;
 }
