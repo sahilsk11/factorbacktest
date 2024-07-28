@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const UseMockAlpaca = true
+const UseMockAlpaca = false
 
 // idk if alpaca has sandbox but this is a hacky way to
 // simulate markets being open and orders completed
@@ -40,6 +40,8 @@ func NewMockAlpacaRepository(alpacaRepository repository.AlpacaRepository, toRep
 	zap.L().Info(`*******************
 WARNING: Using mock Alpaca service. May not reflect real conditions
 *******************`)
+
+	time.Sleep(5 * time.Second)
 
 	// todo - ensure we're using paper trading
 

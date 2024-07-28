@@ -62,6 +62,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	investmentTradeRepository := repository.NewInvestmentTradeRepository(dbConn)
 	holdingsVersionRepository := repository.NewInvestmentHoldingsVersionRepository(dbConn)
 	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
+	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
 
 	if UseMockAlpaca {
 		alpacaRepository = NewMockAlpacaRepository(alpacaRepository, tradeOrderRepository, tickerRepository)
@@ -91,6 +92,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		holdingsRepository,
 		holdingsVersionRepository,
 		rebalancerRunRepository,
+		excessVolumeRepository,
 	)
 	investmentService := l3_service.NewInvestmentService(
 		dbConn,

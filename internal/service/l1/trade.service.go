@@ -26,14 +26,15 @@ type TradeService interface {
 }
 
 type tradeServiceHandler struct {
-	Db                        *sql.DB
-	AlpacaRepository          repository.AlpacaRepository
-	TradeOrderRepository      repository.TradeOrderRepository
-	TickerRepository          repository.TickerRepository
-	InvestmentTradeRepository repository.InvestmentTradeRepository
-	HoldingsRepository        repository.InvestmentHoldingsRepository
-	HoldingsVersionRepository repository.InvestmentHoldingsVersionRepository
-	RebalancerRunRepository   repository.RebalancerRunRepository
+	Db                          *sql.DB
+	AlpacaRepository            repository.AlpacaRepository
+	TradeOrderRepository        repository.TradeOrderRepository
+	TickerRepository            repository.TickerRepository
+	InvestmentTradeRepository   repository.InvestmentTradeRepository
+	HoldingsRepository          repository.InvestmentHoldingsRepository
+	HoldingsVersionRepository   repository.InvestmentHoldingsVersionRepository
+	RebalancerRunRepository     repository.RebalancerRunRepository
+	ExcessTradeVolumeRepository repository.ExcessTradeVolumeRepository
 }
 
 func NewTradeService(
@@ -45,16 +46,18 @@ func NewTradeService(
 	holdingsRepository repository.InvestmentHoldingsRepository,
 	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
 	RebalancerRunRepository repository.RebalancerRunRepository,
+	excessTradeVolumeRepository repository.ExcessTradeVolumeRepository,
 ) TradeService {
 	return tradeServiceHandler{
-		Db:                        db,
-		AlpacaRepository:          alpacaRepository,
-		TradeOrderRepository:      tradeOrderRepository,
-		TickerRepository:          tickerRepository,
-		InvestmentTradeRepository: itRepository,
-		HoldingsRepository:        holdingsRepository,
-		HoldingsVersionRepository: holdingsVersionRepository,
-		RebalancerRunRepository:   RebalancerRunRepository,
+		Db:                          db,
+		AlpacaRepository:            alpacaRepository,
+		TradeOrderRepository:        tradeOrderRepository,
+		TickerRepository:            tickerRepository,
+		InvestmentTradeRepository:   itRepository,
+		HoldingsRepository:          holdingsRepository,
+		HoldingsVersionRepository:   holdingsVersionRepository,
+		RebalancerRunRepository:     RebalancerRunRepository,
+		ExcessTradeVolumeRepository: excessTradeVolumeRepository,
 	}
 }
 
@@ -162,7 +165,8 @@ func (h tradeServiceHandler) Buy(input BuyInput) (*model.TradeOrder, error) {
 
 // coalesces trades by symbol and ensures nominal amount > $2
 // for Alpaca's min order rule
-func aggregateAndFormatTrades(trades []*domain.ProposedTrade) ([]*domain.ProposedTrade, map[uuid.UUID]decimal.Decimal) {
+func (h tradeServiceHandler) aggregateAndFormatTrades(ctx context.Context, trades []*domain.ProposedTrade) ([]*domain.ProposedTrade, map[uuid.UUID]decimal.Decimal) {
+	log := logger.FromContext(ctx)
 	// Map to hold aggregated trades by symbol
 	aggregatedTrades := make(map[string]*domain.ProposedTrade)
 
@@ -198,38 +202,37 @@ func aggregateAndFormatTrades(trades []*domain.ProposedTrade) ([]*domain.Propose
 	// also since price is stale, it could be just under $1
 	// also we need to ledger these somewhere, as excess that
 	// I own
-	excess := map[uuid.UUID]decimal.Decimal{}
+
+	excessQuantities := map[uuid.UUID]decimal.Decimal{}
+	totalExcessAmount := decimal.Zero
 	for _, t := range trades {
 		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(minOrderSize) {
 			newQuantity := minOrderSize.Div(t.ExpectedPrice)
-			excess[t.TickerID] = (newQuantity.Sub(t.ExactQuantity)).Mul(t.ExpectedPrice)
+			excessQuantity := newQuantity.Sub(t.ExactQuantity)
+			excessQuantities[t.TickerID] = excessQuantity
+
 			t.ExactQuantity = newQuantity
+			totalExcessAmount = totalExcessAmount.Add(excessQuantity.Mul(t.ExpectedPrice))
 		}
 	}
 
-	return result, excess
+	log.Infof("total excess amount: %f. breakdown %v", totalExcessAmount.InexactFloat64(), excessQuantities)
+
+	// if totalExcess.GreaterThan(decimal.NewFromInt(10)) {
+	// 	return nil, fmt.Errorf("excess amount exceeds $10: calculated %f", totalExcess.InexactFloat64())
+	// }
+
+	return result, excessQuantities
 }
 
 // assumes trades are already aggregated by symbol
 func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
-	log := logger.FromContext(ctx)
 	// TODO - should we still store the trade order if it failed,
 	// but give it status failed? i think that will be easier to
 	// look up later and understand what happened instead of
 	// leaving the col null in investmentTrade
 
-	trades, excess := aggregateAndFormatTrades(rawTrades)
-
-	// todo - ledger this in db and maybe use this
-	// when trading idk
-	totalExcess := decimal.Zero
-	for _, e := range excess {
-		totalExcess = totalExcess.Add(e)
-	}
-	log.Infof("total excess amount: %f. breakdown %v", totalExcess.InexactFloat64(), excess)
-	if totalExcess.GreaterThan(decimal.NewFromInt(10)) {
-		return nil, fmt.Errorf("excess amount exceeds $10: calculated %f", totalExcess.InexactFloat64())
-	}
+	trades, excessQuantities := h.aggregateAndFormatTrades(ctx, rawTrades)
 
 	// first ensure that we have enough quantity for the order
 	currentHoldings, err := h.AlpacaRepository.GetPositions()
@@ -271,6 +274,25 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 
 	for _, t := range trades {
 		if t.ExactQuantity.GreaterThan(decimal.Zero) {
+			// only our buy orders should generate excess
+			tx, err := h.Db.Begin()
+			if err != nil {
+				return generatedOrders, err
+			}
+			defer tx.Rollback()
+
+			var excessModel *model.ExcessTradeVolume
+			if excessQuantity, ok := excessQuantities[t.TickerID]; ok {
+				excessModel, err = h.ExcessTradeVolumeRepository.Add(tx, model.ExcessTradeVolume{
+					TickerID:        t.TickerID,
+					Quantity:        excessQuantity,
+					RebalancerRunID: rebalancerRunID,
+				})
+				if err != nil {
+					return generatedOrders, err
+				}
+			}
+
 			order, err := h.Buy(BuyInput{
 				TickerID:        t.TickerID,
 				Symbol:          t.Symbol,
@@ -281,6 +303,20 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 			if err != nil {
 				return generatedOrders, err
 			}
+			if excessModel != nil {
+				excessModel.TradeOrderID = &order.TradeOrderID
+				_, err = h.ExcessTradeVolumeRepository.Update(tx, *excessModel, postgres.ColumnList{
+					table.ExcessTradeVolume.TradeOrderID,
+				})
+				if err != nil {
+					return generatedOrders, err
+				}
+			}
+			err = tx.Commit()
+			if err != nil {
+				return generatedOrders, err
+			}
+
 			generatedOrders = append(generatedOrders, *order)
 		}
 	}

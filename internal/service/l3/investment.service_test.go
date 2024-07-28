@@ -112,14 +112,16 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 		}
 		expectedTradesStatus := []*model.InvestmentTradeStatus{
 			{
-				Symbol:   util.StringPointer("MSFT"),
-				Quantity: util.DecimalPointer(decimal.NewFromFloat(0.999)),
-				Side:     util.TradeOrderSidePointer(model.TradeOrderSide_Buy),
+				Symbol:        util.StringPointer("MSFT"),
+				Quantity:      util.DecimalPointer(decimal.NewFromFloat(0.999)),
+				Side:          util.TradeOrderSidePointer(model.TradeOrderSide_Buy),
+				ExpectedPrice: util.DecimalPointer(decimal.NewFromInt(100)),
 			},
 			{
-				Side:     util.TradeOrderSidePointer(model.TradeOrderSide_Sell),
-				Symbol:   util.StringPointer("AAPL"),
-				Quantity: util.DecimalPointer(decimal.NewFromFloat(0.999)),
+				Side:          util.TradeOrderSidePointer(model.TradeOrderSide_Sell),
+				Symbol:        util.StringPointer("AAPL"),
+				Quantity:      util.DecimalPointer(decimal.NewFromFloat(0.999)),
+				ExpectedPrice: util.DecimalPointer(decimal.NewFromInt(100)),
 			},
 		}
 
@@ -158,9 +160,10 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 			expectedInvestmentTrades := []*model.InvestmentTrade{}
 			for _, t := range expectedTradesStatus {
 				expectedInvestmentTrades = append(expectedInvestmentTrades, &model.InvestmentTrade{
-					Side:     *t.Side,
-					TickerID: tickerIDMap[*t.Symbol],
-					Quantity: *t.Quantity,
+					Side:          *t.Side,
+					TickerID:      tickerIDMap[*t.Symbol],
+					Quantity:      *t.Quantity,
+					ExpectedPrice: *t.ExpectedPrice,
 				})
 			}
 
