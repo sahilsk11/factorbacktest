@@ -12,6 +12,8 @@ mocks:
 	mockgen -source=internal/repository/investment_rebalance.repository.go -destination=internal/repository/mocks/mock_investment_rebalance.repository.go
 	mockgen -source=internal/repository/investment_trade.repository.go -destination=internal/repository/mocks/mock_investment_trade.repository.go
 	mockgen -source=internal/repository/investment_holdings_version.repository.go -destination=internal/repository/mocks/mock_investment_holdings_version.repository.go
+	mockgen -source=internal/repository/excess_trade_volume.repository.go -destination=internal/repository/mocks/mock_excess_trade_volume.repository.go
+	mockgen -source=internal/repository/trade_order.repository.go -destination=internal/repository/mocks/mock_trade_order.repository.go
 
 	# l2 services
 	mockgen -source=internal/service/l2/factor_expression.service.go -destination=internal/service/l2/mocks/mock_factor_expression.service.go
