@@ -4,7 +4,7 @@ alter table excess_trade_volume
 add column rebalancer_run_id uuid not null references rebalancer_run(rebalancer_run_id);
 
 alter table excess_trade_volume
-rename column latest_trade_order_id to trade_order_id;
+rename column last_trade_order_iddo to trade_order_id;
 
 create view latest_excess_trade_volume as
 with ranked_excess as (
