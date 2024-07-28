@@ -396,6 +396,46 @@ func Test_tradeServiceHandler_ExecuteBlock(t *testing.T) {
 
 }
 
+type tradeOrderMatcher struct {
+	expectedID uuid.UUID
+}
+
+func (m tradeOrderMatcher) Matches(arg interface{}) bool {
+	to, ok := arg.(model.TradeOrder)
+	if !ok {
+		return false
+	}
+	return to.TickerID == m.expectedID
+}
+
+func (m tradeOrderMatcher) String() string {
+	return "is trade order with given TradeOrderID"
+}
+
+func HasTickerID(expectedID uuid.UUID) gomock.Matcher {
+	return tradeOrderMatcher{expectedID: expectedID}
+}
+
+type alpacaOrderMatcher struct {
+	expectedSymbol string
+}
+
+func (m alpacaOrderMatcher) Matches(arg interface{}) bool {
+	to, ok := arg.(repository.AlpacaPlaceOrderRequest)
+	if !ok {
+		return false
+	}
+	return to.Symbol == m.expectedSymbol
+}
+
+func (m alpacaOrderMatcher) String() string {
+	return "is alpaca order with matching symbol"
+}
+
+func SymbolMatches(s string) gomock.Matcher {
+	return alpacaOrderMatcher{expectedSymbol: s}
+}
+
 func mockPlaceOrder(
 	t *testing.T,
 	tradeOrderRepository *mock_repository.MockTradeOrderRepository,
@@ -427,7 +467,7 @@ func mockPlaceOrder(
 		Add(
 			nil,
 			// expectedOrder,
-			gomock.Any(),
+			HasTickerID(expectedOrder.TickerID),
 		).
 		DoAndReturn(func(tx *sql.Tx, to model.TradeOrder) (*model.TradeOrder, error) {
 			require.Equal(t, "", cmp.Diff(
@@ -452,7 +492,9 @@ func mockPlaceOrder(
 	}
 	alpacaRepository.EXPECT().
 		PlaceOrder(
-			gomock.Any(),
+			// gomock.Any(),
+			// expectedAlpacaReq,
+			SymbolMatches(symbol),
 		).
 		DoAndReturn(func(req repository.AlpacaPlaceOrderRequest) (*alpaca.Order, error) {
 			require.Equal(t, "", cmp.Diff(
