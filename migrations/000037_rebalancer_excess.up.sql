@@ -3,7 +3,8 @@ drop view latest_excess_trade_volume;
 alter table excess_trade_volume
 add column rebalancer_run_id uuid not null references rebalancer_run(rebalancer_run_id);
 
-alter table latest_trade_order_id
+alter table excess_trade_volume
+alter column latest_trade_order_id
 rename to trade_order_id;
 
 create view latest_excess_trade_volume as
