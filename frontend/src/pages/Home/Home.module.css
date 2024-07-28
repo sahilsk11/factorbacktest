@@ -1,0 +1,20 @@
+.container {
+  margin: 0px auto;
+  display: block;
+  max-width: 1000px;
+  width: 90%;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.verbose_builder_subtitle {
+  font-size: 13px;
+  margin-top: 10px;
+  color: gray;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.new_btn {
+  width: 180px;
+}

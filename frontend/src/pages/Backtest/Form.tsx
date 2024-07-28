@@ -461,7 +461,6 @@ function ClassicFormView({
   return (
     <div className={appStyles.tile} style={{ position: "relative" }}>
       <h2 style={{ textAlign: "left", margin: "0px" }}>Backtest Strategy</h2>
-      <p className={appStyles.subtext}>Define your quantitative strategy and customize backtest parameters.</p>
       <BookmarkStrategy user={user} setUser={setUser} formProps={props} setBookmarked={setBookmarked} bookmarked={bookmarked} />
       <form onSubmit={handleSubmit}>
 
