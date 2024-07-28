@@ -6,9 +6,9 @@ import BenchmarkManager from './pages/Backtest/BenchmarkSelector';
 import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, LatestHoldings } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';
-import { ContactModal, HelpModal } from './Modals';
-import StatsFooter from './Footer';
-import { Nav } from './Nav';
+import { ContactModal, HelpModal } from './common/Modals';
+import StatsFooter from './common/Footer';
+import { Nav } from './common/Nav';
 import styles from './App.module.css'
 import { useLocation, useNavigate } from 'react-router-dom';
 

@@ -23,8 +23,8 @@ import bondStyle from "./Bond.module.css"
 
 import { Bar, Line } from 'react-chartjs-2';
 import { endpoint, getCookie, getOrCreateUserID } from '../../App';
-import { Nav } from '../../Nav';
-import { ContactModal, HelpModal } from '../../Modals';
+import { Nav } from 'common/Nav';
+import { ContactModal, HelpModal } from 'common/Modals';
 import { Error } from '../Backtest/Form';
 import { GoogleAuthUser } from '../../models';
 

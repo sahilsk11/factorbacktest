@@ -18,7 +18,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import formStyles from "./Form.module.css";
 import { parseDateString } from "../../util";
 import { getStrategies, updateBookmarked } from "./Form";
-import modalsStyle from "../../Modals.module.css";
+import modalsStyle from "common/Modals.module.css";
 import { useGoogleLogin } from "@react-oauth/google";
 import ConfettiExplosion from "react-confetti-explosion";
 import { useNavigate } from "react-router-dom";

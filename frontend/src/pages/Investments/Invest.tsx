@@ -1,11 +1,11 @@
 import { GoogleAuthUser, GetSavedStrategiesResponse, InvestInStrategyRequest, GetInvestmentsResponse } from "../../models";
 import investStyles from "./Invest.module.css";
 import appStyles from "../../App.module.css";
-import { Nav } from "../../Nav";
+import { Nav } from "common/Nav"
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { ContactModal, HelpModal } from "../../Modals";
+import { ContactModal, HelpModal } from "common/Modals";
 import { Card, ListGroup, Row, Table } from "react-bootstrap";
-import { endpoint } from "../../App";
+import { endpoint } from "App";
 import { formatDate } from "../../util";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
