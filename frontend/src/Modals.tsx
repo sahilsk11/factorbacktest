@@ -1,6 +1,6 @@
 import { useState } from "react";
 import modalsStyle from "./Modals.module.css";
-import formStyles from "./Form.module.css";
+import formStyles from "./pages/Backtest/Form.module.css";
 import { ContactRequest, GoogleAuthUser } from "./models";
 import { endpoint } from "./App";
 

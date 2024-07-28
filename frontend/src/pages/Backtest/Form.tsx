@@ -1,17 +1,17 @@
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { FactorData, endpoint } from "./App";
+import { FactorData, endpoint } from "../../App";
 import formStyles from "./Form.module.css";
-import appStyles from "./App.module.css";
-import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings, BacktestInputs } from './models';
+import appStyles from "../../App.module.css";
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings, BacktestInputs } from '../../models';
 import 'react-tooltip/dist/react-tooltip.css'
-import { daysBetweenDates } from './util';
+import { daysBetweenDates } from '../../util';
 import { FactorExpressionInput } from './FactorExpressionInput';
 import { Col, Container, Row } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { useGoogleLogin } from '@react-oauth/google';
-import modalsStyle from "./Modals.module.css";
+import modalsStyle from "../../Modals.module.css";
 
 async function getIsBookmarked(user: GoogleAuthUser, props: FormViewProps): Promise<any> {
   const bookmarkRequest: BookmarkStrategyRequest = {

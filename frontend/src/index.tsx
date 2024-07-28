@@ -4,10 +4,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import App, { getCookie } from './App';
-import { BondBuilder } from './Bond/Bond';
+import { BondBuilder } from './pages/Bond/Bond';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleAuthUser } from './models';
-import Invest from './Invest';
+import Invest from './pages/Backtest/Invest';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

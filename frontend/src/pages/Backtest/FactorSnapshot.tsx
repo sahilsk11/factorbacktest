@@ -1,5 +1,5 @@
-import { endpoint, FactorData } from "./App";
-import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, InvestInStrategyRequest, LatestHoldings } from "./models";
+import { endpoint, FactorData } from "../../App";
+import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, InvestInStrategyRequest, LatestHoldings } from "../../models";
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -8,7 +8,7 @@ import {
   Legend,
   ChartOptions
 } from 'chart.js';
-import appStyles from "./App.module.css";
+import appStyles from "../../App.module.css";
 import factorSnapshotStyles from "./FactorSnapshot.module.css";
 import { AiOutlineQuestionCircle } from 'react-icons/ai';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
@@ -16,9 +16,9 @@ import 'react-tooltip/dist/react-tooltip.css'
 import { Col, Container, Nav, Pagination, Row } from "react-bootstrap";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import formStyles from "./Form.module.css";
-import { parseDateString } from "./util";
+import { parseDateString } from "../../util";
 import { getStrategies, updateBookmarked } from "./Form";
-import modalsStyle from "./Modals.module.css";
+import modalsStyle from "../../Modals.module.css";
 import { useGoogleLogin } from "@react-oauth/google";
 import ConfettiExplosion from "react-confetti-explosion";
 import { useNavigate } from "react-router-dom";

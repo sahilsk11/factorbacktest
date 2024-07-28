@@ -24,10 +24,10 @@ import { Line } from 'react-chartjs-2';
 import {
   enumerateDates,
   minMaxDates,
-} from "./util";
+} from "../../util";
 
 
-import { FactorData } from './App';
+import { FactorData } from '../../App';
 import { BenchmarkData } from './BenchmarkSelector';
 
 ChartJS.register(

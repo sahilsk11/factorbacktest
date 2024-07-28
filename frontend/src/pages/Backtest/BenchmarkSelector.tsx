@@ -1,8 +1,8 @@
 import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
-import { enumerateDates } from './util';
-import { endpoint } from './App';
-import { GoogleAuthUser } from './models';
+import { enumerateDates } from '../../util';
+import { endpoint } from '../../App';
+import { GoogleAuthUser } from '../../models';
 
 export interface BenchmarkData {
   symbol: string;

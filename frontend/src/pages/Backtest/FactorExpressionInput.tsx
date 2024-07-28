@@ -1,12 +1,12 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
-import { endpoint } from "./App";
+import { endpoint } from "../../App";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import Editor, { loader } from '@monaco-editor/react';
 import { languages } from 'monaco-editor';
-import { GetSavedStrategiesResponse, GoogleAuthUser } from './models';
+import { GetSavedStrategiesResponse, GoogleAuthUser } from '../../models';
 import formStyles from './Form.module.css'
 import { FormViewProps } from './Form';
-import { parseDateString } from './util';
+import { parseDateString } from '../../util';
 
 
 export function FactorExpressionInput({

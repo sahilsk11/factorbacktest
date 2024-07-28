@@ -1,12 +1,12 @@
-import { GoogleAuthUser, GetSavedStrategiesResponse, InvestInStrategyRequest, GetInvestmentsResponse } from "./models";
+import { GoogleAuthUser, GetSavedStrategiesResponse, InvestInStrategyRequest, GetInvestmentsResponse } from "../../models";
 import investStyles from "./Invest.module.css";
-import appStyles from "./App.module.css";
-import { Nav } from "./Nav";
+import appStyles from "../../App.module.css";
+import { Nav } from "../../Nav";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { ContactModal, HelpModal } from "./Modals";
+import { ContactModal, HelpModal } from "../../Modals";
 import { Card, ListGroup, Row, Table } from "react-bootstrap";
-import { endpoint } from "./App";
-import { formatDate } from "./util";
+import { endpoint } from "../../App";
+import { formatDate } from "../../util";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { AssetBreakdown } from "./FactorSnapshot";

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import BacktestChart from './BacktestChart';
-import FactorForm from "./Form";
-import Inspector from './FactorSnapshot';
-import BenchmarkManager from './BenchmarkSelector';
+import BacktestChart from './pages/Backtest/BacktestChart';
+import FactorForm from "./pages/Backtest/Form";
+import Inspector from './pages/Backtest/FactorSnapshot';
+import BenchmarkManager from './pages/Backtest/BenchmarkSelector';
 import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, LatestHoldings } from "./models";
 import { minMaxDates } from './util';
 import { v4 as uuidv4 } from 'uuid';

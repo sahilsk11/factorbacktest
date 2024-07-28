@@ -16,17 +16,17 @@ import {
   BarElement,
 } from 'chart.js';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import formStyle from "../Form.module.css";
-import appStyle from "../App.module.css";
+import formStyle from "../Backtest/Form.module.css";
+import appStyle from "../../App.module.css";
 import bondStyle from "./Bond.module.css"
 
 
 import { Bar, Line } from 'react-chartjs-2';
-import { endpoint, getCookie, getOrCreateUserID } from '../App';
-import { Nav } from '../Nav';
-import { ContactModal, HelpModal } from '../Modals';
-import { Error } from '../Form';
-import { GoogleAuthUser } from '../models';
+import { endpoint, getCookie, getOrCreateUserID } from '../../App';
+import { Nav } from '../../Nav';
+import { ContactModal, HelpModal } from '../../Modals';
+import { Error } from '../Backtest/Form';
+import { GoogleAuthUser } from '../../models';
 
 const colors: Record<string, { borderColor: string, backgroundColor: string }> = {
   "C": {
