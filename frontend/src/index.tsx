@@ -7,7 +7,7 @@ import App, { getCookie } from './App';
 import { BondBuilder } from './pages/Bond/Bond';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleAuthUser } from './models';
-import Invest from './pages/Backtest/Invest';
+import Invest from './pages/Investments/Invest';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

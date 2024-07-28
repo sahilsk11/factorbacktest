@@ -9,7 +9,7 @@ import { endpoint } from "../../App";
 import { formatDate } from "../../util";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { AssetBreakdown } from "./FactorSnapshot";
+import { AssetBreakdown } from "../Backtest/FactorSnapshot";
 
 export default function Invest({
   user,
