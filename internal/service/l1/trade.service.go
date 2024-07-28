@@ -203,39 +203,26 @@ func (h tradeServiceHandler) aggregateAndFormatTrades(ctx context.Context, trade
 	// also we need to ledger these somewhere, as excess that
 	// I own
 
-	excess := map[uuid.UUID]decimal.Decimal{}
+	excessQuantities := map[uuid.UUID]decimal.Decimal{}
+	totalExcessAmount := decimal.Zero
 	for _, t := range trades {
 		if t.ExactQuantity.GreaterThan(decimal.Zero) && t.ExactQuantity.Mul(t.ExpectedPrice).LessThan(minOrderSize) {
 			newQuantity := minOrderSize.Div(t.ExpectedPrice)
-			excess[t.TickerID] = (newQuantity.Sub(t.ExactQuantity)).Mul(t.ExpectedPrice)
+			excessQuantity := newQuantity.Sub(t.ExactQuantity)
+			excessQuantities[t.TickerID] = excessQuantity
+
 			t.ExactQuantity = newQuantity
+			totalExcessAmount = totalExcessAmount.Add(excessQuantity.Mul(t.ExpectedPrice))
 		}
 	}
 
-	// for ticker, quantity := range excess {
-	// 	_, err := h.ExcessTradeVolumeRepository.Add(tx, model.ExcessTradeVolume{
-	// 		TickerID:        ticker,
-	// 		Quantity:        quantity,
-	// 		RebalancerRunID: rebalancerRunID,
-	// 	})
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
-	// todo - ledger this in db and maybe use this
-	// when trading idk
-	totalExcess := decimal.Zero
-	for _, e := range excess {
-		totalExcess = totalExcess.Add(e)
-	}
-	log.Infof("total excess amount: %f. breakdown %v", totalExcess.InexactFloat64(), excess)
+	log.Infof("total excess amount: %f. breakdown %v", totalExcessAmount.InexactFloat64(), excessQuantities)
 
 	// if totalExcess.GreaterThan(decimal.NewFromInt(10)) {
 	// 	return nil, fmt.Errorf("excess amount exceeds $10: calculated %f", totalExcess.InexactFloat64())
 	// }
 
-	return result, excess
+	return result, excessQuantities
 }
 
 // assumes trades are already aggregated by symbol
@@ -245,7 +232,7 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 	// look up later and understand what happened instead of
 	// leaving the col null in investmentTrade
 
-	trades, excess := h.aggregateAndFormatTrades(ctx, rawTrades)
+	trades, excessQuantities := h.aggregateAndFormatTrades(ctx, rawTrades)
 
 	// first ensure that we have enough quantity for the order
 	currentHoldings, err := h.AlpacaRepository.GetPositions()
@@ -295,10 +282,10 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 			defer tx.Rollback()
 
 			var excessModel *model.ExcessTradeVolume
-			if _, ok := excess[t.TickerID]; ok {
+			if excessQuantity, ok := excessQuantities[t.TickerID]; ok {
 				excessModel, err = h.ExcessTradeVolumeRepository.Add(tx, model.ExcessTradeVolume{
 					TickerID:        t.TickerID,
-					Quantity:        t.ExactQuantity,
+					Quantity:        excessQuantity,
 					RebalancerRunID: rebalancerRunID,
 				})
 				if err != nil {
