@@ -268,6 +268,132 @@ func Test_tradeServiceHandler_ExecuteBlock(t *testing.T) {
 			}),
 		))
 	})
+
+	t.Run("track excess", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db, err := util.NewTestDb()
+		require.NoError(t, err)
+		alpacaRepository := mock_repository.NewMockAlpacaRepository(ctrl)
+		tradeOrderRepository := mock_repository.NewMockTradeOrderRepository(ctrl)
+		excessTradeVolumeRepository := mock_repository.NewMockExcessTradeVolumeRepository(ctrl)
+		handler := tradeServiceHandler{
+			Db:                          db,
+			AlpacaRepository:            alpacaRepository,
+			TradeOrderRepository:        tradeOrderRepository,
+			ExcessTradeVolumeRepository: excessTradeVolumeRepository,
+		}
+
+		// misc setup
+		tickerIDs := map[string]uuid.UUID{
+			"AAPL": uuid.New(),
+		}
+
+		ctx := context.Background()
+		rawTrades := []*domain.ProposedTrade{
+			{
+				Symbol:        "AAPL",
+				TickerID:      tickerIDs["AAPL"],
+				ExactQuantity: decimal.NewFromFloat(1),
+				ExpectedPrice: decimal.NewFromInt(1),
+			},
+		}
+		rebalancerRunID := uuid.New()
+
+		// mocks
+		var expectedAaplOrder model.TradeOrder
+		{
+			// say we hold an arbitrarily large amount
+			// so we don't breach limits
+			alpacaRepository.EXPECT().
+				GetPositions().
+				Return([]alpaca.Position{
+					{
+						Symbol:       "AAPL",
+						Qty:          decimal.NewFromInt(5000),
+						QtyAvailable: decimal.NewFromInt(5000),
+					},
+				}, nil)
+
+			excessVolumeID := uuid.New()
+			excessTradeVolumeRepository.EXPECT().
+				Add(gomock.Any(), gomock.Any()).
+				DoAndReturn(func(tx *sql.Tx, m model.ExcessTradeVolume) (*model.ExcessTradeVolume, error) {
+					require.Equal(t, "", cmp.Diff(
+						model.ExcessTradeVolume{
+							TickerID:        tickerIDs["AAPL"],
+							Quantity:        decimal.NewFromFloat(0.5),
+							RebalancerRunID: rebalancerRunID,
+						},
+						m,
+					))
+					return &model.ExcessTradeVolume{
+						ExcessTradeVolumeID: excessVolumeID,
+						TickerID:            tickerIDs["AAPL"],
+						Quantity:            decimal.NewFromFloat(0.5),
+						RebalancerRunID:     rebalancerRunID,
+					}, nil
+				})
+
+			expectedAaplOrder = mockPlaceOrder(
+				t,
+				tradeOrderRepository,
+				alpacaRepository,
+				tickerIDs["AAPL"],
+				"AAPL",
+				nil,
+				decimal.NewFromFloat(1.5),
+				model.TradeOrderSide_Buy,
+				alpaca.Buy,
+				rebalancerRunID,
+				decimal.NewFromInt(1),
+			)
+
+			excessTradeVolumeRepository.EXPECT().
+				Update(gomock.Any(), gomock.Any(), postgres.ColumnList{
+					table.ExcessTradeVolume.TradeOrderID,
+				}).
+				DoAndReturn(func(tx *sql.Tx, m model.ExcessTradeVolume, columns postgres.ColumnList) (*model.ExcessTradeVolume, error) {
+					require.Equal(t, "", cmp.Diff(
+						model.ExcessTradeVolume{
+							TradeOrderID:        &expectedAaplOrder.TradeOrderID,
+							ExcessTradeVolumeID: excessVolumeID,
+							TickerID:            tickerIDs["AAPL"],
+							Quantity:            decimal.NewFromFloat(0.5),
+							RebalancerRunID:     rebalancerRunID,
+						},
+						m,
+						cmp.Comparer(func(i, j uuid.UUID) bool {
+							return i.String() == j.String()
+						}),
+					))
+					return nil, nil
+				})
+
+		}
+
+		executedOrders, err := handler.ExecuteBlock(
+			ctx,
+			rawTrades,
+			rebalancerRunID,
+		)
+
+		require.NoError(t, err)
+		// kind of useless bc these are the same models
+		// you're mocking in the return
+		require.Equal(t, "", cmp.Diff(
+			[]model.TradeOrder{
+				expectedAaplOrder,
+			},
+			executedOrders,
+			cmpopts.SortSlices(func(i, j model.TradeOrder) bool {
+				return i.TickerID.String() > j.TickerID.String()
+			}),
+			cmp.Comparer(func(i, j uuid.UUID) bool {
+				return i.String() == j.String()
+			}),
+		))
+	})
+
 }
 
 func mockPlaceOrder(
@@ -284,23 +410,28 @@ func mockPlaceOrder(
 	expectedPrice decimal.Decimal,
 ) model.TradeOrder {
 	tradeOrderID := uuid.New()
+
+	expectedOrder := model.TradeOrder{
+		TickerID:          tickerID,
+		Side:              dbSide,
+		Status:            model.TradeOrderStatus_Error,
+		FilledQuantity:    decimal.Zero,
+		FilledPrice:       nil,
+		FilledAt:          nil,
+		Notes:             notes,
+		RebalancerRunID:   rebalancerRunID,
+		RequestedQuantity: quantity,
+		ExpectedPrice:     expectedPrice,
+	}
 	tradeOrderRepository.EXPECT().
-		Add(nil, gomock.Any()).
+		Add(
+			nil,
+			// expectedOrder,
+			gomock.Any(),
+		).
 		DoAndReturn(func(tx *sql.Tx, to model.TradeOrder) (*model.TradeOrder, error) {
-			expected := model.TradeOrder{
-				TickerID:          tickerID,
-				Side:              dbSide,
-				Status:            model.TradeOrderStatus_Error,
-				FilledQuantity:    decimal.Zero,
-				FilledPrice:       nil,
-				FilledAt:          nil,
-				Notes:             notes,
-				RebalancerRunID:   rebalancerRunID,
-				RequestedQuantity: quantity,
-				ExpectedPrice:     expectedPrice,
-			}
 			require.Equal(t, "", cmp.Diff(
-				expected,
+				expectedOrder,
 				to,
 				cmp.Comparer(func(i, j uuid.UUID) bool {
 					return i.String() == j.String()
@@ -313,17 +444,25 @@ func mockPlaceOrder(
 		})
 
 	orderID := uuid.New()
+	expectedAlpacaReq := repository.AlpacaPlaceOrderRequest{
+		TradeOrderID: tradeOrderID,
+		Quantity:     quantity,
+		Symbol:       symbol,
+		Side:         alpacaSide,
+	}
 	alpacaRepository.EXPECT().
-		PlaceOrder(repository.AlpacaPlaceOrderRequest{
-			TradeOrderID: tradeOrderID,
-			Quantity:     quantity,
-			Symbol:       symbol,
-			Side:         alpacaSide,
-		}).Return(
-		&alpaca.Order{
-			ID: orderID.String(),
-		}, nil,
-	)
+		PlaceOrder(
+			gomock.Any(),
+		).
+		DoAndReturn(func(req repository.AlpacaPlaceOrderRequest) (*alpaca.Order, error) {
+			require.Equal(t, "", cmp.Diff(
+				expectedAlpacaReq,
+				req,
+			))
+			return &alpaca.Order{
+				ID: orderID.String(),
+			}, nil
+		})
 
 	outputOrder := model.TradeOrder{
 		TradeOrderID:      tradeOrderID,
