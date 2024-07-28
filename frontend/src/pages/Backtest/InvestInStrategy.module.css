@@ -1,0 +1,29 @@
+.deposit_container {
+  max-width: 80%;
+}
+
+.invest_title {
+  margin-top: 0px;
+  font-weight: 500;
+  margin-bottom: 0px;
+}
+
+.subtext {
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.deposit_btn {
+  font-size: 13px;
+  width: 100px;
+  height: 33px;
+  margin-top: 0px;
+}
+
+.deposit_input {
+  max-width: 80px;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgb(56, 56, 56);
+  margin-top: 0px;
+}

@@ -8,6 +8,10 @@ import BenchmarkManager from "./BenchmarkSelector";
 import Inspector from "./FactorSnapshot";
 import FactorForm from "./Form";
 import styles from 'App.module.css'
+import { InvestInStrategy } from "./InvestInStrategy";
+import { Col, Container, Row, Table } from "react-bootstrap";
+import "./Backtest.module.css";
+import backtestStyles from "./Backtest.module.css";
 
 
 export default function FactorBacktestMain({ userID, user, setUser }: {
@@ -139,6 +143,31 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
               updateInspectFactorDataIndex={updateFdIndex}
               updateInspectFactorDataDate={updateInspectFactorDataDate}
             />
+            <Container style={{
+              width: "93%",
+              margin: "0px auto",
+              marginTop: "20px"
+            }}>
+              <Row>
+                <Col sm={6}>
+                  <InvestInStrategy
+                    user={user}
+                    setUser={setUser}
+                    bookmarked={bookmarked}
+                    setBookmarked={setBookmarked}
+                    backtestInputs={backtestInputs}
+                    setFactorName={setFactorName}
+                    setSelectedFactor={setSelectedFactor}
+                    setSavedStrategies={setSavedStrategies}
+                  />
+                </Col>
+                <Col sm={6}>
+                  <Stats />
+                </Col>
+              </Row>
+            </Container>
+            {/* <div > */}
+            {/* </div> */}
             <Inspector
               fdIndex={inspectFactorDataIndex}
               fdDate={inspectFactorDataDate}
@@ -156,7 +185,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
               setUser={setUser}
             />
           </div> : null}
-      </div>
+      </div >
     </>
   )
 
@@ -166,6 +195,33 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   //     {useVerboseBuilder ? formComponent : classicView}
   //   </div >
   // );
+}
+
+function Stats() {
+  return (
+    <div className={`${backtestStyles.flex_container} ${styles.tile}`}>
+      <p className={backtestStyles.flex_container_title}>Performance History</p>
+      <p className={`${styles.subtext} ${backtestStyles.flex_container_subtext}`}>From 2023-01-01 to 2023-01-01</p>
+      <div style={{ paddingBottom: "0px" }}>
+        <Table>
+          <tbody>
+            <tr style={{ borderTop: "1px solid #DFE2E6" }}>
+              <th className={backtestStyles.stats_table_header}>Return</th>
+              <td className={backtestStyles.stats_table_value}>20%</td>
+            </tr>
+            <tr>
+              <th className={backtestStyles.stats_table_header}>Sharpe Ratio</th>
+              <td className={backtestStyles.stats_table_value}>1.5</td>
+            </tr>
+            <tr>
+              <th className={backtestStyles.stats_table_header}>Volatilty (stdev)</th>
+              <td className={backtestStyles.stats_table_value}>20%</td>
+            </tr>
+          </tbody>
+        </Table>
+      </div>
+    </div>
+  )
 }
 
 function todayAsString() {

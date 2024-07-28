@@ -1,0 +1,25 @@
+.flex_container {
+  width: 100%;
+  height: 190px;
+}
+
+.flex_container_title {
+  margin-top: 0px;
+  font-weight: 500;
+  margin-bottom: 0px;
+}
+
+.flex_container_subtext {
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.stats_table_header {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.stats_table_value {
+  text-align: right;
+  font-size: 13px;
+}
