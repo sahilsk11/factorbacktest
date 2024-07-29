@@ -1,12 +1,12 @@
-import { FactorData, BenchmarkData } from "App";
+import { FactorData, BenchmarkData, endpoint } from "App";
 import { GoogleAuthUser, LatestHoldings, GetSavedStrategiesResponse, BacktestInputs } from "models";
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { minMaxDates } from "../../util";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { formatDate, minMaxDates } from "../../util";
 import BacktestChart from "./BacktestChart";
 import BenchmarkManager from "./BenchmarkSelector";
 import Inspector from "./FactorSnapshot";
-import FactorForm from "./Form";
+import FactorForm, { getStrategies } from "./Form";
 import styles from 'App.module.css'
 import { InvestInStrategy } from "./InvestInStrategy";
 import { Col, Container, Row, Table } from "react-bootstrap";
@@ -41,6 +41,8 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
   const [selectedFactor, setSelectedFactor] = useState("momentum");
+  // super hacky until we can refactor
+  const [runBacktestToggle, setRunBacktestToggle] = useState(false);
 
   const backtestInputs: BacktestInputs = {
     factorName,
@@ -61,6 +63,57 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   } else if (pathname === "/backtest" && factorData.length === 0) {
     // navigate("/")
   }
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  console.log(searchParams.get("id"))
+  
+  async function getStrategy(id:string): Promise<GetSavedStrategiesResponse | null> {
+    try {
+      const response = await fetch(endpoint + "/savedStrategies", {
+        headers: {
+          "Authorization": user ? "Bearer " + user.accessToken : ""
+        }
+      });
+      if (!response.ok) {
+        const j = await response.json()
+        alert(j.error)
+        console.error("Error submitting data:", response.status);
+      } else {
+        const j = await response.json() as GetSavedStrategiesResponse[];
+        return j.find(e => e.savedStrategyID === id) || null
+      }
+    } catch (error) {
+      alert((error as Error).message)
+      console.error("Error:", error);
+    }
+    return null;
+  }
+
+  async function setFromUrl(id:string) {
+    const strat = await getStrategy(id)
+    if (!strat) {
+      return
+    }
+    setFactorName(strat.strategyName)
+    setNumSymbols(strat.numAssets)
+    setFactorExpression(strat.factorExpression)
+    setAssetUniverse(strat.assetUniverse)
+    setBacktestStart(formatDate(new Date(strat.backtestStart)))
+    setBacktestEnd(formatDate(new Date(strat.backtestEnd)))
+    setSamplingIntervalUnit(strat.rebalanceInterval)
+    setSelectedFactor(strat.strategyName)
+
+    await new Promise(f => setTimeout(f, 500));
+    setRunBacktestToggle(true);
+  }
+
+
+  useEffect(() => {
+    const id = searchParams.get("id")
+    if (id && user) {
+      setFromUrl(id)
+    }
+  }, [searchParams, user])
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
@@ -103,6 +156,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
             appendFactorData={(newFactorData: FactorData) => {
               updateFactorData([...factorData, newFactorData])
             }}
+            runBacktestToggle={runBacktestToggle}
             setUser={setUser}
             fullscreenView={useVerboseBuilder}
             setLatestHoldings={setLatestHoldings}

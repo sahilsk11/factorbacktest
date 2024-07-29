@@ -96,6 +96,7 @@ export default function FactorForm({
   setSelectedFactor,
   savedStrategies,
   setSavedStrategies,
+  runBacktestToggle,
 }: {
   user: GoogleAuthUser | null,
   userID: string,
@@ -124,6 +125,7 @@ export default function FactorForm({
   setSelectedFactor: Dispatch<React.SetStateAction<string>>,
   savedStrategies: GetSavedStrategiesResponse[],
   setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>,
+  runBacktestToggle: boolean,
 }) {
   const [cash, setCash] = useState(10_000);
   const [names, setNames] = useState<string[]>([...takenNames]);
@@ -131,7 +133,11 @@ export default function FactorForm({
   const [loading, setLoading] = useState(false);
   const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
 
-
+  useEffect(() => {
+    if (runBacktestToggle) {
+      handleSubmit(null)
+    }
+  }, [runBacktestToggle])
 
   const getUniverses = async () => {
     try {
@@ -197,7 +203,9 @@ export default function FactorForm({
   }, [samplingIntervalUnit])
 
   const handleSubmit = async (e: any) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     setErr(null);
     setLoading(true);
 
@@ -215,6 +223,7 @@ export default function FactorForm({
       assetUniverse,
     };
 
+    // this needs to be broken off at some point
     try {
       const response = await fetch(endpoint + "/backtest", {
         method: "POST",
@@ -764,7 +773,7 @@ export const updateBookmarked = async (
   user: GoogleAuthUser,
   bookmark: boolean,
   backtestInputs: BacktestInputs,
-):Promise<string | null> => {
+): Promise<string | null> => {
   const bookmarkRequest: BookmarkStrategyRequest = {
     expression: backtestInputs.factorExpression,
     name: backtestInputs.factorName,
