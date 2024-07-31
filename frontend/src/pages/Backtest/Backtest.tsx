@@ -65,7 +65,6 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   }
 
   const [searchParams, setSearchParams] = useSearchParams();
-  console.log(searchParams.get("id"))
   
   async function getStrategy(id:string): Promise<GetSavedStrategiesResponse | null> {
     try {
