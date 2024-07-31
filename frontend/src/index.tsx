@@ -57,7 +57,7 @@ const AppWrapper = () => {
     <GoogleOAuthProvider clientId="553014490207-3s25moanhrdjeckdsvbu9ea5rdik0uh2.apps.googleusercontent.com">
       <BrowserRouter>
         <Routes>
-          <Route index element={<Home user={user} setUser={setUser} />} />
+          <Route index element={app} />
           <Route path="backtest" element={app} />
           <Route path="bonds" element={<BondBuilder user={user} setUser={setUser} />} />
           <Route path="investments" element={<Invest user={user} setUser={setUser} />} />
