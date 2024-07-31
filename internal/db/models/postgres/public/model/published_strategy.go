@@ -14,13 +14,8 @@ import (
 
 type PublishedStrategy struct {
 	PublishedStrategyID uuid.UUID `sql:"primary_key"`
-	StrategyName        string
-	FactorExpression    string
-	RebalanceInterval   string
-	NumAssets           int32
-	AssetUniverse       string
-	CreatorAccountID    uuid.UUID
 	CreatedAt           time.Time
 	ModifiedAt          time.Time
 	DeletedAt           *time.Time
+	SavedStrategyID     uuid.UUID
 }

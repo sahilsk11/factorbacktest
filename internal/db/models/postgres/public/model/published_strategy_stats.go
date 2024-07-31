@@ -19,6 +19,6 @@ type PublishedStrategyStats struct {
 	TwoYearReturn            *float64
 	FiveYearReturn           *float64
 	Diversification          *float64
-	SharpeRatio              float64
+	SharpeRatio              *float64
 	CreatedAt                time.Time
 }

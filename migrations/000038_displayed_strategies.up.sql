@@ -3,12 +3,7 @@ create table published_strategy (
   -- these are identical to saved strategy, but we copy them
   -- because a saved strategy is mutable but a published strat is not
   -- if we really want, we could do something fancy to consolidate
-  strategy_name text not null,
-  factor_expression text not null,
-  rebalance_interval text not null,
-  num_assets int not null,
-  asset_universe text not null references asset_universe(asset_universe_name),
-  creator_account_id uuid not null references user_account(user_account_id),
+  saved_strategy_id uuid not null references saved_strategy(saved_stragy_id),
   created_at timestamp with time zone not null default now(),
   modified_at timestamp with time zone not null default now(),
   deleted_at timestamp with time zone
@@ -21,7 +16,7 @@ create table published_strategy_stats (
   two_year_return float,
   five_year_return float,
   diversification float,
-  sharpe_ratio float not null,
+  sharpe_ratio float,
   created_at timestamp with time zone not null default now()
 );
 

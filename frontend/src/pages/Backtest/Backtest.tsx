@@ -90,6 +90,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
 
   async function setFromUrl(id:string) {
     const strat = await getStrategy(id)
+    console.log(strat)
     if (!strat) {
       return
     }
@@ -109,10 +110,10 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
 
   useEffect(() => {
     const id = searchParams.get("id")
-    if (id && user) {
+    if (id) {
       setFromUrl(id)
     }
-  }, [searchParams, user])
+  }, [searchParams])
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {

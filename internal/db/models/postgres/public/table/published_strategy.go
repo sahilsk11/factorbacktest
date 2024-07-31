@@ -18,15 +18,10 @@ type publishedStrategyTable struct {
 
 	//Columns
 	PublishedStrategyID postgres.ColumnString
-	StrategyName        postgres.ColumnString
-	FactorExpression    postgres.ColumnString
-	RebalanceInterval   postgres.ColumnString
-	NumAssets           postgres.ColumnInteger
-	AssetUniverse       postgres.ColumnString
-	CreatorAccountID    postgres.ColumnString
 	CreatedAt           postgres.ColumnTimestampz
 	ModifiedAt          postgres.ColumnTimestampz
 	DeletedAt           postgres.ColumnTimestampz
+	SavedStrategyID     postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -58,17 +53,12 @@ func newPublishedStrategyTable(schemaName, tableName, alias string) *PublishedSt
 func newPublishedStrategyTableImpl(schemaName, tableName, alias string) publishedStrategyTable {
 	var (
 		PublishedStrategyIDColumn = postgres.StringColumn("published_strategy_id")
-		StrategyNameColumn        = postgres.StringColumn("strategy_name")
-		FactorExpressionColumn    = postgres.StringColumn("factor_expression")
-		RebalanceIntervalColumn   = postgres.StringColumn("rebalance_interval")
-		NumAssetsColumn           = postgres.IntegerColumn("num_assets")
-		AssetUniverseColumn       = postgres.StringColumn("asset_universe")
-		CreatorAccountIDColumn    = postgres.StringColumn("creator_account_id")
 		CreatedAtColumn           = postgres.TimestampzColumn("created_at")
 		ModifiedAtColumn          = postgres.TimestampzColumn("modified_at")
 		DeletedAtColumn           = postgres.TimestampzColumn("deleted_at")
-		allColumns                = postgres.ColumnList{PublishedStrategyIDColumn, StrategyNameColumn, FactorExpressionColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, CreatorAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, DeletedAtColumn}
-		mutableColumns            = postgres.ColumnList{StrategyNameColumn, FactorExpressionColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, CreatorAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, DeletedAtColumn}
+		SavedStrategyIDColumn     = postgres.StringColumn("saved_strategy_id")
+		allColumns                = postgres.ColumnList{PublishedStrategyIDColumn, CreatedAtColumn, ModifiedAtColumn, DeletedAtColumn, SavedStrategyIDColumn}
+		mutableColumns            = postgres.ColumnList{CreatedAtColumn, ModifiedAtColumn, DeletedAtColumn, SavedStrategyIDColumn}
 	)
 
 	return publishedStrategyTable{
@@ -76,15 +66,10 @@ func newPublishedStrategyTableImpl(schemaName, tableName, alias string) publishe
 
 		//Columns
 		PublishedStrategyID: PublishedStrategyIDColumn,
-		StrategyName:        StrategyNameColumn,
-		FactorExpression:    FactorExpressionColumn,
-		RebalanceInterval:   RebalanceIntervalColumn,
-		NumAssets:           NumAssetsColumn,
-		AssetUniverse:       AssetUniverseColumn,
-		CreatorAccountID:    CreatorAccountIDColumn,
 		CreatedAt:           CreatedAtColumn,
 		ModifiedAt:          ModifiedAtColumn,
 		DeletedAt:           DeletedAtColumn,
+		SavedStrategyID:     SavedStrategyIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

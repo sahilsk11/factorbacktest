@@ -134,3 +134,19 @@ export interface BacktestInputs {
   numAssets: number,
   assetUniverse: string,
 }
+
+export interface GetPublishedStrategiesResponse {
+  savedStrategyID: string;
+  publishedStrategyID: string; // UUIDs are usually represented as strings in TypeScript
+  strategyName: string;
+  rebalanceInterval: string;
+  createdAt: Date; // Date objects in TypeScript
+  factorExpression: string;
+  numAssets: number; // int32 in Go maps to number in TypeScript
+  assetUniverse: string;
+  oneYearReturn?: number; // Use '?' for optional fields
+  twoYearReturn?: number;
+  fiveYearReturn?: number;
+  diversification?: number;
+  sharpeRatio?: number;
+}
