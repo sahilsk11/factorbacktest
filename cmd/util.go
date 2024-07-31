@@ -63,6 +63,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	holdingsVersionRepository := repository.NewInvestmentHoldingsVersionRepository(dbConn)
 	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
 	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
+	publishedStrategyRepository := repository.NewPublishedStrategyRepository(dbConn)
 
 	if UseMockAlpaca {
 		alpacaRepository = NewMockAlpacaRepository(alpacaRepository, tradeOrderRepository, tickerRepository)
@@ -115,22 +116,23 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
 		},
-		BacktestHandler:              backtestHandler,
-		UserStrategyRepository:       repository.UserStrategyRepositoryHandler{},
-		ContactRepository:            repository.ContactRepositoryHandler{},
-		Db:                           dbConn,
-		GptRepository:                gptRepository,
-		ApiRequestRepository:         repository.ApiRequestRepositoryHandler{},
-		LatencencyTrackingRepository: repository.NewLatencyTrackingRepository(dbConn),
-		TickerRepository:             tickerRepository,
-		PriceService:                 priceService,
-		PriceRepository:              priceRepository,
-		AssetUniverseRepository:      assetUniverseRepository,
-		UserAccountRepository:        userAccountRepository,
-		SavedStrategyRepository:      savedStrategyRepository,
-		InvestmentRepository:         strategyInvestmentRepository,
-		InvestmentService:            investmentService,
-		TradingService:               tradingService,
+		BacktestHandler:               backtestHandler,
+		UserStrategyRepository:        repository.UserStrategyRepositoryHandler{},
+		ContactRepository:             repository.ContactRepositoryHandler{},
+		Db:                            dbConn,
+		GptRepository:                 gptRepository,
+		ApiRequestRepository:          repository.ApiRequestRepositoryHandler{},
+		LatencencyTrackingRepository:  repository.NewLatencyTrackingRepository(dbConn),
+		TickerRepository:              tickerRepository,
+		PriceService:                  priceService,
+		PriceRepository:               priceRepository,
+		AssetUniverseRepository:       assetUniverseRepository,
+		UserAccountRepository:         userAccountRepository,
+		SavedStrategyRepository:       savedStrategyRepository,
+		InvestmentRepository:          strategyInvestmentRepository,
+		InvestmentService:             investmentService,
+		TradingService:                tradingService,
+		PublishedStrategiesRepository: publishedStrategyRepository,
 	}
 
 	return apiHandler, nil
