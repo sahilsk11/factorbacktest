@@ -5,8 +5,6 @@ create table published_strategy (
   -- if we really want, we could do something fancy to consolidate
   strategy_name text not null,
   factor_expression text not null,
-  backtest_start date not null,
-  backtest_end date not null,
   rebalance_interval text not null,
   num_assets int not null,
   asset_universe text not null references asset_universe(asset_universe_name),

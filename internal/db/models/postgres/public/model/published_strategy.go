@@ -16,8 +16,6 @@ type PublishedStrategy struct {
 	PublishedStrategyID uuid.UUID `sql:"primary_key"`
 	StrategyName        string
 	FactorExpression    string
-	BacktestStart       time.Time
-	BacktestEnd         time.Time
 	RebalanceInterval   string
 	NumAssets           int32
 	AssetUniverse       string
