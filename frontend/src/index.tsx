@@ -8,6 +8,7 @@ import { BondBuilder } from './pages/Bond/Bond';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleAuthUser } from './models';
 import Invest from './pages/Investments/Invest';
+import { Home } from 'pages/Home/Home';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
