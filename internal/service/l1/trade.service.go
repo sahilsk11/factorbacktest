@@ -96,11 +96,16 @@ func (h tradeServiceHandler) placeOrder(
 
 	// should we include investmentOrder updates here
 
+	limit := expectedPrice.Mul(decimal.NewFromFloat(1.05))
+	if alpacaSide == alpaca.Sell {
+		limit = expectedPrice.Mul(decimal.NewFromFloat(0.95))
+	}
 	order, err := h.AlpacaRepository.PlaceOrder(repository.AlpacaPlaceOrderRequest{
 		TradeOrderID: insertedOrder.TradeOrderID,
 		Quantity:     quantity,
 		Symbol:       symbol,
 		Side:         alpacaSide,
+		LimitPrice:   &limit,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute order for trade order %s: %w", insertedOrder.TradeOrderID, err)

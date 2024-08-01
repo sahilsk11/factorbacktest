@@ -141,6 +141,7 @@ type AlpacaPlaceOrderRequest struct {
 	Quantity     decimal.Decimal
 	Symbol       string
 	Side         alpaca.Side
+	LimitPrice   *decimal.Decimal
 }
 
 func (a AlpacaPlaceOrderRequest) isValid() error {
@@ -163,7 +164,8 @@ func (h alpacaRepositoryHandler) PlaceOrder(req AlpacaPlaceOrderRequest) (*alpac
 		Symbol:        req.Symbol,
 		Qty:           &req.Quantity,
 		Side:          req.Side,
-		Type:          alpaca.Market,
+		Type:          alpaca.Limit,
+		LimitPrice:    req.LimitPrice,
 		TimeInForce:   alpaca.Day,
 		ClientOrderID: req.TradeOrderID.String(),
 	})
