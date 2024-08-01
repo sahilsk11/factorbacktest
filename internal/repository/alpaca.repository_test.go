@@ -1,16 +1,14 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
+	"factorbacktest/internal/util"
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
-	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,39 +39,24 @@ func initializeHandler() (*alpacaRepositoryHandler, error) {
 			BaseURL:    "https://paper-api.alpaca.markets",
 			RetryLimit: 3,
 		}),
+		MdClient: marketdata.NewClient(marketdata.ClientOpts{
+			APIKey:    s.Alpaca.ApiKey,
+			APISecret: s.Alpaca.ApiSecret,
+		}),
 	}, nil
 }
 
 func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 	if true {
-		t.Skip()
+		// t.Skip()
 	}
 
 	handler, err := initializeHandler()
 	require.NoError(t, err)
-	defer func() {
-		handler.CancelOpenOrders(context.Background())
-	}()
 
-	order, err := handler.PlaceOrder(AlpacaPlaceOrderRequest{
-		TradeOrderID: uuid.New(),
-		Quantity:     decimal.NewFromInt(12),
-		Symbol:       "AAPL",
-		Side:         alpaca.Buy,
-	})
+	prices, err := handler.GetLatestPrices([]string{"MRK", "V"})
 	require.NoError(t, err)
+	util.Pprint(prices)
 
-	fmt.Println(order.Status)
-	fmt.Println(order.ID)
-	// fmt.Println(order.)
-
-	// fmt.Println(order.AssetClass)
-	// fmt.Println(order.FailedAt)
-	fmt.Println("P", order.FilledAvgPrice)
-	fmt.Println("q", order.FilledQty)
-	fmt.Println("q", order.FilledAt)
-	fmt.Println("n", order.Notional)
-
-	time.Sleep(3 * time.Second)
 	t.Fail()
 }

@@ -83,7 +83,7 @@ func (h alpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]d
 	}
 	out := map[string]decimal.Decimal{}
 	for symbol, result := range results {
-		out[symbol] = decimal.NewFromFloat(result.BidPrice)
+		out[symbol] = decimal.NewFromFloat(result.AskPrice)
 		if out[symbol].IsZero() {
 			return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
 		}
