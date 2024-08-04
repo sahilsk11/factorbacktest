@@ -100,6 +100,7 @@ func (h tradeServiceHandler) placeOrder(
 	if alpacaSide == alpaca.Sell {
 		limit = expectedPrice.Mul(decimal.NewFromFloat(0.95))
 	}
+	limit = limit.Round(2)
 	order, err := h.AlpacaRepository.PlaceOrder(repository.AlpacaPlaceOrderRequest{
 		TradeOrderID: insertedOrder.TradeOrderID,
 		Quantity:     quantity,
