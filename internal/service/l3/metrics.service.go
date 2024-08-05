@@ -11,7 +11,8 @@ import (
 )
 
 type CalculateMetricsResult struct {
-	AnnualizedStdev float64
+	AnnualizedStdev  float64
+	AnnualizedReturn float64
 }
 
 // calculateMetrics calculates metrics for the given snapshots. it assumes
@@ -30,8 +31,15 @@ func CalculateMetrics(backtestResults []BacktestResult, relevantTradingDays []ti
 
 	annualizedStdev := stdev * math.Sqrt(252)
 
+	startValue := backtestResults[0].TotalValue
+	endValue := backtestResults[len(backtestResults)-1].TotalValue
+	numHours := backtestResults[len(backtestResults)-1].Date.Sub(backtestResults[0].Date).Hours()
+	numYears := numHours / (365 * 24)
+	annualizedReturn := math.Pow((endValue/startValue), 1/numYears) - 1
+
 	return &CalculateMetricsResult{
-		AnnualizedStdev: annualizedStdev,
+		AnnualizedStdev:  annualizedStdev,
+		AnnualizedReturn: annualizedReturn,
 	}, nil
 }
 
