@@ -110,6 +110,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		alpacaRepository,
 		tradingService,
 		investmentRebalanceRepository,
+		priceRepository,
 	)
 
 	apiHandler := &api.ApiHandler{

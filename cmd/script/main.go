@@ -6,10 +6,12 @@ import (
 	"factorbacktest/cmd"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
+	"factorbacktest/internal/util"
 	"fmt"
 	"log"
 	"os"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/spf13/cobra"
 )
@@ -24,6 +26,7 @@ func init() {
 	rootCmd.AddCommand(reconcileCmd)
 	rootCmd.AddCommand(rebalanceCmd)
 	rootCmd.AddCommand(updateOrdersCmd)
+	rootCmd.AddCommand(updatePublishedStrategyStats)
 }
 
 var reconcileCmd = &cobra.Command{
@@ -80,6 +83,7 @@ var updateOrdersCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update all pending orders",
 	Run: func(c *cobra.Command, args []string) {
+
 		handler, err := cmd.InitializeDependencies()
 		if err != nil {
 			log.Fatal(err)
@@ -88,6 +92,38 @@ var updateOrdersCmd = &cobra.Command{
 		log.Info("updating orders")
 
 		updateOrders(handler)
+
+	},
+}
+
+var updatePublishedStrategyStats = &cobra.Command{
+	Use:   "updateStats",
+	Short: "Update all pending orders",
+	Run: func(c *cobra.Command, args []string) {
+		handler, err := cmd.InitializeDependencies()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		profile, endProfile := domain.NewProfile()
+		defer endProfile()
+		ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+		lg := logger.New()
+		ctx = context.WithValue(ctx, logger.ContextKey, lg)
+
+		metrics, err := handler.InvestmentService.CalculateMetrics(ctx, uuid.MustParse("00186fdc-93a0-4686-a0d1-848d532bf12a"))
+		if err != nil {
+			lg.Error(err)
+		}
+
+		util.Pprint(metrics)
+
+		metrics, err = handler.InvestmentService.CalculateMetrics(ctx, uuid.MustParse("5531ef32-ae2d-4e10-88b6-15eee887289b"))
+		if err != nil {
+			lg.Error(err)
+		}
+
+		util.Pprint(metrics)
 	},
 }
 

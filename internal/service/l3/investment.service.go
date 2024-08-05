@@ -30,6 +30,7 @@ type InvestmentService interface {
 	GetStats(investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
+	CalculateMetrics(ctx context.Context, savedStrategyID uuid.UUID) (*CalculateMetricsResult, error)
 }
 
 type investmentServiceHandler struct {
@@ -43,10 +44,11 @@ type investmentServiceHandler struct {
 	RebalancerRunRepository       repository.RebalancerRunRepository
 	HoldingsVersionRepository     repository.InvestmentHoldingsVersionRepository
 	InvestmentTradeRepository     repository.InvestmentTradeRepository
-	BacktestHandler               BacktestHandler
+	BacktestHandler               BacktestHandler // lol wtf, if we're importing from the same service package, the layered approach makes no sense
 	AlpacaRepository              repository.AlpacaRepository
 	TradingService                l1_service.TradeService
 	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
+	PriceRepository               repository.AdjustedPriceRepository
 }
 
 func NewInvestmentService(
@@ -64,6 +66,7 @@ func NewInvestmentService(
 	alpacaRepository repository.AlpacaRepository,
 	tradeService l1_service.TradeService,
 	investmentRebalanceRepository repository.InvestmentRebalanceRepository,
+	priceRepository repository.AdjustedPriceRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                            db,
@@ -80,6 +83,7 @@ func NewInvestmentService(
 		AlpacaRepository:              alpacaRepository,
 		TradingService:                tradeService,
 		InvestmentRebalanceRepository: investmentRebalanceRepository,
+		PriceRepository:               priceRepository,
 	}
 }
 
@@ -225,6 +229,81 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 		SavedStrategy:         *strategy,
 		OriginalAmount:        investment.AmountDollars,
 	}, nil
+}
+
+func (h investmentServiceHandler) CalculateMetrics(ctx context.Context, savedStrategyID uuid.UUID) (*CalculateMetricsResult, error) {
+	strategy, err := h.SavedStrategyRepository.Get(savedStrategyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get saved strategy: %w", err)
+	}
+
+	// let's use three year windows for stats
+	start := time.Now().UTC().AddDate(-3, 0, 0)
+	end := time.Now().UTC()
+
+	assets, err := h.UniverseRepository.GetAssets(strategy.AssetUniverse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assets from universie name")
+	}
+	getPricesInput := []repository.GetManyInput{}
+	for _, a := range assets {
+		getPricesInput = append(getPricesInput, repository.GetManyInput{
+			Symbol:  a.Symbol,
+			MinDate: start,
+			MaxDate: end,
+		})
+	}
+	prices, err := h.PriceRepository.GetMany(getPricesInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get prices: %w", err)
+	}
+
+	mappedPrices := map[time.Time]map[string]decimal.Decimal{}
+	for _, p := range prices {
+		if _, ok := mappedPrices[p.Date]; !ok {
+			mappedPrices[p.Date] = map[string]decimal.Decimal{}
+		}
+		mappedPrices[p.Date][p.Symbol] = p.Price
+	}
+
+	interval := time.Hour * 24
+	if strings.EqualFold(strategy.RebalanceInterval, "weekly") {
+		interval *= 7
+	} else if strings.EqualFold(strategy.RebalanceInterval, "monthly") {
+		interval *= 30
+	} else if strings.EqualFold(strategy.RebalanceInterval, "yearly") {
+		interval *= 365
+	}
+
+	backtestInput := BacktestInput{
+		FactorExpression:  strategy.FactorExpression,
+		BacktestStart:     start,
+		BacktestEnd:       end,
+		RebalanceInterval: interval,
+		StartingCash:      1000, // shouldn't matter for this
+		NumTickers:        int(strategy.NumAssets),
+		AssetUniverse:     strategy.AssetUniverse,
+	}
+
+	backtestResponse, err := h.BacktestHandler.Backtest(ctx, backtestInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run backtest: %w", err)
+	}
+
+	relevantTradingDays, err := h.PriceRepository.ListTradingDays(
+		start,
+		end,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list trading days: %w", err)
+	}
+
+	metrics, err := CalculateMetrics(backtestResponse.Results, relevantTradingDays, mappedPrices)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate metrics: %w", err)
+	}
+
+	return metrics, nil
 }
 
 // listForRebalance retrieves all investments that should be

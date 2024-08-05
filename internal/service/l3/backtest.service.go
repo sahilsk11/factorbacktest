@@ -23,8 +23,9 @@ type BacktestHandler struct {
 	FactorExpressionService l2_service.FactorExpressionService
 }
 
-type BacktestSample struct {
+type BacktestResult struct {
 	Date       time.Time
+	Portfolio  domain.Portfolio
 	TotalValue float64
 	// might be less memory to join these in one map, but
 	// it's also cleaner to have these seperated so i don't
@@ -37,6 +38,7 @@ type BacktestSample struct {
 }
 
 type BacktestSnapshot struct {
+	// presumably from last rebalance
 	ValuePercentChange float64                         `json:"valuePercentChange"`
 	Value              float64                         `json:"value"`
 	Date               string                          `json:"date"`
@@ -60,9 +62,9 @@ type BacktestInput struct {
 }
 
 type BacktestResponse struct {
-	BacktestSamples []BacktestSample
-	Snapshots       map[string]BacktestSnapshot
-	LatestHoldings  LatestHoldings
+	Results        []BacktestResult
+	Snapshots      map[string]BacktestSnapshot
+	LatestHoldings LatestHoldings
 }
 
 func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*BacktestResponse, error) {
@@ -106,7 +108,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	currentPortfolio := domain.NewPortfolio()
 	currentPortfolio.SetCash(startValue)
 
-	out := []BacktestSample{}
+	out := []BacktestResult{}
 
 	const errThreshold = 0.1
 	backtestErrors := []error{}
@@ -156,8 +158,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			// return nil, fmt.Errorf("failed to compute target portfolio in backtest on %s: %w", t.Format(time.DateOnly), err)
 		}
 
-		out = append(out, BacktestSample{
+		out = append(out, BacktestResult{
 			Date:         t,
+			Portfolio:    *computeTargetPortfolioResponse.TargetPortfolio,
 			TotalValue:   currentPortfolioValue.InexactFloat64(),
 			AssetWeights: computeTargetPortfolioResponse.AssetWeights,
 			FactorScores: computeTargetPortfolioResponse.FactorScores,
@@ -174,6 +177,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		return nil, fmt.Errorf("too many backtest errors (%d %%). first %d: %v", int(100*float64(len(backtestErrors))/float64(len(tradingDays))), numErrors, backtestErrors[:numErrors])
 	}
 
+	// todo - snapshots and latest holdings
+	// need to be moved out
+
 	_, endSpan = profile.StartNewSpan("creating snapshots")
 	snapshots, err := toSnapshots(out, priceMap)
 	if err != nil {
@@ -187,9 +193,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	}
 
 	return &BacktestResponse{
-		BacktestSamples: out,
-		Snapshots:       snapshots,
-		LatestHoldings:  *latestHoldings,
+		Results:        out,
+		Snapshots:      snapshots,
+		LatestHoldings: *latestHoldings,
 	}, nil
 }
 
@@ -239,7 +245,7 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 	return &out, nil
 }
 
-func toSnapshots(result []BacktestSample, priceMap map[string]map[string]decimal.Decimal) (map[string]BacktestSnapshot, error) {
+func toSnapshots(result []BacktestResult, priceMap map[string]map[string]decimal.Decimal) (map[string]BacktestSnapshot, error) {
 	snapshots := map[string]BacktestSnapshot{}
 
 	for i, r := range result {
