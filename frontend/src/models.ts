@@ -149,4 +149,6 @@ export interface GetPublishedStrategiesResponse {
   fiveYearReturn?: number;
   diversification?: number;
   sharpeRatio?: number;
+  annualizedReturn?: number;
+  annualizedStandardDeviation?: number;
 }

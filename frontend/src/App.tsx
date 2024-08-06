@@ -40,9 +40,9 @@ const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Di
 
 
   return <>
-    <div className={styles.bond_ad} onClick={() => { window.location.href = "/bonds" }}>
+    {/* <div className={styles.bond_ad} onClick={() => { window.location.href = "/bonds" }}>
       <p className={styles.bond_ad_text}><b>Bond Ladder Backtesting is Live →</b></p>
-    </div>
+    </div> */}
     <Nav loggedIn={user !== null} setUser={setUser} showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
     <div className={styles.centered_container}>
       <FactorBacktestMain userID={userID} user={user} setUser={setUser} />

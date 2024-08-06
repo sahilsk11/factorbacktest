@@ -25,6 +25,8 @@ type publishedStrategyStatsTable struct {
 	Diversification          postgres.ColumnFloat
 	SharpeRatio              postgres.ColumnFloat
 	CreatedAt                postgres.ColumnTimestampz
+	AnnualizedReturn         postgres.ColumnFloat
+	AnnualizedStdev          postgres.ColumnFloat
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -63,8 +65,10 @@ func newPublishedStrategyStatsTableImpl(schemaName, tableName, alias string) pub
 		DiversificationColumn          = postgres.FloatColumn("diversification")
 		SharpeRatioColumn              = postgres.FloatColumn("sharpe_ratio")
 		CreatedAtColumn                = postgres.TimestampzColumn("created_at")
-		allColumns                     = postgres.ColumnList{PublishedStrategyStatsIDColumn, PublishedStrategyIDColumn, OneYearReturnColumn, TwoYearReturnColumn, FiveYearReturnColumn, DiversificationColumn, SharpeRatioColumn, CreatedAtColumn}
-		mutableColumns                 = postgres.ColumnList{PublishedStrategyIDColumn, OneYearReturnColumn, TwoYearReturnColumn, FiveYearReturnColumn, DiversificationColumn, SharpeRatioColumn, CreatedAtColumn}
+		AnnualizedReturnColumn         = postgres.FloatColumn("annualized_return")
+		AnnualizedStdevColumn          = postgres.FloatColumn("annualized_stdev")
+		allColumns                     = postgres.ColumnList{PublishedStrategyStatsIDColumn, PublishedStrategyIDColumn, OneYearReturnColumn, TwoYearReturnColumn, FiveYearReturnColumn, DiversificationColumn, SharpeRatioColumn, CreatedAtColumn, AnnualizedReturnColumn, AnnualizedStdevColumn}
+		mutableColumns                 = postgres.ColumnList{PublishedStrategyIDColumn, OneYearReturnColumn, TwoYearReturnColumn, FiveYearReturnColumn, DiversificationColumn, SharpeRatioColumn, CreatedAtColumn, AnnualizedReturnColumn, AnnualizedStdevColumn}
 	)
 
 	return publishedStrategyStatsTable{
@@ -79,6 +83,8 @@ func newPublishedStrategyStatsTableImpl(schemaName, tableName, alias string) pub
 		Diversification:          DiversificationColumn,
 		SharpeRatio:              SharpeRatioColumn,
 		CreatedAt:                CreatedAtColumn,
+		AnnualizedReturn:         AnnualizedReturnColumn,
+		AnnualizedStdev:          AnnualizedStdevColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

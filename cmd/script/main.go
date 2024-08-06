@@ -111,14 +111,14 @@ var updatePublishedStrategyStats = &cobra.Command{
 		lg := logger.New()
 		ctx = context.WithValue(ctx, logger.ContextKey, lg)
 
-		metrics, err := handler.InvestmentService.CalculateMetrics(ctx, uuid.MustParse("00186fdc-93a0-4686-a0d1-848d532bf12a"))
+		metrics, err := handler.InvestmentService.CalculateMetrics(ctx, uuid.MustParse("3a5c65a3-9437-49ef-aa64-fd9e137d147e"))
 		if err != nil {
 			lg.Error(err)
 		}
 
 		util.Pprint(metrics)
 
-		metrics, err = handler.InvestmentService.CalculateMetrics(ctx, uuid.MustParse("5531ef32-ae2d-4e10-88b6-15eee887289b"))
+		metrics, err = handler.InvestmentService.CalculateMetrics(ctx, uuid.MustParse("00186fdc-93a0-4686-a0d1-848d532bf12a"))
 		if err != nil {
 			lg.Error(err)
 		}

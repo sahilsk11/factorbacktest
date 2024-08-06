@@ -24,6 +24,8 @@ type getPublishedStrategiesResponse struct {
 	FiveYearReturn      *float64  `json:"fiveYearReturn"`
 	Diversification     *float64  `json:"diversification"`
 	SharpeRatio         *float64  `json:"sharpeRatio"`
+	AnnualizedReturn    *float64  `json:"annualizedReturn"`
+	AnnualizedStdev     *float64  `json:"annualizedStandardDeviation"`
 }
 
 func (m ApiHandler) getPublishedStrategies(c *gin.Context) {
@@ -63,6 +65,8 @@ func (m ApiHandler) getPublishedStrategies(c *gin.Context) {
 			FiveYearReturn:      stats.FiveYearReturn,
 			Diversification:     stats.Diversification,
 			SharpeRatio:         stats.SharpeRatio,
+			AnnualizedReturn:    stats.AnnualizedReturn,
+			AnnualizedStdev:     stats.AnnualizedStdev,
 		})
 	}
 
