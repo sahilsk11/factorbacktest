@@ -232,7 +232,7 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 func (h investmentServiceHandler) CalculateMetrics(ctx context.Context, strategyID uuid.UUID) (*CalculateMetricsResult, error) {
 	strategy, err := h.StrategyRepository.Get(strategyID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get saved strategy: %w", err)
+		return nil, fmt.Errorf("failed to get strategy: %w", err)
 	}
 
 	// let's use three year windows for stats
@@ -351,7 +351,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	// now
 	strategy, err := h.StrategyRepository.Get(investment.StrategyID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get saved strategy with id %s: %w", investment.StrategyID.String(), err)
+		return nil, fmt.Errorf("failed to get strategy with id %s: %w", investment.StrategyID.String(), err)
 	}
 	universe, err := h.UniverseRepository.GetAssets(strategy.AssetUniverse)
 	if err != nil {

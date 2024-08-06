@@ -113,7 +113,7 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]l3_service.GetStatsRespon
 			StartDate:             stats.StartDate.Format(time.DateOnly),
 			Strategy: Strategy{
 				StrategyID:        stats.Strategy.StrategyID,
-				StrategyName:      *stats.Strategy.StrategyName,
+				StrategyName:      stats.Strategy.StrategyName,
 				FactorExpression:  stats.Strategy.FactorExpression,
 				NumAssets:         stats.Strategy.NumAssets,
 				AssetUniverse:     stats.Strategy.AssetUniverse,

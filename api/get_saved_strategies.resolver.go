@@ -10,18 +10,14 @@ import (
 )
 
 type getSavedStrategiesResponse struct {
-	SavedStragyID     uuid.UUID `json:"savedStrategyID"`
+	StrategyID        uuid.UUID `json:"strategyID"`
 	StrategyName      string    `json:"strategyName"`
 	RebalanceInterval string    `json:"rebalanceInterval"`
 	Bookmarked        bool      `json:"bookmarked"`
 	CreatedAt         time.Time `json:"createdAt"`
 	FactorExpression  string    `json:"factorExpression"`
-	// ModifiedAt        time.Time
-
-	BacktestStart time.Time `json:"backtestStart"`
-	BacktestEnd   time.Time `json:"backtestEnd"`
-	NumAssets     int32     `json:"numAssets"`
-	AssetUniverse string    `json:"assetUniverse"`
+	NumAssets         int32     `json:"numAssets"`
+	AssetUniverse     string    `json:"assetUniverse"`
 }
 
 func (m ApiHandler) getSavedStrategies(c *gin.Context) {
@@ -42,8 +38,8 @@ func (m ApiHandler) getSavedStrategies(c *gin.Context) {
 		return
 	}
 
-	savedStrategies, err := m.SavedStrategyRepository.List(repository.SavedStrategyListFilter{
-		UserAccountID: &userAccountID,
+	savedStrategies, err := m.StrategyRepository.List(repository.StrategyListFilter{
+		SavedByUser: &userAccountID,
 	})
 	if err != nil {
 		returnErrorJson(err, c)
@@ -53,14 +49,11 @@ func (m ApiHandler) getSavedStrategies(c *gin.Context) {
 	out := []getSavedStrategiesResponse{}
 	for _, s := range savedStrategies {
 		out = append(out, getSavedStrategiesResponse{
-			SavedStragyID:     s.SavedStragyID,
+			StrategyID:        s.StrategyID,
 			StrategyName:      s.StrategyName,
 			RebalanceInterval: s.RebalanceInterval,
-			Bookmarked:        s.Bookmarked,
 			CreatedAt:         s.CreatedAt,
 			FactorExpression:  s.FactorExpression,
-			BacktestStart:     s.BacktestStart,
-			BacktestEnd:       s.BacktestEnd,
 			NumAssets:         s.NumAssets,
 			AssetUniverse:     s.AssetUniverse,
 		})

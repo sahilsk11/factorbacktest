@@ -264,15 +264,12 @@ func (m ApiHandler) addNewStrategy(
 	}
 
 	newModel := model.Strategy{
-		// StrategyName:      name,
-		FactorExpression: expression,
-		// BacktestStart:     start,
-		BacktestEnd: end,
-		// RebalanceInterval: rebalanceInterval,
-		NumAssets:     int32(numAssets),
-		AssetUniverse: assetUniverse,
-		Saved:         false,
-		Author:        userAccountID,
+		StrategyName:      name,
+		FactorExpression:  expression,
+		RebalanceInterval: rebalanceInterval,
+		NumAssets:         int32(numAssets),
+		AssetUniverse:     assetUniverse,
+		UserAccountID:     userAccountID,
 	}
 	_, err = m.StrategyRepository.Add(newModel)
 	if err != nil {

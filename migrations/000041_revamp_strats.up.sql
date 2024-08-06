@@ -49,3 +49,7 @@ create table saved_strategy (
   modified_at timestamp with time zone not null default now(),
   deleted_at timestamp with time zone
 );
+
+alter table strategy drop column saved;
+alter table strategy alter column strategy_name set not null;
+alter table strategy rename column author to user_account_id;

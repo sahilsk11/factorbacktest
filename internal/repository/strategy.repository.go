@@ -88,7 +88,7 @@ func (h strategyRepositoryHandler) ListMatchingStrategies(m model.Strategy) ([]m
 				table.Strategy.RebalanceInterval.EQ(postgres.String(m.RebalanceInterval)),
 				table.Strategy.NumAssets.EQ(postgres.Int32(m.NumAssets)),
 				table.Strategy.AssetUniverse.EQ(postgres.String(m.AssetUniverse)),
-				table.Strategy.Author.EQ(postgres.UUID(m.Author)),
+				table.Strategy.UserAccountID.EQ(postgres.UUID(m.UserAccountID)),
 			),
 		).ORDER_BY(
 		table.Strategy.CreatedAt.DESC(),
@@ -106,6 +106,8 @@ func (h strategyRepositoryHandler) ListMatchingStrategies(m model.Strategy) ([]m
 }
 
 type StrategyListFilter struct {
+	SavedByUser *uuid.UUID
+	Published   *bool
 }
 
 func (h strategyRepositoryHandler) List(filter StrategyListFilter) ([]model.Strategy, error) {
@@ -115,11 +117,19 @@ func (h strategyRepositoryHandler) List(filter StrategyListFilter) ([]model.Stra
 			table.Strategy.CreatedAt.DESC(),
 		)
 
-	// if filter.UserAccountID != nil {
-	// 	query = query.WHERE(
-	// 		table.Strategy.Author.EQ(postgres.UUID(*filter.UserAccountID)),
-	// 	)
-	// }
+	if filter.SavedByUser != nil {
+		query = query.FROM(
+			table.Strategy.INNER_JOIN(
+				table.SavedStrategy,
+				table.SavedStrategy.UserAccountID.EQ(postgres.UUID(*filter.SavedByUser)),
+			),
+		)
+	}
+	if filter.Published != nil && *filter.Published {
+		query = query.WHERE(
+			table.Strategy.Published.IS_TRUE(),
+		)
+	}
 
 	out := []model.Strategy{}
 	err := query.Query(h.Db, &out)

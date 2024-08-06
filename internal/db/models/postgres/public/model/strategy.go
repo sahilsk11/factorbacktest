@@ -14,13 +14,12 @@ import (
 
 type Strategy struct {
 	StrategyID        uuid.UUID `sql:"primary_key"`
-	StrategyName      *string
+	StrategyName      string
 	FactorExpression  string
 	RebalanceInterval string
 	NumAssets         int32
 	AssetUniverse     string
-	Saved             bool
-	Author            uuid.UUID
+	UserAccountID     uuid.UUID
 	CreatedAt         time.Time
 	ModifiedAt        time.Time
 	Published         bool
