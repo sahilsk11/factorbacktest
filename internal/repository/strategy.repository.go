@@ -19,6 +19,9 @@ type StrategyRepository interface {
 	Update(model.Strategy, postgres.ColumnList) (*model.Strategy, error)
 	Get(uuid.UUID) (*model.Strategy, error)
 	GetIfBookmarked(model.Strategy) (*model.Strategy, error)
+
+	AddRun(model.StrategyRun) (*model.StrategyRun, error)
+	GetLatestPublishedRun(strategyID uuid.UUID) (*model.StrategyRun, error)
 }
 
 type strategyRepositoryHandler struct {
@@ -165,6 +168,39 @@ func (h strategyRepositoryHandler) GetIfBookmarked(m model.Strategy) (*model.Str
 	if err != nil && errors.Is(err, qrm.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {
+		return nil, err
+	}
+
+	return &out, nil
+}
+
+func (h strategyRepositoryHandler) AddRun(m model.StrategyRun) (*model.StrategyRun, error) {
+	m.CreatedAt = time.Now().UTC()
+
+	t := table.StrategyRun
+	query := t.INSERT(t.MutableColumns).
+		MODEL(m).
+		RETURNING(t.AllColumns)
+
+	out := model.StrategyRun{}
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add strategy run: %w", err)
+	}
+
+	return &out, nil
+}
+
+func (h strategyRepositoryHandler) GetLatestPublishedRun(strategyID uuid.UUID) (*model.StrategyRun, error) {
+	t := table.StrategyRun
+	query := t.SELECT(t.AllColumns).
+		WHERE(t.StrategyID.EQ(postgres.UUID(strategyID))).
+		ORDER_BY(t.CreatedAt.DESC()).
+		LIMIT(1)
+
+	out := model.StrategyRun{}
+	err := query.Query(h.Db, &out)
+	if err != nil {
 		return nil, err
 	}
 

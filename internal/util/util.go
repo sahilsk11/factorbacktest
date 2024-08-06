@@ -35,6 +35,10 @@ func TimePointer(t time.Time) *time.Time {
 	return &t
 }
 
+func BoolPointer(b bool) *bool {
+	return &b
+}
+
 func DecimalPointer(d decimal.Decimal) *decimal.Decimal {
 	return &d
 }

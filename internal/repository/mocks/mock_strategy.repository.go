@@ -14,6 +14,7 @@ import (
 	repository "factorbacktest/internal/repository"
 	reflect "reflect"
 
+	postgres "github.com/go-jet/jet/v2/postgres"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -56,6 +57,21 @@ func (mr *MockStrategyRepositoryMockRecorder) Add(m any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStrategyRepository)(nil).Add), m)
 }
 
+// AddRun mocks base method.
+func (m *MockStrategyRepository) AddRun(arg0 model.StrategyRun) (*model.StrategyRun, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddRun", arg0)
+	ret0, _ := ret[0].(*model.StrategyRun)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddRun indicates an expected call of AddRun.
+func (mr *MockStrategyRepositoryMockRecorder) AddRun(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRun", reflect.TypeOf((*MockStrategyRepository)(nil).AddRun), arg0)
+}
+
 // Get mocks base method.
 func (m *MockStrategyRepository) Get(arg0 uuid.UUID) (*model.Strategy, error) {
 	m.ctrl.T.Helper()
@@ -71,19 +87,34 @@ func (mr *MockStrategyRepositoryMockRecorder) Get(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockStrategyRepository)(nil).Get), arg0)
 }
 
-// IsBookmarked mocks base method.
-func (m *MockStrategyRepository) IsBookmarked(arg0 model.Strategy) (bool, error) {
+// GetIfBookmarked mocks base method.
+func (m *MockStrategyRepository) GetIfBookmarked(arg0 model.Strategy) (*model.Strategy, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsBookmarked", arg0)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "GetIfBookmarked", arg0)
+	ret0, _ := ret[0].(*model.Strategy)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsBookmarked indicates an expected call of IsBookmarked.
-func (mr *MockStrategyRepositoryMockRecorder) IsBookmarked(arg0 any) *gomock.Call {
+// GetIfBookmarked indicates an expected call of GetIfBookmarked.
+func (mr *MockStrategyRepositoryMockRecorder) GetIfBookmarked(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsBookmarked", reflect.TypeOf((*MockStrategyRepository)(nil).IsBookmarked), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIfBookmarked", reflect.TypeOf((*MockStrategyRepository)(nil).GetIfBookmarked), arg0)
+}
+
+// GetLatestPublishedRun mocks base method.
+func (m *MockStrategyRepository) GetLatestPublishedRun(strategyID uuid.UUID) (*model.StrategyRun, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestPublishedRun", strategyID)
+	ret0, _ := ret[0].(*model.StrategyRun)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestPublishedRun indicates an expected call of GetLatestPublishedRun.
+func (mr *MockStrategyRepositoryMockRecorder) GetLatestPublishedRun(strategyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPublishedRun", reflect.TypeOf((*MockStrategyRepository)(nil).GetLatestPublishedRun), strategyID)
 }
 
 // List mocks base method.
@@ -99,4 +130,19 @@ func (m *MockStrategyRepository) List(arg0 repository.StrategyListFilter) ([]mod
 func (mr *MockStrategyRepositoryMockRecorder) List(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockStrategyRepository)(nil).List), arg0)
+}
+
+// Update mocks base method.
+func (m *MockStrategyRepository) Update(arg0 model.Strategy, arg1 postgres.ColumnList) (*model.Strategy, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", arg0, arg1)
+	ret0, _ := ret[0].(*model.Strategy)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockStrategyRepositoryMockRecorder) Update(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockStrategyRepository)(nil).Update), arg0, arg1)
 }

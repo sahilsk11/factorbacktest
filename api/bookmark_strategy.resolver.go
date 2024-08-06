@@ -113,14 +113,13 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 		returnErrorJson(err, c)
 		return
 	}
-	if existing != nil && requestBody.Bookmark {
-		out := map[string]string{
-			"message": "ok",
-		}
 
-		c.JSON(200, out)
-		return
+	var strategyID uuid.UUID
+
+	if existing != nil && requestBody.Bookmark {
+		strategyID = existing.StrategyID
 	} else if existing != nil {
+		strategyID = existing.StrategyID
 		newModel.StrategyID = existing.StrategyID
 		_, err = m.StrategyRepository.Update(newModel, []postgres.Column{
 			table.Strategy.Saved,
@@ -130,15 +129,17 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 			return
 		}
 	} else if requestBody.Bookmark {
-		_, err = m.StrategyRepository.Add(newModel)
+		m, err := m.StrategyRepository.Add(newModel)
 		if err != nil {
 			returnErrorJson(err, c)
 			return
 		}
+		strategyID = m.StrategyID
 	}
 
 	out := map[string]string{
-		"message": "ok",
+		"message":         "ok",
+		"savedStrategyID": strategyID.String(),
 	}
 
 	c.JSON(200, out)
