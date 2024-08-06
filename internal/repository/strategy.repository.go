@@ -16,7 +16,9 @@ import (
 type StrategyRepository interface {
 	List(StrategyListFilter) ([]model.Strategy, error)
 	Add(m model.Strategy) (*model.Strategy, error)
+	Update(model.Strategy, postgres.ColumnList) (*model.Strategy, error)
 	Get(uuid.UUID) (*model.Strategy, error)
+	GetIfBookmarked(model.Strategy) (*model.Strategy, error)
 }
 
 type strategyRepositoryHandler struct {
@@ -40,20 +42,23 @@ func (h strategyRepositoryHandler) Get(id uuid.UUID) (*model.Strategy, error) {
 	return &out, nil
 }
 
-func (h strategyRepositoryHandler) UpdateName(id uuid.UUID, name string) error {
-	query := table.Strategy.UPDATE(
-		table.Strategy.StrategyName,
-	).SET(
-		postgres.String(name),
-	).WHERE(
-		table.Strategy.StrategyID.EQ(postgres.UUID(id)),
-	)
-	_, err := query.Exec(h.Db)
+func (h strategyRepositoryHandler) Update(m model.Strategy, columns postgres.ColumnList) (*model.Strategy, error) {
+	t := table.Strategy
+	m.ModifiedAt = time.Now().UTC()
+
+	query := t.UPDATE(
+		columns,
+	).MODEL(m).WHERE(
+		t.StrategyID.EQ(postgres.UUID(m.StrategyID)),
+	).RETURNING(t.AllColumns)
+
+	out := model.Strategy{}
+	err := query.Query(h.Db, &out)
 	if err != nil {
-		return fmt.Errorf("failed to update strategy name: %w", err)
+		return nil, fmt.Errorf("failed to update strategy: %w", err)
 	}
 
-	return nil
+	return &out, nil
 }
 
 func (h strategyRepositoryHandler) Add(m model.Strategy) (*model.Strategy, error) {
@@ -140,4 +145,28 @@ func (h strategyRepositoryHandler) List(filter StrategyListFilter) ([]model.Stra
 	}
 
 	return out, nil
+}
+
+func (h strategyRepositoryHandler) GetIfBookmarked(m model.Strategy) (*model.Strategy, error) {
+	t := table.Strategy
+
+	query := t.SELECT(t.AllColumns).
+		WHERE(postgres.AND(
+			t.FactorExpression.EQ(postgres.String(m.FactorExpression)),
+			t.RebalanceInterval.EQ(postgres.String(m.RebalanceInterval)),
+			t.NumAssets.EQ(postgres.Int(int64(m.NumAssets))),
+			t.AssetUniverse.EQ(postgres.String(m.AssetUniverse)),
+			t.UserAccountID.EQ(postgres.UUID(m.UserAccountID)),
+			t.Saved.IS_TRUE(),
+		)).LIMIT(1)
+
+	out := model.Strategy{}
+	err := query.Query(h.Db, &out)
+	if err != nil && errors.Is(err, qrm.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &out, nil
 }

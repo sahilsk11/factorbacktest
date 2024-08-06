@@ -71,6 +71,21 @@ func (mr *MockStrategyRepositoryMockRecorder) Get(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockStrategyRepository)(nil).Get), arg0)
 }
 
+// IsBookmarked mocks base method.
+func (m *MockStrategyRepository) IsBookmarked(arg0 model.Strategy) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsBookmarked", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsBookmarked indicates an expected call of IsBookmarked.
+func (mr *MockStrategyRepositoryMockRecorder) IsBookmarked(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsBookmarked", reflect.TypeOf((*MockStrategyRepository)(nil).IsBookmarked), arg0)
+}
+
 // List mocks base method.
 func (m *MockStrategyRepository) List(arg0 repository.StrategyListFilter) ([]model.Strategy, error) {
 	m.ctrl.T.Helper()
