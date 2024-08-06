@@ -124,8 +124,6 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		requestBody.SamplingIntervalUnit,
 		assetUniverse,
 		requestBody.NumSymbols,
-		backtestStartDate,
-		backtestEndDate,
 	)
 	if err != nil {
 		returnErrorJson(err, c)
@@ -245,7 +243,6 @@ func (m ApiHandler) addNewStrategy(
 	rebalanceInterval string,
 	assetUniverse string,
 	numAssets int,
-	start, end time.Time,
 ) error {
 	ginUserAccountID, ok := c.Get("userAccountID")
 	if !ok {
