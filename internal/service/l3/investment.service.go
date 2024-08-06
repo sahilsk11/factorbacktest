@@ -179,9 +179,24 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 	}
 	heldSymbols := currentHoldings.HeldSymbols()
 
-	latestPrices, err := h.AlpacaRepository.GetLatestPrices(heldSymbols)
+	latestPrices := map[string]decimal.Decimal{}
+	open, err := h.AlpacaRepository.IsMarketOpen()
 	if err != nil {
 		return nil, err
+	}
+	if open {
+		latestPrices, err = h.AlpacaRepository.GetLatestPrices(heldSymbols)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		prices, err := h.PriceRepository.LatestPrices(heldSymbols)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range prices {
+			latestPrices[p.Symbol] = p.Price
+		}
 	}
 
 	totalValue, err := currentHoldings.TotalValue(latestPrices)
