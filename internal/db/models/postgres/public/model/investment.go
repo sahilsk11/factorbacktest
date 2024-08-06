@@ -16,7 +16,7 @@ type Investment struct {
 	InvestmentID  uuid.UUID `sql:"primary_key"`
 	AmountDollars int32
 	StartDate     time.Time
-	SavedStragyID uuid.UUID
+	StrategyID    uuid.UUID
 	UserAccountID uuid.UUID
 	CreatedAt     time.Time
 	ModifiedAt    time.Time

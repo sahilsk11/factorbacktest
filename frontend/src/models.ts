@@ -87,7 +87,7 @@ export interface GetSavedStrategiesResponse {
 }
 
 export interface InvestInStrategyRequest {
-  savedStrategyID: string;
+  strategyID: string;
   amountDollars: number;
 }
 

@@ -17,18 +17,12 @@ type savedStrategyTable struct {
 	postgres.Table
 
 	//Columns
-	SavedStragyID     postgres.ColumnString
-	StrategyName      postgres.ColumnString
-	FactorExpression  postgres.ColumnString
-	BacktestStart     postgres.ColumnDate
-	BacktestEnd       postgres.ColumnDate
-	RebalanceInterval postgres.ColumnString
-	NumAssets         postgres.ColumnInteger
-	AssetUniverse     postgres.ColumnString
-	Bookmarked        postgres.ColumnBool
-	UserAccountID     postgres.ColumnString
-	CreatedAt         postgres.ColumnTimestampz
-	ModifiedAt        postgres.ColumnTimestampz
+	SavedStrategyID postgres.ColumnString
+	UserAccountID   postgres.ColumnString
+	StrategyID      postgres.ColumnString
+	CreatedAt       postgres.ColumnTimestampz
+	ModifiedAt      postgres.ColumnTimestampz
+	DeletedAt       postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -59,38 +53,26 @@ func newSavedStrategyTable(schemaName, tableName, alias string) *SavedStrategyTa
 
 func newSavedStrategyTableImpl(schemaName, tableName, alias string) savedStrategyTable {
 	var (
-		SavedStragyIDColumn     = postgres.StringColumn("saved_stragy_id")
-		StrategyNameColumn      = postgres.StringColumn("strategy_name")
-		FactorExpressionColumn  = postgres.StringColumn("factor_expression")
-		BacktestStartColumn     = postgres.DateColumn("backtest_start")
-		BacktestEndColumn       = postgres.DateColumn("backtest_end")
-		RebalanceIntervalColumn = postgres.StringColumn("rebalance_interval")
-		NumAssetsColumn         = postgres.IntegerColumn("num_assets")
-		AssetUniverseColumn     = postgres.StringColumn("asset_universe")
-		BookmarkedColumn        = postgres.BoolColumn("bookmarked")
-		UserAccountIDColumn     = postgres.StringColumn("user_account_id")
-		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
-		ModifiedAtColumn        = postgres.TimestampzColumn("modified_at")
-		allColumns              = postgres.ColumnList{SavedStragyIDColumn, StrategyNameColumn, FactorExpressionColumn, BacktestStartColumn, BacktestEndColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, BookmarkedColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn}
-		mutableColumns          = postgres.ColumnList{StrategyNameColumn, FactorExpressionColumn, BacktestStartColumn, BacktestEndColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, BookmarkedColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn}
+		SavedStrategyIDColumn = postgres.StringColumn("saved_strategy_id")
+		UserAccountIDColumn   = postgres.StringColumn("user_account_id")
+		StrategyIDColumn      = postgres.StringColumn("strategy_id")
+		CreatedAtColumn       = postgres.TimestampzColumn("created_at")
+		ModifiedAtColumn      = postgres.TimestampzColumn("modified_at")
+		DeletedAtColumn       = postgres.TimestampzColumn("deleted_at")
+		allColumns            = postgres.ColumnList{SavedStrategyIDColumn, UserAccountIDColumn, StrategyIDColumn, CreatedAtColumn, ModifiedAtColumn, DeletedAtColumn}
+		mutableColumns        = postgres.ColumnList{UserAccountIDColumn, StrategyIDColumn, CreatedAtColumn, ModifiedAtColumn, DeletedAtColumn}
 	)
 
 	return savedStrategyTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		SavedStragyID:     SavedStragyIDColumn,
-		StrategyName:      StrategyNameColumn,
-		FactorExpression:  FactorExpressionColumn,
-		BacktestStart:     BacktestStartColumn,
-		BacktestEnd:       BacktestEndColumn,
-		RebalanceInterval: RebalanceIntervalColumn,
-		NumAssets:         NumAssetsColumn,
-		AssetUniverse:     AssetUniverseColumn,
-		Bookmarked:        BookmarkedColumn,
-		UserAccountID:     UserAccountIDColumn,
-		CreatedAt:         CreatedAtColumn,
-		ModifiedAt:        ModifiedAtColumn,
+		SavedStrategyID: SavedStrategyIDColumn,
+		UserAccountID:   UserAccountIDColumn,
+		StrategyID:      StrategyIDColumn,
+		CreatedAt:       CreatedAtColumn,
+		ModifiedAt:      ModifiedAtColumn,
+		DeletedAt:       DeletedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

@@ -13,16 +13,10 @@ import (
 )
 
 type SavedStrategy struct {
-	SavedStragyID     uuid.UUID `sql:"primary_key"`
-	StrategyName      string
-	FactorExpression  string
-	BacktestStart     time.Time
-	BacktestEnd       time.Time
-	RebalanceInterval string
-	NumAssets         int32
-	AssetUniverse     string
-	Bookmarked        bool
-	UserAccountID     uuid.UUID
-	CreatedAt         time.Time
-	ModifiedAt        time.Time
+	SavedStrategyID uuid.UUID `sql:"primary_key"`
+	UserAccountID   uuid.UUID
+	StrategyID      uuid.UUID
+	CreatedAt       time.Time
+	ModifiedAt      time.Time
+	DeletedAt       *time.Time
 }

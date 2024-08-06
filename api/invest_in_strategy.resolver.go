@@ -9,8 +9,8 @@ import (
 )
 
 type investInStrategyRequest struct {
-	SavedStrategyID string `json:"savedStrategyID"`
-	Amount          int    `json:"amountDollars"`
+	StrategyID string `json:"strategyID"`
+	Amount     int    `json:"amountDollars"`
 }
 
 func (m ApiHandler) investInStrategy(c *gin.Context) {
@@ -22,7 +22,7 @@ func (m ApiHandler) investInStrategy(c *gin.Context) {
 		return
 	}
 
-	savedStrategyID, err := uuid.Parse(requestBody.SavedStrategyID)
+	strategyID, err := uuid.Parse(requestBody.StrategyID)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
@@ -45,7 +45,7 @@ func (m ApiHandler) investInStrategy(c *gin.Context) {
 		return
 	}
 
-	err = m.InvestmentService.Add(ctx, userAccountID, savedStrategyID, requestBody.Amount)
+	err = m.InvestmentService.Add(ctx, userAccountID, strategyID, requestBody.Amount)
 	if err != nil {
 		returnErrorJson(err, c)
 		return

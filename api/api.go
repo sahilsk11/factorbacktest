@@ -25,24 +25,23 @@ import (
 )
 
 type ApiHandler struct {
-	Db                            *sql.DB
-	BacktestHandler               l3_service.BacktestHandler
-	BenchmarkHandler              internal.BenchmarkHandler
-	UserStrategyRepository        repository.UserStrategyRepository
-	ContactRepository             repository.ContactRepository
-	GptRepository                 repository.GptRepository
-	ApiRequestRepository          repository.ApiRequestRepository
-	LatencencyTrackingRepository  repository.LatencyTrackingRepository
-	PriceService                  l1_service.PriceService
-	InvestmentService             l3_service.InvestmentService
-	TickerRepository              repository.TickerRepository
-	PriceRepository               repository.AdjustedPriceRepository
-	AssetUniverseRepository       repository.AssetUniverseRepository
-	UserAccountRepository         repository.UserAccountRepository
-	SavedStrategyRepository       repository.SavedStrategyRepository
-	InvestmentRepository          repository.InvestmentRepository
-	TradingService                l1_service.TradeService
-	PublishedStrategiesRepository repository.PublishedStrategyRepository
+	Db                           *sql.DB
+	BacktestHandler              l3_service.BacktestHandler
+	BenchmarkHandler             internal.BenchmarkHandler
+	UserStrategyRepository       repository.UserStrategyRepository
+	ContactRepository            repository.ContactRepository
+	GptRepository                repository.GptRepository
+	ApiRequestRepository         repository.ApiRequestRepository
+	LatencencyTrackingRepository repository.LatencyTrackingRepository
+	PriceService                 l1_service.PriceService
+	InvestmentService            l3_service.InvestmentService
+	TickerRepository             repository.TickerRepository
+	PriceRepository              repository.AdjustedPriceRepository
+	AssetUniverseRepository      repository.AssetUniverseRepository
+	UserAccountRepository        repository.UserAccountRepository
+	StrategyRepository           repository.StrategyRepository
+	InvestmentRepository         repository.InvestmentRepository
+	TradingService               l1_service.TradeService
 }
 
 func int64Ptr(i int64) *int64 {

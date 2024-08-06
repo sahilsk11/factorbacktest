@@ -26,11 +26,11 @@ import (
 // on trajectory. It maintains the concept of the aggregate investment
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
-	Add(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error
+	Add(ctx context.Context, userAccountID uuid.UUID, strategyID uuid.UUID, amount int) error
 	GetStats(investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
-	CalculateMetrics(ctx context.Context, savedStrategyID uuid.UUID) (*CalculateMetricsResult, error)
+	CalculateMetrics(ctx context.Context, strategyID uuid.UUID) (*CalculateMetricsResult, error)
 }
 
 type investmentServiceHandler struct {
@@ -38,7 +38,7 @@ type investmentServiceHandler struct {
 	InvestmentRepository          repository.InvestmentRepository
 	HoldingsRepository            repository.InvestmentHoldingsRepository
 	UniverseRepository            repository.AssetUniverseRepository
-	SavedStrategyRepository       repository.SavedStrategyRepository
+	StrategyRepository            repository.StrategyRepository
 	FactorExpressionService       l2_service.FactorExpressionService
 	TickerRepository              repository.TickerRepository
 	RebalancerRunRepository       repository.RebalancerRunRepository
@@ -56,7 +56,7 @@ func NewInvestmentService(
 	strategyInvestmentRepository repository.InvestmentRepository,
 	holdingsRepository repository.InvestmentHoldingsRepository,
 	universeRepository repository.AssetUniverseRepository,
-	savedStrategyRepository repository.SavedStrategyRepository,
+	strategyRepository repository.StrategyRepository,
 	factorExpressionService l2_service.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
 	rebalancerRunRepository repository.RebalancerRunRepository,
@@ -73,7 +73,7 @@ func NewInvestmentService(
 		InvestmentRepository:          strategyInvestmentRepository,
 		HoldingsRepository:            holdingsRepository,
 		UniverseRepository:            universeRepository,
-		SavedStrategyRepository:       savedStrategyRepository,
+		StrategyRepository:            strategyRepository,
 		FactorExpressionService:       factorExpressionService,
 		TickerRepository:              tickerRepository,
 		RebalancerRunRepository:       rebalancerRunRepository,
@@ -87,15 +87,13 @@ func NewInvestmentService(
 	}
 }
 
-func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UUID, savedStrategyID uuid.UUID, amount int) error {
+func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UUID, strategyID uuid.UUID, amount int) error {
 	tx, err := h.Db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	date := time.Now().UTC()
-
-	// ensure we don't double record an entry
 	prevInvestments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{
 		UserAccountIDs: []uuid.UUID{userAccountID},
 	})
@@ -114,7 +112,7 @@ func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UU
 	}
 
 	newStrategyInvestment, err := h.InvestmentRepository.Add(tx, model.Investment{
-		SavedStragyID: savedStrategyID,
+		StrategyID:    strategyID,
 		UserAccountID: userAccountID,
 		AmountDollars: int32(amount),
 		StartDate:     date,
@@ -162,7 +160,7 @@ type GetStatsResponse struct {
 	PercentReturnFraction decimal.Decimal
 	CurrentValue          decimal.Decimal
 	CompletedTrades       []domain.FilledTrade
-	SavedStrategy         model.SavedStrategy
+	Strategy              model.Strategy
 }
 
 func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsResponse, error) {
@@ -170,7 +168,7 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 	if err != nil {
 		return nil, err
 	}
-	strategy, err := h.SavedStrategyRepository.Get(investment.SavedStragyID)
+	strategy, err := h.StrategyRepository.Get(investment.StrategyID)
 	if err != nil {
 		return nil, err
 	}
@@ -226,13 +224,13 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 		CurrentValue:          totalValue,
 		PercentReturnFraction: returnFraction,
 		CompletedTrades:       completedTrades,
-		SavedStrategy:         *strategy,
+		Strategy:              *strategy,
 		OriginalAmount:        investment.AmountDollars,
 	}, nil
 }
 
-func (h investmentServiceHandler) CalculateMetrics(ctx context.Context, savedStrategyID uuid.UUID) (*CalculateMetricsResult, error) {
-	strategy, err := h.SavedStrategyRepository.Get(savedStrategyID)
+func (h investmentServiceHandler) CalculateMetrics(ctx context.Context, strategyID uuid.UUID) (*CalculateMetricsResult, error) {
+	strategy, err := h.StrategyRepository.Get(strategyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get saved strategy: %w", err)
 	}
@@ -343,7 +341,7 @@ func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model
 
 func (h investmentServiceHandler) getTargetPortfolio(
 	ctx context.Context,
-	strategyInvestment model.Investment,
+	investment model.Investment,
 	date time.Time,
 	portfolioValue decimal.Decimal,
 	pm map[string]decimal.Decimal,
@@ -351,21 +349,21 @@ func (h investmentServiceHandler) getTargetPortfolio(
 ) (*ComputeTargetPortfolioResponse, error) {
 	// figure out what the strategy should hold if we rebalance
 	// now
-	savedStrategyDetails, err := h.SavedStrategyRepository.Get(strategyInvestment.SavedStragyID)
+	strategy, err := h.StrategyRepository.Get(investment.StrategyID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get saved strategy with id %s: %w", strategyInvestment.SavedStragyID.String(), err)
+		return nil, fmt.Errorf("failed to get saved strategy with id %s: %w", investment.StrategyID.String(), err)
 	}
-	universe, err := h.UniverseRepository.GetAssets(savedStrategyDetails.AssetUniverse)
+	universe, err := h.UniverseRepository.GetAssets(strategy.AssetUniverse)
 	if err != nil {
 		return nil, err
 	}
-	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScoresOnDay(ctx, date, universe, savedStrategyDetails.FactorExpression)
+	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScoresOnDay(ctx, date, universe, strategy.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
 	computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
 		Date:             date,
-		TargetNumTickers: int(savedStrategyDetails.NumAssets),
+		TargetNumTickers: int(strategy.NumAssets),
 		FactorScores:     factorScoresOnLatestDay.SymbolScores,
 		PortfolioValue:   portfolioValue,
 		PriceMap:         pm,
@@ -774,7 +772,7 @@ func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, inves
 	if err != nil {
 		return nil, err
 	}
-	strategy, err := h.SavedStrategyRepository.Get(investment.SavedStragyID)
+	strategy, err := h.StrategyRepository.Get(investment.StrategyID)
 	if err != nil {
 		return nil, err
 	}

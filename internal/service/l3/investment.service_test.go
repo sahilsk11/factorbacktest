@@ -30,7 +30,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		holdingsRepository := mock_repository.NewMockInvestmentHoldingsRepository(ctrl)
 		universeRepository := mock_repository.NewMockAssetUniverseRepository(ctrl)
-		ssRepo := mock_repository.NewMockSavedStrategyRepository(ctrl)
+		ssRepo := mock_repository.NewMockStrategyRepository(ctrl)
 		feService := mock_l2_service.NewMockFactorExpressionService(ctrl)
 		investmentRebalanceRepository := mock_repository.NewMockInvestmentRebalanceRepository(ctrl)
 		investmentTradeRepository := mock_repository.NewMockInvestmentTradeRepository(ctrl)
@@ -38,7 +38,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 
 		handler := investmentServiceHandler{
 			HoldingsRepository:            holdingsRepository,
-			SavedStrategyRepository:       ssRepo,
+			StrategyRepository:            ssRepo,
 			UniverseRepository:            universeRepository,
 			FactorExpressionService:       feService,
 			InvestmentRebalanceRepository: investmentRebalanceRepository,
@@ -54,7 +54,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 			InvestmentID:  uuid.New(),
 			AmountDollars: 10,
 			StartDate:     time.Now(),
-			SavedStragyID: uuid.New(),
+			StrategyID:    uuid.New(),
 			UserAccountID: uuid.New(),
 			CreatedAt:     time.Now(),
 			ModifiedAt:    time.Now(),
@@ -138,7 +138,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 
 			ssRepo.EXPECT().
 				Get(gomock.Any()).
-				Return(&model.SavedStrategy{
+				Return(&model.Strategy{
 					AssetUniverse: "universe",
 					NumAssets:     3,
 				}, nil)

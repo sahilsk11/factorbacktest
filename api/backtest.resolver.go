@@ -117,7 +117,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	err = h.addNewSavedStrategy(
+	err = h.addNewStrategy(
 		c,
 		requestBody.FactorOptions.Name,
 		requestBody.FactorOptions.Expression,
@@ -238,7 +238,7 @@ func saveUserStrategy(
 	return err
 }
 
-func (m ApiHandler) addNewSavedStrategy(
+func (m ApiHandler) addNewStrategy(
 	c *gin.Context,
 	name string,
 	expression string,
@@ -263,18 +263,18 @@ func (m ApiHandler) addNewSavedStrategy(
 		return err
 	}
 
-	newModel := model.SavedStrategy{
-		StrategyName:      name,
-		FactorExpression:  expression,
-		BacktestStart:     start,
-		BacktestEnd:       end,
-		RebalanceInterval: rebalanceInterval,
-		NumAssets:         int32(numAssets),
-		AssetUniverse:     assetUniverse,
-		Bookmarked:        false,
-		UserAccountID:     userAccountID,
+	newModel := model.Strategy{
+		// StrategyName:      name,
+		FactorExpression: expression,
+		// BacktestStart:     start,
+		BacktestEnd: end,
+		// RebalanceInterval: rebalanceInterval,
+		NumAssets:     int32(numAssets),
+		AssetUniverse: assetUniverse,
+		Saved:         false,
+		Author:        userAccountID,
 	}
-	_, err = m.SavedStrategyRepository.Add(newModel)
+	_, err = m.StrategyRepository.Add(newModel)
 	if err != nil {
 		return err
 	}
