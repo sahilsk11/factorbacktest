@@ -260,6 +260,8 @@ func (m ApiHandler) addNewStrategy(
 		return err
 	}
 
+	// i think this should try to find one if it exists
+
 	newModel := model.Strategy{
 		StrategyName:      name,
 		FactorExpression:  expression,

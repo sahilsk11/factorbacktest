@@ -118,10 +118,10 @@ func (h strategyRepositoryHandler) List(filter StrategyListFilter) ([]model.Stra
 		)
 
 	if filter.SavedByUser != nil {
-		query = query.FROM(
-			table.Strategy.INNER_JOIN(
-				table.SavedStrategy,
-				table.SavedStrategy.UserAccountID.EQ(postgres.UUID(*filter.SavedByUser)),
+		query = query.WHERE(
+			postgres.AND(
+				table.Strategy.Saved.IS_TRUE(),
+				table.Strategy.UserAccountID.EQ(postgres.UUID(*filter.SavedByUser)),
 			),
 		)
 	}
