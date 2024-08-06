@@ -48,13 +48,13 @@ func initializeHandler() (*alpacaRepositoryHandler, error) {
 
 func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 	if true {
-		t.Skip()
+		// t.Skip()
 	}
 
 	handler, err := initializeHandler()
 	require.NoError(t, err)
 
-	prices, err := handler.GetLatestPrices([]string{"MRK", "V"})
+	prices, err := handler.GetLatestPrices([]string{"UPS", "V"})
 	require.NoError(t, err)
 	util.Pprint(prices)
 

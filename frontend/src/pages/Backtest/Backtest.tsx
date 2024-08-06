@@ -1,5 +1,5 @@
 import { FactorData, BenchmarkData, endpoint } from "App";
-import { GoogleAuthUser, LatestHoldings, GetSavedStrategiesResponse, BacktestInputs, GetPublishedStrategiesResponse } from "models";
+import { GoogleAuthUser, LatestHoldings, GetSavedStrategiesResponse, BacktestInputs, GetPublishedStrategiesResponse, PerformanceMetrics } from "models";
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { formatDate, minMaxDates } from "../../util";
@@ -24,6 +24,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   const [inspectFactorDataIndex, updateInspectFactorDataIndex] = useState<number | null>(null);
   const [inspectFactorDataDate, updateInspectFactorDataDate] = useState<string | null>(null);
   const [latestHoldings, setLatestHoldings] = useState<LatestHoldings | null>(null);
+  const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [assetUniverse, setAssetUniverse] = useState<string>("--");
 
   const [bookmarked, setBookmarked] = useState(false);
@@ -65,8 +66,8 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   }
 
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  async function getStrategy(id:string): Promise<GetPublishedStrategiesResponse | null> {
+
+  async function getStrategy(id: string): Promise<GetPublishedStrategiesResponse | null> {
     try {
       const response = await fetch(endpoint + "/publishedStrategies", {
         headers: {
@@ -88,7 +89,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
     return null;
   }
 
-  async function setFromUrl(id:string) {
+  async function setFromUrl(id: string) {
     const strat = await getStrategy(id)
     if (!strat) {
       return
@@ -152,6 +153,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
             user={user}
             userID={userID}
             takenNames={takenNames}
+            setMetrics={setMetrics}
             appendFactorData={(newFactorData: FactorData) => {
               updateFactorData([...factorData, newFactorData])
             }}
@@ -215,7 +217,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
                   />
                 </Col>
                 <Col sm={6}>
-                  <Stats />
+                  <Stats metrics={metrics} />
                 </Col>
               </Row>
             </Container>
@@ -250,25 +252,41 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   // );
 }
 
-function Stats() {
+function Stats({
+  metrics
+}: {
+  metrics: PerformanceMetrics | null
+}) {
+  let returnsText = "n/a";
+  if (metrics?.annualizedReturn) {
+    returnsText = (100*metrics.annualizedReturn).toFixed(2).toString() + "%"
+  }
+  let stdevText = "n/a";
+  if (metrics?.annualizedStandardDeviation) {
+    stdevText = (100*metrics.annualizedStandardDeviation).toFixed(2).toString() + "%"
+  }
+  let sharpeText = "n/a";
+  if (metrics?.sharpeRatio) {
+    sharpeText = metrics.sharpeRatio.toFixed(2).toString()
+  }
   return (
     <div className={`${backtestStyles.flex_container} ${styles.tile}`}>
       <p className={backtestStyles.flex_container_title}>Performance History</p>
-      <p className={`${styles.subtext} ${backtestStyles.flex_container_subtext}`}>From 2023-01-01 to 2023-01-01</p>
-      <div style={{ paddingBottom: "0px" }}>
+      {/* <p className={`${styles.subtext} ${backtestStyles.flex_container_subtext}`}>From 2023-01-01 to 2023-01-01</p> */}
+      <div style={{ paddingBottom: "0px", marginTop:"10px" }}>
         <Table>
           <tbody>
             <tr style={{ borderTop: "1px solid #DFE2E6" }}>
-              <th className={backtestStyles.stats_table_header}>Return</th>
-              <td className={backtestStyles.stats_table_value}>20%</td>
+              <th className={backtestStyles.stats_table_header}>Annualized Return</th>
+              <td className={backtestStyles.stats_table_value}>{returnsText}</td>
             </tr>
             <tr>
               <th className={backtestStyles.stats_table_header}>Sharpe Ratio</th>
-              <td className={backtestStyles.stats_table_value}>1.5</td>
+              <td className={backtestStyles.stats_table_value}>{sharpeText}</td>
             </tr>
             <tr>
-              <th className={backtestStyles.stats_table_header}>Volatilty (stdev)</th>
-              <td className={backtestStyles.stats_table_value}>20%</td>
+              <th className={backtestStyles.stats_table_header}>Annualized Volatilty (stdev)</th>
+              <td className={backtestStyles.stats_table_value}>{stdevText}</td>
             </tr>
           </tbody>
         </Table>

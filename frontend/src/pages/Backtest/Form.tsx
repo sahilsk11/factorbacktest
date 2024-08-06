@@ -2,7 +2,7 @@ import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { FactorData, endpoint } from "../../App";
 import formStyles from "./Form.module.css";
 import appStyles from "../../App.module.css";
-import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings, BacktestInputs } from '../../models';
+import { BacktestRequest, GetAssetUniversesResponse, BacktestResponse, FactorOptions, GoogleAuthUser, BookmarkStrategyRequest, GetSavedStrategiesResponse, LatestHoldings, BacktestInputs, PerformanceMetrics } from '../../models';
 import 'react-tooltip/dist/react-tooltip.css'
 import { daysBetweenDates } from '../../util';
 import { FactorExpressionInput } from './FactorExpressionInput';
@@ -97,6 +97,7 @@ export default function FactorForm({
   savedStrategies,
   setSavedStrategies,
   runBacktestToggle,
+  setMetrics,
 }: {
   user: GoogleAuthUser | null,
   userID: string,
@@ -126,6 +127,7 @@ export default function FactorForm({
   savedStrategies: GetSavedStrategiesResponse[],
   setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>,
   runBacktestToggle: boolean,
+  setMetrics: Dispatch<React.SetStateAction<PerformanceMetrics | null>>,
 }) {
   const [cash, setCash] = useState(10_000);
   const [names, setNames] = useState<string[]>([...takenNames]);
@@ -268,6 +270,11 @@ export default function FactorForm({
 
         appendFactorData(fd)
         setLatestHoldings(result.latestHoldings);
+        setMetrics({
+          annualizedReturn: result.annualizedReturn,
+          sharpeRatio: result.sharpeRatio,
+          annualizedStandardDeviation: result.annualizedStandardDeviation,
+        })
       } else {
         const j = await response.json()
         setErr(j.error)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
+	"factorbacktest/internal/util"
 	"fmt"
 	"time"
 
@@ -83,7 +84,9 @@ func (h alpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]d
 	}
 	out := map[string]decimal.Decimal{}
 	for symbol, result := range results {
-		out[symbol] = decimal.NewFromFloat(result.AskPrice)
+		fmt.Println(symbol)
+		util.Pprint(result)
+		out[symbol] = decimal.NewFromFloat(result.BidPrice)
 		if out[symbol].IsZero() {
 			return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
 		}

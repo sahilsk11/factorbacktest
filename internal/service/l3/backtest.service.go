@@ -14,6 +14,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// should eventually be folded into strategy service
+// because you backtest a strategy.
+
 type BacktestHandler struct {
 	PriceRepository         repository.AdjustedPriceRepository
 	AssetUniverseRepository repository.AssetUniverseRepository

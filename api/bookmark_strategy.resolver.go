@@ -50,7 +50,7 @@ func (m ApiHandler) isStrategyBookmarked(c *gin.Context) {
 		RebalanceInterval: requestBody.RebalanceInterval,
 		NumAssets:         int32(requestBody.NumAssets),
 		AssetUniverse:     requestBody.AssetUniverse,
-		UserAccountID:     userAccountID,
+		UserAccountID:     &userAccountID,
 	}
 
 	existing, err := m.StrategyRepository.GetIfBookmarked(newModel)
@@ -104,7 +104,7 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 		RebalanceInterval: requestBody.RebalanceInterval,
 		NumAssets:         int32(requestBody.NumAssets),
 		AssetUniverse:     requestBody.AssetUniverse,
-		UserAccountID:     userAccountID,
+		UserAccountID:     &userAccountID,
 		Saved:             requestBody.Bookmark,
 	}
 

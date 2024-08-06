@@ -30,7 +30,6 @@ type InvestmentService interface {
 	GetStats(investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
-	CalculateMetrics(ctx context.Context, strategyID uuid.UUID) (*CalculateMetricsResult, error)
 }
 
 type investmentServiceHandler struct {
@@ -242,81 +241,6 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 		Strategy:              *strategy,
 		OriginalAmount:        investment.AmountDollars,
 	}, nil
-}
-
-func (h investmentServiceHandler) CalculateMetrics(ctx context.Context, strategyID uuid.UUID) (*CalculateMetricsResult, error) {
-	strategy, err := h.StrategyRepository.Get(strategyID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get strategy: %w", err)
-	}
-
-	// let's use three year windows for stats
-	start := time.Now().UTC().AddDate(-3, 0, 0)
-	end := time.Now().UTC()
-
-	assets, err := h.UniverseRepository.GetAssets(strategy.AssetUniverse)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get assets from universie name")
-	}
-	getPricesInput := []repository.GetManyInput{}
-	for _, a := range assets {
-		getPricesInput = append(getPricesInput, repository.GetManyInput{
-			Symbol:  a.Symbol,
-			MinDate: start,
-			MaxDate: end,
-		})
-	}
-	prices, err := h.PriceRepository.GetMany(getPricesInput)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get prices: %w", err)
-	}
-
-	mappedPrices := map[time.Time]map[string]decimal.Decimal{}
-	for _, p := range prices {
-		if _, ok := mappedPrices[p.Date]; !ok {
-			mappedPrices[p.Date] = map[string]decimal.Decimal{}
-		}
-		mappedPrices[p.Date][p.Symbol] = p.Price
-	}
-
-	interval := time.Hour * 24
-	if strings.EqualFold(strategy.RebalanceInterval, "weekly") {
-		interval *= 7
-	} else if strings.EqualFold(strategy.RebalanceInterval, "monthly") {
-		interval *= 30
-	} else if strings.EqualFold(strategy.RebalanceInterval, "yearly") {
-		interval *= 365
-	}
-
-	backtestInput := BacktestInput{
-		FactorExpression:  strategy.FactorExpression,
-		BacktestStart:     start,
-		BacktestEnd:       end,
-		RebalanceInterval: interval,
-		StartingCash:      1000, // shouldn't matter for this
-		NumTickers:        int(strategy.NumAssets),
-		AssetUniverse:     strategy.AssetUniverse,
-	}
-
-	backtestResponse, err := h.BacktestHandler.Backtest(ctx, backtestInput)
-	if err != nil {
-		return nil, fmt.Errorf("failed to run backtest: %w", err)
-	}
-
-	relevantTradingDays, err := h.PriceRepository.ListTradingDays(
-		start,
-		end,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list trading days: %w", err)
-	}
-
-	metrics, err := CalculateMetrics(backtestResponse.Results, relevantTradingDays, mappedPrices)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate metrics: %w", err)
-	}
-
-	return metrics, nil
 }
 
 // listForRebalance retrieves all investments that should be

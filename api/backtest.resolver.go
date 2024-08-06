@@ -38,9 +38,12 @@ type BacktestRequest struct {
 }
 
 type BacktestResponse struct {
-	FactorName     string                                 `json:"factorName"`
-	Snapshots      map[string]l3_service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
-	LatestHoldings LatestHoldings                         `json:"latestHoldings"`
+	FactorName       string                                 `json:"factorName"`
+	Snapshots        map[string]l3_service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
+	LatestHoldings   LatestHoldings                         `json:"latestHoldings"`
+	SharpeRatio      *float64                               `json:"sharpeRatio"`
+	AnnualizedReturn *float64                               `json:"annualizedReturn"`
+	AnnualizedStdev  *float64                               `json:"annualizedStandardDeviation"`
 }
 
 type LatestHoldings struct {
@@ -105,7 +108,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	} else {
 		log.Warn("request id missing from ctx")
 	}
-	// ensure the user input is valid
+
+	// deprecated - uses the old user_strategy model
 	err = saveUserStrategy(
 		h.Db,
 		h.UserStrategyRepository,
@@ -117,7 +121,8 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	err = h.addNewStrategy(
+	// new version - save the strategy
+	insertedStrategy, err := h.addNewStrategy(
 		c,
 		requestBody.FactorOptions.Name,
 		requestBody.FactorOptions.Expression,
@@ -141,13 +146,36 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 
 	backtestSpan, endSpan := profile.StartNewSpan("running backtest")
-
 	result, err := h.BacktestHandler.Backtest(domain.NewCtxWithSubProfile(ctx, backtestSpan), backtestInput)
 	if err != nil {
 		returnErrorJson(fmt.Errorf("failed to run backtest: %w", err), c)
 		return
 	}
 	endSpan()
+
+	// calculate stats
+
+	metrics, err := h.StrategyService.CalculateMetrics(ctx, insertedStrategy.StrategyID, result.Results)
+	if err != nil {
+		log.Errorf("failed to calculate metrics: %w", err)
+		metrics = &l3_service.CalculateMetricsResult{}
+	}
+
+	newRunModel := model.StrategyRun{
+		StrategyID: insertedStrategy.StrategyID,
+		StartDate:  backtestStartDate,
+		EndDate:    backtestEndDate,
+	}
+	if metrics != nil {
+		newRunModel.SharpeRatio = &metrics.SharpeRatio
+		newRunModel.AnnualizedReturn = &metrics.AnnualizedReturn
+		newRunModel.AnnualuzedStdev = &metrics.AnnualizedStdev
+	}
+
+	_, err = h.StrategyRepository.AddRun(newRunModel)
+	if err != nil {
+		log.Errorf("failed to add strategy run: %w", err)
+	}
 
 	responseJson := BacktestResponse{
 		FactorName: requestBody.FactorOptions.Name,
@@ -156,9 +184,14 @@ func (h ApiHandler) backtest(c *gin.Context) {
 			Date:   result.LatestHoldings.Date,
 			Assets: result.LatestHoldings.Assets,
 		},
+		AnnualizedReturn: &metrics.AnnualizedReturn,
+		SharpeRatio:      &metrics.SharpeRatio,
+		AnnualizedStdev:  &metrics.AnnualizedStdev,
 	}
 
 	endProfile()
+
+	// consider disabling or adding to logger
 	err = h.LatencencyTrackingRepository.Add(*profile, requestId)
 	if err != nil {
 		returnErrorJson(err, c)
@@ -243,21 +276,21 @@ func (m ApiHandler) addNewStrategy(
 	rebalanceInterval string,
 	assetUniverse string,
 	numAssets int,
-) error {
+) (*model.Strategy, error) {
+	var userAccountID *uuid.UUID
 	ginUserAccountID, ok := c.Get("userAccountID")
-	if !ok {
-		return nil
-	}
-	userAccountIDStr, ok := ginUserAccountID.(string)
-	if !ok {
-		return fmt.Errorf("misformatted user account id")
-	}
-	if userAccountIDStr == "" {
-		return nil
-	}
-	userAccountID, err := uuid.Parse(userAccountIDStr)
-	if err != nil {
-		return err
+	if ok {
+		userAccountIDStr, ok := ginUserAccountID.(string)
+		if !ok {
+			return nil, fmt.Errorf("misformatted user account id")
+		}
+		if userAccountIDStr != "" {
+			id, err := uuid.Parse(userAccountIDStr)
+			if err != nil {
+				return nil, err
+			}
+			userAccountID = &id
+		}
 	}
 
 	// i think this should try to find one if it exists
@@ -270,10 +303,10 @@ func (m ApiHandler) addNewStrategy(
 		AssetUniverse:     assetUniverse,
 		UserAccountID:     userAccountID,
 	}
-	_, err = m.StrategyRepository.Add(newModel)
+	insertedStrategy, err := m.StrategyRepository.Add(newModel)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return insertedStrategy, nil
 }

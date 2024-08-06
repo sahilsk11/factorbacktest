@@ -42,6 +42,7 @@ type ApiHandler struct {
 	StrategyRepository           repository.StrategyRepository
 	InvestmentRepository         repository.InvestmentRepository
 	TradingService               l1_service.TradeService
+	StrategyService              l3_service.StrategyService
 }
 
 func int64Ptr(i int64) *int64 {

@@ -111,6 +111,12 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		investmentRebalanceRepository,
 		priceRepository,
 	)
+	strategyService := l3_service.NewStrategyService(
+		strategyRepository,
+		assetUniverseRepository,
+		priceRepository,
+		backtestHandler,
+	)
 
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
@@ -132,6 +138,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		InvestmentRepository:         strategyInvestmentRepository,
 		InvestmentService:            investmentService,
 		TradingService:               tradingService,
+		StrategyService:              strategyService,
 	}
 
 	return apiHandler, nil

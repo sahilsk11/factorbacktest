@@ -44,10 +44,20 @@ export interface SnapshotAssetMetrics {
   priceChangeTilNextResampling?: number | null;
 }
 
+export interface PerformanceMetrics {
+  sharpeRatio?: number;
+  annualizedReturn?: number;
+  annualizedStandardDeviation?: number;
+}
+
 export interface BacktestResponse {
   factorName: string;
+
   backtestSnapshots: Record<string, BacktestSnapshot>;
   latestHoldings: LatestHoldings;
+  sharpeRatio?: number;
+  annualizedReturn?: number;
+  annualizedStandardDeviation?: number;
 }
 
 export interface LatestHoldings {
