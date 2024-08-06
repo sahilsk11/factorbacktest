@@ -101,7 +101,7 @@ function InvestmentTile({
             <AssetBreakdown assetWeights={weights} /> : <p style={{ textAlign: "center", marginTop: "65px", marginBottom: "50px" }} className={appStyles.subtext}>no data yet</p>}
         </div>
         <Card.Body>
-          <Card.Text style={{ textAlign: "center" }}>{stats.savedStrategy.strategyName}</Card.Text>
+          <Card.Text style={{ textAlign: "center" }}>{stats.strategy.strategyName}</Card.Text>
           {/* <Card.Text>
             Some quick example text to build on the card title and make up the
             bulk of the card's content.

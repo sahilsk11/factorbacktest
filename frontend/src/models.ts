@@ -73,15 +73,12 @@ export interface BookmarkStrategyRequest {
 }
 
 export interface GetSavedStrategiesResponse {
-  savedStrategyID: string;
+  strategyID: string;
   strategyName: string;
   rebalanceInterval: string;
   bookmarked: boolean;
   createdAt: string;
   factorExpression: string;
-  // modifiedAt?: Date; // Uncomment if needed
-  backtestStart: string;
-  backtestEnd: string;
   numAssets: number;
   assetUniverse: string;
 }
@@ -95,7 +92,7 @@ export interface GetInvestmentsResponse {
   investmentID: string; // UUID
   originalAmountDollars: number;
   startDate: string;
-  savedStrategy: SavedStrategy;
+  strategy: Strategy;
   holdings: Holdings[];
   percentReturnFraction: number;
   currentValue: number;
@@ -115,7 +112,7 @@ export interface FilledTrade {
   filledAt: string;
 }
 
-export interface SavedStrategy {
+export interface Strategy {
   savedStrategyID: string; // UUID
   strategyName: string;
   factorExpression: string;

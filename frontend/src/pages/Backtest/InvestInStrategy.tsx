@@ -248,7 +248,7 @@ function InvestModal({
         },
         body: JSON.stringify({
           amountDollars: depositAmount,
-          savedStrategyID,
+          strategyID: savedStrategyID,
         } as InvestInStrategyRequest)
       });
       if (!response.ok) {

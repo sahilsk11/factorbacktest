@@ -79,7 +79,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
         console.error("Error submitting data:", response.status);
       } else {
         const j = await response.json() as GetSavedStrategiesResponse[];
-        return j.find(e => e.savedStrategyID === id) || null
+        return j.find(e => e.strategyID === id) || null
       }
     } catch (error) {
       alert((error as Error).message)
@@ -97,8 +97,8 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
     setNumSymbols(strat.numAssets)
     setFactorExpression(strat.factorExpression)
     setAssetUniverse(strat.assetUniverse)
-    setBacktestStart(formatDate(new Date(strat.backtestStart)))
-    setBacktestEnd(formatDate(new Date(strat.backtestEnd)))
+    // setBacktestStart(formatDate(new Date(strat.backtestStart)))
+    // setBacktestEnd(formatDate(new Date(strat.backtestEnd)))
     setSamplingIntervalUnit(strat.rebalanceInterval)
     setSelectedFactor(strat.strategyName)
 

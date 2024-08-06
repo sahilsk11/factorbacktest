@@ -56,6 +56,7 @@ func (m ApiHandler) getSavedStrategies(c *gin.Context) {
 			FactorExpression:  s.FactorExpression,
 			NumAssets:         s.NumAssets,
 			AssetUniverse:     s.AssetUniverse,
+			Bookmarked:        s.Saved,
 		})
 	}
 
