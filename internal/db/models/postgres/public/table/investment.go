@@ -20,7 +20,7 @@ type investmentTable struct {
 	InvestmentID  postgres.ColumnString
 	AmountDollars postgres.ColumnInteger
 	StartDate     postgres.ColumnDate
-	SavedStragyID postgres.ColumnString
+	StrategyID    postgres.ColumnString
 	UserAccountID postgres.ColumnString
 	CreatedAt     postgres.ColumnTimestampz
 	ModifiedAt    postgres.ColumnTimestampz
@@ -58,13 +58,13 @@ func newInvestmentTableImpl(schemaName, tableName, alias string) investmentTable
 		InvestmentIDColumn  = postgres.StringColumn("investment_id")
 		AmountDollarsColumn = postgres.IntegerColumn("amount_dollars")
 		StartDateColumn     = postgres.DateColumn("start_date")
-		SavedStragyIDColumn = postgres.StringColumn("saved_stragy_id")
+		StrategyIDColumn    = postgres.StringColumn("strategy_id")
 		UserAccountIDColumn = postgres.StringColumn("user_account_id")
 		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
 		ModifiedAtColumn    = postgres.TimestampzColumn("modified_at")
 		EndDateColumn       = postgres.DateColumn("end_date")
-		allColumns          = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, SavedStragyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn}
-		mutableColumns      = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, SavedStragyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn}
+		allColumns          = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn}
+		mutableColumns      = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn}
 	)
 
 	return investmentTable{
@@ -74,7 +74,7 @@ func newInvestmentTableImpl(schemaName, tableName, alias string) investmentTable
 		InvestmentID:  InvestmentIDColumn,
 		AmountDollars: AmountDollarsColumn,
 		StartDate:     StartDateColumn,
-		SavedStragyID: SavedStragyIDColumn,
+		StrategyID:    StrategyIDColumn,
 		UserAccountID: UserAccountIDColumn,
 		CreatedAt:     CreatedAtColumn,
 		ModifiedAt:    ModifiedAtColumn,

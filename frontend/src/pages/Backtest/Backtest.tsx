@@ -1,5 +1,5 @@
 import { FactorData, BenchmarkData, endpoint } from "App";
-import { GoogleAuthUser, LatestHoldings, GetSavedStrategiesResponse, BacktestInputs } from "models";
+import { GoogleAuthUser, LatestHoldings, GetSavedStrategiesResponse, BacktestInputs, GetPublishedStrategiesResponse } from "models";
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { formatDate, minMaxDates } from "../../util";
@@ -37,7 +37,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   currentDate
 )`);
   const [factorName, setFactorName] = useState("7_day_momentum_weekly");
-  const [backtestStart, setBacktestStart] = useState(twoYearsAgoAsString());
+  const [backtestStart, setBacktestStart] = useState(threeYearsAgoAsString());
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
   const [selectedFactor, setSelectedFactor] = useState("momentum");
@@ -66,9 +66,9 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
 
   const [searchParams, setSearchParams] = useSearchParams();
   
-  async function getStrategy(id:string): Promise<GetSavedStrategiesResponse | null> {
+  async function getStrategy(id:string): Promise<GetPublishedStrategiesResponse | null> {
     try {
-      const response = await fetch(endpoint + "/savedStrategies", {
+      const response = await fetch(endpoint + "/publishedStrategies", {
         headers: {
           "Authorization": user ? "Bearer " + user.accessToken : ""
         }
@@ -78,8 +78,8 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
         alert(j.error)
         console.error("Error submitting data:", response.status);
       } else {
-        const j = await response.json() as GetSavedStrategiesResponse[];
-        return j.find(e => e.savedStrategyID === id) || null
+        const j = await response.json() as GetPublishedStrategiesResponse[];
+        return j.find(e => e.strategyID === id) || null
       }
     } catch (error) {
       alert((error as Error).message)
@@ -97,8 +97,8 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
     setNumSymbols(strat.numAssets)
     setFactorExpression(strat.factorExpression)
     setAssetUniverse(strat.assetUniverse)
-    setBacktestStart(formatDate(new Date(strat.backtestStart)))
-    setBacktestEnd(formatDate(new Date(strat.backtestEnd)))
+    // setBacktestStart(formatDate(new Date(strat.backtestStart)))
+    // setBacktestEnd(formatDate(new Date(strat.backtestEnd)))
     setSamplingIntervalUnit(strat.rebalanceInterval)
     setSelectedFactor(strat.strategyName)
 
@@ -286,9 +286,9 @@ function todayAsString() {
   return `${year}-${month}-${day}`;
 }
 
-function twoYearsAgoAsString() {
+function threeYearsAgoAsString() {
   const today = new Date();
-  const year = today.getFullYear() - 2;
+  const year = today.getFullYear() - 3;
   const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
   const day = String(today.getDate()).padStart(2, '0');
 

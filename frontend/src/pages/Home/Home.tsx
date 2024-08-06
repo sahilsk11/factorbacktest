@@ -118,7 +118,7 @@ function StrategyCard({
     <>
       <Card
         className={`${homeStyles.card}`}
-        onClick={() => navigate("/backtest?id=" + data.savedStrategyID)}
+        onClick={() => navigate("/backtest?id=" + data.strategyID)}
       >
         <div style={{
           margin: "0px auto",

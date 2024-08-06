@@ -32,12 +32,7 @@ func (h investmentRepositoryHandler) Add(tx *sql.Tx, si model.Investment) (*mode
 	si.ModifiedAt = time.Now().UTC()
 	query := table.Investment.
 		INSERT(
-			table.Investment.AmountDollars,
-			table.Investment.StartDate,
-			table.Investment.SavedStragyID,
-			table.Investment.UserAccountID,
-			table.Investment.CreatedAt,
-			table.Investment.ModifiedAt,
+			table.Investment.MutableColumns,
 		).
 		MODEL(si).
 		RETURNING(table.Investment.AllColumns)

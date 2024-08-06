@@ -12,17 +12,16 @@ import (
 	"time"
 )
 
-type SavedStrategy struct {
-	SavedStragyID     uuid.UUID `sql:"primary_key"`
+type Strategy struct {
+	StrategyID        uuid.UUID `sql:"primary_key"`
 	StrategyName      string
 	FactorExpression  string
-	BacktestStart     time.Time
-	BacktestEnd       time.Time
 	RebalanceInterval string
 	NumAssets         int32
 	AssetUniverse     string
-	Bookmarked        bool
 	UserAccountID     uuid.UUID
 	CreatedAt         time.Time
 	ModifiedAt        time.Time
+	Published         bool
+	Saved             bool
 }

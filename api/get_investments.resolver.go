@@ -15,7 +15,7 @@ type GetInvestmentsResponse struct {
 	InvestmentID          uuid.UUID     `json:"investmentID"`
 	OriginalAmountDollars int32         `json:"originalAmountDollars"`
 	StartDate             string        `json:"startDate"`
-	SavedStragy           SavedStrategy `json:"savedStrategy"`
+	Strategy              Strategy      `json:"strategy"`
 	Holdings              []Holdings    `json:"holdings"`
 	PercentReturnFraction float64       `json:"percentReturnFraction"`
 	CurrentValue          float64       `json:"currentValue"`
@@ -35,8 +35,8 @@ type FilledTrade struct {
 	FilledAt  string  `json:"filledAt"`
 }
 
-type SavedStrategy struct {
-	SavedStrategyID   uuid.UUID `json:"savedStrategyID"`
+type Strategy struct {
+	StrategyID        uuid.UUID `json:"strategyID"`
 	StrategyName      string    `json:"strategyName"`
 	FactorExpression  string    `json:"factorExpression"`
 	NumAssets         int32     `json:"numAssets"`
@@ -111,13 +111,13 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]l3_service.GetStatsRespon
 			InvestmentID:          investmentID,
 			OriginalAmountDollars: stats.OriginalAmount,
 			StartDate:             stats.StartDate.Format(time.DateOnly),
-			SavedStragy: SavedStrategy{
-				SavedStrategyID:   stats.SavedStrategy.SavedStragyID,
-				StrategyName:      stats.SavedStrategy.StrategyName,
-				FactorExpression:  stats.SavedStrategy.FactorExpression,
-				NumAssets:         stats.SavedStrategy.NumAssets,
-				AssetUniverse:     stats.SavedStrategy.AssetUniverse,
-				RebalanceInterval: stats.SavedStrategy.RebalanceInterval,
+			Strategy: Strategy{
+				StrategyID:        stats.Strategy.StrategyID,
+				StrategyName:      stats.Strategy.StrategyName,
+				FactorExpression:  stats.Strategy.FactorExpression,
+				NumAssets:         stats.Strategy.NumAssets,
+				AssetUniverse:     stats.Strategy.AssetUniverse,
+				RebalanceInterval: stats.Strategy.RebalanceInterval,
 			},
 			Holdings:              holdings,
 			PercentReturnFraction: stats.PercentReturnFraction.InexactFloat64(),

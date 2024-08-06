@@ -73,21 +73,18 @@ export interface BookmarkStrategyRequest {
 }
 
 export interface GetSavedStrategiesResponse {
-  savedStrategyID: string;
+  strategyID: string;
   strategyName: string;
   rebalanceInterval: string;
   bookmarked: boolean;
   createdAt: string;
   factorExpression: string;
-  // modifiedAt?: Date; // Uncomment if needed
-  backtestStart: string;
-  backtestEnd: string;
   numAssets: number;
   assetUniverse: string;
 }
 
 export interface InvestInStrategyRequest {
-  savedStrategyID: string;
+  strategyID: string;
   amountDollars: number;
 }
 
@@ -95,7 +92,7 @@ export interface GetInvestmentsResponse {
   investmentID: string; // UUID
   originalAmountDollars: number;
   startDate: string;
-  savedStrategy: SavedStrategy;
+  strategy: Strategy;
   holdings: Holdings[];
   percentReturnFraction: number;
   currentValue: number;
@@ -115,7 +112,7 @@ export interface FilledTrade {
   filledAt: string;
 }
 
-export interface SavedStrategy {
+export interface Strategy {
   savedStrategyID: string; // UUID
   strategyName: string;
   factorExpression: string;
@@ -136,18 +133,13 @@ export interface BacktestInputs {
 }
 
 export interface GetPublishedStrategiesResponse {
-  savedStrategyID: string;
-  publishedStrategyID: string; // UUIDs are usually represented as strings in TypeScript
+  strategyID: string;
   strategyName: string;
   rebalanceInterval: string;
   createdAt: Date; // Date objects in TypeScript
   factorExpression: string;
   numAssets: number; // int32 in Go maps to number in TypeScript
   assetUniverse: string;
-  oneYearReturn?: number; // Use '?' for optional fields
-  twoYearReturn?: number;
-  fiveYearReturn?: number;
-  diversification?: number;
   sharpeRatio?: number;
   annualizedReturn?: number;
   annualizedStandardDeviation?: number;

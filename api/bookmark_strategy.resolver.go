@@ -2,18 +2,17 @@ package api
 
 import (
 	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 )
 
 type bookmarkStrategyRequest struct {
 	Expression        string `json:"expression"`
 	Name              string `json:"name"`
-	BacktestStart     string `json:"backtestStart"`
-	BacktestEnd       string `json:"backtestEnd"`
 	RebalanceInterval string `json:"rebalanceInterval"`
 	NumAssets         int    `json:"numAssets"`
 	AssetUniverse     string `json:"assetUniverse"`
@@ -23,20 +22,8 @@ type bookmarkStrategyRequest struct {
 }
 
 func (m ApiHandler) isStrategyBookmarked(c *gin.Context) {
-	// ignores bookmark field
 	var requestBody bookmarkStrategyRequest
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		returnErrorJson(err, c)
-		return
-	}
-
-	backtestStartDate, err := time.Parse("2006-01-02", requestBody.BacktestStart)
-	if err != nil {
-		returnErrorJson(err, c)
-		return
-	}
-	backtestEndDate, err := time.Parse("2006-01-02", requestBody.BacktestEnd)
-	if err != nil {
 		returnErrorJson(err, c)
 		return
 	}
@@ -58,23 +45,15 @@ func (m ApiHandler) isStrategyBookmarked(c *gin.Context) {
 		return
 	}
 
-	// TODO - create util for validating strategy input
-	// also consider making a domain version of it
-	// then re-using in backtest
-
-	newModel := model.SavedStrategy{
-		StrategyName:      requestBody.Name,
+	newModel := model.Strategy{
 		FactorExpression:  requestBody.Expression,
-		BacktestStart:     backtestStartDate,
-		BacktestEnd:       backtestEndDate,
 		RebalanceInterval: requestBody.RebalanceInterval,
 		NumAssets:         int32(requestBody.NumAssets),
 		AssetUniverse:     requestBody.AssetUniverse,
-		Bookmarked:        requestBody.Bookmark,
 		UserAccountID:     userAccountID,
 	}
 
-	existing, err := m.SavedStrategyRepository.ListMatchingStrategies(newModel)
+	existing, err := m.StrategyRepository.GetIfBookmarked(newModel)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
@@ -82,11 +61,9 @@ func (m ApiHandler) isStrategyBookmarked(c *gin.Context) {
 
 	saved := false
 	name := ""
-	for _, ex := range existing {
-		if ex.Bookmarked {
-			name = ex.StrategyName
-			saved = true
-		}
+	if existing != nil {
+		name = existing.StrategyName
+		saved = true
 	}
 
 	out := map[string]interface{}{
@@ -104,17 +81,6 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 		return
 	}
 
-	backtestStartDate, err := time.Parse("2006-01-02", requestBody.BacktestStart)
-	if err != nil {
-		returnErrorJson(err, c)
-		return
-	}
-	backtestEndDate, err := time.Parse("2006-01-02", requestBody.BacktestEnd)
-	if err != nil {
-		returnErrorJson(err, c)
-		return
-	}
-
 	ginUserAccountID, ok := c.Get("userAccountID")
 	if !ok {
 		returnErrorJson(fmt.Errorf("must be logged in to save strategy"), c)
@@ -132,91 +98,48 @@ func (m ApiHandler) bookmarkStrategy(c *gin.Context) {
 		return
 	}
 
-	// TODO - create util for validating strategy input
-	// also consider making a domain version of it
-	// then re-using in backtest
-
-	newModel := model.SavedStrategy{
+	newModel := model.Strategy{
 		StrategyName:      requestBody.Name,
 		FactorExpression:  requestBody.Expression,
-		BacktestStart:     backtestStartDate,
-		BacktestEnd:       backtestEndDate,
 		RebalanceInterval: requestBody.RebalanceInterval,
 		NumAssets:         int32(requestBody.NumAssets),
 		AssetUniverse:     requestBody.AssetUniverse,
-		Bookmarked:        requestBody.Bookmark,
 		UserAccountID:     userAccountID,
+		Saved:             requestBody.Bookmark,
 	}
 
-	existing, err := m.SavedStrategyRepository.ListMatchingStrategies(newModel)
+	existing, err := m.StrategyRepository.GetIfBookmarked(newModel)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
 	}
 
-	if len(existing) == 0 {
-		_, err := m.SavedStrategyRepository.Add(newModel)
+	var strategyID uuid.UUID
+
+	if existing != nil && requestBody.Bookmark {
+		strategyID = existing.StrategyID
+	} else if existing != nil {
+		strategyID = existing.StrategyID
+		newModel.StrategyID = existing.StrategyID
+		_, err = m.StrategyRepository.Update(newModel, []postgres.Column{
+			table.Strategy.Saved,
+		})
 		if err != nil {
 			returnErrorJson(err, c)
 			return
 		}
-		out := map[string]string{
-			"message": "ok",
-		}
-
-		c.JSON(200, out)
-		return
-	}
-	if newModel.Bookmarked {
-		// if any of the existing records are bookmarked
-		// do nothing
-		for _, ex := range existing {
-			if ex.Bookmarked {
-				if ex.StrategyName != newModel.StrategyName {
-					err = m.SavedStrategyRepository.UpdateName(ex.SavedStragyID, newModel.StrategyName)
-					if err != nil {
-						returnErrorJson(err, c)
-						return
-					}
-				}
-				out := map[string]string{
-					"message":         "ok",
-					"savedStrategyID": ex.SavedStragyID.String(),
-				}
-
-				c.JSON(200, out)
-				return
-			}
-		}
-
-		// just bookmark the first one
-		ex := existing[0]
-		err = m.SavedStrategyRepository.SetBookmarked(ex.SavedStragyID, newModel.Bookmarked)
+	} else if requestBody.Bookmark {
+		m, err := m.StrategyRepository.Add(newModel)
 		if err != nil {
 			returnErrorJson(err, c)
 			return
 		}
-		out := map[string]string{
-			"message":         "ok",
-			"savedStrategyID": ex.SavedStragyID.String(),
-		}
-
-		c.JSON(200, out)
-		return
-	}
-	// disable bookmarks on anything that's currently saved
-	for _, ex := range existing {
-		if ex.Bookmarked {
-			err = m.SavedStrategyRepository.SetBookmarked(ex.SavedStragyID, newModel.Bookmarked)
-			if err != nil {
-				returnErrorJson(err, c)
-				return
-			}
-		}
+		strategyID = m.StrategyID
 	}
 
 	out := map[string]string{
-		"message": "ok",
+		"message":         "ok",
+		"savedStrategyID": strategyID.String(),
 	}
 
 	c.JSON(200, out)

@@ -629,6 +629,7 @@ func mockPlaceOrder(
 		Quantity:     quantity,
 		Symbol:       symbol,
 		Side:         alpacaSide,
+		LimitPrice:   util.DecimalPointer(decimal.NewFromFloat(1.05).Mul(expectedPrice).Round(2)),
 	}
 	alpacaRepository.EXPECT().
 		PlaceOrder(
