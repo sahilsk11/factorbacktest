@@ -57,6 +57,7 @@
   font-size: 13px;
   margin-top: 30px;
   margin-bottom: 30px;
+  font-weight: 500;
 }
 
 .card:hover {
@@ -67,14 +68,11 @@
   font-size: 13px;
   font-weight: 400;
   text-align: left;
-  color: grey;
+  color: rgb(61, 61, 61) !important;
 }
 
 .stats_table_value {
   text-align: right;
   font-size: 13px;
-}
-
-.table {
-  color: grey;
+  color: rgb(88, 88, 88) !important;
 }

@@ -52,6 +52,7 @@ func (m ApiHandler) getPublishedStrategies(c *gin.Context) {
 			SharpeRatio:       latestRun.SharpeRatio,
 			AnnualizedReturn:  latestRun.AnnualizedReturn,
 			AnnualizedStdev:   latestRun.AnnualuzedStdev,
+			Description:       r.Description,
 		})
 	}
 

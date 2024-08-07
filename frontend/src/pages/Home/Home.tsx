@@ -183,7 +183,7 @@ function StrategyCard({
 
         <p className={homeStyles.card_description}>{data.description || "no description provided"}</p>
        
-        <Table className={homeStyles.table}>
+        <Table>
           <tbody>
             <tr >
               <th className={homeStyles.stats_table_header}>Annualized Return</th>
