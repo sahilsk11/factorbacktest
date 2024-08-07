@@ -151,10 +151,10 @@ function StrategyCard({
                 label: "strategy 1",
                 data: [data.annualizedReturn, data.annualizedStandardDeviation],
                 backgroundColor: [
-                  '#32936F', '#95190C'
+                  'rgba(50, 147, 111, 0.9)', 'rgba(149, 25, 12, 0.9)'
                 ],
                 borderWidth: 0,
-                borderRadius: 10,
+                borderRadius: 5,
               }]
             }}
             options={{

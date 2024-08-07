@@ -74,7 +74,7 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 	for _, i := range investments {
 		stats, err := m.InvestmentService.GetStats(i.InvestmentID)
 		if err != nil {
-			returnErrorJson(err, c)
+			returnErrorJson(fmt.Errorf("failed to get investment stats: %w", err), c)
 			return
 		}
 		statsByInvestment[i.InvestmentID] = *stats

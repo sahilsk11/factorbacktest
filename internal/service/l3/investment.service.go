@@ -166,7 +166,7 @@ type GetStatsResponse struct {
 func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsResponse, error) {
 	investment, err := h.InvestmentRepository.Get(investmentID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get investment %s: %w", investmentID.String(), err)
 	}
 	strategy, err := h.StrategyRepository.Get(investment.StrategyID)
 	if err != nil {
@@ -182,17 +182,17 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 	latestPrices := map[string]decimal.Decimal{}
 	open, err := h.AlpacaRepository.IsMarketOpen()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get market open: %w", err)
 	}
 	if open {
 		latestPrices, err = h.AlpacaRepository.GetLatestPrices(heldSymbols)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get latest prices from Alpaca: %w", err)
 		}
 	} else {
 		prices, err := h.PriceRepository.LatestPrices(heldSymbols)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get latest prices: %w", err)
 		}
 		for _, p := range prices {
 			latestPrices[p.Symbol] = p.Price
@@ -201,7 +201,7 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 
 	totalValue, err := currentHoldings.TotalValue(latestPrices)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute total value: %w", err)
 	}
 
 	startValue := decimal.NewFromInt32(investment.AmountDollars)
@@ -217,7 +217,7 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 		InvestmentID: &investmentID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get trades: %w", err)
 	}
 
 	completedTrades := []domain.FilledTrade{}
