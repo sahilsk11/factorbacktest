@@ -20,6 +20,7 @@ type GetInvestmentsResponse struct {
 	PercentReturnFraction float64       `json:"percentReturnFraction"`
 	CurrentValue          float64       `json:"currentValue"`
 	CompletedTrades       []FilledTrade `json:"completedTrades"`
+	Paused                bool          `json:"paused"`
 }
 
 type Holdings struct {
@@ -64,6 +65,7 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 
 	investments, err := m.InvestmentRepository.List(repository.StrategyInvestmentListFilter{
 		UserAccountIDs: []uuid.UUID{userAccountID},
+		IncludePaused:  true,
 	})
 	if err != nil {
 		returnErrorJson(err, c)
@@ -123,6 +125,7 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]l3_service.GetStatsRespon
 			PercentReturnFraction: stats.PercentReturnFraction.InexactFloat64(),
 			CurrentValue:          stats.CurrentValue.InexactFloat64(),
 			CompletedTrades:       completedTrades,
+			Paused:                false,
 		})
 	}
 

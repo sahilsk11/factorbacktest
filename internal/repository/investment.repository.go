@@ -66,6 +66,7 @@ func (h investmentRepositoryHandler) Get(id uuid.UUID) (*model.Investment, error
 
 type StrategyInvestmentListFilter struct {
 	UserAccountIDs []uuid.UUID
+	IncludePaused  bool
 }
 
 func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) ([]model.Investment, error) {
@@ -73,8 +74,9 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 		SELECT(table.Investment.AllColumns).
 		ORDER_BY(table.Investment.CreatedAt.DESC())
 
-	whereClauses := []postgres.BoolExpression{
-		table.Investment.PausedAt.IS_NOT_NULL(),
+	whereClauses := []postgres.BoolExpression{}
+	if !filter.IncludePaused {
+		whereClauses = append(whereClauses, table.Investment.PausedAt.IS_NOT_NULL())
 	}
 	if len(filter.UserAccountIDs) > 0 {
 		ids := []postgres.Expression{}
