@@ -4,7 +4,7 @@ import { GetPublishedStrategiesResponse, GoogleAuthUser } from "models";
 import { useEffect, useState } from "react";
 import appStyles from "../../App.module.css";
 import homeStyles from "./Home.module.css";
-import { Card, Container, ListGroup, Row } from "react-bootstrap";
+import { Card, Container, ListGroup, Row, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { endpoint } from "App";
 import { Bar } from "react-chartjs-2";
@@ -114,16 +114,31 @@ function StrategyCard({
 
   const navigate = useNavigate();
 
+  let returnsText = "n/a";
+  if (data?.annualizedReturn) {
+    returnsText = (100 * data.annualizedReturn).toFixed(2).toString() + "%"
+  }
+  let stdevText = "n/a";
+  if (data?.annualizedStandardDeviation) {
+    stdevText = (100 * data.annualizedStandardDeviation).toFixed(2).toString() + "%"
+  }
+  let sharpeText = "n/a";
+  if (data?.sharpeRatio) {
+    sharpeText = data.sharpeRatio.toFixed(2).toString()
+  }
+
   return (
     <>
       <Card
         className={`${homeStyles.card}`}
         onClick={() => navigate("/backtest?id=" + data.strategyID)}
       >
+        <Card.Text className={homeStyles.card_title}>{data.strategyName}</Card.Text>
+
         <div style={{
           margin: "0px auto",
           display: "block",
-          marginTop: "10px",
+          marginTop: "0px",
           width: "100%",
         }}
         >
@@ -165,21 +180,26 @@ function StrategyCard({
             style={{ width: '100%', height: "100%", }}
           />
         </div>
-        <Card.Body>
-          <Card.Text style={{ textAlign: "center" }}>{data.strategyName}</Card.Text>
 
-          {/* <Card.Text>
-            Some quick example text to build on the card title and make up the
-            bulk of the card's content.
-          </Card.Text> */}
-        </Card.Body>
-        <ListGroup className="list-group-flush">
-          <ListGroup.Item>Sharpe Ratio: {data.sharpeRatio?.toFixed(2)}</ListGroup.Item>
-          <ListGroup.Item>Annualized Return: {(100 * (data.annualizedReturn || 0))?.toFixed(2)}%</ListGroup.Item>
-          <ListGroup.Item>Volatility (stdev): {(100 * (data.annualizedStandardDeviation || 0)).toFixed(2)}%</ListGroup.Item>
-          <ListGroup.Item>Rebalances: {data.rebalanceInterval}</ListGroup.Item>
+        <p className={homeStyles.card_description}>{data.description || "no description provided"}</p>
+       
+        <Table className={homeStyles.table}>
+          <tbody>
+            <tr >
+              <th className={homeStyles.stats_table_header}>Annualized Return</th>
+              <td className={homeStyles.stats_table_value}>{returnsText}</td>
+            </tr>
+            <tr>
+              <th className={homeStyles.stats_table_header}>Sharpe Ratio</th>
+              <td className={homeStyles.stats_table_value}>{sharpeText}</td>
+            </tr>
+            <tr>
+              <th className={homeStyles.stats_table_header}>Annualized Volatilty (stdev)</th>
+              <td className={homeStyles.stats_table_value}>{stdevText}</td>
+            </tr>
+          </tbody>
+        </Table>
 
-        </ListGroup>
       </Card>
     </>
   )

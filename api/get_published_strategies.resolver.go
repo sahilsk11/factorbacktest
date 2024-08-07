@@ -21,6 +21,7 @@ type getPublishedStrategiesResponse struct {
 	SharpeRatio       *float64  `json:"sharpeRatio"`
 	AnnualizedReturn  *float64  `json:"annualizedReturn"`
 	AnnualizedStdev   *float64  `json:"annualizedStandardDeviation"`
+	Description       *string   `json:"description"`
 }
 
 func (m ApiHandler) getPublishedStrategies(c *gin.Context) {

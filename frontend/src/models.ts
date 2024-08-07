@@ -153,4 +153,5 @@ export interface GetPublishedStrategiesResponse {
   sharpeRatio?: number;
   annualizedReturn?: number;
   annualizedStandardDeviation?: number;
+  description?: string;
 }
