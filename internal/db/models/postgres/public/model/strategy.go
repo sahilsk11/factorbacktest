@@ -24,4 +24,5 @@ type Strategy struct {
 	ModifiedAt        time.Time
 	Published         bool
 	Saved             bool
+	Description       *string
 }

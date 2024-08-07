@@ -3,6 +3,7 @@ package api
 import (
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +36,7 @@ func (m ApiHandler) getPublishedStrategies(c *gin.Context) {
 	for _, r := range results {
 		latestRun, err := m.StrategyRepository.GetLatestPublishedRun(r.StrategyID)
 		if err != nil {
-			returnErrorJson(err, c)
+			returnErrorJson(fmt.Errorf("failed to get strategy run details: %w", err), c)
 			return
 		}
 

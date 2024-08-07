@@ -28,6 +28,7 @@ type strategyTable struct {
 	ModifiedAt        postgres.ColumnTimestampz
 	Published         postgres.ColumnBool
 	Saved             postgres.ColumnBool
+	Description       postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -69,8 +70,9 @@ func newStrategyTableImpl(schemaName, tableName, alias string) strategyTable {
 		ModifiedAtColumn        = postgres.TimestampzColumn("modified_at")
 		PublishedColumn         = postgres.BoolColumn("published")
 		SavedColumn             = postgres.BoolColumn("saved")
-		allColumns              = postgres.ColumnList{StrategyIDColumn, StrategyNameColumn, FactorExpressionColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, PublishedColumn, SavedColumn}
-		mutableColumns          = postgres.ColumnList{StrategyNameColumn, FactorExpressionColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, PublishedColumn, SavedColumn}
+		DescriptionColumn       = postgres.StringColumn("description")
+		allColumns              = postgres.ColumnList{StrategyIDColumn, StrategyNameColumn, FactorExpressionColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, PublishedColumn, SavedColumn, DescriptionColumn}
+		mutableColumns          = postgres.ColumnList{StrategyNameColumn, FactorExpressionColumn, RebalanceIntervalColumn, NumAssetsColumn, AssetUniverseColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, PublishedColumn, SavedColumn, DescriptionColumn}
 	)
 
 	return strategyTable{
@@ -88,6 +90,7 @@ func newStrategyTableImpl(schemaName, tableName, alias string) strategyTable {
 		ModifiedAt:        ModifiedAtColumn,
 		Published:         PublishedColumn,
 		Saved:             SavedColumn,
+		Description:       DescriptionColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
