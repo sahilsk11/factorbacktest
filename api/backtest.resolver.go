@@ -39,6 +39,7 @@ type BacktestRequest struct {
 
 type BacktestResponse struct {
 	FactorName       string                                 `json:"factorName"`
+	StrategyID       uuid.UUID                              `json:"strategyID"`
 	Snapshots        map[string]l3_service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
 	LatestHoldings   LatestHoldings                         `json:"latestHoldings"`
 	SharpeRatio      *float64                               `json:"sharpeRatio"`
@@ -178,6 +179,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	}
 
 	responseJson := BacktestResponse{
+		StrategyID: insertedStrategy.StrategyID,
 		FactorName: requestBody.FactorOptions.Name,
 		Snapshots:  result.Snapshots,
 		LatestHoldings: LatestHoldings{

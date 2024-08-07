@@ -22,7 +22,8 @@ export function InvestInStrategy({
   backtestInputs,
   setFactorName,
   setSelectedFactor,
-  setSavedStrategies
+  setSavedStrategies,
+  strategyID,
 }: {
   user: GoogleAuthUser | null,
   setUser: Dispatch<SetStateAction<GoogleAuthUser | null>>,
@@ -32,6 +33,7 @@ export function InvestInStrategy({
   setFactorName: Dispatch<SetStateAction<string>>,
   setSelectedFactor: Dispatch<SetStateAction<string>>,
   setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
+  strategyID: string | null,
 }) {
   const [depositAmount, setDepositAmount] = useState(10);
   const [showInvestModal, setShowInvestModal] = useState(false);
@@ -44,7 +46,7 @@ export function InvestInStrategy({
       if (x.length === 0) {
         x = "0";
       }
-      if (!/[^0-9]/.test(x) && x.length < 12) {
+      if (!/[^0-9]/.test(x) && x.length < 3) {
         setDepositAmount(parseFloat(x))
       }
     }
@@ -148,6 +150,7 @@ export function InvestInStrategy({
         setSelectedFactor={setSelectedFactor}
         backtestInputs={backtestInputs}
         setBookmarked={setBookmarked}
+        strategyID={strategyID}
       />
     </>
   )
@@ -168,6 +171,7 @@ function InvestModal({
   setSavedStrategies,
   setSelectedFactor,
   // onSubmit,
+  strategyID,
 }: {
   user: GoogleAuthUser | null,
   show: boolean;
@@ -182,47 +186,16 @@ function InvestModal({
   backtestInputs: BacktestInputs,
   setSavedStrategies: Dispatch<SetStateAction<GetSavedStrategiesResponse[]>>,
   setSelectedFactor: Dispatch<SetStateAction<string>>,
-
-  // user: GoogleAuthUser | null,
-  // onSubmit: () => Promise<void>
+  strategyID: string | null,
 }) {
-  const [stepNumber, setSetStepNumber] = useState(0);
-  const [clickedVenmoLink, setClickedVenmoLink] = useState(false);
-  const [savedStrategyID, setSavedStrategyID] = useState<string | null>(null)
-  const [depositSuccessful, setDepositSuccessful] = useState(false)
-  const [saveSuccessful, setSaveSuccessful] = useState(false)
-  // useEffect(() => {
-  //   if (bookmarked) {
-  //     setSetStepNumber(Math.max(stepNumber, 1))
-  //   } else {
-  //     setSetStepNumber(0)
-  //   }
-  // }, [bookmarked])
-
-  const navigate = useNavigate();
+  const [checked, setChecked] = useState<boolean>(false);
+  const [invested, setInvested] = useState(false);
 
   if (!show) return null;
 
-  async function bookmarkStrategy() {
-    if (user) {
-      setBookmarked(true)
-      const strategyID = await updateBookmarked(user, true, backtestInputs)
-      if (!strategyID) {
-        alert("failed to retrieve bookmarked strategy ID")
-      }
-      setSavedStrategyID(strategyID);
-      await getStrategies(user, setSavedStrategies);
-      setSelectedFactor(factorName)
-      setSaveSuccessful(true)
-    } else {
-      // should be impossible
-      alert("must be logged in")
-    }
-  }
-
   function closeWrapper() {
-    setSetStepNumber(0)
-    setClickedVenmoLink(false);
+    setChecked(false);
+    setInvested(false);
     close()
   }
 
@@ -236,9 +209,11 @@ function InvestModal({
   async function invest() {
     if (!user) {
       alert("must be logged in to invest")
+      return
     }
-    if (!savedStrategyID) {
+    if (!strategyID) {
       alert("savedStrategyID not set")
+      return
     }
     try {
       const response = await fetch(endpoint + "/investInStrategy", {
@@ -248,7 +223,7 @@ function InvestModal({
         },
         body: JSON.stringify({
           amountDollars: depositAmount,
-          strategyID: savedStrategyID,
+          strategyID,
         } as InvestInStrategyRequest)
       });
       if (!response.ok) {
@@ -256,7 +231,7 @@ function InvestModal({
         alert(j.error)
         console.error("Error submitting data:", response.status);
       } else {
-        setDepositSuccessful(true)
+        setInvested(true)
       }
     } catch (error) {
       alert((error as Error).message)
@@ -264,96 +239,109 @@ function InvestModal({
     }
   }
 
-  const steps = [
-    {
-      component: (<>
-        <div>
-          <label className={formStyles.label}>Strategy Name</label>
-          <input
-            type="text"
-            value={factorName}
-            className={modalStyles.contact_form_email_input}
-            onChange={(e) => {
-              setFactorName(e.target.value)
-            }}
-          />
-        </div>
-        {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
-      </>),
-      onComplete: () => {
-        bookmarkStrategy()
-      },
-      canProceed: true
-    },
-    {
-      component: (<>
-        <div>
-          <label className={formStyles.label}>Deposit Funds</label>
-          Please venmo @sahilsk11 ${depositAmount}
-          <br />
-          <br />
-          <a href="https://venmo.com/sahilsk11" target="_blank" onClick={() => setClickedVenmoLink(true)}>Click here to launch Venmo</a>
-        </div>
-        {!clickedVenmoLink ? <p className={appStyles.subtext}>complete the Venmo transaction to continue</p> : null}
-        {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
-      </>),
-      onComplete: () => {
-        invest()
-      },
-      canProceed: saveSuccessful && clickedVenmoLink && savedStrategyID,
-    },
-    {
-      component: (<>
-        <div style={{ position: "relative" }}>
-          <div style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: "-40px",
-            width: "1px",
-            margin: "0px auto",
-            display: "block"
-          }}>
-            <ConfettiExplosion zIndex={1000} duration={3000} />
-          </div>
-          <label className={formStyles.label}>Thanks</label>
-          You're all set. Track your investments <a href="/investments">here</a>.
-        </div>
-        {/* <button className={formStyles.backtest_btn} type='submit'>Submit</button> */}
-      </>),
-      onComplete: () => { },
-      canProceed: false,
-    },
-  ]
+  const fontSize = "14px";
+  const height = "30px";
+
+  const submitForm = <>
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      invest()
+      setBookmarked(true)
+    }}>
+      <div>
+        <label className={formStyles.label}>Strategy Name</label>
+        <input
+          type="text"
+          value={factorName}
+          className={modalStyles.contact_form_email_input}
+          onChange={(e) => {
+            setFactorName(e.target.value)
+          }}
+        />
+      </div>
+      <label className={formStyles.label}>Deposit Amount</label>
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        marginTop: "5px"
+      }} className="input-group mb-3 center">
+        <span className="input-group-text" style={{
+          fontSize,
+          height
+        }}>$</span>
+        <input
+          type="text"
+          className={`${iisStyles.deposit_input} form-control `}
+          aria-label="Amount (to the nearest dollar)"
+          value={depositAmount.toLocaleString()}
+          onChange={(e) => setDepositAmount(e)}
+          style={{
+            width: "30px",
+            fontSize,
+            height,
+          }}
+        />
+        <span style={{
+          fontSize,
+          height,
+        }} className="input-group-text">.00</span>
+      </div>
+
+      <p style={{marginTop:"30px"}} className={iisStyles.subtext}>
+        You will receive a Venmo request in the next 24 hours for the given amount.
+        <br />
+        Portfolio will rebalance once per day at market open.
+        <br /><br />
+        Past performance does not guarantee future results - may lose value.
+      </p>
+
+      <div style={{ marginBottom: "10px" }}>
+        <input
+          type='checkbox'
+          checked={checked}
+          onChange={() => { setChecked(!checked) }}
+        />
+        <label
+          style={{ fontSize: "13px" }}
+        > I understand</label>
+      </div>
+      <button
+        className={`${formStyles.backtest_btn} ${iisStyles.deposit_btn}`}
+        type='submit'
+        disabled={!checked}
+      >Submit</button>
+
+    </form >
+  </>
+
+  const confirmation = <>
+    <div style={{ position: "relative" }}>
+      <div style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: "-40px",
+        width: "1px",
+        margin: "0px auto",
+        display: "block"
+      }}>
+        <ConfettiExplosion zIndex={1000} duration={3000} />
+      </div>
+      <label className={formStyles.label}>Thanks</label>
+      You're all set. Track your investments <a href="/investments">here</a>.
+    </div>
+  </>
+
+
 
   return (
     <div id="invest-modal" className={modalStyles.modal} onClick={handleOverlayClick}>
       <div className={modalStyles.modal_content}>
         <span onClick={() => closeWrapper()} className={modalStyles.close} id="closeInvestModalBtn">&times;</span>
         <h2 style={{ marginBottom: "40px" }}>Invest in Strategy</h2>
-        {steps[stepNumber].component}
 
-        <div className={factorSnapshotStyles.invest_modal_pagination_container}>
-          {stepNumber < steps.length - 1 ? <Pagination>
-            <Pagination.Item
-              onClick={() => setSetStepNumber(
-                Math.max(stepNumber - 1, 0)
-              )}
-              disabled={stepNumber === 0}
-            >Prev</Pagination.Item>
-            <Pagination.Item
-              onClick={() => {
-                setSetStepNumber(
-                  Math.min(stepNumber + 1, steps.length - 1)
-                )
-                steps[stepNumber].onComplete()
-              }}
-              disabled={stepNumber === steps.length - 1 || !steps[stepNumber].canProceed}
-            >
-              Next
-            </Pagination.Item>
-          </Pagination> : <button className={`${formStyles.backtest_btn} ${factorSnapshotStyles.deposit_btn}`} onClick={() => closeWrapper()}>Close</button>}
-        </div>
+        {invested ? confirmation : submitForm}
+
       </div>
 
     </div>

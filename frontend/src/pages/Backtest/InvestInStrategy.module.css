@@ -27,3 +27,9 @@
   color: rgb(56, 56, 56);
   margin-top: 0px;
 }
+
+.deposit_btn:disabled {
+  background-color: #4e4e4e; /* Grey background */
+  cursor: not-allowed; /* 'No' cursor */
+  opacity: 0.5; /* Reduced opacity */
+}

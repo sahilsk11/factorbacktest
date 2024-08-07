@@ -52,7 +52,7 @@ export interface PerformanceMetrics {
 
 export interface BacktestResponse {
   factorName: string;
-
+  strategyID: string;
   backtestSnapshots: Record<string, BacktestSnapshot>;
   latestHoldings: LatestHoldings;
   sharpeRatio?: number;

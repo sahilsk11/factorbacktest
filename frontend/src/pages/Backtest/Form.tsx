@@ -98,6 +98,7 @@ export default function FactorForm({
   setSavedStrategies,
   runBacktestToggle,
   setMetrics,
+  setLastStrategyID,
 }: {
   user: GoogleAuthUser | null,
   userID: string,
@@ -128,6 +129,7 @@ export default function FactorForm({
   setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>,
   runBacktestToggle: boolean,
   setMetrics: Dispatch<React.SetStateAction<PerformanceMetrics | null>>,
+  setLastStrategyID: Dispatch<React.SetStateAction<string | null>>,
 }) {
   const [cash, setCash] = useState(10_000);
   const [names, setNames] = useState<string[]>([...takenNames]);
@@ -275,6 +277,7 @@ export default function FactorForm({
           sharpeRatio: result.sharpeRatio,
           annualizedStandardDeviation: result.annualizedStandardDeviation,
         })
+        setLastStrategyID(result.strategyID);
       } else {
         const j = await response.json()
         setErr(j.error)

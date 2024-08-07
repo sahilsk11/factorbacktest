@@ -29,6 +29,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
 
   const [bookmarked, setBookmarked] = useState(false);
   const [savedStrategies, setSavedStrategies] = useState<GetSavedStrategiesResponse[]>([]);
+  const [lastStrategyID, setLastStrategyID] = useState<string | null>(null);
 
 
   // everything related to inputs pmuch
@@ -110,10 +111,10 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
 
   useEffect(() => {
     const id = searchParams.get("id")
-    if (id && user) {
+    if (id) {
       setFromUrl(id)
     }
-  }, [searchParams, user])
+  }, [searchParams])
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
@@ -181,6 +182,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
             setSelectedFactor={setSelectedFactor}
             savedStrategies={savedStrategies}
             setSavedStrategies={setSavedStrategies}
+            setLastStrategyID={setLastStrategyID}
           />
           <BenchmarkManager
             user={user}
@@ -198,7 +200,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
               updateInspectFactorDataIndex={updateFdIndex}
               updateInspectFactorDataDate={updateInspectFactorDataDate}
             />
-            <Container style={{
+            {lastStrategyID ? <Container style={{
               width: "93%",
               margin: "0px auto",
               marginTop: "20px"
@@ -214,13 +216,14 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
                     setFactorName={setFactorName}
                     setSelectedFactor={setSelectedFactor}
                     setSavedStrategies={setSavedStrategies}
+                    strategyID={lastStrategyID}
                   />
                 </Col>
                 <Col sm={6}>
                   <Stats metrics={metrics} />
                 </Col>
               </Row>
-            </Container>
+            </Container> : null}
             {/* <div > */}
             {/* </div> */}
             <Inspector
