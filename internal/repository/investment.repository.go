@@ -73,15 +73,20 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 		SELECT(table.Investment.AllColumns).
 		ORDER_BY(table.Investment.CreatedAt.DESC())
 
+	whereClauses := []postgres.BoolExpression{
+		table.Investment.PausedAt.IS_NOT_NULL(),
+	}
 	if len(filter.UserAccountIDs) > 0 {
 		ids := []postgres.Expression{}
 		for _, id := range filter.UserAccountIDs {
 			ids = append(ids, postgres.UUID(id))
 		}
-		query = query.WHERE(
+		whereClauses = append(whereClauses,
 			table.Investment.UserAccountID.IN(ids...),
 		)
 	}
+
+	query = query.WHERE(postgres.AND(whereClauses...))
 
 	result := []model.Investment{}
 	err := query.Query(h.Db, &result)

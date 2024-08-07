@@ -2,10 +2,13 @@ package l3_service
 
 import (
 	"context"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/repository"
 	"fmt"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -14,7 +17,7 @@ type StrategyService interface {
 	// Add()
 	// AddRun()
 	CalculateMetrics(ctx context.Context, strategyID uuid.UUID, backtestResults []BacktestResult) (*CalculateMetricsResult, error)
-	// Save()
+	Save(uuid.UUID) error
 	// Publish()
 	// Unsave()
 	// Unpublish()
@@ -39,6 +42,19 @@ type strategyServiceHandler struct {
 	UniverseRepository repository.AssetUniverseRepository
 	PriceRepository    repository.AdjustedPriceRepository
 	BacktestHandler    BacktestHandler
+}
+
+func (h strategyServiceHandler) Save(strategyID uuid.UUID) error {
+	_, err := h.StrategyRepository.Update(model.Strategy{
+		Saved: true,
+	}, []postgres.Column{
+		table.Strategy.Saved,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to save strategy %s: %w", strategyID.String(), err)
+	}
+
+	return nil
 }
 
 func (h strategyServiceHandler) CalculateMetrics(ctx context.Context, strategyID uuid.UUID, backtestResults []BacktestResult) (*CalculateMetricsResult, error) {

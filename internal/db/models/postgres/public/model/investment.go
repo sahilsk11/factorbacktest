@@ -21,4 +21,5 @@ type Investment struct {
 	CreatedAt     time.Time
 	ModifiedAt    time.Time
 	EndDate       *time.Time
+	PausedAt      *time.Time
 }

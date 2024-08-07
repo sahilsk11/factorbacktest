@@ -25,6 +25,7 @@ type investmentTable struct {
 	CreatedAt     postgres.ColumnTimestampz
 	ModifiedAt    postgres.ColumnTimestampz
 	EndDate       postgres.ColumnDate
+	PausedAt      postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -63,8 +64,9 @@ func newInvestmentTableImpl(schemaName, tableName, alias string) investmentTable
 		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
 		ModifiedAtColumn    = postgres.TimestampzColumn("modified_at")
 		EndDateColumn       = postgres.DateColumn("end_date")
-		allColumns          = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn}
-		mutableColumns      = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn}
+		PausedAtColumn      = postgres.TimestampzColumn("paused_at")
+		allColumns          = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn}
+		mutableColumns      = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn}
 	)
 
 	return investmentTable{
@@ -79,6 +81,7 @@ func newInvestmentTableImpl(schemaName, tableName, alias string) investmentTable
 		CreatedAt:     CreatedAtColumn,
 		ModifiedAt:    ModifiedAtColumn,
 		EndDate:       EndDateColumn,
+		PausedAt:      PausedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

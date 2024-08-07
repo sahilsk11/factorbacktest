@@ -45,6 +45,12 @@ func (m ApiHandler) investInStrategy(c *gin.Context) {
 		return
 	}
 
+	err = m.StrategyService.Save(strategyID)
+	if !ok {
+		returnErrorJson(fmt.Errorf("failed to save strategy: %w", err), c)
+		return
+	}
+
 	err = m.InvestmentService.Add(ctx, userAccountID, strategyID, requestBody.Amount)
 	if err != nil {
 		returnErrorJson(err, c)

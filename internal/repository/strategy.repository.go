@@ -47,6 +47,7 @@ func (h strategyRepositoryHandler) Get(id uuid.UUID) (*model.Strategy, error) {
 
 func (h strategyRepositoryHandler) Update(m model.Strategy, columns postgres.ColumnList) (*model.Strategy, error) {
 	t := table.Strategy
+	columns = append(columns, t.ModifiedAt)
 	m.ModifiedAt = time.Now().UTC()
 
 	query := t.UPDATE(
