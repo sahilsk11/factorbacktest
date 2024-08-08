@@ -511,7 +511,6 @@ func filterLowVolumeTrades(trades []*domain.ProposedTrade, amountThreshold decim
 	}
 	sortBuys()
 	sortSells()
-	util.Pprint(buys)
 
 	for _, t := range sells {
 		if t.ExpectedAmount().LessThan(amountThreshold) {
