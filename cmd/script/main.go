@@ -4,16 +4,12 @@ import (
 	"context"
 	"factorbacktest/api"
 	"factorbacktest/cmd"
-	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
-	"factorbacktest/internal/util"
 	"fmt"
 	"log"
 	"os"
-	"time"
 
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/spf13/cobra"
 )
@@ -102,57 +98,57 @@ var updatePublishedStrategyStats = &cobra.Command{
 	Use:   "updateStats",
 	Short: "Update all pending orders",
 	Run: func(c *cobra.Command, args []string) {
-		handler, err := cmd.InitializeDependencies()
-		if err != nil {
-			log.Fatal(err)
-		}
+		// handler, err := cmd.InitializeDependencies()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 
-		profile, endProfile := domain.NewProfile()
-		defer endProfile()
-		ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
-		lg := logger.New()
-		ctx = context.WithValue(ctx, logger.ContextKey, lg)
+		// profile, endProfile := domain.NewProfile()
+		// defer endProfile()
+		// ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+		// lg := logger.New()
+		// ctx = context.WithValue(ctx, logger.ContextKey, lg)
 
-		strategyID := uuid.MustParse("3a5c65a3-9437-49ef-aa64-fd9e137d147e")
+		// strategyID := uuid.MustParse("3a5c65a3-9437-49ef-aa64-fd9e137d147e")
 
-		metrics, err := handler.InvestmentService.CalculateMetrics(ctx, strategyID)
-		if err != nil {
-			lg.Error(err)
-		}
-		start := time.Now().UTC().AddDate(-3, 0, 0)
-		end := time.Now().UTC()
-		_, err = handler.StrategyRepository.AddRun(model.StrategyRun{
-			StrategyID:       strategyID,
-			StartDate:        start,
-			EndDate:          end,
-			SharpeRatio:      &metrics.SharpeRatio,
-			AnnualizedReturn: &metrics.AnnualizedReturn,
-			AnnualuzedStdev:  &metrics.AnnualizedStdev,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
+		// metrics, err := handler.InvestmentService.CalculateMetrics(ctx, strategyID)
+		// if err != nil {
+		// 	lg.Error(err)
+		// }
+		// start := time.Now().UTC().AddDate(-3, 0, 0)
+		// end := time.Now().UTC()
+		// _, err = handler.StrategyRepository.AddRun(model.StrategyRun{
+		// 	StrategyID:       strategyID,
+		// 	StartDate:        start,
+		// 	EndDate:          end,
+		// 	SharpeRatio:      &metrics.SharpeRatio,
+		// 	AnnualizedReturn: &metrics.AnnualizedReturn,
+		// 	AnnualuzedStdev:  &metrics.AnnualizedStdev,
+		// })
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 
-		util.Pprint(metrics)
+		// util.Pprint(metrics)
 
-		strategyID = uuid.MustParse("00186fdc-93a0-4686-a0d1-848d532bf12a")
-		metrics, err = handler.InvestmentService.CalculateMetrics(ctx, strategyID)
-		if err != nil {
-			lg.Error(err)
-		}
-		_, err = handler.StrategyRepository.AddRun(model.StrategyRun{
-			StrategyID:       strategyID,
-			StartDate:        start,
-			EndDate:          end,
-			SharpeRatio:      &metrics.SharpeRatio,
-			AnnualizedReturn: &metrics.AnnualizedReturn,
-			AnnualuzedStdev:  &metrics.AnnualizedStdev,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
+		// strategyID = uuid.MustParse("00186fdc-93a0-4686-a0d1-848d532bf12a")
+		// metrics, err = handler.InvestmentService.CalculateMetrics(ctx, strategyID)
+		// if err != nil {
+		// 	lg.Error(err)
+		// }
+		// _, err = handler.StrategyRepository.AddRun(model.StrategyRun{
+		// 	StrategyID:       strategyID,
+		// 	StartDate:        start,
+		// 	EndDate:          end,
+		// 	SharpeRatio:      &metrics.SharpeRatio,
+		// 	AnnualizedReturn: &metrics.AnnualizedReturn,
+		// 	AnnualuzedStdev:  &metrics.AnnualizedStdev,
+		// })
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 
-		util.Pprint(metrics)
+		// util.Pprint(metrics)
 	},
 }
 

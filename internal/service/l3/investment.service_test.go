@@ -232,8 +232,11 @@ func Test_transitionToTarget(t *testing.T) {
 			},
 			Cash: util.DecimalPointer(decimal.Zero),
 		}
-		priceMap := map[string]decimal.Decimal{}
-		trades, err := transitionToTarget(startingPortfolio, targetPortfolio, priceMap)
+		priceMap := map[string]decimal.Decimal{
+			"MSFT": decimal.NewFromInt(100),
+			"AAPL": decimal.NewFromInt(100),
+		}
+		trades, err := transitionToTarget(context.Background(), startingPortfolio, targetPortfolio, priceMap)
 		require.NoError(t, err)
 
 		require.Equal(t, "", cmp.Diff(
@@ -241,13 +244,58 @@ func Test_transitionToTarget(t *testing.T) {
 				{
 					Symbol:        "MSFT",
 					ExactQuantity: decimal.NewFromFloat(0.999),
+					ExpectedPrice: decimal.NewFromInt(100),
 				},
 				{
 					Symbol:        "AAPL",
 					ExactQuantity: decimal.NewFromFloat(-0.999),
+					ExpectedPrice: decimal.NewFromInt(100),
 				},
 			},
 			trades,
+			cmpopts.SortSlices(func(i, j *domain.ProposedTrade) bool {
+				return i.Symbol > j.Symbol
+			}),
+		))
+	})
+}
+
+func Test_filterLowVolumeTrades(t *testing.T) {
+	t.Run("cancel out some buys", func(t *testing.T) {
+		newTrades := filterLowVolumeTrades(
+			[]*domain.ProposedTrade{
+				{
+					Symbol:        "AAPL",
+					TickerID:      [16]byte{},
+					ExactQuantity: decimal.NewFromFloat(2.1),
+					ExpectedPrice: decimal.NewFromInt(1),
+				},
+				{
+					Symbol:        "GOOG",
+					TickerID:      [16]byte{},
+					ExactQuantity: decimal.NewFromInt(2),
+					ExpectedPrice: decimal.NewFromInt(1),
+				},
+				{
+					Symbol:        "MSFT",
+					TickerID:      [16]byte{},
+					ExactQuantity: decimal.NewFromFloat(-1.99),
+					ExpectedPrice: decimal.NewFromInt(1),
+				},
+			},
+			decimal.NewFromInt(2),
+		)
+
+		require.Equal(t, "", cmp.Diff(
+			[]*domain.ProposedTrade{
+				{
+					Symbol:        "AAPL",
+					TickerID:      [16]byte{},
+					ExactQuantity: decimal.NewFromFloat(2.1),
+					ExpectedPrice: decimal.NewFromInt(1),
+				},
+			},
+			newTrades,
 			cmpopts.SortSlices(func(i, j *domain.ProposedTrade) bool {
 				return i.Symbol > j.Symbol
 			}),
