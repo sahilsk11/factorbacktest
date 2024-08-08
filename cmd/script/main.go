@@ -165,7 +165,7 @@ func main() {
 }
 
 func updateOrders(handler *api.ApiHandler) {
-	err := handler.TradingService.UpdateAllPendingOrders()
+	err := handler.TradingService.UpdateAllPendingOrders(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,0 +1,2 @@
+alter table investment_holdings_version
+add column rebalancer_run_id uuid references rebalancer_run(rebalancer_run_id);

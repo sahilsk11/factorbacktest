@@ -22,7 +22,7 @@ type TradeService interface {
 	Buy(input BuyInput) (*model.TradeOrder, error)
 	Sell(input SellInput) (*model.TradeOrder, error)
 	ExecuteBlock(context.Context, []*domain.ProposedTrade, uuid.UUID) ([]model.TradeOrder, error)
-	UpdateAllPendingOrders() error
+	UpdateAllPendingOrders(ctx context.Context) error
 }
 
 type tradeServiceHandler struct {
@@ -378,7 +378,7 @@ func (h tradeServiceHandler) updateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*m
 	return updatedTrade, nil
 }
 
-func (h tradeServiceHandler) UpdateAllPendingOrders() error {
+func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
 	cashTicker, err := h.TickerRepository.GetCashTicker()
 	if err != nil {
 		return err
@@ -425,7 +425,7 @@ func (h tradeServiceHandler) UpdateAllPendingOrders() error {
 		completedTradesByInvestment[*t.InvestmentID] = append(completedTradesByInvestment[*t.InvestmentID], t)
 	}
 
-	err = h.updatePortfoliosFromTrades(tx, completedTradesByInvestment, cashTicker.TickerID)
+	err = h.updatePortfoliosFromTrades(ctx, tx, completedTradesByInvestment, cashTicker.TickerID)
 	if err != nil {
 		return err
 	}
@@ -499,8 +499,13 @@ func AddTradesToPortfolio(trades []*model.InvestmentTradeStatus, portfolio *doma
 	return portfolio
 }
 
-func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]*model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
+func (h tradeServiceHandler) updatePortfoliosFromTrades(ctx context.Context, tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]*model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
+	log := logger.FromContext(ctx)
 	for investmentID, newTrades := range completedTradesByInvestment {
+		if len(newTrades) == 0 {
+			// i think
+			continue
+		}
 		// should be the holdings prior to the new trades being completed
 		currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(tx, investmentID)
 		if err != nil {
@@ -508,13 +513,21 @@ func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTra
 		}
 		newPortfolio := AddTradesToPortfolio(newTrades, currentHoldings)
 
+		rebalancerRunID := newTrades[0].RebalancerRunID
+		for _, t := range newTrades {
+			if *t.RebalancerRunID != *rebalancerRunID {
+				log.Warnf("expected rebalancer run id %s, got %s", rebalancerRunID.String(), t.RebalancerRunID.String())
+			}
+		}
+
 		// validate the portfolio
 		// - ensure cash >= 0
 		// - ensure position quantity >= 0
 		// ensure allocations line up with expected
 
 		version, err := h.HoldingsVersionRepository.Add(tx, model.InvestmentHoldingsVersion{
-			InvestmentID: investmentID,
+			InvestmentID:    investmentID,
+			RebalancerRunID: rebalancerRunID,
 		})
 		if err != nil {
 			return err

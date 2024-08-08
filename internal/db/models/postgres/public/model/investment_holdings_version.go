@@ -16,4 +16,5 @@ type InvestmentHoldingsVersion struct {
 	InvestmentHoldingsVersionID uuid.UUID `sql:"primary_key"`
 	InvestmentID                uuid.UUID
 	CreatedAt                   time.Time
+	RebalancerRunID             *uuid.UUID
 }

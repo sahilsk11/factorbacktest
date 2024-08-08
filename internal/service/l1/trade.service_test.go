@@ -71,7 +71,8 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 		versionID := uuid.New()
 		holdingsVersionRepository.EXPECT().
 			Add(tx, model.InvestmentHoldingsVersion{
-				InvestmentID: investmentID,
+				InvestmentID:    investmentID,
+				RebalancerRunID: completedTradesByInvestment[investmentID][0].RebalancerRunID,
 			}).Return(
 			&model.InvestmentHoldingsVersion{
 				InvestmentHoldingsVersionID: versionID,
@@ -88,7 +89,7 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 			nil, nil,
 		)
 
-		err = handler.updatePortfoliosFromTrades(tx, completedTradesByInvestment, cashTickerID)
+		err = handler.updatePortfoliosFromTrades(context.Background(), tx, completedTradesByInvestment, cashTickerID)
 		require.NoError(t, err)
 	})
 }
@@ -100,14 +101,14 @@ func newInvestmentTradeStatus(
 	quantity decimal.Decimal,
 ) *model.InvestmentTradeStatus {
 	return &model.InvestmentTradeStatus{
-		Side:         &side,
-		Symbol:       &symbol,
-		Status:       &status,
-		Quantity:     &quantity,
-		FilledPrice:  util.DecimalPointer(decimal.NewFromInt(100)),
-		FilledAmount: &quantity,
-		FilledAt:     util.TimePointer(time.Now()),
-		// RebalancerRunID: &[16]byte{},
+		Side:            &side,
+		Symbol:          &symbol,
+		Status:          &status,
+		Quantity:        &quantity,
+		FilledPrice:     util.DecimalPointer(decimal.NewFromInt(100)),
+		FilledAmount:    &quantity,
+		FilledAt:        util.TimePointer(time.Now()),
+		RebalancerRunID: util.UUIDPointer(uuid.New()),
 		// InvestmentID:    &[16]byte{},
 		// TradeOrderID:    &[16]byte{},
 		// TickerID:        &[16]byte{},
