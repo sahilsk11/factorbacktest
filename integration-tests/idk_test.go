@@ -189,6 +189,16 @@ func cleanupUniverse(db *sql.DB) error {
 	return nil
 }
 
+func cleanupStrategies(db *sql.DB) error {
+	if _, err := table.StrategyRun.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
+	if _, err := table.Strategy.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
+	return nil
+}
+
 func Test_backtestFlow(t *testing.T) {
 	// setup db
 	db, err := util.NewTestDb()
@@ -204,6 +214,8 @@ func Test_backtestFlow(t *testing.T) {
 	err = seedUniverse(tx)
 	require.NoError(t, err)
 	defer func() {
+		err = cleanupStrategies(db)
+		require.NoError(t, err)
 		err = cleanupUniverse(db)
 		require.NoError(t, err)
 	}()
