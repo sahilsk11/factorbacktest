@@ -255,8 +255,6 @@ func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model
 		return nil, err
 	}
 
-	fmt.Println("here", len(investments))
-
 	investmentsToRebalance := []model.Investment{}
 	for _, investment := range investments {
 		log.Infof("rebalancing %s", investment.InvestmentID.String())
@@ -521,7 +519,6 @@ func filterLowVolumeTrades(trades []*domain.ProposedTrade, amountThreshold decim
 			remaining := t.ExpectedAmount()
 			i := 0
 			for i < len(buys) && remaining.GreaterThan(decimal.Zero) {
-				fmt.Println(i, remaining)
 				buyAmount := buys[i].ExpectedAmount()
 				remainingBuyAmount := buyAmount.Sub(remaining)
 				remaining = decimal.Zero
