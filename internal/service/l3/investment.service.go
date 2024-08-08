@@ -13,6 +13,7 @@ import (
 	l2_service "factorbacktest/internal/service/l2"
 	"factorbacktest/internal/util"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -256,6 +257,7 @@ func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model
 
 	investmentsToRebalance := []model.Investment{}
 	for _, investment := range investments {
+		log.Infof("rebalancing %s", investment.InvestmentID.String())
 		tradeOrders, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
 			InvestmentID: &investment.InvestmentID,
 		})
@@ -331,6 +333,11 @@ func (h investmentServiceHandler) rebalanceInvestment(
 	pm map[string]decimal.Decimal,
 	tickerIDMap map[string]uuid.UUID,
 ) (*rebalanceInvestmentResponse, error) {
+	log := logger.FromContext(ctx).With(
+		"investmentID", investment.InvestmentID.String(),
+	)
+	ctx = context.WithValue(ctx, logger.ContextKey, log)
+
 	// should add this to the latest view and remove this call
 	versionID, err := h.HoldingsVersionRepository.GetLatestVersionID(investment.InvestmentID)
 	if err != nil {
@@ -363,7 +370,7 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, fmt.Errorf("failed to get target portfolio: %w", err)
 	}
 
-	proposedTrades, err := transitionToTarget(*initialPortfolio, *computeTargetPortfolioResponse.TargetPortfolio, pm)
+	proposedTrades, err := transitionToTarget(ctx, *initialPortfolio, *computeTargetPortfolioResponse.TargetPortfolio, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -428,11 +435,17 @@ func (h investmentServiceHandler) rebalanceInvestment(
 	}, nil
 }
 
+// transition to target attempts to produce
+// the target portfolio given the current
+// holdings. however it applies a $0.01 min order
+// size rule, so it may deviate
 func transitionToTarget(
+	ctx context.Context,
 	currentPortfolio domain.Portfolio,
 	targetPortfolio domain.Portfolio,
 	priceMap map[string]decimal.Decimal,
 ) ([]*domain.ProposedTrade, error) {
+	log := logger.FromContext(ctx)
 	trades := []*domain.ProposedTrade{}
 	prevPositions := currentPortfolio.Positions
 	targetPositions := targetPortfolio.Positions
@@ -463,7 +476,83 @@ func transitionToTarget(
 		}
 	}
 
+	// we know that any buys should trigger sells (even
+	// if we're selling cash), and vice-versa
+	// so if any sells are below $0.01, take it out from buys
+	filteredTrades := filterLowVolumeTrades(trades, decimal.NewFromFloat(0.01))
+
+	if len(filteredTrades) != len(trades) {
+		log.Warnf("dropped %d trades due to low volume", len(trades)-len(filteredTrades))
+	}
+
 	return trades, nil
+}
+
+func filterLowVolumeTrades(trades []*domain.ProposedTrade, amountThreshold decimal.Decimal) []*domain.ProposedTrade {
+	buys := []*domain.ProposedTrade{}
+	sells := []*domain.ProposedTrade{}
+	for _, t := range trades {
+		if t.ExactQuantity.GreaterThan(decimal.Zero) {
+			buys = append(buys, t)
+		} else {
+			sells = append(sells, t)
+		}
+	}
+
+	sortBuys := func() {
+		sort.Slice(buys, func(i, j int) bool {
+			return buys[i].ExpectedAmount().LessThan(buys[j].ExpectedAmount())
+		})
+	}
+	sortSells := func() {
+		sort.Slice(sells, func(i, j int) bool {
+			return sells[i].ExpectedAmount().LessThan(sells[i].ExpectedAmount())
+		})
+	}
+	sortBuys()
+	sortSells()
+
+	for _, t := range sells {
+		if t.ExpectedAmount().LessThan(amountThreshold) {
+			// goal is to wipe this out
+			remaining := t.ExpectedAmount()
+			i := 0
+			for i < len(buys) && remaining.GreaterThan(decimal.Zero) {
+				buyAmount := buys[i].ExpectedAmount()
+				remainingBuyAmount := buyAmount.Sub(remaining)
+				remaining = decimal.Zero
+				if remainingBuyAmount.LessThan(decimal.Zero) {
+					remaining = remainingBuyAmount.Abs()
+					remainingBuyAmount = decimal.Zero
+				}
+				buys[i].ExactQuantity = remainingBuyAmount.Div(buys[i].ExpectedPrice)
+				i++
+			}
+			sortBuys()
+			t.ExactQuantity = remaining.Div(t.ExpectedPrice)
+		}
+	}
+	sortSells()
+
+	// i think we're fine not handling buys because we'll
+	// just cut out whatever buys were insufficient, which
+	// should turn into cash
+	// TODO - think about how to handle
+	// also do we need to ledger this
+
+	out := []*domain.ProposedTrade{}
+	for _, t := range buys {
+		if !t.ExpectedAmount().LessThan(amountThreshold) {
+			out = append(out, t)
+		}
+	}
+	for _, t := range sells {
+		if !t.ExpectedAmount().LessThan(amountThreshold) {
+			out = append(out, t)
+		}
+	}
+
+	return out
 }
 
 func (h investmentServiceHandler) Rebalance(ctx context.Context) error {

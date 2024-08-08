@@ -98,6 +98,10 @@ type ProposedTrade struct {
 	ExpectedPrice decimal.Decimal
 }
 
+func (p ProposedTrade) ExpectedAmount() decimal.Decimal {
+	return p.ExactQuantity.Mul(p.ExpectedPrice).Abs()
+}
+
 type FilledTrade struct {
 	Symbol    string
 	TickerID  uuid.UUID

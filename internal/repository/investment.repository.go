@@ -74,7 +74,9 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 		SELECT(table.Investment.AllColumns).
 		ORDER_BY(table.Investment.CreatedAt.DESC())
 
-	whereClauses := []postgres.BoolExpression{}
+	whereClauses := []postgres.BoolExpression{
+		postgres.Bool(true),
+	}
 	if !filter.IncludePaused {
 		whereClauses = append(whereClauses, table.Investment.PausedAt.IS_NOT_NULL())
 	}

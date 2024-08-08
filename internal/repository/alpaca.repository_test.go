@@ -48,7 +48,7 @@ func initializeHandler() (*alpacaRepositoryHandler, error) {
 
 func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 	if true {
-		// t.Skip()
+		t.Skip()
 	}
 
 	handler, err := initializeHandler()

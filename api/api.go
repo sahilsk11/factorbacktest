@@ -110,6 +110,8 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/activeInvestments", m.getInvestments)
 	engine.GET("/publishedStrategies", m.getPublishedStrategies)
 
+	engine.POST("/rebalance", m.rebalance)
+
 	return engine
 }
 
