@@ -2,7 +2,7 @@ create table excess_trade_volume (
   excess_trade_volume_id uuid primary key default uuid_generate_v4(),
   ticker_id uuid not null references ticker(ticker_id),
   quantity decimal not null,
-  last_trade_order_id uuid not null references trade_order(trade_order_id),
+  last_trade_order_id uuid references trade_order(trade_order_id),
   created_at timestamp with time zone not null default now()
 );
 
