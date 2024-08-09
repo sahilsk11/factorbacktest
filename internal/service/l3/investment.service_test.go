@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
-	"factorbacktest/internal/repository"
 	mock_repository "factorbacktest/internal/repository/mocks"
 	l2_service "factorbacktest/internal/service/l2"
 	mock_l2_service "factorbacktest/internal/service/l2/mocks"
@@ -187,12 +186,12 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 					return out, nil
 				})
 
-			investmentTradeRepository.EXPECT().
-				List(tx, repository.InvestmentTradeListFilter{
-					InvestmentID:    &investment.InvestmentID,
-					RebalancerRunID: &rebalancerRun.RebalancerRunID,
-				}).
-				Return(expectedTradesStatus, nil)
+			// investmentTradeRepository.EXPECT().
+			// 	List(tx, repository.InvestmentTradeListFilter{
+			// 		InvestmentID:    &investment.InvestmentID,
+			// 		RebalancerRunID: &rebalancerRun.RebalancerRunID,
+			// 	}).
+			// 	Return(expectedTradesStatus, nil)
 		}
 
 		response, err := handler.rebalanceInvestment(context.Background(), tx, investment, rebalancerRun, priceMap, tickerIDMap)
