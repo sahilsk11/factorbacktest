@@ -188,7 +188,7 @@ func Test_rebalanceFlow(t *testing.T) {
 	tx, err := db.Begin()
 	require.NoError(t, err)
 	defer tx.Rollback()
-	// defer cleanup(db)
+	defer cleanup(db)
 
 	err = seedUniverse(tx)
 	require.NoError(t, err)
@@ -205,6 +205,8 @@ func Test_rebalanceFlow(t *testing.T) {
 	err = hitEndpoint("rebalance", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
+
+	// consider calling update, reconcile
 
 	excess, err := getExcess(db)
 	require.NoError(t, err)
