@@ -362,8 +362,6 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, fmt.Errorf("holdings have no value")
 	}
 
-	fmt.Println(rebalancerRun.Date)
-
 	computeTargetPortfolioResponse, err := h.getTargetPortfolio(
 		ctx,
 		investment,
@@ -410,22 +408,24 @@ func (h investmentServiceHandler) rebalanceInvestment(
 
 	insertedInvestmentTrades, err := h.InvestmentTradeRepository.AddMany(tx, investmentTrades)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to insert investment trades: %w", err)
 	}
 
 	// these two should be enough to only include what we
 	// just inserted, but it may not be
-	insertedTradesStatus, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
-		InvestmentID:    &investment.InvestmentID,
-		RebalancerRunID: &rebalancerRun.RebalancerRunID,
-	})
-	if err != nil {
-		return nil, err
-	}
+	// okay if the goal is get trade status here, pls pass investment trade ids
+	// insertedTradesStatus, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
+	// 	InvestmentID:    &investment.InvestmentID,
+	// 	RebalancerRunID: &rebalancerRun.RebalancerRunID,
+	// })
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	for i, t := range insertedTradesStatus {
-		insertedTradesStatus[i].FilledPrice = util.DecimalPointer(pm[*t.Symbol])
-	}
+	// this is a temporary assumption we make for recon
+	// for i, t := range insertedTradesStatus {
+	// 	insertedTradesStatus[i].FilledPrice = util.DecimalPointer(pm[*t.Symbol])
+	// }
 
 	// add a lil recon
 	// newPortfolio := l1_service.AddTradesToPortfolio(insertedTradesStatus, initialPortfolio)
@@ -491,7 +491,7 @@ func transitionToTarget(
 		log.Warnf("dropped %d trades due to low volume", len(trades)-len(filteredTrades))
 	}
 
-	return trades, nil
+	return filteredTrades, nil
 }
 
 func filterLowVolumeTrades(trades []*domain.ProposedTrade, amountThreshold decimal.Decimal) []*domain.ProposedTrade {

@@ -12,6 +12,7 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type InvestmentTradeRepository interface {
@@ -58,6 +59,9 @@ func (h investmentTradeRepositoryHandler) AddMany(tx *sql.Tx, models []*model.In
 	for _, m := range models {
 		m.CreatedAt = time.Now().UTC()
 		m.ModifiedAt = time.Now().UTC()
+		if !m.Quantity.GreaterThan(decimal.Zero) {
+			return nil, fmt.Errorf("%s on ticker ID %s has %f quantity", m.Side.String(), m.TickerID.String(), m.Quantity.InexactFloat64())
+		}
 	}
 
 	query := table.InvestmentTrade.

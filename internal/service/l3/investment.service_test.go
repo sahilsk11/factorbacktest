@@ -301,4 +301,57 @@ func Test_filterLowVolumeTrades(t *testing.T) {
 			}),
 		))
 	})
+
+	t.Run("some real trades that produced 0 quantity results", func(t *testing.T) {
+		newTrades := filterLowVolumeTrades(
+			[]*domain.ProposedTrade{
+				{
+					Symbol: "NVDA",
+					// TickerID:      4690d13c-83d5-4ca0-9e9e-31403d873cac,
+					ExactQuantity: decimal.NewFromFloat(0.0725128446042737),
+					ExpectedPrice: decimal.NewFromFloat(104.23),
+				},
+				{
+					Symbol: "AVGO",
+					// TickerID:      80f44ca8-989b-4179-9a44-9b2ea6cd3aaf,
+					ExactQuantity: decimal.NewFromFloat(0.0100321256038648),
+					ExpectedPrice: decimal.NewFromFloat(143.52),
+				},
+				{
+					Symbol: "ABBV",
+					// TickerID:      09c2f210-8d30-4ef2-ad80-23b9b83ded02,
+					ExactQuantity: decimal.NewFromFloat(0.0000199282582702),
+					ExpectedPrice: decimal.NewFromFloat(150.54),
+				},
+				{
+					Symbol: "AMAT",
+					// TickerID:      0c2e2c97-83b3-4529-925b-3d0061ff80e8,
+					ExactQuantity: decimal.NewFromFloat(-0.0000173591019558),
+					ExpectedPrice: decimal.NewFromFloat(189.8),
+				},
+			},
+			decimal.NewFromFloat(0.01),
+		)
+
+		require.Equal(t, "", cmp.Diff(
+			[]*domain.ProposedTrade{
+				{
+					Symbol: "NVDA",
+					// TickerID: 4690d13c-83d5-4ca0-9e9e-31403d873cac,
+					ExactQuantity: decimal.NewFromFloat(0.0725128446042737),
+					ExpectedPrice: decimal.NewFromFloat(104.23),
+				},
+				{
+					Symbol: "AVGO",
+					// TickerID: 80f44ca8-989b-4179-9a44-9b2ea6cd3aaf,
+					ExactQuantity: decimal.NewFromFloat(0.0100300718305146),
+					ExpectedPrice: decimal.NewFromFloat(143.52),
+				},
+			},
+			newTrades,
+			cmpopts.SortSlices(func(i, j *domain.ProposedTrade) bool {
+				return i.Symbol > j.Symbol
+			}),
+		))
+	})
 }
