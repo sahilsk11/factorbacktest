@@ -439,7 +439,7 @@ func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
 		}
 		allCompleted := true
 		for _, t := range relevantInvestmentTrades {
-			if *t.Status != model.TradeOrderStatus_Completed {
+			if t.Status == nil || *t.Status != model.TradeOrderStatus_Completed {
 				allCompleted = false
 			}
 		}
@@ -514,7 +514,11 @@ func (h tradeServiceHandler) updatePortfoliosFromTrades(ctx context.Context, tx 
 		newPortfolio := AddTradesToPortfolio(newTrades, currentHoldings)
 
 		rebalancerRunID := newTrades[0].RebalancerRunID
+
 		for _, t := range newTrades {
+			if rebalancerRunID == nil {
+				return fmt.Errorf("failed to update portfolio: investment trade %s missing rebalancer run id", t.InvestmentTradeID)
+			}
 			if *t.RebalancerRunID != *rebalancerRunID {
 				log.Warnf("expected rebalancer run id %s, got %s", rebalancerRunID.String(), t.RebalancerRunID.String())
 			}

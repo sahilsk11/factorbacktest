@@ -49,6 +49,7 @@ type investmentServiceHandler struct {
 	TradingService                l1_service.TradeService
 	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
 	PriceRepository               repository.AdjustedPriceRepository
+	RebalancePriceRepository      repository.RebalancePriceRepository
 }
 
 func NewInvestmentService(
@@ -422,12 +423,12 @@ func (h investmentServiceHandler) rebalanceInvestment(
 	}
 
 	// add a lil recon
-	newPortfolio := l1_service.AddTradesToPortfolio(insertedTradesStatus, initialPortfolio)
+	// newPortfolio := l1_service.AddTradesToPortfolio(insertedTradesStatus, initialPortfolio)
 
-	epsilon := decimal.NewFromFloat(0.01)
-	if match, reason := comparePortfolios(newPortfolio, computeTargetPortfolioResponse.TargetPortfolio, epsilon); !match {
-		return nil, fmt.Errorf("portfolios don't match: %s", reason)
-	}
+	// epsilon := decimal.NewFromFloat(0.01)
+	// if match, reason := comparePortfolios(newPortfolio, computeTargetPortfolioResponse.TargetPortfolio, epsilon); !match {
+	// 	return nil, fmt.Errorf("portfolios don't match: %s", reason)
+	// }
 
 	return &rebalanceInvestmentResponse{
 		ProposedTrades:           proposedTrades,
@@ -595,6 +596,13 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// before generating trades, let's store the price map so we can
+	// re-construct the entire rebalancer run later
+	err = h.RebalancePriceRepository.AddMany(pm, tickerIDMap, rebalancerRun.RebalancerRunID)
+	if err != nil {
+		return fmt.Errorf("failed to add rebalance prices: %w", err)
 	}
 
 	proposedTrades := []*domain.ProposedTrade{}

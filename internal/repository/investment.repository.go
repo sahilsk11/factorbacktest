@@ -78,7 +78,7 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 		postgres.Bool(true),
 	}
 	if !filter.IncludePaused {
-		whereClauses = append(whereClauses, table.Investment.PausedAt.IS_NOT_NULL())
+		whereClauses = append(whereClauses, table.Investment.PausedAt.IS_NULL())
 	}
 	if len(filter.UserAccountIDs) > 0 {
 		ids := []postgres.Expression{}

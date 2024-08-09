@@ -8,7 +8,8 @@ update_files = {
   "adjusted_price.go",
   "latest_excess_trade_volume.go",
   "excess_trade_volume.go",
-  "published_strategy_holdings"
+  "published_strategy_holdings",
+  "rebalance_price.go",
 }
 
 os.chdir("./internal/db/models/postgres/public/model/")
