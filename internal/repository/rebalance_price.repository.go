@@ -82,7 +82,7 @@ func (h rebalancePriceRepositoryHandler) AddMany(pm map[string]decimal.Decimal, 
 			TickerID:        tickerID,
 			Price:           price,
 			RebalancerRunID: rebalancerRunID,
-			CreatedAt:       time.Time{},
+			CreatedAt:       time.Now().UTC(),
 		})
 	}
 

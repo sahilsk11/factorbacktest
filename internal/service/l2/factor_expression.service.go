@@ -346,7 +346,7 @@ func removeIndicesInPlace(slice *[]workInput, sortedIndexesToRemove []int) {
 func (h factorExpressionServiceHandler) CalculateFactorScoresOnDay(ctx context.Context, date time.Time, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error) {
 	results, err := h.CalculateFactorScores(ctx, []time.Time{date}, tickers, factorExpression)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate factor scores on %v: %w", date, err)
 	}
 	r, ok := results[date]
 	if !ok {

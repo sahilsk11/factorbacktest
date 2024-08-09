@@ -13,6 +13,7 @@ import (
 	l2_service "factorbacktest/internal/service/l2"
 	"factorbacktest/internal/util"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -68,6 +69,7 @@ func NewInvestmentService(
 	tradeService l1_service.TradeService,
 	investmentRebalanceRepository repository.InvestmentRebalanceRepository,
 	priceRepository repository.AdjustedPriceRepository,
+	rebalancePriceRepository repository.RebalancePriceRepository,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                            db,
@@ -85,6 +87,7 @@ func NewInvestmentService(
 		TradingService:                tradeService,
 		InvestmentRebalanceRepository: investmentRebalanceRepository,
 		PriceRepository:               priceRepository,
+		RebalancePriceRepository:      rebalancePriceRepository,
 	}
 }
 
@@ -359,6 +362,8 @@ func (h investmentServiceHandler) rebalanceInvestment(
 		return nil, fmt.Errorf("holdings have no value")
 	}
 
+	fmt.Println(rebalancerRun.Date)
+
 	computeTargetPortfolioResponse, err := h.getTargetPortfolio(
 		ctx,
 		investment,
@@ -558,7 +563,22 @@ func filterLowVolumeTrades(trades []*domain.ProposedTrade, amountThreshold decim
 
 func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	log := logger.FromContext(ctx)
-	date := time.Now().UTC()
+
+	// since this function is executing trades, we
+	// need this to be today. only in testing can
+	// we allow another function to take over
+	date := time.Now()
+	// sry i'm too lazy to add this somewhere else
+	var err error
+	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") {
+		fmt.Println("overriding date")
+		date, err = time.Parse(time.DateOnly, "2020-12-31")
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("here", os.Getenv("ALPHA_ENV"))
+	}
 
 	// get all assets
 	// we could probably clean this up
@@ -626,7 +646,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			tickerIDMap,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to rebalance: failed to generate results for investment %s: %w", investment.InvestmentID.String(), err)
+			return fmt.Errorf("failed to generate results for investment %s: %w", investment.InvestmentID.String(), err)
 		}
 
 		proposedTrades = append(proposedTrades, result.ProposedTrades...)

@@ -86,6 +86,16 @@ func seedUniverse(tx *sql.Tx) error {
 		return fmt.Errorf("failed to insert tickers: %w", err)
 	}
 
+	fmt.Println("added cash ticker")
+	_, err = table.Ticker.INSERT(table.Ticker.AllColumns).MODEL(model.Ticker{
+		Symbol:   ":CASH",
+		Name:     "cash",
+		TickerID: cashTicker,
+	}).Exec(tx)
+	if err != nil {
+		return err
+	}
+
 	query = table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{
 		AssetUniverseName: "SPY_TOP_80",
 	}).RETURNING(table.AssetUniverse.AllColumns)
@@ -190,6 +200,9 @@ func cleanupUniverse(db *sql.DB) error {
 }
 
 func cleanupStrategies(db *sql.DB) error {
+	if _, err := table.Investment.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
+		return err
+	}
 	if _, err := table.StrategyRun.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
 		return err
 	}
