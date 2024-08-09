@@ -86,7 +86,6 @@ func seedUniverse(tx *sql.Tx) error {
 		return fmt.Errorf("failed to insert tickers: %w", err)
 	}
 
-	fmt.Println("added cash ticker")
 	_, err = table.Ticker.INSERT(table.Ticker.AllColumns).MODEL(model.Ticker{
 		Symbol:   ":CASH",
 		Name:     "cash",
