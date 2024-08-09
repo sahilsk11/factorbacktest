@@ -19,24 +19,13 @@ const UseMockAlpaca = false
 // simulate markets being open and orders completed
 // should not be used in prod, obv
 
-type MockAlpacaRepository interface {
-	PlaceOrder(req repository.AlpacaPlaceOrderRequest) (*alpaca.Order, error)
-	CancelOpenOrders(context.Context) error
-	GetPositions() ([]alpaca.Position, error)
-	IsMarketOpen() (bool, error)
-	GetAccount() (*alpaca.Account, error)
-	GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error)
-	GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error)
-	GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error)
-}
-
 type mockAlpacaRepositoryHandler struct {
 	realAlpacaRepository repository.AlpacaRepository
 	tradeOrderRepository repository.TradeOrderRepository
 	tickerRepository     repository.TickerRepository
 }
 
-func NewMockAlpacaRepository(alpacaRepository repository.AlpacaRepository, toRepository repository.TradeOrderRepository, tickerRepository repository.TickerRepository) MockAlpacaRepository {
+func NewMockAlpacaRepository(alpacaRepository repository.AlpacaRepository, toRepository repository.TradeOrderRepository, tickerRepository repository.TickerRepository) repository.AlpacaRepository {
 	zap.L().Info(`*******************
 WARNING: Using mock Alpaca service. May not reflect real conditions
 *******************`)

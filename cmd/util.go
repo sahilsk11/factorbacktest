@@ -3,6 +3,7 @@ package cmd
 import (
 	"database/sql"
 	"factorbacktest/api"
+	integration_tests "factorbacktest/integration-tests"
 	"factorbacktest/internal"
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
@@ -63,9 +64,10 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	holdingsVersionRepository := repository.NewInvestmentHoldingsVersionRepository(dbConn)
 	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
 	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
+	rebalancePriceRepository := repository.NewRebalancePriceRepository(dbConn)
 
-	if UseMockAlpaca {
-		alpacaRepository = NewMockAlpacaRepository(alpacaRepository, tradeOrderRepository, tickerRepository)
+	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") || UseMockAlpaca {
+		alpacaRepository = integration_tests.NewMockAlpacaRepositoryForTests()
 	}
 
 	var priceServiceAlpacaRepository repository.AlpacaRepository = nil
@@ -110,6 +112,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		tradingService,
 		investmentRebalanceRepository,
 		priceRepository,
+		rebalancePriceRepository,
 	)
 	strategyService := l3_service.NewStrategyService(
 		strategyRepository,
