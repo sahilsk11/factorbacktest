@@ -427,7 +427,7 @@ func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
 		completedTradesByInvestment[*t.InvestmentID] = append(completedTradesByInvestment[*t.InvestmentID], t)
 	}
 
-	err = h.updatePortfoliosFromTrades(ctx, tx, completedTradesByInvestment, cashTicker.TickerID)
+	err = h.updatePortfoliosFromTrades(tx, completedTradesByInvestment, cashTicker.TickerID)
 	if err != nil {
 		return err
 	}
@@ -501,8 +501,7 @@ func AddTradesToPortfolio(trades []*model.InvestmentTradeStatus, portfolio *doma
 	return portfolio
 }
 
-func (h tradeServiceHandler) updatePortfoliosFromTrades(ctx context.Context, tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]*model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
-	log := logger.FromContext(ctx)
+func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTradesByInvestment map[uuid.UUID][]*model.InvestmentTradeStatus, cashTickerID uuid.UUID) error {
 	for investmentID, newTrades := range completedTradesByInvestment {
 		if len(newTrades) == 0 {
 			// i think
@@ -518,11 +517,11 @@ func (h tradeServiceHandler) updatePortfoliosFromTrades(ctx context.Context, tx 
 		rebalancerRunID := newTrades[0].RebalancerRunID
 
 		for _, t := range newTrades {
-			if rebalancerRunID == nil {
+			if t.RebalancerRunID == nil {
 				return fmt.Errorf("failed to update portfolio: investment trade %s missing rebalancer run id", t.InvestmentTradeID)
 			}
 			if *t.RebalancerRunID != *rebalancerRunID {
-				log.Warnf("expected rebalancer run id %s, got %s", rebalancerRunID.String(), t.RebalancerRunID.String())
+				return fmt.Errorf("expected rebalancer run id %s, got %s", rebalancerRunID.String(), t.RebalancerRunID.String())
 			}
 		}
 

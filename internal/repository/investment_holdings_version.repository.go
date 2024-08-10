@@ -32,8 +32,7 @@ func (h investmentHoldingsVersionRepositoryHandler) Add(tx *sql.Tx, ihv model.In
 	ihv.CreatedAt = time.Now().UTC()
 	query := table.InvestmentHoldingsVersion.
 		INSERT(
-			table.InvestmentHoldingsVersion.InvestmentID,
-			table.InvestmentHoldingsVersion.CreatedAt,
+			table.InvestmentHoldingsVersion.MutableColumns,
 		).
 		MODEL(ihv).
 		RETURNING(table.InvestmentHoldingsVersion.AllColumns)
