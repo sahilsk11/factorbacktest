@@ -18,7 +18,6 @@ type investmentHoldingsTable struct {
 
 	//Columns
 	InvestmentHoldingsID        postgres.ColumnString
-	DelInvestmentID             postgres.ColumnString
 	TickerID                    postgres.ColumnString
 	Quantity                    postgres.ColumnFloat
 	CreatedAt                   postgres.ColumnTimestampz
@@ -54,13 +53,12 @@ func newInvestmentHoldingsTable(schemaName, tableName, alias string) *Investment
 func newInvestmentHoldingsTableImpl(schemaName, tableName, alias string) investmentHoldingsTable {
 	var (
 		InvestmentHoldingsIDColumn        = postgres.StringColumn("investment_holdings_id")
-		DelInvestmentIDColumn             = postgres.StringColumn("del_investment_id")
 		TickerIDColumn                    = postgres.StringColumn("ticker_id")
 		QuantityColumn                    = postgres.FloatColumn("quantity")
 		CreatedAtColumn                   = postgres.TimestampzColumn("created_at")
 		InvestmentHoldingsVersionIDColumn = postgres.StringColumn("investment_holdings_version_id")
-		allColumns                        = postgres.ColumnList{InvestmentHoldingsIDColumn, DelInvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
-		mutableColumns                    = postgres.ColumnList{DelInvestmentIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
+		allColumns                        = postgres.ColumnList{InvestmentHoldingsIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
+		mutableColumns                    = postgres.ColumnList{TickerIDColumn, QuantityColumn, CreatedAtColumn, InvestmentHoldingsVersionIDColumn}
 	)
 
 	return investmentHoldingsTable{
@@ -68,7 +66,6 @@ func newInvestmentHoldingsTableImpl(schemaName, tableName, alias string) investm
 
 		//Columns
 		InvestmentHoldingsID:        InvestmentHoldingsIDColumn,
-		DelInvestmentID:             DelInvestmentIDColumn,
 		TickerID:                    TickerIDColumn,
 		Quantity:                    QuantityColumn,
 		CreatedAt:                   CreatedAtColumn,
