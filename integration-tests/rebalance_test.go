@@ -99,7 +99,6 @@ func seedInvestment(tx *sql.Tx) error {
 	err = table.InvestmentHoldings.
 		INSERT(table.InvestmentHoldings.MutableColumns).
 		MODEL(model.InvestmentHoldings{
-			InvestmentID:                investment.InvestmentID,
 			TickerID:                    cashTicker,
 			Quantity:                    decimal.NewFromInt(100),
 			CreatedAt:                   time.Now(),

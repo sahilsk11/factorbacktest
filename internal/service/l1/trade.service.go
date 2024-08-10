@@ -541,7 +541,6 @@ func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTra
 		for _, position := range newPortfolio.Positions {
 			if !position.ExactQuantity.Equal(decimal.Zero) {
 				_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
-					InvestmentID:                investmentID,
 					TickerID:                    position.TickerID,
 					Quantity:                    position.ExactQuantity,
 					InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,
@@ -553,7 +552,6 @@ func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTra
 		}
 
 		_, err = h.HoldingsRepository.Add(tx, model.InvestmentHoldings{
-			InvestmentID:                investmentID,
 			TickerID:                    cashTickerID,
 			Quantity:                    *newPortfolio.Cash,
 			InvestmentHoldingsVersionID: version.InvestmentHoldingsVersionID,

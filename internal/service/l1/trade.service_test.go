@@ -81,7 +81,6 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 
 		holdingsRepository.EXPECT().
 			Add(tx, model.InvestmentHoldings{
-				InvestmentID:                investmentID,
 				TickerID:                    cashTickerID,
 				Quantity:                    *util.DecimalPointer(decimal.NewFromInt(10000)),
 				InvestmentHoldingsVersionID: versionID,
@@ -89,7 +88,7 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 			nil, nil,
 		)
 
-		err = handler.updatePortfoliosFromTrades(context.Background(), tx, completedTradesByInvestment, cashTickerID)
+		err = handler.updatePortfoliosFromTrades(tx, completedTradesByInvestment, cashTickerID)
 		require.NoError(t, err)
 	})
 }
