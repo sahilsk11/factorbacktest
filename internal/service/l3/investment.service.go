@@ -575,8 +575,6 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-	} else {
-		fmt.Println("here", os.Getenv("ALPHA_ENV"))
 	}
 
 	// get all assets
@@ -671,13 +669,13 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
-	if len(investmentTrades) == 0 || len(investmentsToRebalance) == 0 {
-		return nil
-	}
-
 	err = tx.Commit()
 	if err != nil {
 		return err
+	}
+
+	if len(investmentTrades) == 0 || len(investmentsToRebalance) == 0 {
+		return nil
 	}
 
 	// until we have some fancier math for reconciling completed trades,
