@@ -9,6 +9,13 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleAuthUser } from './models';
 import Invest from './pages/Investments/Invest';
 import { Home } from 'pages/Home/Home';
+import { getAuth } from "@firebase/auth";
+import { initializeApp } from '@firebase/app';
+
+export const auth = getAuth(initializeApp({
+  apiKey: "",
+  authDomain: "factor-backtest.firebaseapp.com",
+}))
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
