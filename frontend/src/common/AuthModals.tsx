@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-import { createClient } from '@supabase/supabase-js'
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { useState } from "react";
 import { useAuth } from "auth";
-import authModalsStyle from "./AuthModals.module.css";
 import modalsStyle from "./Modals.module.css";
 import { GoogleLogin } from "@react-oauth/google";
 
