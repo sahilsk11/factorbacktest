@@ -6,6 +6,9 @@ import BootstrapNav from 'react-bootstrap/Nav';
 import NavDropdown from 'react-bootstrap/NavDropdown';
 import styles from './Nav.module.css';
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import LoginModal from "./AuthModals";
+import { useAuth } from "auth";
 
 
 export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser, loggedIn }: {
@@ -15,26 +18,14 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
   loggedIn: boolean;
 }) {
-  const login = useGoogleLogin({
-    onSuccess: (codeResponse) => {
-      // console.log(codeResponse)
-      const date = new Date();
-      date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
-      const expires = "expires=" + date.toUTCString();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
-      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure";
-
-      setUser({
-        accessToken: codeResponse.access_token
-      } as GoogleAuthUser);
-    },
-    onError: (error) => console.log('Login Failed:', error)
-  });
+  const { supabase, session } = useAuth();
 
   const navigate = useNavigate()
 
-  const authTab = !loggedIn ? (
-    <BootstrapNav.Link onClick={() => login()}>Login</BootstrapNav.Link>
+  const authTab = !loggedIn && !session ? (
+    <BootstrapNav.Link onClick={() => setShowLoginModal(true)}>Login</BootstrapNav.Link>
   ) : (
     <NavDropdown title="Account" id="basic-nav-dropdown">
       {/* <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
@@ -43,11 +34,12 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
       </NavDropdown.Item>*/}
       <NavDropdown.Item onClick={() => navigate("/investments")} className={styles.nav_link}>
         Your Investments
-      </NavDropdown.Item> 
+      </NavDropdown.Item>
       <NavDropdown.Divider />
       <NavDropdown.Item onClick={() => {
         googleLogout();
         setUser(null);
+        supabase?.auth.signOut()
         document.cookie = "googleAuthAccessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure";
       }} className={styles.nav_link}>
         Logout
@@ -58,7 +50,7 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
   return <>
     <Navbar data-bs-theme="dark" bg="dark" expand="sm" className={`${styles.nav} bg-body-tertiary `}>
       <Container>
-        <Navbar.Brand style={{ fontSize: "16px", fontWeight:"500", cursor:"pointer" }} onClick={() => navigate("/")}>factorbacktest.net</Navbar.Brand>
+        <Navbar.Brand style={{ fontSize: "16px", fontWeight: "500", cursor: "pointer" }} onClick={() => navigate("/")}>factorbacktest.net</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <BootstrapNav className="ms-auto">
@@ -72,5 +64,23 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
         </Navbar.Collapse>
       </Container>
     </Navbar>
+    {/* <div id="g_id_onload"
+      data-client_id="553014490207-3s25moanhrdjeckdsvbu9ea5rdik0uh2.apps.googleusercontent.com"
+      data-context="signin"
+      data-ux_mode="popup"
+      data-callback="loginWithGoogleHelper"
+      data-auto_select="true"
+      data-itp_support="true">
+    </div> */}
+
+    {/* <div className="g_id_signin"
+      data-type="standard"
+      data-shape="rectangular"
+      data-theme="outline"
+      data-text="signin_with"
+      data-size="large"
+      data-logo_alignment="left">
+    </div> */}
+    {showLoginModal ? <LoginModal close={() => setShowLoginModal(false)} /> : null}
   </>;
 }

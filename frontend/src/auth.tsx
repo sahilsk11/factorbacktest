@@ -14,12 +14,14 @@ type AuthContextType = {
   loading: boolean,
   session: Session | null,
   user: User | null
+  supabase: SupabaseClient | null
 }
 
 const AuthContext = createContext<AuthContextType>({
   loading: true,
   session: null,
-  user: null
+  user: null,
+  supabase: null,
 })
 
 const AuthProvider = (props: AuthProviderProps) => {
@@ -55,7 +57,8 @@ const AuthProvider = (props: AuthProviderProps) => {
   const value = {
     loading,
     session,
-    user
+    user,
+    supabase,
   }
 
   return (
