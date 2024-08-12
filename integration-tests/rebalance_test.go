@@ -25,11 +25,12 @@ func seedInvestment(tx *sql.Tx) error {
 	err := table.UserAccount.
 		INSERT(table.UserAccount.MutableColumns).
 		MODEL(model.UserAccount{
-			// FirstName: "Test",
-			// LastName:  "User",
-			// Email:     "test@gmail.com",
+			FirstName: util.StringPointer("Test"),
+			LastName:  util.StringPointer("User"),
+			Email:     util.StringPointer("test@gmail.com"),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
+			Provider:  model.UserAccountProviderType_Manual,
 		}).
 		RETURNING(table.UserAccount.AllColumns).
 		Query(tx, &userAccount)

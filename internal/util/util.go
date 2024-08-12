@@ -56,6 +56,7 @@ type Secrets struct {
 	ChatGPTApiKey    string        `json:"gpt"`
 	Db               DbSecrets     `json:"db"`
 	Alpaca           AlpacaSecrets `json:"alpaca"`
+	Jwt              string        `json:"jwt"`
 }
 
 type AlpacaSecrets struct {

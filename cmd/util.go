@@ -142,6 +142,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		InvestmentService:            investmentService,
 		TradingService:               tradingService,
 		StrategyService:              strategyService,
+		JwtDecodeToken:               secrets.Jwt,
 	}
 
 	return apiHandler, nil

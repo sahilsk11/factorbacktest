@@ -44,6 +44,7 @@ type ApiHandler struct {
 	InvestmentRepository         repository.InvestmentRepository
 	TradingService               l1_service.TradeService
 	StrategyService              l3_service.StrategyService
+	JwtDecodeToken               string
 }
 
 func int64Ptr(i int64) *int64 {
@@ -254,7 +255,7 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 
 	var userInput *model.UserAccount
 
-	parsedJwt, supabaseErr := parseSupabaseJWT(jwtStr)
+	parsedJwt, supabaseErr := parseSupabaseJWT(jwtStr, m.JwtDecodeToken)
 	userDetails, googleAuthErr := googleauth.GetUserDetails(jwtStr)
 
 	if supabaseErr == nil {

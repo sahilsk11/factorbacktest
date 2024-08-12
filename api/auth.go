@@ -42,7 +42,7 @@ type UserMetadata struct {
 	Subject       string `json:"sub"`
 }
 
-func parseSupabaseJWT(jwtStr string) (*SupabaseJWT, error) {
+func parseSupabaseJWT(jwtStr string, decodeToken string) (*SupabaseJWT, error) {
 	token, err := jwt.Parse(jwtStr, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -50,7 +50,7 @@ func parseSupabaseJWT(jwtStr string) (*SupabaseJWT, error) {
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
-		return []byte("HQKEWgOqRZzze/fjyartAHUCmm7rEC0mCIC68MJvxvXIemelB7777rVm4ZPfhEfA8ezPSZyWqBiMKUqvgUsc3w=="), nil
+		return []byte(decodeToken), nil
 	})
 	if err != nil {
 		return nil, err
