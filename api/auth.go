@@ -53,7 +53,7 @@ func parseSupabaseJWT(jwtStr string, decodeToken string) (*SupabaseJWT, error) {
 		return []byte(decodeToken), nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
