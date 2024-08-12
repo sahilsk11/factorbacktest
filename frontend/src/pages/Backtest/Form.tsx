@@ -12,8 +12,11 @@ import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { useGoogleLogin } from '@react-oauth/google';
 import modalsStyle from "common/Modals.module.css";
+import { Session } from '@supabase/supabase-js';
+import { useAuth } from 'auth';
+import LoginModal from 'common/AuthModals';
 
-async function getIsBookmarked(user: GoogleAuthUser, props: FormViewProps): Promise<any> {
+async function getIsBookmarked(session: Session, props: FormViewProps): Promise<any> {
   const bookmarkRequest: BookmarkStrategyRequest = {
     expression: props.factorExpression,
     name: props.factorName,
@@ -28,7 +31,7 @@ async function getIsBookmarked(user: GoogleAuthUser, props: FormViewProps): Prom
     const response = await fetch(endpoint + "/isStrategyBookmarked", {
       method: "POST",
       headers: {
-        "Authorization": user ? "Bearer " + user.accessToken : ""
+        "Authorization": session ? "Bearer " + session.access_token : ""
       },
       body: JSON.stringify(bookmarkRequest)
     });
@@ -47,11 +50,11 @@ async function getIsBookmarked(user: GoogleAuthUser, props: FormViewProps): Prom
   return false;
 };
 
-export async function getStrategies(user: GoogleAuthUser, setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>) {
+export async function getStrategies(session: Session, setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>) {
   try {
     const response = await fetch(endpoint + "/savedStrategies", {
       headers: {
-        "Authorization": user ? "Bearer " + user.accessToken : ""
+        "Authorization": session ? "Bearer " + session.access_token : ""
       }
     });
     if (!response.ok) {
@@ -137,6 +140,8 @@ export default function FactorForm({
   const [loading, setLoading] = useState(false);
   const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
 
+  const { session } = useAuth()
+
   useEffect(() => {
     if (runBacktestToggle) {
       handleSubmit(null)
@@ -147,7 +152,7 @@ export default function FactorForm({
     try {
       const response = await fetch(endpoint + "/assetUniverses", {
         headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         }
       });
       if (response.ok) {
@@ -173,10 +178,10 @@ export default function FactorForm({
     getUniverses()
   }, []);
   useEffect(() => {
-    if (user) {
-      getStrategies(user, setSavedStrategies)
+    if (session) {
+      getStrategies(session, setSavedStrategies)
     }
-  }, [user]);
+  }, [session]);
   useEffect(() => {
     if (assetUniverses.length > 0) {
       setAssetUniverse(assetUniverses[0].code)
@@ -233,7 +238,7 @@ export default function FactorForm({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         },
         body: JSON.stringify(data)
       });
@@ -368,11 +373,11 @@ export default function FactorForm({
   }
 
   useEffect(() => {
-    if (user) {
+    if (session) {
       // we might wanna change this - 
       // basically triggers every time the form
       // input changes to figure out if it's bookmarked
-      getIsBookmarked(user, props).then(resp => {
+      getIsBookmarked(session, props).then(resp => {
         // console.log(resp)
         setBookmarked(resp.isBookmarked)
         // formProps.setSelectedFactor(resp.name)
@@ -380,7 +385,7 @@ export default function FactorForm({
     } else {
       setBookmarked(false)
     }
-  }, [user, props])
+  }, [session, props])
 
   const factorExpressionInput = <FactorExpressionInput
     userID={userID}
@@ -780,7 +785,7 @@ function jumpToAnchorOnSmallScreen(anchorId: string) {
 }
 
 export const updateBookmarked = async (
-  user: GoogleAuthUser,
+  session: Session,
   bookmark: boolean,
   backtestInputs: BacktestInputs,
 ): Promise<string | null> => {
@@ -798,7 +803,7 @@ export const updateBookmarked = async (
     const response = await fetch(endpoint + "/bookmarkStrategy", {
       method: "POST",
       headers: {
-        "Authorization": user ? "Bearer " + user.accessToken : ""
+        "Authorization": session ? "Bearer " + session.access_token : ""
       },
       body: JSON.stringify(bookmarkRequest)
     });
@@ -826,30 +831,31 @@ function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked 
 }) {
   const toolTipMessage = `Bookmark strategy`;
   const [showBookmarkModal, setShowBookmarkModal] = useState(false);
-
-
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const icon = bookmarked ? <FaBookmark size={20} style={{ cursor: "pointer" }} /> : <FaRegBookmark size={20} style={{ cursor: "pointer" }} />
 
+  const { session } = useAuth();
+
   // todo - centralize this function
-  const login = useGoogleLogin({
-    onSuccess: (codeResponse) => {
-      // console.log(codeResponse)
-      const date = new Date();
-      date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
-      const expires = "expires=" + date.toUTCString();
+  // const login = useGoogleLogin({
+  //   onSuccess: (codeResponse) => {
+  //     // console.log(codeResponse)
+  //     const date = new Date();
+  //     date.setTime(date.getTime() + (codeResponse.expires_in * 1000));
+  //     const expires = "expires=" + date.toUTCString();
 
-      document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure";
-      const newUser = {
-        accessToken: codeResponse.access_token
-      } as GoogleAuthUser
-      setUser(newUser);
+  //     document.cookie = "googleAuthAccessToken" + "=" + codeResponse.access_token + "; " + expires + ";SameSite=Strict;Secure";
+  //     const newUser = {
+  //       accessToken: codeResponse.access_token
+  //     } as GoogleAuthUser
+  //     setUser(newUser);
 
-      figureOutNext(bookmarked, newUser)
+  //     figureOutNext(bookmarked, session)
 
-    },
-    onError: (error) => console.log('Login Failed:', error)
-  });
+  //   },
+  //   onError: (error) => console.log('Login Failed:', error)
+  // });
 
   const backtestInputs: BacktestInputs = {
     factorExpression: formProps.factorExpression,
@@ -862,8 +868,8 @@ function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked 
   };
 
   // they clicked when the state was X, so probably need to toggle
-  async function figureOutNext(currentBookmarkState: boolean, user: GoogleAuthUser) {
-    const response = await getIsBookmarked(user, formProps);
+  async function figureOutNext(currentBookmarkState: boolean, session: Session) {
+    const response = await getIsBookmarked(session, formProps);
     const actualState = response.isBookmarked;
     const name = response.name;
     if (actualState !== true && actualState !== false) {
@@ -893,21 +899,20 @@ function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked 
     // no drama - just remove the bookmark
     if (currentBookmarkState && actualState) {
       setBookmarked(false)
-      updateBookmarked(user, false, backtestInputs)
+      updateBookmarked(session, false, backtestInputs)
     }
   }
 
   const onClick = () => {
-    if (!user) {
+    if (!session) {
+      setShowLoginModal(true)
       // login calls updateBookmarked
-      login()
+      // login()
     } else {
       // updateBookmarked(user, !bookmarked)
-      figureOutNext(bookmarked, user)
+      figureOutNext(bookmarked, session)
     }
   }
-
-
 
   return (
     <>
@@ -921,6 +926,15 @@ function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked 
         {icon}
         <ReactTooltip id="bookmark-tooltip" />
       </div>
+      {showLoginModal ? <LoginModal onSuccess={() => {
+        if (!session) {
+          alert("unhandled err - expected session to be valid after login")
+        } else {
+          figureOutNext(bookmarked, session)
+        }
+      }} close={() => {
+        setShowLoginModal(false)
+      }} /> : null}
       <BookmarkModal
         show={showBookmarkModal}
         close={() => setShowBookmarkModal(false)}
@@ -928,10 +942,10 @@ function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked 
         setFactorName={formProps.setFactorName}
         // updateName={formProps.updateName}
         bookmarkStategy={async () => {
-          if (user) {
+          if (session) {
             setBookmarked(true)
-            await updateBookmarked(user, true, backtestInputs)
-            await getStrategies(user, formProps.setSavedStrategies);
+            await updateBookmarked(session, true, backtestInputs)
+            await getStrategies(session, formProps.setSavedStrategies);
             // console.log(fa)
             formProps.setSelectedFactor(formProps.factorName)
           } else {

@@ -2,17 +2,20 @@ import { useEffect, useState } from "react";
 import footerStyles from  "./Footer.module.css";
 import { endpoint } from "App";
 import { GoogleAuthUser } from "../models";
+import { useAuth } from "auth";
 
 export default function StatsFooter({ userID, user }: { userID: string, user: GoogleAuthUser | null }) {
   const [uniqueUsers, setUniqueUsers] = useState<number | null>(null);
   const [backtests, setBacktests] = useState<number | null>(null);
   const [strategies, setStrategies] = useState<number | null>(null);
 
+  const {session} = useAuth();
+
   async function getStats() {
     try {
       const response = await fetch(endpoint + "/usageStats?id=" + userID, {
         headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         }
       });
       const responseJson = await response.json()

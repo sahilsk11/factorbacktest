@@ -7,6 +7,7 @@ import { GetSavedStrategiesResponse, GoogleAuthUser } from '../../models';
 import formStyles from './Form.module.css'
 import { FormViewProps } from './Form';
 import { parseDateString } from '../../util';
+import { useAuth } from 'auth';
 
 
 export function FactorExpressionInput({
@@ -39,6 +40,8 @@ export function FactorExpressionInput({
 
   const gptInputElement = document.getElementById("gpt-input");
 
+  const { session } = useAuth();
+
   const autofillEquation = async (e: any) => {
     e.preventDefault();
     setLoading(true);
@@ -48,7 +51,7 @@ export function FactorExpressionInput({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         },
         body: JSON.stringify({ input: gptInput, userID })
       });

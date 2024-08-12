@@ -16,50 +16,9 @@ const root = ReactDOM.createRoot(
 );
 
 
-async function isValidUser(user: GoogleAuthUser) {
-  const url = "https://www.googleapis.com/oauth2/v1/userinfo?access_token=" + user.accessToken;
-
-  try {
-    const response = await fetch(url);
-
-    // Check if the response is OK (status code 200)
-    if (response.ok) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    console.error("Error checking access token:", error);
-    return false;
-  }
-}
-
-
 
 const AppWrapper = () => {
   const [user, setUser] = useState<GoogleAuthUser | null>(null);
-
-  
-
-  
-
-  useEffect(() => {
-    updateUserFromCookie()
-    // login();
-  }, []);
-
-  async function updateUserFromCookie() {
-    const accessToken = getCookie("googleAuthAccessToken");
-    if (accessToken) {
-      const tmpUser = {
-        accessToken
-      } as GoogleAuthUser;
-      if (await isValidUser(tmpUser)) {
-        setUser(tmpUser);
-      }
-    }
-  }
-
 
 
   const app = <App user={user} setUser={setUser} />;

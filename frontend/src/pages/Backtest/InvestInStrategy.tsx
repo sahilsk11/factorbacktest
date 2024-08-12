@@ -12,6 +12,9 @@ import { updateBookmarked, getStrategies } from './Form';
 import { useGoogleLogin } from '@react-oauth/google';
 import modalStyles from "common/Modals.module.css";
 import factorSnapshotStyles from "./FactorSnapshot.module.css";
+import { Session } from '@supabase/supabase-js';
+import { useAuth } from 'auth';
+import LoginModal from 'common/AuthModals';
 
 
 export function InvestInStrategy({
@@ -37,6 +40,7 @@ export function InvestInStrategy({
 }) {
   const [depositAmount, setDepositAmount] = useState(10);
   const [showInvestModal, setShowInvestModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
 
   function updateDepositAmount(e: any) {
@@ -54,11 +58,11 @@ export function InvestInStrategy({
 
   function deposit(e: any) {
     e.preventDefault()
-    if (user) {
+    if (session) {
       // maybe bookmark strategy
       setShowInvestModal(true)
     } else {
-      login()
+      setShowLoginModal(true)
     }
 
   }
@@ -91,8 +95,13 @@ export function InvestInStrategy({
   const fontSize = "14px";
   const height = "30px";
 
+  const { session } = useAuth()
+
   return (
     <>
+      {showLoginModal ? <LoginModal close={() => setShowLoginModal(false)} onSuccess={() => {
+        setShowInvestModal(true)
+      }} /> : null}
       <div className={`${appStyles.tile} ${backtestStyles.flex_container}`}>
         <div className={`${iisStyles.deposit_container}`}>
           <div>
@@ -137,7 +146,7 @@ export function InvestInStrategy({
         </div>
       </div>
       <InvestModal
-        user={user}
+        session={session}
         show={showInvestModal}
         close={() => { setShowInvestModal(false) }}
         factorName={factorName}
@@ -157,7 +166,7 @@ export function InvestInStrategy({
 }
 
 function InvestModal({
-  user,
+  session,
   show,
   close,
   factorName,
@@ -173,7 +182,7 @@ function InvestModal({
   // onSubmit,
   strategyID,
 }: {
-  user: GoogleAuthUser | null,
+  session: Session | null,
   show: boolean;
   close: () => void;
   factorName: string,
@@ -207,7 +216,7 @@ function InvestModal({
 
 
   async function invest() {
-    if (!user) {
+    if (!session) {
       alert("must be logged in to invest")
       return
     }
@@ -219,7 +228,7 @@ function InvestModal({
       const response = await fetch(endpoint + "/investInStrategy", {
         method: "POST",
         headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         },
         body: JSON.stringify({
           amountDollars: depositAmount,
@@ -287,7 +296,7 @@ function InvestModal({
         }} className="input-group-text">.00</span>
       </div>
 
-      <p style={{marginTop:"30px"}} className={iisStyles.subtext}>
+      <p style={{ marginTop: "30px" }} className={iisStyles.subtext}>
         You will receive a Venmo request in the next 24 hours for the given amount.
         <br />
         Portfolio will rebalance once per day at market open.

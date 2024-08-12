@@ -3,6 +3,7 @@ import modalsStyle from "./Modals.module.css";
 import formStyles from "pages/Backtest/Form.module.css";
 import { ContactRequest, GoogleAuthUser } from "../models";
 import { endpoint } from "../App";
+import { useAuth } from "auth";
 
 export function HelpModal({ show, close }: {
   show: boolean;
@@ -79,6 +80,8 @@ function ContactForm({ userID, user }: {
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
+  const { session } = useAuth()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -87,7 +90,7 @@ function ContactForm({ userID, user }: {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          "Authorization": user ? "Bearer "+user.accessToken : "" 
+          "Authorization": session ? "Bearer " + session.access_token : ""
         },
         body: JSON.stringify({
           userID,

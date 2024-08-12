@@ -12,6 +12,7 @@ import { InvestInStrategy } from "./InvestInStrategy";
 import { Col, Container, Row, Table } from "react-bootstrap";
 import "./Backtest.module.css";
 import backtestStyles from "./Backtest.module.css";
+import { useAuth } from "auth";
 
 
 export default function FactorBacktestMain({ userID, user, setUser }: {
@@ -66,13 +67,15 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
     // navigate("/")
   }
 
+  const { session } = useAuth()
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   async function getStrategy(id: string): Promise<GetPublishedStrategiesResponse | null> {
     try {
       const response = await fetch(endpoint + "/publishedStrategies", {
         headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         }
       });
       if (!response.ok) {
@@ -262,11 +265,11 @@ function Stats({
 }) {
   let returnsText = "n/a";
   if (metrics?.annualizedReturn) {
-    returnsText = (100*metrics.annualizedReturn).toFixed(2).toString() + "%"
+    returnsText = (100 * metrics.annualizedReturn).toFixed(2).toString() + "%"
   }
   let stdevText = "n/a";
   if (metrics?.annualizedStandardDeviation) {
-    stdevText = (100*metrics.annualizedStandardDeviation).toFixed(2).toString() + "%"
+    stdevText = (100 * metrics.annualizedStandardDeviation).toFixed(2).toString() + "%"
   }
   let sharpeText = "n/a";
   if (metrics?.sharpeRatio) {
@@ -276,7 +279,7 @@ function Stats({
     <div className={`${backtestStyles.flex_container} ${styles.tile}`}>
       <p className={backtestStyles.flex_container_title}>Performance History</p>
       {/* <p className={`${styles.subtext} ${backtestStyles.flex_container_subtext}`}>From 2023-01-01 to 2023-01-01</p> */}
-      <div style={{ paddingBottom: "0px", marginTop:"10px" }}>
+      <div style={{ paddingBottom: "0px", marginTop: "10px" }}>
         <Table>
           <tbody>
             <tr style={{ borderTop: "1px solid #DFE2E6" }}>

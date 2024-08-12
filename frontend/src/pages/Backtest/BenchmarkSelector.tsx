@@ -3,6 +3,7 @@ import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { enumerateDates } from '../../util';
 import { endpoint } from '../../App';
 import { GoogleAuthUser } from '../../models';
+import { useAuth } from 'auth';
 
 export interface BenchmarkData {
   symbol: string;
@@ -25,6 +26,8 @@ export default function BenchmarkManager({
   const [newSymbol, setNewSymbol] = useState('');
   const [selectedBenchmarks, updateSelectedBenchmarks] = useState(["SPY"]);
 
+  const { session } = useAuth()
+
   useEffect(() => {
     if (userID.length > 0) {
       const fetchData = async (symbol: string): Promise<BenchmarkData | null> => {
@@ -41,7 +44,7 @@ export default function BenchmarkManager({
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": user ? "Bearer "+user.accessToken : "" 
+                "Authorization": session ? "Bearer " + session.access_token : ""
               },
               body: JSON.stringify({
                 userID,
