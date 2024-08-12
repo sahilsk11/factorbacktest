@@ -9,10 +9,12 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleAuthUser } from './models';
 import Invest from './pages/Investments/Invest';
 import { Home } from 'pages/Home/Home';
+import AuthProvider from 'auth';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
 
 async function isValidUser(user: GoogleAuthUser) {
   const url = "https://www.googleapis.com/oauth2/v1/userinfo?access_token=" + user.accessToken;
@@ -32,8 +34,19 @@ async function isValidUser(user: GoogleAuthUser) {
   }
 }
 
+
+
 const AppWrapper = () => {
   const [user, setUser] = useState<GoogleAuthUser | null>(null);
+
+  
+
+  
+
+  useEffect(() => {
+    updateUserFromCookie()
+    // login();
+  }, []);
 
   async function updateUserFromCookie() {
     const accessToken = getCookie("googleAuthAccessToken");
@@ -47,23 +60,23 @@ const AppWrapper = () => {
     }
   }
 
-  useEffect(() => {
-    updateUserFromCookie()
-  }, []);
+
 
   const app = <App user={user} setUser={setUser} />;
 
   return (
     <GoogleOAuthProvider clientId="553014490207-3s25moanhrdjeckdsvbu9ea5rdik0uh2.apps.googleusercontent.com">
-      <BrowserRouter>
-        <Routes>
-          <Route index element={<Home user={user} setUser={setUser} />} />
-          <Route path="backtest" element={app} />
-          <Route path="bonds" element={<BondBuilder user={user} setUser={setUser} />} />
-          <Route path="investments" element={<Invest user={user} setUser={setUser} />} />
-          <Route path="*" element={<p>not found</p>} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route index element={<Home user={user} setUser={setUser} />} />
+            <Route path="backtest" element={app} />
+            <Route path="bonds" element={<BondBuilder user={user} setUser={setUser} />} />
+            <Route path="investments" element={<Invest user={user} setUser={setUser} />} />
+            <Route path="*" element={<p>not found</p>} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </GoogleOAuthProvider>
   );
 }

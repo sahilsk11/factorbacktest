@@ -18,13 +18,15 @@ type latestRebalanceHoldingsTable struct {
 
 	//Columns
 	InvestmentHoldingsID        postgres.ColumnString
-	RebalancerRunID             postgres.ColumnString
-	TickerID                    postgres.ColumnString
+	InvestmentID                postgres.ColumnString
 	Symbol                      postgres.ColumnString
 	Quantity                    postgres.ColumnFloat
-	InvestmentID                postgres.ColumnString
-	InvestmentHoldingsVersionID postgres.ColumnString
+	PriceAtRebalance            postgres.ColumnFloat
+	AmountAtRebalance           postgres.ColumnFloat
 	CreatedAt                   postgres.ColumnTimestampz
+	TickerID                    postgres.ColumnString
+	InvestmentHoldingsVersionID postgres.ColumnString
+	RebalancerRunID             postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -56,15 +58,17 @@ func newLatestRebalanceHoldingsTable(schemaName, tableName, alias string) *Lates
 func newLatestRebalanceHoldingsTableImpl(schemaName, tableName, alias string) latestRebalanceHoldingsTable {
 	var (
 		InvestmentHoldingsIDColumn        = postgres.StringColumn("investment_holdings_id")
-		RebalancerRunIDColumn             = postgres.StringColumn("rebalancer_run_id")
-		TickerIDColumn                    = postgres.StringColumn("ticker_id")
+		InvestmentIDColumn                = postgres.StringColumn("investment_id")
 		SymbolColumn                      = postgres.StringColumn("symbol")
 		QuantityColumn                    = postgres.FloatColumn("quantity")
-		InvestmentIDColumn                = postgres.StringColumn("investment_id")
-		InvestmentHoldingsVersionIDColumn = postgres.StringColumn("investment_holdings_version_id")
+		PriceAtRebalanceColumn            = postgres.FloatColumn("price_at_rebalance")
+		AmountAtRebalanceColumn           = postgres.FloatColumn("amount_at_rebalance")
 		CreatedAtColumn                   = postgres.TimestampzColumn("created_at")
-		allColumns                        = postgres.ColumnList{InvestmentHoldingsIDColumn, RebalancerRunIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, InvestmentIDColumn, InvestmentHoldingsVersionIDColumn, CreatedAtColumn}
-		mutableColumns                    = postgres.ColumnList{InvestmentHoldingsIDColumn, RebalancerRunIDColumn, TickerIDColumn, SymbolColumn, QuantityColumn, InvestmentIDColumn, InvestmentHoldingsVersionIDColumn, CreatedAtColumn}
+		TickerIDColumn                    = postgres.StringColumn("ticker_id")
+		InvestmentHoldingsVersionIDColumn = postgres.StringColumn("investment_holdings_version_id")
+		RebalancerRunIDColumn             = postgres.StringColumn("rebalancer_run_id")
+		allColumns                        = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, SymbolColumn, QuantityColumn, PriceAtRebalanceColumn, AmountAtRebalanceColumn, CreatedAtColumn, TickerIDColumn, InvestmentHoldingsVersionIDColumn, RebalancerRunIDColumn}
+		mutableColumns                    = postgres.ColumnList{InvestmentHoldingsIDColumn, InvestmentIDColumn, SymbolColumn, QuantityColumn, PriceAtRebalanceColumn, AmountAtRebalanceColumn, CreatedAtColumn, TickerIDColumn, InvestmentHoldingsVersionIDColumn, RebalancerRunIDColumn}
 	)
 
 	return latestRebalanceHoldingsTable{
@@ -72,13 +76,15 @@ func newLatestRebalanceHoldingsTableImpl(schemaName, tableName, alias string) la
 
 		//Columns
 		InvestmentHoldingsID:        InvestmentHoldingsIDColumn,
-		RebalancerRunID:             RebalancerRunIDColumn,
-		TickerID:                    TickerIDColumn,
+		InvestmentID:                InvestmentIDColumn,
 		Symbol:                      SymbolColumn,
 		Quantity:                    QuantityColumn,
-		InvestmentID:                InvestmentIDColumn,
-		InvestmentHoldingsVersionID: InvestmentHoldingsVersionIDColumn,
+		PriceAtRebalance:            PriceAtRebalanceColumn,
+		AmountAtRebalance:           AmountAtRebalanceColumn,
 		CreatedAt:                   CreatedAtColumn,
+		TickerID:                    TickerIDColumn,
+		InvestmentHoldingsVersionID: InvestmentHoldingsVersionIDColumn,
+		RebalancerRunID:             RebalancerRunIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
