@@ -5,7 +5,6 @@ import (
 	"errors"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
-	googleauth "factorbacktest/pkg/google-auth"
 	"fmt"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 )
 
 type UserAccountRepository interface {
-	GetOrCreate(googleauth.GetUserDetailsResponse) (*model.UserAccount, error)
+	GetOrCreate(input *model.UserAccount) (*model.UserAccount, error)
 }
 
 type userAccountRepositoryHandler struct {
@@ -27,10 +26,20 @@ func NewUserAccountRepository(db *sql.DB) UserAccountRepository {
 	}
 }
 
-func (h userAccountRepositoryHandler) GetOrCreate(googleUser googleauth.GetUserDetailsResponse) (*model.UserAccount, error) {
+func (h userAccountRepositoryHandler) GetOrCreate(input *model.UserAccount) (*model.UserAccount, error) {
+	input.CreatedAt = time.Now().UTC()
+	input.UpdatedAt = time.Now().UTC()
+
 	t := table.UserAccount
 
-	getQuery := t.SELECT(t.AllColumns).WHERE(t.Email.EQ(postgres.String(googleUser.Email)))
+	getQuery := t.SELECT(t.AllColumns)
+
+	if input.Email != nil {
+		getQuery = getQuery.WHERE(t.Email.EQ(postgres.String(*input.Email)))
+	} else if input.PhoneNumber != nil {
+		getQuery = getQuery.WHERE(t.PhoneNumber.EQ(postgres.String(*input.PhoneNumber)))
+	}
+
 	out := model.UserAccount{}
 	err := getQuery.Query(h.DB, &out)
 	if err != nil && !errors.Is(err, qrm.ErrNoRows) {
@@ -39,14 +48,7 @@ func (h userAccountRepositoryHandler) GetOrCreate(googleUser googleauth.GetUserD
 		return &out, nil
 	}
 
-	newModel := model.UserAccount{
-		FirstName: googleUser.FirstName,
-		LastName:  googleUser.LastName,
-		Email:     googleUser.Email,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-	}
-	createQuery := t.INSERT(t.MutableColumns).MODEL(newModel).RETURNING(t.AllColumns)
+	createQuery := t.INSERT(t.MutableColumns).MODEL(input).RETURNING(t.AllColumns)
 
 	err = createQuery.Query(h.DB, &out)
 	if err != nil {

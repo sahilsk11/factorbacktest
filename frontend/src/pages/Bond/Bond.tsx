@@ -27,6 +27,7 @@ import { Nav } from 'common/Nav';
 import { ContactModal, HelpModal } from 'common/Modals';
 import { Error } from '../Backtest/Form';
 import { GoogleAuthUser } from '../../models';
+import { useAuth } from 'auth';
 
 const colors: Record<string, { borderColor: string, backgroundColor: string }> = {
   "C": {
@@ -119,6 +120,8 @@ function BondBuilderForm(
     }
   }, [userID]);
 
+  const { session } = useAuth()
+
   const submit = async () => {
     setLoading(true);
     setErr(null);
@@ -127,7 +130,7 @@ function BondBuilderForm(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         },
         body: JSON.stringify({
           backtestStart,

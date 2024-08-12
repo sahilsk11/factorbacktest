@@ -14,11 +14,13 @@ import (
 
 type LatestRebalanceHoldings struct {
 	InvestmentHoldingsID        *uuid.UUID
-	RebalancerRunID             *uuid.UUID
-	TickerID                    *uuid.UUID
+	InvestmentID                *uuid.UUID
 	Symbol                      *string
 	Quantity                    *float64
-	InvestmentID                *uuid.UUID
-	InvestmentHoldingsVersionID *uuid.UUID
+	PriceAtRebalance            *float64
+	AmountAtRebalance           *float64
 	CreatedAt                   *time.Time
+	TickerID                    *uuid.UUID
+	InvestmentHoldingsVersionID *uuid.UUID
+	RebalancerRunID             *uuid.UUID
 }

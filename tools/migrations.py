@@ -45,10 +45,16 @@ def pad_number(num):
 def get_migration_filename(num, migration_type):
   num = pad_number(num)
   files = os.listdir()
-  files = [f for f in files if num in f and migration_type in f]
-  if len(files) != 1:
-    raise Exception("invalid files: "+files)
-  return files[0]
+  matched_files = []
+  for filename in files:
+    suffix = filename[filename.find("."):] # .up.sql
+    prefix = filename.split('_')[0] # 000050
+    if num in prefix and migration_type in suffix:
+      matched_files.append(filename)
+
+  if len(matched_files) != 1:
+    raise Exception("invalid files: "+str(matched_files))
+  return matched_files[0]
 
 def get_max_migration_num():
   files = os.listdir()

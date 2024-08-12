@@ -14,9 +14,12 @@ import (
 
 type UserAccount struct {
 	UserAccountID uuid.UUID `sql:"primary_key"`
-	FirstName     string
-	LastName      string
-	Email         string
+	FirstName     *string
+	LastName      *string
+	Email         *string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	Provider      UserAccountProviderType
+	ProviderID    *string
+	PhoneNumber   *string
 }

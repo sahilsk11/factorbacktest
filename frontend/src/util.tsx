@@ -1,4 +1,5 @@
-import { FactorData } from './App';
+import { Session } from '@supabase/supabase-js';
+import { endpoint, FactorData } from './App';
 
 export function enumerateDates(startDateStr: string, endDateStr: string) {
   const startDate = new Date(startDateStr + "T00:00:00");
@@ -15,7 +16,7 @@ export function enumerateDates(startDateStr: string, endDateStr: string) {
   return dates;
 }
 
-export function parseDateString(s:string) {
+export function parseDateString(s: string) {
   return s.substring(0, s.indexOf("T"))
 }
 

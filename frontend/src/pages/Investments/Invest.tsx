@@ -10,6 +10,8 @@ import { formatDate } from "../../util";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { AssetBreakdown } from "../Backtest/FactorSnapshot";
+import { useAuth } from "auth";
+import LoginModal from "common/AuthModals";
 
 export default function Invest({
   user,
@@ -21,18 +23,26 @@ export default function Invest({
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeInvestments, setActiveInvestments] = useState<GetInvestmentsResponse[]>([]);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const { session } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (session) {
       getInvestments()
+    } else {
+      setActiveInvestments([]);
+      setShowLoginModal(true);
     }
-  }, [user])
+  }, [session])
+
+  const navigate = useNavigate();
 
   async function getInvestments() {
     try {
       const response = await fetch(endpoint + "/activeInvestments", {
         headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         }
       });
       if (!response.ok) {
@@ -58,6 +68,13 @@ export default function Invest({
     {/* <ActiveInvestments user={user} checkForNewInvestments={checkForNewInvestments} setCheckForNewInvestments={setCheckForNewInvestments} /> */}
 
     {/* {activeInvestments} */}
+
+    {showLoginModal ? <LoginModal close={() => {
+      setShowLoginModal(false);
+      if (!session) {
+        navigate("/")
+      }
+    }} /> : null}
 
     <div className={`${appStyles.tile} ${investStyles.container}`}>
       <h2 style={{ marginBottom: "0px" }}>Active Investments</h2>
@@ -90,7 +107,7 @@ function InvestmentTile({
 
   return (
     <>
-      <Card style={{ width: '18rem', marginRight:"20px" }} className="col-sm-6 mb-3 mb-sm-0">
+      <Card style={{ width: '18rem', marginRight: "20px" }} className="col-sm-6 mb-3 mb-sm-0">
         <div style={{
           width: "50%",
           margin: "0px auto",

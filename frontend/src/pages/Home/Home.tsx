@@ -20,6 +20,7 @@ import {
   Tooltip,
   RadialLinearScale
 } from 'chart.js';
+import { useAuth } from "auth";
 
 ChartJS.register(
   CategoryScale,
@@ -40,17 +41,19 @@ export function Home({
   user: GoogleAuthUser | null,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
 }) {
+
   const [publishedStrategies, setPublishedStrategies] = useState<GetPublishedStrategiesResponse[]>([]);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
+  const { session, loading } = useAuth();
   const navigate = useNavigate();
 
   async function getPublishedStrategies(): Promise<GetPublishedStrategiesResponse[]> {
     try {
       const response = await fetch(endpoint + "/publishedStrategies", {
         headers: {
-          "Authorization": user ? "Bearer " + user.accessToken : ""
+          "Authorization": session ? "Bearer " + session.access_token : ""
         }
       });
       if (!response.ok) {
@@ -69,13 +72,14 @@ export function Home({
   }
 
   useEffect(() => {
-    (async () => {
-      setPublishedStrategies(await getPublishedStrategies())
-    })();
+    if (!loading) {
+      (async () => {
+        setPublishedStrategies(await getPublishedStrategies())
+      })();
+    }
+  }, [loading]);
 
-  }, []);
-
-  const cards = publishedStrategies.map(ps => <StrategyCard data={ps} />)
+  const cards = publishedStrategies.map(ps => <StrategyCard data={ps} key={ps.strategyID} />)
 
   return <>
     <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
@@ -182,7 +186,7 @@ function StrategyCard({
         </div>
 
         <p className={homeStyles.card_description}>{data.description || "no description provided"}</p>
-       
+
         <Table>
           <tbody>
             <tr >

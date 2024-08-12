@@ -11,6 +11,7 @@ import (
 	"factorbacktest/internal/repository"
 	l1_service "factorbacktest/internal/service/l1"
 	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/util"
 	googleauth "factorbacktest/pkg/google-auth"
 	"fmt"
 	"io"
@@ -43,6 +44,7 @@ type ApiHandler struct {
 	InvestmentRepository         repository.InvestmentRepository
 	TradingService               l1_service.TradeService
 	StrategyService              l3_service.StrategyService
+	JwtDecodeToken               string
 }
 
 func int64Ptr(i int64) *int64 {
@@ -240,23 +242,51 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 }
 
 func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
-	jwt := c.GetHeader("Authorization")
-	if jwt == "" {
+	jwtStr := c.GetHeader("Authorization")
+	if jwtStr == "" {
 		c.Next()
 		return
 	}
-	if !strings.HasPrefix(jwt, "Bearer ") {
+	if !strings.HasPrefix(jwtStr, "Bearer ") {
 		returnErrorJsonCode(fmt.Errorf("misformatted auth"), c, 403)
 		return
 	}
-	jwt = jwt[len("Bearer "):]
-	userDetails, err := googleauth.GetUserDetails(jwt)
-	if err != nil {
-		returnErrorJsonCode(fmt.Errorf("failed google auth: %s", err.Error()), c, 403)
+	jwtStr = jwtStr[len("Bearer "):]
+
+	var userInput *model.UserAccount
+
+	parsedJwt, supabaseErr := parseSupabaseJWT(jwtStr, m.JwtDecodeToken)
+	userDetails, googleAuthErr := googleauth.GetUserDetails(jwtStr)
+
+	if supabaseErr == nil {
+		userInput = &model.UserAccount{
+			PhoneNumber: parsedJwt.PhoneNumber,
+			Provider:    model.UserAccountProviderType_Supabase,
+			ProviderID:  &parsedJwt.Subject,
+		}
+		if parsedJwt.Email != nil && *parsedJwt.Email != "" {
+			userInput.Email = parsedJwt.Email
+		}
+		if parsedJwt.Name != "" {
+			splits := strings.Split(parsedJwt.Name, " ")
+			userInput.FirstName = &splits[0]
+			if len(splits) > 1 {
+				userInput.LastName = util.StringPointer(strings.Join(splits[1:], " "))
+			}
+		}
+	} else if googleAuthErr == nil {
+		userInput = &model.UserAccount{
+			Email:     &userDetails.Email,
+			FirstName: &userDetails.FirstName,
+			LastName:  &userDetails.LastName,
+			Provider:  model.UserAccountProviderType_Google,
+		}
+	} else {
+		returnErrorJsonCode(fmt.Errorf("both authentication methods failed: %w | :%w", supabaseErr, googleAuthErr), c, 403)
 		return
 	}
 
-	user, err := m.UserAccountRepository.GetOrCreate(*userDetails)
+	user, err := m.UserAccountRepository.GetOrCreate(userInput)
 	if err != nil {
 		returnErrorJsonCode(fmt.Errorf("failed create user: %s", err.Error()), c, 500)
 		return
