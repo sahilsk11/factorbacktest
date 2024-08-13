@@ -1,5 +1,6 @@
-import { Session } from '@supabase/supabase-js';
-import { endpoint, FactorData } from './App';
+import { FactorData } from './App';
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 export function enumerateDates(startDateStr: string, endDateStr: string) {
   const startDate = new Date(startDateStr + "T00:00:00");
@@ -58,4 +59,8 @@ export const minMaxDates = (factorData: FactorData[]): { min: string; max: strin
   })
 
   return { min, max };
+}
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
