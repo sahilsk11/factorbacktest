@@ -74,18 +74,18 @@ func (mr *MockAlpacaRepositoryMockRecorder) GetAccount() *gomock.Call {
 }
 
 // GetLatestPrices mocks base method.
-func (m *MockAlpacaRepository) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {
+func (m *MockAlpacaRepository) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLatestPrices", symbols)
+	ret := m.ctrl.Call(m, "GetLatestPrices", ctx, symbols)
 	ret0, _ := ret[0].(map[string]decimal.Decimal)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetLatestPrices indicates an expected call of GetLatestPrices.
-func (mr *MockAlpacaRepositoryMockRecorder) GetLatestPrices(symbols any) *gomock.Call {
+func (mr *MockAlpacaRepositoryMockRecorder) GetLatestPrices(ctx, symbols any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPrices", reflect.TypeOf((*MockAlpacaRepository)(nil).GetLatestPrices), symbols)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPrices", reflect.TypeOf((*MockAlpacaRepository)(nil).GetLatestPrices), ctx, symbols)
 }
 
 // GetLatestPricesWithTs mocks base method.

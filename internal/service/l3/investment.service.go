@@ -29,7 +29,7 @@ import (
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
 	Add(ctx context.Context, userAccountID uuid.UUID, strategyID uuid.UUID, amount int) error
-	GetStats(investmentID uuid.UUID) (*GetStatsResponse, error)
+	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
 }
@@ -167,7 +167,7 @@ type GetStatsResponse struct {
 	Strategy              model.Strategy
 }
 
-func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsResponse, error) {
+func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error) {
 	investment, err := h.InvestmentRepository.Get(investmentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get investment %s: %w", investmentID.String(), err)
@@ -189,7 +189,7 @@ func (h investmentServiceHandler) GetStats(investmentID uuid.UUID) (*GetStatsRes
 		return nil, fmt.Errorf("failed to get market open: %w", err)
 	}
 	if open {
-		latestPrices, err = h.AlpacaRepository.GetLatestPrices(heldSymbols)
+		latestPrices, err = h.AlpacaRepository.GetLatestPrices(ctx, heldSymbols)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get latest prices from Alpaca: %w", err)
 		}
@@ -577,6 +577,29 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		}
 	}
 
+	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
+	investmentsToRebalance, err := h.listForRebalance(ctx)
+	if err != nil {
+		return err
+	}
+
+	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
+		Date:                    date,
+		RebalancerRunType:       model.RebalancerRunType_ManualInvestmentRebalance,
+		RebalancerRunState:      model.RebalancerRunState_Error,
+		NumInvestmentsAttempted: int32(len(investmentsToRebalance)),
+	})
+	if err != nil {
+		return err
+	}
+
+	log = log.With(
+		"rebalancerRunID", rebalancerRun.RebalancerRunID.String(),
+	)
+	ctx = context.WithValue(ctx, logger.ContextKey, log)
+
+	log.Infof("found %d investments to rebalance", len(investmentsToRebalance))
+
 	// get all assets
 	// we could probably clean this up
 	// by getting assets on the fly idk
@@ -592,27 +615,26 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			tickerIDMap[s.Symbol] = s.TickerID
 		}
 	}
-	pm, err := h.AlpacaRepository.GetLatestPrices(symbols)
+	pm, err := h.AlpacaRepository.GetLatestPrices(ctx, symbols)
 	if err != nil {
 		return fmt.Errorf("failed to get latest prices: %w", err)
 	}
-
-	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
-	investmentsToRebalance, err := h.listForRebalance(ctx)
+	lastClosePrices, err := h.PriceRepository.LatestPrices(symbols)
 	if err != nil {
 		return err
 	}
-
-	log.Infof("found %d investments to rebalance", len(investmentsToRebalance))
-
-	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
-		Date:                    date,
-		RebalancerRunType:       model.RebalancerRunType_ManualInvestmentRebalance,
-		RebalancerRunState:      model.RebalancerRunState_Error,
-		NumInvestmentsAttempted: int32(len(investmentsToRebalance)),
-	})
-	if err != nil {
-		return err
+	for _, cp := range lastClosePrices {
+		alpacaPrice, ok := pm[cp.Symbol]
+		if !ok {
+			return fmt.Errorf("alpaca prices missing %s", cp.Symbol)
+		}
+		closePrice := cp.Price
+		percentDiff := decimal.NewFromInt(100).Mul(
+			(alpacaPrice.Sub(closePrice)).Div(closePrice),
+		).Abs()
+		if percentDiff.GreaterThan(decimal.NewFromInt(10)) {
+			return fmt.Errorf("alpaca price ($%f) differs by more than 10%% from last close price ($%f)", alpacaPrice.InexactFloat64(), closePrice.InexactFloat64())
+		}
 	}
 
 	// before generating trades, let's store the price map so we can

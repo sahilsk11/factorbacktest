@@ -21,7 +21,7 @@ func NewMockAlpacaRepositoryForTests() repository.AlpacaRepository {
 type mockAlpacaForTestsHandler struct {
 }
 
-func (m mockAlpacaForTestsHandler) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {
+func (m mockAlpacaForTestsHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
 	return map[string]decimal.Decimal{
 		"AAPL": decimal.NewFromFloat(130.04466247558594),
 		"META": decimal.NewFromFloat(272.8704833984375),

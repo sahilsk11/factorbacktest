@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"factorbacktest/internal/util"
 	"fmt"
@@ -54,7 +55,7 @@ func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 	handler, err := initializeHandler()
 	require.NoError(t, err)
 
-	prices, err := handler.GetLatestPrices([]string{"UPS", "V"})
+	prices, err := handler.GetLatestPrices(context.Background(), []string{"ibm"})
 	require.NoError(t, err)
 	util.Pprint(prices)
 

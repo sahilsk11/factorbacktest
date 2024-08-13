@@ -20,7 +20,7 @@ type AlpacaRepository interface {
 	IsMarketOpen() (bool, error)
 	GetAccount() (*alpaca.Account, error)
 	GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error)
-	GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error)
+	GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error)
 	GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error)
 }
 
@@ -73,19 +73,44 @@ func (h alpacaRepositoryHandler) GetLatestPricesWithTs(symbols []string) (map[st
 	return out, nil
 }
 
-func (h alpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {
+func (h alpacaRepositoryHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
+	log := logger.FromContext(ctx)
+
 	if len(symbols) == 0 {
 		return map[string]decimal.Decimal{}, nil
 	}
+
+	overrides := map[string]decimal.Decimal{
+		// "AAPL": decimal.NewFromFloat(100),
+	}
+
+	if len(overrides) > 0 {
+		log.Warnf("overriding prices: %v", overrides)
+	}
+
 	results, err := h.MdClient.GetLatestQuotes(symbols, marketdata.GetLatestQuoteRequest{})
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]decimal.Decimal{}
 	for symbol, result := range results {
-		out[symbol] = decimal.NewFromFloat(result.BidPrice)
-		if out[symbol].IsZero() {
-			return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
+		if overridePrice, ok := overrides[symbol]; ok {
+			out[symbol] = overridePrice
+		} else {
+			bidPrice := result.BidPrice
+			askPrice := result.AskPrice
+			// we expect ask to be a little larger than bid
+			percentDiff := 100 * (askPrice - bidPrice) / bidPrice
+			if askPrice < bidPrice {
+				return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) larger than bid price ($%f)", symbol, askPrice, bidPrice)
+			}
+			if percentDiff > 5 {
+				return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) differs by more than 5%% from bid price ($%f)", symbol, askPrice, bidPrice)
+			}
+			out[symbol] = decimal.NewFromFloat(result.BidPrice)
+			if out[symbol].IsZero() {
+				return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
+			}
 		}
 	}
 

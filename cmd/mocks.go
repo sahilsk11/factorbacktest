@@ -79,7 +79,7 @@ func (m mockAlpacaRepositoryHandler) GetOrder(alpacaOrderID uuid.UUID) (*alpaca.
 		return nil, err
 	}
 
-	prices, err := m.realAlpacaRepository.GetLatestPrices([]string{ticker.Symbol})
+	prices, err := m.realAlpacaRepository.GetLatestPrices(context.Background(), []string{ticker.Symbol})
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +99,6 @@ func (m mockAlpacaRepositoryHandler) GetOrder(alpacaOrderID uuid.UUID) (*alpaca.
 	}, nil
 }
 
-func (m mockAlpacaRepositoryHandler) GetLatestPrices(symbols []string) (map[string]decimal.Decimal, error) {
-	return m.realAlpacaRepository.GetLatestPrices(symbols)
+func (m mockAlpacaRepositoryHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
+	return m.realAlpacaRepository.GetLatestPrices(ctx, symbols)
 }
