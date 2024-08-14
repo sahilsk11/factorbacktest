@@ -62,7 +62,7 @@ export default function Invest({
   const tiles = activeInvestments.map((e) => <InvestmentTile stats={e} />)
 
   return <>
-    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} />
 
     {/* <InvestInStrategy user={user} setCheckForNewInvestments={setCheckForNewInvestments} /> */}
     {/* <ActiveInvestments user={user} checkForNewInvestments={checkForNewInvestments} setCheckForNewInvestments={setCheckForNewInvestments} /> */}
@@ -84,10 +84,6 @@ export default function Invest({
       </Row>
 
     </div>
-
-
-    <ContactModal user={user} userID={""} show={showContactModal} close={() => setShowContactModal(false)} />
-    <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
 }
 
