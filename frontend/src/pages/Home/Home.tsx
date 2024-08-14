@@ -41,10 +41,7 @@ export function Home({
   user: GoogleAuthUser | null,
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
 }) {
-
   const [publishedStrategies, setPublishedStrategies] = useState<GetPublishedStrategiesResponse[]>([]);
-  const [showHelpModal, setShowHelpModal] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
 
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -80,9 +77,9 @@ export function Home({
   }, [loading]);
 
   const cards = publishedStrategies.map(ps => <StrategyCard data={ps} key={ps.strategyID} />)
-
+  
   return <>
-    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} />
 
     <div className={`${appStyles.tile} ${homeStyles.container}`}>
       <div className={homeStyles.title_container}>
@@ -208,5 +205,3 @@ function StrategyCard({
     </>
   )
 }
-
-

@@ -46,11 +46,9 @@ export function HelpModal({ show, close }: {
   );
 }
 
-export function ContactModal({ userID, show, close, user }: {
-  userID: string;
+export function ContactModal({ show, close }: {
   show: boolean;
   close: () => void;
-  user: GoogleAuthUser | null,
 }) {
   if (!show) return null;
 
@@ -65,16 +63,13 @@ export function ContactModal({ userID, show, close, user }: {
       <div className={modalsStyle.modal_content}>
         <span onClick={() => close()} className={modalsStyle.close} id="closeModalBtn">&times;</span>
         <h2 style={{ marginBottom: "40px" }}>Contact</h2>
-        <ContactForm userID={userID} user={user} />
+        <ContactForm  />
       </div>
     </div>
   );
 }
 
-function ContactForm({ userID, user }: {
-  userID: string;
-  user: GoogleAuthUser | null;
-}) {
+function ContactForm() {
   const [replyEmail, setReplyEmail] = useState<string | null>(null);
   const [content, setMessageContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +88,7 @@ function ContactForm({ userID, user }: {
           "Authorization": session ? "Bearer " + session.access_token : ""
         },
         body: JSON.stringify({
-          userID,
+          // userID,
           replyEmail,
           content
         } as ContactRequest),

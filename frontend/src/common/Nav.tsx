@@ -9,16 +9,17 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import LoginModal from "./AuthModals";
 import { useAuth } from "auth";
+import { ContactModal, HelpModal } from "./Modals";
 
 
-export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser, loggedIn }: {
+export function Nav({ showLinks, setUser, loggedIn }: {
   showLinks: boolean;
-  setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowContactModal: React.Dispatch<React.SetStateAction<boolean>>;
   setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>;
   loggedIn: boolean;
 }) {
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const { supabase, session } = useAuth();
 
@@ -64,23 +65,9 @@ export function Nav({ setShowHelpModal, setShowContactModal, showLinks, setUser,
         </Navbar.Collapse>
       </Container>
     </Navbar>
-    {/* <div id="g_id_onload"
-      data-client_id="553014490207-3s25moanhrdjeckdsvbu9ea5rdik0uh2.apps.googleusercontent.com"
-      data-context="signin"
-      data-ux_mode="popup"
-      data-callback="loginWithGoogleHelper"
-      data-auto_select="true"
-      data-itp_support="true">
-    </div> */}
 
-    {/* <div className="g_id_signin"
-      data-type="standard"
-      data-shape="rectangular"
-      data-theme="outline"
-      data-text="signin_with"
-      data-size="large"
-      data-logo_alignment="left">
-    </div> */}
-    {showLoginModal ? <LoginModal close={() => setShowLoginModal(false)} /> : null}
+    {showLoginModal ? <LoginModal show={showLoginModal} close={() => setShowLoginModal(false)} /> : null}
+    {showContactModal ? <ContactModal show={showContactModal} close={() => setShowContactModal(false)} /> : null}
+    {showHelpModal ? <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} /> : null}
   </>;
 }

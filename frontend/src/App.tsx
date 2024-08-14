@@ -28,7 +28,6 @@ export interface BenchmarkData {
 const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Dispatch<React.SetStateAction<GoogleAuthUser | null>>; }) => {
   // legacy token that identifies unique user
   const [userID, setUserID] = useState("");
-  const [showHelpModal, setShowHelpModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
   useEffect(() => {
@@ -43,14 +42,12 @@ const App = ({ user, setUser }: { user: GoogleAuthUser | null, setUser: React.Di
     {/* <div className={styles.bond_ad} onClick={() => { window.location.href = "/bonds" }}>
       <p className={styles.bond_ad_text}><b>Bond Ladder Backtesting is Live →</b></p>
     </div> */}
-    <Nav loggedIn={user !== null} setUser={setUser} showLinks={true} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <Nav loggedIn={user !== null} setUser={setUser} showLinks={true} />
     <div className={styles.centered_container}>
       <FactorBacktestMain userID={userID} user={user} setUser={setUser} />
     </div>
 
     <StatsFooter user={user} userID={userID} />
-    <ContactModal user={user} userID={userID} show={showContactModal} close={() => setShowContactModal(false)} />
-    <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>
 }
 
