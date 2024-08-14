@@ -120,7 +120,7 @@ export function Home({
   }, [loading]);
 
   const cards = publishedStrategies.map(ps => <StrategyCard data={ps} key={ps.strategyID} />)
-
+  
   return <>
     <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
 
