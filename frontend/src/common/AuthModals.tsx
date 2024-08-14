@@ -117,14 +117,13 @@ function InitialLoginDialog({
   onSuccess?: () => void
 }) {
   return (<>
-    <div className="grid gap-2">
-      <form onSubmit={handleFormSubmit}>
+    <form onSubmit={handleFormSubmit}>
+      <div className="grid gap-3">
         <div className="grid gap-2">
           <Label>Phone Number</Label>
           <PhoneInput
             placeholder="(408) 555-1234"
             country="US"
-            // international
             className={cn(
               "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
             )}
@@ -132,14 +131,14 @@ function InitialLoginDialog({
             value={phoneNumber}
             onChange={setPhoneNumber}
           />
-          <Button
-            disabled={!isValidPhoneNumber(phoneNumber || "", "US")}
-            type="submit"
-            className="w-full"
-          >Continue</Button>
         </div>
-      </form>
-    </div>
+        <Button
+          disabled={!isValidPhoneNumber(phoneNumber || "", "US")}
+          type="submit"
+          className="w-full"
+        >Continue</Button>
+      </div>
+    </form >
 
     <div className="relative">
       <div className="absolute inset-0 flex items-center">
@@ -216,6 +215,7 @@ function PhoneConfirmationDialog({
         <div className="grid gap-2">
           <Label>SMS Confirmation Code</Label>
           <Input
+            autoFocus
             // placeholder="+1 (408) 555-1234"
             // international
             required
