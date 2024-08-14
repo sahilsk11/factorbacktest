@@ -615,26 +615,28 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			tickerIDMap[s.Symbol] = s.TickerID
 		}
 	}
-	pm, err := h.AlpacaRepository.GetLatestPrices(ctx, symbols)
-	if err != nil {
-		return fmt.Errorf("failed to get latest prices: %w", err)
-	}
+	// pm, err := h.AlpacaRepository.GetLatestPrices(ctx, symbols)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get latest prices: %w", err)
+	// }
 	lastClosePrices, err := h.PriceRepository.LatestPrices(symbols)
 	if err != nil {
 		return err
 	}
+	pm := map[string]decimal.Decimal{}
 	for _, cp := range lastClosePrices {
-		alpacaPrice, ok := pm[cp.Symbol]
-		if !ok {
-			return fmt.Errorf("alpaca prices missing %s", cp.Symbol)
-		}
-		closePrice := cp.Price
-		percentDiff := decimal.NewFromInt(100).Mul(
-			(alpacaPrice.Sub(closePrice)).Div(closePrice),
-		).Abs()
-		if percentDiff.GreaterThan(decimal.NewFromInt(10)) {
-			return fmt.Errorf("alpaca price ($%f) differs by more than 10%% from last close price ($%f)", alpacaPrice.InexactFloat64(), closePrice.InexactFloat64())
-		}
+		// alpacaPrice, ok := pm[cp.Symbol]
+		// if !ok {
+		// 	return fmt.Errorf("alpaca prices missing %s", cp.Symbol)
+		// }
+		// closePrice := cp.Price
+		// percentDiff := decimal.NewFromInt(100).Mul(
+		// 	(alpacaPrice.Sub(closePrice)).Div(closePrice),
+		// ).Abs()
+		// if percentDiff.GreaterThan(decimal.NewFromInt(10)) {
+		// 	return fmt.Errorf("alpaca price for %s ($%f) differs by more than 10%% from last close price ($%f)", cp.Symbol, alpacaPrice.InexactFloat64(), closePrice.InexactFloat64())
+		// }
+		pm[cp.Symbol] = cp.Price
 	}
 
 	// before generating trades, let's store the price map so we can

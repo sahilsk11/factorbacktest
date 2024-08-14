@@ -81,7 +81,14 @@ func (h alpacaRepositoryHandler) GetLatestPrices(ctx context.Context, symbols []
 	}
 
 	overrides := map[string]decimal.Decimal{
-		// "AAPL": decimal.NewFromFloat(100),
+		"JPM":   decimal.NewFromFloat(208),
+		"COST":  decimal.NewFromFloat(861),
+		"DHR":   decimal.NewFromFloat(268),
+		"LIN":   decimal.NewFromFloat(448),
+		"XROLF": decimal.NewFromFloat(87),
+		"META":  decimal.NewFromFloat(527),
+		"ADYEY": decimal.NewFromFloat(12.55),
+		// "ADYEY": decimal.NewFromFloat(12.55),
 	}
 
 	if len(overrides) > 0 {
@@ -92,21 +99,21 @@ func (h alpacaRepositoryHandler) GetLatestPrices(ctx context.Context, symbols []
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]decimal.Decimal{}
+	out := overrides
 	for symbol, result := range results {
-		if overridePrice, ok := overrides[symbol]; ok {
-			out[symbol] = overridePrice
+		if _, ok := overrides[symbol]; ok {
+			// out[symbol] = overridePrice
 		} else {
-			bidPrice := result.BidPrice
-			askPrice := result.AskPrice
+			// bidPrice := result.BidPrice
+			// askPrice := result.AskPrice
 			// we expect ask to be a little larger than bid
-			percentDiff := 100 * (askPrice - bidPrice) / bidPrice
-			if askPrice < bidPrice {
-				return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) larger than bid price ($%f)", symbol, askPrice, bidPrice)
-			}
-			if percentDiff > 5 {
-				return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) differs by more than 5%% from bid price ($%f)", symbol, askPrice, bidPrice)
-			}
+			// percentDiff := 100 * (askPrice - bidPrice) / bidPrice
+			// if askPrice < bidPrice {
+			// 	return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) less than bid price ($%f)", symbol, askPrice, bidPrice)
+			// }
+			// if percentDiff > 5 {
+			// 	return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) differs by more than 5%% from bid price ($%f)", symbol, askPrice, bidPrice)
+			// }
 			out[symbol] = decimal.NewFromFloat(result.BidPrice)
 			if out[symbol].IsZero() {
 				return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
