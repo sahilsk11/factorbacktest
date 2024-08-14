@@ -926,7 +926,7 @@ function BookmarkStrategy({ user, setUser, formProps, setBookmarked, bookmarked 
         {icon}
         <ReactTooltip id="bookmark-tooltip" />
       </div>
-      {showLoginModal ? <LoginModal onSuccess={() => {
+      {showLoginModal ? <LoginModal show={showLoginModal} onSuccess={() => {
         if (!session) {
           alert("unhandled err - expected session to be valid after login")
         } else {

@@ -69,7 +69,7 @@ export default function Invest({
 
     {/* {activeInvestments} */}
 
-    {showLoginModal ? <LoginModal close={() => {
+    {showLoginModal ? <LoginModal show={showLoginModal} close={() => {
       setShowLoginModal(false);
       if (!session) {
         navigate("/")

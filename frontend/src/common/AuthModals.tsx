@@ -4,178 +4,235 @@ import modalsStyle from "./Modals.module.css";
 import { GoogleLogin } from "@react-oauth/google";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@radix-ui/react-label";
-import { Input } from "@/components/ui/input";
-import { FaceIcon, ImageIcon, SunIcon } from '@radix-ui/react-icons';
-import { Icon } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input/input";
 
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-
-export function DialogDemo() {
-  return (
-    <Dialog open={true} onOpenChange={() => {}}>
-      {/* <DialogTrigger asChild>
-        <Button variant="outline">Edit Profile</Button>
-      </DialogTrigger> */}
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit profile</DialogTitle>
-          <DialogDescription>
-            Make changes to your profile here. Click save when you're done.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Name
-            </Label>
-            <Input
-              id="name"
-              defaultValue="Pedro Duarte"
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-              Username
-            </Label>
-            <Input
-              id="username"
-              defaultValue="@peduarte"
-              className="col-span-3"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="submit">Save changes</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function LoginModal({
+  show,
   close,
-  onSuccess,
-}: {
-  close: () => void,
-  onSuccess?: () => void
-}) {
-  const { supabase, session } = useAuth()
-  const [phone, setPhone] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  onSuccess
+}: { show: boolean, close: () => void, onSuccess?: () => void }) {
+  // create enum for page
+  type PageState = "initial" | "phoneConfirmation"
+  const { supabase } = useAuth()
+  const [phoneNumber, setPhoneNumber] = useState<any>("");
+  const [pageState, setPageState] = useState<PageState>("initial");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
   if (!supabase) {
     return null;
   }
 
-  const handleOverlayClick = (e: any) => {
-    if (e.target.id === "login-modal") {
-      close();
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const { data, error } = await supabase.auth.signInWithOtp({
+      phone: phoneNumber,
+    })
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+    } else {
+      setLoading(false)
+      setPageState("phoneConfirmation")
     }
-  };
-
-  if (session) {
-    if (onSuccess) {
-      onSuccess()
-    }
-    close();
   }
 
   return (
-    <div id="login-modal" className={modalsStyle.modal} onClick={handleOverlayClick}>
-      <div className={modalsStyle.modal_content}>
+    <Dialog open={show} onOpenChange={(c) => { if (!c) { close() } }}>
+      <DialogContent className="sm:max-w-[425px] grid gap-4 p-10 pt-3">
+        <DialogHeader className="text-left">
+          <DialogTitle className="mb-0">Login</DialogTitle>
+          {/* <CardDescription>
+              Use your phone number or Google account.
+            </CardDescription> */}
+        </DialogHeader>
 
-        <span onClick={() => close()} className={modalsStyle.close} id="closeModalBtn">&times;</span>
-  {/* <CardsCreateAccount /> */}
+        {error ?
+          <Alert className="pb-3 pt-0" variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle className="mt-2 text-lg">Error</AlertTitle>
+            <AlertDescription>
+              {error}
+            </AlertDescription>
+          </Alert>
+          : null}
+        {pageState === "initial" ? <InitialLoginDialog
+          supabase={supabase}
+          handleFormSubmit={handleFormSubmit}
+          phoneNumber={phoneNumber}
+          setPhoneNumber={setPhoneNumber}
+          close={close}
+          onSuccess={onSuccess}
+        /> : <PhoneConfirmationDialog
+          supabase={supabase}
+          phoneNumber={phoneNumber}
+          close={close}
+          setError={setError}
+          onSuccess={onSuccess}
+        />}
 
-        <h2>Login</h2>
-        <div style={{ display: "flex", justifyContent: "center", marginTop: "40px" }}>
+        {loading && <div className="flex justify-center">
+          <div className="animate-caret">
+            <span className="sr-only">Loading...</span>
+            <svg className="h-6 w-6 animate-spin fill-primary-foreground" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        </div>}
+      </DialogContent>
+    </Dialog >
+  )
+}
 
+function InitialLoginDialog({
+  supabase,
+  handleFormSubmit,
+  phoneNumber,
+  setPhoneNumber,
+  close,
+  onSuccess,
+}: {
+  supabase: SupabaseClient,
+  handleFormSubmit: (e: React.FormEvent<HTMLFormElement>) => void,
+  phoneNumber: any,
+  setPhoneNumber: (phoneNumber: any) => void,
+  close: () => void,
+  onSuccess?: () => void
+}) {
+  return (<>
+    <div className="grid gap-2">
+      <form onSubmit={handleFormSubmit}>
+        <div className="grid gap-2">
+          <Label>Phone Number</Label>
+          <PhoneInput
+            placeholder="(408) 555-1234"
+            country="US"
+            // international
+            className={cn(
+              "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+            required
+            value={phoneNumber}
+            onChange={setPhoneNumber}
+          />
+          <Button
+            disabled={!isValidPhoneNumber(phoneNumber || "", "US")}
+            type="submit"
+            className="w-full"
+          >Continue</Button>
+        </div>
+      </form>
+    </div>
 
-          <GoogleLogin
-            onSuccess={credentialResponse => {
-              if (credentialResponse.credential) {
-                supabase.auth.signInWithIdToken({
-                  provider: 'google',
-                  token: credentialResponse.credential,
-                })
-                if (onSuccess) {
-                  onSuccess()
-                }
+    <div className="relative">
+      <div className="absolute inset-0 flex items-center">
+        <span className="w-full border-t" />
+      </div>
+      <div className="relative flex justify-center text-xs uppercase">
+        <span className="bg-background px-2 text-muted-foreground">
+          Or continue with
+        </span>
+      </div>
+    </div>
 
-                close()
-              } else {
-                alert("Failed to login with Google")
-              }
-            }}
-            onError={() => {
-              alert("Failed to login with Google")
+    <div className="block flex justify-center">
+      <GoogleLogin
+        width={"100%"}
+        onSuccess={credentialResponse => {
+          if (credentialResponse.credential) {
+            supabase.auth.signInWithIdToken({
+              provider: 'google',
+              token: credentialResponse.credential,
+            })
+            onSuccess && onSuccess()
+            close()
+          } else {
+            alert("Failed to login with Google")
+          }
+        }}
+        onError={() => {
+          alert("Failed to login with Google")
+        }}
+      />
+    </div>
+  </>)
+}
+
+function PhoneConfirmationDialog({
+  supabase,
+  phoneNumber,
+  close,
+  setError,
+  onSuccess,
+}: {
+  supabase: SupabaseClient,
+  phoneNumber: string,
+  close: () => void,
+  setError: React.Dispatch<React.SetStateAction<string>>,
+  onSuccess?: () => void
+}) {
+  const [confirmationCode, setConfirmationCode] = useState<string>("");
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const {
+      data,
+      error,
+    } = await supabase.auth.verifyOtp({
+      phone: phoneNumber,
+      token: confirmationCode,
+      type: "sms",
+    })
+    if (error) {
+      setError(error.message)
+    } else {
+      onSuccess && onSuccess()
+      close()
+    }
+  }
+
+  return (<>
+    <form onSubmit={onSubmit}>
+      <div className="grid gap-4">
+
+        <div className="grid gap-2">
+          <Label>SMS Confirmation Code</Label>
+          <Input
+            // placeholder="+1 (408) 555-1234"
+            // international
+            required
+            type="number"
+            value={confirmationCode}
+            onChange={(e) => {
+              setError("")
+              setConfirmationCode(e.target.value)
             }}
           />
         </div>
-        {/* <p>or</p>
-        <label>phone number</label>
-        <input />
-
-        <p>or</p>
-        <label>phone number</label>
-        <input /> */}
+        <Button
+          disabled={confirmationCode.toString().length !== 6}
+          type="submit"
+          className="w-full"
+        >Continue</Button>
       </div>
-    </div>
-  );
-}
-
-export function CardsCreateAccount() {
-  return (
-    <Card>
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl">Create an account</CardTitle>
-        <CardDescription>
-          Enter your email below to create your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid grid-cols-2 gap-6">
-          <Button variant="outline">
-            {/* <Icon. className="mr-2 h-4 w-4" /> */}
-            Github
-          </Button>
-          <Button variant="outline">
-            {/* <Icons.google className="mr-2 h-4 w-4" /> */}
-            Google
-          </Button>
-        </div>
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or continue with
-            </span>
-          </div>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="m@example.com" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" />
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Button className="w-full">Create account</Button>
-      </CardFooter>
-    </Card>
-  )
+    </form>
+  </>)
 }

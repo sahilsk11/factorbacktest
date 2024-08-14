@@ -99,7 +99,7 @@ export function InvestInStrategy({
 
   return (
     <>
-      {showLoginModal ? <LoginModal close={() => setShowLoginModal(false)} onSuccess={() => {
+      {showLoginModal ? <LoginModal show={showLoginModal} close={() => setShowLoginModal(false)} onSuccess={() => {
         setShowInvestModal(true)
       }} /> : null}
       <div className={`${appStyles.tile} ${backtestStyles.flex_container}`}>

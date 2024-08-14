@@ -66,7 +66,7 @@ export function Nav({ showLinks, setUser, loggedIn }: {
       </Container>
     </Navbar>
 
-    {showLoginModal ? <LoginModal close={() => setShowLoginModal(false)} /> : null}
+    {showLoginModal ? <LoginModal show={showLoginModal} close={() => setShowLoginModal(false)} /> : null}
     {showContactModal ? <ContactModal show={showContactModal} close={() => setShowContactModal(false)} /> : null}
     {showHelpModal ? <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} /> : null}
   </>;
