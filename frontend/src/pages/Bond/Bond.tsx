@@ -253,7 +253,7 @@ export function BondBuilder({
   }, []);
 
   return <>
-    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} setShowHelpModal={setShowHelpModal} setShowContactModal={setShowContactModal} />
+    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} />
     <div className={appStyle.centered_container} >
       <div className={appStyle.my_container}>
         <div className={`${appStyle.column} ${appStyle.form_wrapper}`}>
@@ -274,9 +274,6 @@ export function BondBuilder({
         </div>
       </div>
     </div>
-
-    <ContactModal user={user} userID={""} show={showContactModal} close={() => setShowContactModal(false)} />
-    <HelpModal show={showHelpModal} close={() => setShowHelpModal(false)} />
   </>;
 }
 

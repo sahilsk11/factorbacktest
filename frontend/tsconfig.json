@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "baseUrl": "src",
+    "paths": {
+      "@/*": ["./@/*"],
+    },
     "target": "es5",
     "plugins": [
       {
@@ -28,6 +31,8 @@
   },
   "include": [
     "src",
-    "index.d.ts"
+    "index.d.ts",
+    "**/*.ts",
+    "**/*.tsx"
   ],
 }
