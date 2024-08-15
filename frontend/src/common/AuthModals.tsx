@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { Turnstile } from '@marsidev/react-turnstile'
+
 
 export default function LoginModal({
   show,
@@ -32,6 +34,7 @@ export default function LoginModal({
   const [pageState, setPageState] = useState<PageState>("initial");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [captchaToken, setCaptchaToken] = useState("")
 
   if (!supabase) {
     return null;
@@ -43,6 +46,9 @@ export default function LoginModal({
     setError("");
     const { data, error } = await supabase.auth.signInWithOtp({
       phone: phoneNumber,
+      options: {
+        captchaToken,
+      }
     })
     if (error) {
       setError(error.message)
@@ -57,7 +63,7 @@ export default function LoginModal({
     <Dialog open={show} onOpenChange={(c) => { if (!c) { close() } }}>
       <DialogContent className="sm:max-w-[425px] grid gap-4 p-10 pt-3">
         <DialogHeader className="text-left">
-          <DialogTitle className="mb-0">Login</DialogTitle>
+          <DialogTitle className="mb-0 text-center">Login</DialogTitle>
           {/* <CardDescription>
               Use your phone number or Google account.
             </CardDescription> */}
@@ -79,6 +85,8 @@ export default function LoginModal({
           setPhoneNumber={setPhoneNumber}
           close={close}
           onSuccess={onSuccess}
+          captchaToken={captchaToken}
+          setCaptchaToken={setCaptchaToken}
         /> : <PhoneConfirmationDialog
           supabase={supabase}
           phoneNumber={phoneNumber}
@@ -108,6 +116,8 @@ function InitialLoginDialog({
   setPhoneNumber,
   close,
   onSuccess,
+  captchaToken,
+  setCaptchaToken
 }: {
   supabase: SupabaseClient,
   handleFormSubmit: (e: React.FormEvent<HTMLFormElement>) => void,
@@ -115,42 +125,10 @@ function InitialLoginDialog({
   setPhoneNumber: (phoneNumber: any) => void,
   close: () => void,
   onSuccess?: () => void
+  captchaToken: string,
+  setCaptchaToken: React.Dispatch<React.SetStateAction<string>>
 }) {
   return (<>
-    <form onSubmit={handleFormSubmit}>
-      <div className="grid gap-3">
-        <div className="grid gap-2">
-          <Label>Phone Number</Label>
-          <PhoneInput
-            placeholder="(408) 555-1234"
-            country="US"
-            className={cn(
-              "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-            )}
-            required
-            value={phoneNumber}
-            onChange={setPhoneNumber}
-          />
-        </div>
-        <Button
-          disabled={!isValidPhoneNumber(phoneNumber || "", "US")}
-          type="submit"
-          className="w-full"
-        >Continue</Button>
-      </div>
-    </form >
-
-    <div className="relative">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t" />
-      </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">
-          Or continue with
-        </span>
-      </div>
-    </div>
-
     <div className="block flex justify-center">
       <GoogleLogin
         width={"100%"}
@@ -171,6 +149,54 @@ function InitialLoginDialog({
         }}
       />
     </div>
+
+    <div className="relative">
+      <div className="absolute inset-0 flex items-center">
+        <span className="w-full border-t" />
+      </div>
+      <div className="relative flex justify-center text-xs uppercase">
+        <span className="bg-background px-2 text-muted-foreground">
+          Or continue with
+        </span>
+      </div>
+    </div>
+
+    <form onSubmit={handleFormSubmit}>
+      <div className="grid gap-3">
+        <div className="grid gap-2">
+          <Label>Phone Number</Label>
+          <PhoneInput
+            placeholder="(408) 555-1234"
+            country="US"
+            className={cn(
+              "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+            required
+            value={phoneNumber}
+            onChange={setPhoneNumber}
+          />
+        </div>
+        <Button
+          disabled={!isValidPhoneNumber(phoneNumber || "", "US")}
+          type="submit"
+          className="w-full"
+        >Continue</Button>
+        {captchaToken === "" ? <div className="block flex justify-center">
+          <Turnstile
+            options={{
+              theme: 'light',
+            }}
+            className="center"
+            siteKey={process.env.REACT_APP_CLOUDFLARE_SITE_KEY || ""}
+            onSuccess={(token) => {
+              setCaptchaToken(token)
+            }}
+          />
+        </div> : null}
+      </div>
+    </form >
+
+
   </>)
 }
 
