@@ -160,7 +160,7 @@ func Execute() {
 }
 
 func main() {
-	os.Setenv("ALPHA_ENV", "dev")
+	os.Setenv("ALPHA_ENV", "prod")
 	Execute()
 }
 

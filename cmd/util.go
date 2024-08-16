@@ -57,7 +57,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	strategyRepository := repository.NewStrategyRepository(dbConn)
 	strategyInvestmentRepository := repository.NewInvestmentRepository(dbConn)
 	holdingsRepository := repository.NewInvestmentHoldingsRepository(dbConn)
-	alpacaRepository := repository.NewAlpacaRepository(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret)
+	alpacaRepository := repository.NewAlpacaRepository(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret, secrets.Alpaca.Endpoint)
 	tradeOrderRepository := repository.NewTradeOrderRepository(dbConn)
 	rebalancerRunRepository := repository.NewRebalancerRunRepository(dbConn)
 	investmentTradeRepository := repository.NewInvestmentTradeRepository(dbConn)

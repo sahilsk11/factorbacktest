@@ -24,11 +24,11 @@ type AlpacaRepository interface {
 	GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error)
 }
 
-func NewAlpacaRepository(apiKey, apiSecret string) AlpacaRepository {
+func NewAlpacaRepository(apiKey, apiSecret string, endpoint string) AlpacaRepository {
 	client := alpaca.NewClient(alpaca.ClientOpts{
 		APIKey:     apiKey,
 		APISecret:  apiSecret,
-		BaseURL:    "https://paper-api.alpaca.markets",
+		BaseURL:    endpoint,
 		RetryLimit: 3,
 	})
 
