@@ -638,6 +638,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		// }
 		pm[cp.Symbol] = cp.Price
 	}
+	fmt.Println(len(pm))
 
 	// before generating trades, let's store the price map so we can
 	// re-construct the entire rebalancer run later

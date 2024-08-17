@@ -71,9 +71,9 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	}
 
 	var priceServiceAlpacaRepository repository.AlpacaRepository = nil
-	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "dev") {
-		priceServiceAlpacaRepository = alpacaRepository
-	}
+	// if strings.EqualFold(os.Getenv("ALPHA_ENV"), "dev") {
+	// 	priceServiceAlpacaRepository = alpacaRepository
+	// }
 
 	priceService := l1_service.NewPriceService(dbConn, priceRepository, priceServiceAlpacaRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)

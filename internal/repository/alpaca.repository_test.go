@@ -15,7 +15,7 @@ import (
 )
 
 func initializeHandler() (*alpacaRepositoryHandler, error) {
-	secretsFile := "../../secrets.json"
+	secretsFile := "../../secrets-dev.json"
 	f, err := os.ReadFile(secretsFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not open secrets-dev.json: %w", err)
@@ -66,7 +66,7 @@ func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 
 func Test_alpacaRepositoryHandler_GetPositions(t *testing.T) {
 	if true {
-		t.Skip()
+		// t.Skip()
 	}
 
 	handler, err := initializeHandler()

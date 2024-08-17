@@ -241,21 +241,21 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 	trades, excessQuantities := aggregateAndFormatTrades(ctx, rawTrades)
 
 	// first ensure that we have enough quantity for the order
-	currentHoldings, err := h.AlpacaRepository.GetPositions()
-	if err != nil {
-		return nil, err
-	}
-	for _, t := range trades {
-		if t.ExactQuantity.LessThan(decimal.Zero) {
-			for _, position := range currentHoldings {
-				// if we hold less of the symbol than we want to sell, error
-				if t.Symbol == position.Symbol && (position.Qty.LessThan(t.ExactQuantity) ||
-					position.QtyAvailable.LessThan(t.ExactQuantity)) {
-					return nil, fmt.Errorf("insufficient %s (%f) to sell %f", t.Symbol, position.QtyAvailable.InexactFloat64(), t.ExactQuantity.InexactFloat64())
-				}
-			}
-		}
-	}
+	// currentHoldings, err := h.AlpacaRepository.GetPositions()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// for _, t := range trades {
+	// 	if t.ExactQuantity.LessThan(decimal.Zero) {
+	// 		for _, position := range currentHoldings {
+	// 			// if we hold less of the symbol than we want to sell, error
+	// 			if t.Symbol == position.Symbol && (position.Qty.LessThan(t.ExactQuantity) ||
+	// 				position.QtyAvailable.LessThan(t.ExactQuantity)) {
+	// 				return nil, fmt.Errorf("insufficient %s (%f) to sell %f", t.Symbol, position.QtyAvailable.InexactFloat64(), t.ExactQuantity.InexactFloat64())
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	// maybe check buying power
 
