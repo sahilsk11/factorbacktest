@@ -62,6 +62,7 @@ type Secrets struct {
 type AlpacaSecrets struct {
 	ApiKey    string `json:"apiKey"`
 	ApiSecret string `json:"apiSecret"`
+	Endpoint  string `json:"endpoint"`
 }
 
 type DbSecrets struct {

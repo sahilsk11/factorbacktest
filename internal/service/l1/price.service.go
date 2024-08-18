@@ -15,6 +15,7 @@ import (
 	"github.com/montanaflynn/stats"
 	"github.com/piquette/finance-go/chart"
 	"github.com/piquette/finance-go/datetime"
+	"github.com/shopspring/decimal"
 )
 
 /**
@@ -29,6 +30,7 @@ trading day, and use that price
 
 type PriceService interface {
 	LoadPriceCache(ctx context.Context, inputs []LoadPriceCacheInput, stdevs []LoadStdevCacheInput) (*PriceCache, error)
+	GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error)
 }
 
 type LoadPriceCacheInput struct {
@@ -503,4 +505,43 @@ func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPri
 	wg.Wait()
 
 	return nil
+}
+
+// i absolutely hate this function but it's the only way to get the latest price using yahoo finance
+// i don't even think it gets the latest price - it's just last close
+//
+// TODO - find a better data provider
+func (h priceServiceHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
+	out := map[string]decimal.Decimal{}
+	for _, symbol := range symbols {
+		approxStart := time.Now().AddDate(0, 0, -4)
+		s := time.Date(approxStart.Year(), approxStart.Month(), approxStart.Day(), 0, 0, 0, 0, time.UTC)
+		now := time.Now()
+		params := &chart.Params{
+			Start:    datetime.New(&s),
+			End:      datetime.New(&now),
+			Symbol:   symbol,
+			Interval: datetime.OneDay,
+		}
+		allPrices := []decimal.Decimal{}
+		iter := chart.Get(params)
+		for iter.Next() {
+			allPrices = append(allPrices, iter.Bar().AdjClose)
+		}
+		if err := iter.Err(); err != nil {
+			return nil, fmt.Errorf("failed to get prices for %s: %w", symbol, err)
+		}
+		if len(allPrices) == 0 {
+			return nil, fmt.Errorf("failed to get price for %s", symbol)
+		}
+		out[symbol] = allPrices[len(allPrices)-1]
+	}
+
+	for _, symbol := range symbols {
+		if _, ok := out[symbol]; !ok {
+			return nil, fmt.Errorf("failed to get price for %s", symbol)
+		}
+	}
+
+	return out, nil
 }

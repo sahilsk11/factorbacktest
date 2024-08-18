@@ -51,6 +51,7 @@ type investmentServiceHandler struct {
 	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
 	PriceRepository               repository.AdjustedPriceRepository
 	RebalancePriceRepository      repository.RebalancePriceRepository
+	PriceService                  l1_service.PriceService
 }
 
 func NewInvestmentService(
@@ -70,6 +71,7 @@ func NewInvestmentService(
 	investmentRebalanceRepository repository.InvestmentRebalanceRepository,
 	priceRepository repository.AdjustedPriceRepository,
 	rebalancePriceRepository repository.RebalancePriceRepository,
+	priceService l1_service.PriceService,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                            db,
@@ -88,6 +90,7 @@ func NewInvestmentService(
 		InvestmentRebalanceRepository: investmentRebalanceRepository,
 		PriceRepository:               priceRepository,
 		RebalancePriceRepository:      rebalancePriceRepository,
+		PriceService:                  priceService,
 	}
 }
 
@@ -615,26 +618,10 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			tickerIDMap[s.Symbol] = s.TickerID
 		}
 	}
-	pm, err := h.AlpacaRepository.GetLatestPrices(ctx, symbols)
+
+	pm, err := h.PriceService.GetLatestPrices(ctx, symbols)
 	if err != nil {
 		return fmt.Errorf("failed to get latest prices: %w", err)
-	}
-	lastClosePrices, err := h.PriceRepository.LatestPrices(symbols)
-	if err != nil {
-		return err
-	}
-	for _, cp := range lastClosePrices {
-		alpacaPrice, ok := pm[cp.Symbol]
-		if !ok {
-			return fmt.Errorf("alpaca prices missing %s", cp.Symbol)
-		}
-		closePrice := cp.Price
-		percentDiff := decimal.NewFromInt(100).Mul(
-			(alpacaPrice.Sub(closePrice)).Div(closePrice),
-		).Abs()
-		if percentDiff.GreaterThan(decimal.NewFromInt(10)) {
-			return fmt.Errorf("alpaca price ($%f) differs by more than 10%% from last close price ($%f)", alpacaPrice.InexactFloat64(), closePrice.InexactFloat64())
-		}
 	}
 
 	// before generating trades, let's store the price map so we can
