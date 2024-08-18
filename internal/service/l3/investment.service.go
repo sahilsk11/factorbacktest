@@ -51,6 +51,7 @@ type investmentServiceHandler struct {
 	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
 	PriceRepository               repository.AdjustedPriceRepository
 	RebalancePriceRepository      repository.RebalancePriceRepository
+	PriceService                  l1_service.PriceService
 }
 
 func NewInvestmentService(
@@ -70,6 +71,7 @@ func NewInvestmentService(
 	investmentRebalanceRepository repository.InvestmentRebalanceRepository,
 	priceRepository repository.AdjustedPriceRepository,
 	rebalancePriceRepository repository.RebalancePriceRepository,
+	priceService l1_service.PriceService,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                            db,
@@ -88,6 +90,7 @@ func NewInvestmentService(
 		InvestmentRebalanceRepository: investmentRebalanceRepository,
 		PriceRepository:               priceRepository,
 		RebalancePriceRepository:      rebalancePriceRepository,
+		PriceService:                  priceService,
 	}
 }
 
@@ -616,7 +619,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		}
 	}
 
-	pm, err := l1_service.LatestPrices(ctx, symbols)
+	pm, err := h.PriceService.GetLatestPrices(ctx, symbols)
 	if err != nil {
 		return fmt.Errorf("failed to get latest prices: %w", err)
 	}

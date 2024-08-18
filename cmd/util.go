@@ -66,16 +66,15 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
 	rebalancePriceRepository := repository.NewRebalancePriceRepository(dbConn)
 
+	priceService := l1_service.NewPriceService(dbConn, priceRepository, nil)
+
 	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") || UseMockAlpaca {
 		alpacaRepository = integration_tests.NewMockAlpacaRepositoryForTests()
+		priceService = integration_tests.NewMockPriceServiceForTests(
+			priceService,
+		)
 	}
 
-	var priceServiceAlpacaRepository repository.AlpacaRepository = nil
-	// if strings.EqualFold(os.Getenv("ALPHA_ENV"), "dev") {
-	// 	priceServiceAlpacaRepository = alpacaRepository
-	// }
-
-	priceService := l1_service.NewPriceService(dbConn, priceRepository, priceServiceAlpacaRepository)
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
 	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
 	backtestHandler := l3_service.BacktestHandler{
@@ -113,6 +112,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		investmentRebalanceRepository,
 		priceRepository,
 		rebalancePriceRepository,
+		priceService,
 	)
 	strategyService := l3_service.NewStrategyService(
 		strategyRepository,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
+	l1_service "factorbacktest/internal/service/l1"
 	"factorbacktest/internal/util"
 	"fmt"
 
@@ -13,6 +14,28 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
+
+func NewMockPriceServiceForTests(realPriceService l1_service.PriceService) l1_service.PriceService {
+	return mockPriceServiceForTestsHandler{
+		realPriceService: realPriceService,
+	}
+}
+
+type mockPriceServiceForTestsHandler struct {
+	realPriceService l1_service.PriceService
+}
+
+func (m mockPriceServiceForTestsHandler) LoadPriceCache(ctx context.Context, inputs []l1_service.LoadPriceCacheInput, stdevs []l1_service.LoadStdevCacheInput) (*l1_service.PriceCache, error) {
+	return m.realPriceService.LoadPriceCache(ctx, inputs, stdevs)
+}
+
+func (m mockPriceServiceForTestsHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
+	return map[string]decimal.Decimal{
+		"AAPL": decimal.NewFromFloat(130.04466247558594),
+		"META": decimal.NewFromFloat(272.8704833984375),
+		"GOOG": decimal.NewFromFloat(87.5940017700195),
+	}, nil
+}
 
 func NewMockAlpacaRepositoryForTests() repository.AlpacaRepository {
 	return mockAlpacaForTestsHandler{}

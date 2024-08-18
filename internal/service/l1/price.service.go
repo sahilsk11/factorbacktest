@@ -30,6 +30,7 @@ trading day, and use that price
 
 type PriceService interface {
 	LoadPriceCache(ctx context.Context, inputs []LoadPriceCacheInput, stdevs []LoadStdevCacheInput) (*PriceCache, error)
+	GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error)
 }
 
 type LoadPriceCacheInput struct {
@@ -510,7 +511,7 @@ func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPri
 // i don't even think it gets the latest price - it's just last close
 //
 // TODO - find a better data provider
-func LatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
+func (h priceServiceHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
 	out := map[string]decimal.Decimal{}
 	for _, symbol := range symbols {
 		approxStart := time.Now().AddDate(0, 0, -4)

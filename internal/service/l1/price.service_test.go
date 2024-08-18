@@ -1,8 +1,6 @@
 package l1_service
 
 import (
-	"context"
-	"factorbacktest/internal/util"
 	"testing"
 	"time"
 
@@ -190,18 +188,5 @@ func Test_constructMinMaxMap(t *testing.T) {
 				max: &t2,
 			},
 		}, mp)
-	})
-}
-
-func TestLatestPrices(t *testing.T) {
-	if true {
-		t.Skip()
-	}
-	t.Run("happy path", func(t *testing.T) {
-		prices, err := LatestPrices(context.Background(), []string{"AAPL", "GOOG", "MSFT"})
-		require.NoError(t, err)
-		require.NotNil(t, prices)
-		util.Pprint(prices)
-		t.Fail()
 	})
 }
