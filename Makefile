@@ -35,8 +35,11 @@ deploy-fe:
 	cd frontend;npm run build;
 	aws s3 sync ./frontend/build s3://factorbacktest.net
 	aws s3 sync ./frontend/build s3://www.factorbacktest.net
+	aws s3 sync ./frontend/build s3://factor.trade
+	aws s3 sync ./frontend/build s3://www.factor.trade
 	rm -rf ./frontend/build;
 	aws cloudfront create-invalidation --distribution-id E2LDUUB6BBDSV8 --paths "/*" --output text
+	aws cloudfront create-invalidation --distribution-id E28M2984LB2P97 --paths "/*" --output text
 
 deploy-lambda:
 	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 326651360928.dkr.ecr.us-east-1.amazonaws.com

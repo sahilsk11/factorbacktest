@@ -75,6 +75,9 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		AllowOrigins: []string{
 			"http://localhost:3000",
 			"https://factorbacktest.net",
+			"https://www.factorbacktest.net",
+			"https://factor.trade",
+			"https://www.factor.trade",
 		},
 		AllowHeaders: []string{"Authorization", "Content-Type"},
 	}))
