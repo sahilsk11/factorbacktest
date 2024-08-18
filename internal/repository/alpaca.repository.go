@@ -25,9 +25,6 @@ type AlpacaRepository interface {
 }
 
 func NewAlpacaRepository(apiKey, apiSecret string, endpoint string) AlpacaRepository {
-	fmt.Println(endpoint)
-	fmt.Println(apiKey)
-	fmt.Println(apiSecret)
 	client := alpaca.NewClient(alpaca.ClientOpts{
 		APIKey:     apiKey,
 		APISecret:  apiSecret,
