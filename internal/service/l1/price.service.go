@@ -530,7 +530,17 @@ func LatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Dec
 		if err := iter.Err(); err != nil {
 			return nil, fmt.Errorf("failed to get prices for %s: %w", symbol, err)
 		}
+		if len(allPrices) == 0 {
+			return nil, fmt.Errorf("failed to get price for %s", symbol)
+		}
 		out[symbol] = allPrices[len(allPrices)-1]
 	}
+
+	for _, symbol := range symbols {
+		if _, ok := out[symbol]; !ok {
+			return nil, fmt.Errorf("failed to get price for %s", symbol)
+		}
+	}
+
 	return out, nil
 }
