@@ -147,7 +147,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 				Return([]model.Ticker{}, nil)
 
 			feService.EXPECT().
-				CalculateFactorScoresOnDay(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+				CalculateLatestFactorScores(gomock.Any(), gomock.Any(), gomock.Any()).
 				Return(
 					scoresOnDay, nil,
 				)

@@ -59,19 +59,19 @@ func (mr *MockFactorExpressionServiceMockRecorder) CalculateFactorScores(ctx, tr
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateFactorScores", reflect.TypeOf((*MockFactorExpressionService)(nil).CalculateFactorScores), ctx, tradingDays, tickers, factorExpression)
 }
 
-// CalculateFactorScoresOnDay mocks base method.
-func (m *MockFactorExpressionService) CalculateFactorScoresOnDay(ctx context.Context, date time.Time, tickers []model.Ticker, factorExpression string) (*l2_service.ScoresResultsOnDay, error) {
+// CalculateLatestFactorScores mocks base method.
+func (m *MockFactorExpressionService) CalculateLatestFactorScores(ctx context.Context, tickers []model.Ticker, factorExpression string) (*l2_service.ScoresResultsOnDay, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CalculateFactorScoresOnDay", ctx, date, tickers, factorExpression)
+	ret := m.ctrl.Call(m, "CalculateLatestFactorScores", ctx, tickers, factorExpression)
 	ret0, _ := ret[0].(*l2_service.ScoresResultsOnDay)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CalculateFactorScoresOnDay indicates an expected call of CalculateFactorScoresOnDay.
-func (mr *MockFactorExpressionServiceMockRecorder) CalculateFactorScoresOnDay(ctx, date, tickers, factorExpression any) *gomock.Call {
+// CalculateLatestFactorScores indicates an expected call of CalculateLatestFactorScores.
+func (mr *MockFactorExpressionServiceMockRecorder) CalculateLatestFactorScores(ctx, tickers, factorExpression any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateFactorScoresOnDay", reflect.TypeOf((*MockFactorExpressionService)(nil).CalculateFactorScoresOnDay), ctx, date, tickers, factorExpression)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateLatestFactorScores", reflect.TypeOf((*MockFactorExpressionService)(nil).CalculateLatestFactorScores), ctx, tickers, factorExpression)
 }
 
 // MockfactorMetricCalculations is a mock of factorMetricCalculations interface.
