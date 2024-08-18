@@ -580,6 +580,12 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		}
 	}
 
+	if open, err := h.AlpacaRepository.IsMarketOpen(); err != nil {
+		return err
+	} else if !open {
+		return fmt.Errorf("market is not open")
+	}
+
 	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
 	investmentsToRebalance, err := h.listForRebalance(ctx)
 	if err != nil {
