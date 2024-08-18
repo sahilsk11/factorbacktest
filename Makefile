@@ -35,6 +35,8 @@ deploy-fe:
 	cd frontend;npm run build;
 	aws s3 sync ./frontend/build s3://factorbacktest.net
 	aws s3 sync ./frontend/build s3://www.factorbacktest.net
+	aws s3 sync ./frontend/build s3://factor.trade
+	aws s3 sync ./frontend/build s3://www.factor.trade
 	rm -rf ./frontend/build;
 	aws cloudfront create-invalidation --distribution-id E2LDUUB6BBDSV8 --paths "/*" --output text
 
