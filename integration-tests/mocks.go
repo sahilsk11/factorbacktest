@@ -119,7 +119,7 @@ func (m mockAlpacaForTestsHandler) GetPositions() ([]alpaca.Position, error) {
 }
 
 func (m mockAlpacaForTestsHandler) IsMarketOpen() (bool, error) {
-	return false, fmt.Errorf("IsMarketOpen not implemented")
+	return true, nil
 }
 
 func (m mockAlpacaForTestsHandler) GetAccount() (*alpaca.Account, error) {
