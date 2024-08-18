@@ -25,16 +25,16 @@ export default function Invest({
   const [activeInvestments, setActiveInvestments] = useState<GetInvestmentsResponse[]>([]);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const { session } = useAuth();
+  const { loading, session } = useAuth();
 
   useEffect(() => {
     if (session) {
       getInvestments()
-    } else {
+    } else if (!loading) {
       setActiveInvestments([]);
       setShowLoginModal(true);
     }
-  }, [session])
+  }, [loading, session])
 
   const navigate = useNavigate();
 
@@ -121,7 +121,7 @@ function InvestmentTile({
           </Card.Text> */}
         </Card.Body>
         <ListGroup className="list-group-flush">
-          <ListGroup.Item>Total Return: {stats.percentReturnFraction.toFixed(2)}%</ListGroup.Item>
+          <ListGroup.Item>Total Return: {(100*stats.percentReturnFraction).toFixed(2)}%</ListGroup.Item>
           <ListGroup.Item>Current Value: ${stats.currentValue.toFixed(2)}</ListGroup.Item>
           <ListGroup.Item>Inception: {stats.startDate}</ListGroup.Item>
           <ListGroup.Item>Last Trade: {latestTrade}</ListGroup.Item>
