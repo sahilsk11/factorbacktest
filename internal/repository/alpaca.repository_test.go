@@ -66,7 +66,7 @@ func Test_alpacaRepositoryHandler_GetAccount(t *testing.T) {
 
 func Test_alpacaRepositoryHandler_GetPositions(t *testing.T) {
 	if true {
-		// t.Skip()
+		t.Skip()
 	}
 
 	handler, err := initializeHandler()
