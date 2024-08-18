@@ -97,35 +97,35 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 
 	// if we have any of the inputs stored already, load them and remove
 	// from the inputs list
-	if false {
-		_, endSpan := profile.StartNewSpan("get precomputed scores")
-		precomputedScores, err := h.getPrecomputedScores(&inputs)
-		if err != nil {
-			return nil, err
-		}
-		numFound := 0
-		numErrors := 0
-		for date, valuesOnDate := range precomputedScores {
-			scoresOnDate := map[string]*float64{}
-			errList := []error{}
-			for symbol, score := range valuesOnDate {
-				if score.Error != nil {
-					errList = append(errList, errors.New(*score.Error))
-				} else {
-					scoresOnDate[symbol] = score.Score
-				}
-			}
-			out[date] = &ScoresResultsOnDay{
-				SymbolScores: scoresOnDate,
-				Errors:       []error{},
-			}
-			numFound += len(valuesOnDate)
-			numErrors += len(errList)
-		}
-		endSpan()
-
-		log.Infof("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
+	// if false {
+	_, endSpan := profile.StartNewSpan("get precomputed scores")
+	precomputedScores, err := h.getPrecomputedScores(&inputs)
+	if err != nil {
+		return nil, err
 	}
+	numFound := 0
+	numErrors := 0
+	for date, valuesOnDate := range precomputedScores {
+		scoresOnDate := map[string]*float64{}
+		errList := []error{}
+		for symbol, score := range valuesOnDate {
+			if score.Error != nil {
+				errList = append(errList, errors.New(*score.Error))
+			} else {
+				scoresOnDate[symbol] = score.Score
+			}
+		}
+		out[date] = &ScoresResultsOnDay{
+			SymbolScores: scoresOnDate,
+			Errors:       []error{},
+		}
+		numFound += len(valuesOnDate)
+		numErrors += len(errList)
+	}
+	endSpan()
+
+	log.Infof("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
+	// }
 	span, endSpan := profile.StartNewSpan("load price cache")
 	cache, err := h.loadPriceCache(domain.NewCtxWithSubProfile(ctx, span), inputs)
 	if err != nil {
@@ -203,7 +203,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	// endNewProfile()
 	endSpan()
 
-	numErrors := 0
+	numErrors = 0
 	var lastErr error
 	for _, o := range results {
 		if o.Err != nil {
@@ -243,13 +243,13 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		addManyInput = append(addManyInput, m)
 	}
 
-	if false {
-		err = h.FactorScoreRepository.AddMany(addManyInput)
-		if err != nil {
-			return nil, err
-		}
-		endSpan()
+	// if false {
+	err = h.FactorScoreRepository.AddMany(addManyInput)
+	if err != nil {
+		return nil, err
 	}
+	endSpan()
+	// }
 
 	return out, nil
 }
