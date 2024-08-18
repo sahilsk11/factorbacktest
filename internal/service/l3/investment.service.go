@@ -186,24 +186,9 @@ func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uui
 	}
 	heldSymbols := currentHoldings.HeldSymbols()
 
-	latestPrices := map[string]decimal.Decimal{}
-	open, err := h.AlpacaRepository.IsMarketOpen()
+	latestPrices, err := h.PriceService.GetLatestPrices(ctx, heldSymbols)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get market open: %w", err)
-	}
-	if open {
-		latestPrices, err = h.AlpacaRepository.GetLatestPrices(ctx, heldSymbols)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get latest prices from Alpaca: %w", err)
-		}
-	} else {
-		prices, err := h.PriceRepository.LatestPrices(heldSymbols)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get latest prices: %w", err)
-		}
-		for _, p := range prices {
-			latestPrices[p.Symbol] = p.Price
-		}
+		return nil, fmt.Errorf("failed to get latest prices: %w", err)
 	}
 
 	totalValue, err := currentHoldings.TotalValue(latestPrices)
@@ -305,7 +290,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	if err != nil {
 		return nil, err
 	}
-	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateFactorScoresOnDay(ctx, date, universe, strategy.FactorExpression)
+	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateLatestFactorScores(ctx, universe, strategy.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}

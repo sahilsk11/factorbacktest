@@ -76,7 +76,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	}
 
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
-	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository)
+	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository, priceRepository)
 	backtestHandler := l3_service.BacktestHandler{
 		PriceRepository:         priceRepository,
 		AssetUniverseRepository: assetUniverseRepository,

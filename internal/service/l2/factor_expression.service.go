@@ -29,7 +29,7 @@ type ScoresResultsOnDay struct {
 
 type FactorExpressionService interface {
 	CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error)
-	CalculateFactorScoresOnDay(ctx context.Context, date time.Time, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error)
+	CalculateLatestFactorScores(ctx context.Context, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error)
 }
 
 type factorExpressionServiceHandler struct {
@@ -37,6 +37,7 @@ type factorExpressionServiceHandler struct {
 	FactorMetricsHandler  factorMetricCalculations
 	PriceService          l1_service.PriceService
 	FactorScoreRepository repository.FactorScoreRepository
+	PriceRepository       repository.AdjustedPriceRepository
 }
 
 func NewFactorExpressionService(
@@ -44,12 +45,14 @@ func NewFactorExpressionService(
 	factorMetricsHandler factorMetricCalculations,
 	priceService l1_service.PriceService,
 	factorScoreRepository repository.FactorScoreRepository,
+	priceRepository repository.AdjustedPriceRepository,
 ) FactorExpressionService {
 	return factorExpressionServiceHandler{
 		Db:                    db,
 		FactorMetricsHandler:  factorMetricsHandler,
 		PriceService:          priceService,
 		FactorScoreRepository: factorScoreRepository,
+		PriceRepository:       priceRepository,
 	}
 }
 
@@ -343,12 +346,17 @@ func removeIndicesInPlace(slice *[]workInput, sortedIndexesToRemove []int) {
 	*slice = (*slice)[:j]
 }
 
-func (h factorExpressionServiceHandler) CalculateFactorScoresOnDay(ctx context.Context, date time.Time, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error) {
-	results, err := h.CalculateFactorScores(ctx, []time.Time{date}, tickers, factorExpression)
+func (h factorExpressionServiceHandler) CalculateLatestFactorScores(ctx context.Context, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error) {
+	date, err := h.PriceRepository.LatestTradingDay()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest trading day: %w", err)
+	}
+
+	results, err := h.CalculateFactorScores(ctx, []time.Time{*date}, tickers, factorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores on %v: %w", date, err)
 	}
-	r, ok := results[date]
+	r, ok := results[*date]
 	if !ok {
 		return nil, fmt.Errorf("scores missing from result: %w", err)
 	}
