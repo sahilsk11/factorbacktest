@@ -51,7 +51,7 @@ export function Nav({ showLinks, setUser, loggedIn }: {
   return <>
     <Navbar data-bs-theme="dark" bg="dark" expand="sm" className={`${styles.nav} bg-body-tertiary `}>
       <Container>
-        <Navbar.Brand style={{ fontSize: "16px", fontWeight: "500", cursor: "pointer" }} onClick={() => navigate("/")}>factorbacktest.net</Navbar.Brand>
+        <Navbar.Brand style={{ fontSize: "16px", fontWeight: "500", cursor: "pointer" }} onClick={() => navigate("/")}>factor.trade</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <BootstrapNav className="ms-auto">

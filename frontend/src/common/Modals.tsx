@@ -25,7 +25,7 @@ export function HelpModal({ show, close }: {
         <div className={modalsStyle.help_text_container}>
           <ul>
             <li>
-              <p className={modalsStyle.help_text}>FactorBacktest.net allows you to rapidly test factor-based investment strategies.</p>
+              <p className={modalsStyle.help_text}>Factor.Trade allows you to rapidly test factor-based investment strategies.</p>
             </li>
             <li>
               <p className={modalsStyle.help_text}>Define your strategy equation, set backtest parameters, and narrow your asset selection pool. Hit the <button className={modalsStyle.demo_backtest_btn}>Run Backtest</button> button on the left to test your first strategy!</p>

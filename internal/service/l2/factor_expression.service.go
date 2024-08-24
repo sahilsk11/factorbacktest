@@ -214,7 +214,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 			lastErr = o.Err
 		}
 	}
-	if numErrors >= int(len(results)/2) {
+	if numErrors > 0 && numErrors >= int(len(results)/2) {
 		return nil, fmt.Errorf("failed to evaluate expression: over 50%% of score calculations failed. last err: %w", lastErr)
 	}
 
