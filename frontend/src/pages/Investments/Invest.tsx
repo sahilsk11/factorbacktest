@@ -1,10 +1,7 @@
 import { GoogleAuthUser, GetSavedStrategiesResponse, InvestInStrategyRequest, GetInvestmentsResponse } from "../../models";
-import investStyles from "./Invest.module.css";
-import appStyles from "../../App.module.css";
 import { Nav } from "common/Nav"
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ContactModal, HelpModal } from "common/Modals";
-import { Card, ListGroup, Row, Table } from "react-bootstrap";
 import { endpoint } from "App";
 import { formatDate } from "../../util";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -12,6 +9,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AssetBreakdown } from "../Backtest/FactorSnapshot";
 import { useAuth } from "auth";
 import LoginModal from "common/AuthModals";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { LineChart } from "@/components/ui/line-chart"
 
 export default function Invest({
   user,
@@ -59,76 +58,85 @@ export default function Invest({
     }
   }
 
-  const tiles = activeInvestments.map((e) => <InvestmentTile stats={e} />)
-
-  return <>
-    <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} />
-
-    {/* <InvestInStrategy user={user} setCheckForNewInvestments={setCheckForNewInvestments} /> */}
-    {/* <ActiveInvestments user={user} checkForNewInvestments={checkForNewInvestments} setCheckForNewInvestments={setCheckForNewInvestments} /> */}
-
-    {/* {activeInvestments} */}
-
-    {showLoginModal ? <LoginModal show={showLoginModal} close={() => {
-      setShowLoginModal(false);
-      if (!session) {
-        navigate("/")
-      }
-    }} /> : null}
-
-    <div className={`${appStyles.tile} ${investStyles.container}`}>
-      <h2 style={{ marginBottom: "0px" }}>Active Investments</h2>
-      <p className={appStyles.subtext}>Deposit funds into any strategy you've previously tested.</p>
-      <Row>
-        {tiles}
-      </Row>
-
-    </div>
-  </>
-}
-
-function InvestmentTile({
-  stats
-}: {
-  stats: GetInvestmentsResponse
-}) {
-  const weights: Record<string, number> = {};
-  stats.holdings.forEach(h => {
-    weights[h.symbol] = h.marketValue / stats.currentValue
-  })
-
-  const latestTrade = stats.completedTrades.length > 0 ? formatDate(new Date(stats.completedTrades?.reduce((latest, trade) => {
-    return trade.filledAt > latest.filledAt ? trade : latest;
-  })?.filledAt)) : "n/a";
-
   return (
     <>
-      <Card style={{ width: '18rem', marginRight: "20px" }} className="col-sm-6 mb-3 mb-sm-0">
-        <div style={{
-          width: "50%",
-          margin: "0px auto",
-          display: "block",
-          marginTop: "10px"
-        }} >
-          {stats.completedTrades.length > 0 ?
-            <AssetBreakdown assetWeights={weights} /> : <p style={{ textAlign: "center", marginTop: "65px", marginBottom: "50px" }} className={appStyles.subtext}>no data yet</p>}
+      <Nav loggedIn={user !== null} setUser={setUser} showLinks={false} />
+      {showLoginModal && <LoginModal show={showLoginModal} close={() => {
+        setShowLoginModal(false);
+        if (!session) navigate("/");
+      }} />}
+      <div className="container mx-auto px-4 py-8">
+        <h2 className="text-3xl font-bold mb-2">Active Investments</h2>
+        <p className="text-gray-600 mb-6">View your active investment strategies.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {activeInvestments.map((investment) => (
+            <InvestmentTile key={investment.investmentID} stats={investment} />
+          ))}
         </div>
-        <Card.Body>
-          <Card.Text style={{ textAlign: "center" }}>{stats.strategy.strategyName}</Card.Text>
-          {/* <Card.Text>
-            Some quick example text to build on the card title and make up the
-            bulk of the card's content.
-          </Card.Text> */}
-        </Card.Body>
-        <ListGroup className="list-group-flush">
-          <ListGroup.Item>Total Return: {(100*stats.percentReturnFraction).toFixed(2)}%</ListGroup.Item>
-          <ListGroup.Item>Current Value: ${stats.currentValue.toFixed(2)}</ListGroup.Item>
-          <ListGroup.Item>Inception: {stats.startDate}</ListGroup.Item>
-          <ListGroup.Item>Last Trade: {latestTrade}</ListGroup.Item>
-        </ListGroup>
-      </Card>
+      </div>
     </>
   )
 }
 
+function InvestmentTile({ stats }: { stats: GetInvestmentsResponse }) {
+  const latestTrade = stats.completedTrades.length > 0
+    ? formatDate(new Date(stats.completedTrades.reduce((latest, trade) => 
+        trade.filledAt > latest.filledAt ? trade : latest
+      ).filledAt))
+    : "n/a";
 
+  const percentReturn = (stats.percentReturnFraction * 100).toFixed(2);
+  const isPositive = parseFloat(percentReturn) >= 0;
+
+  // Generate mock data for the chart
+  const chartData = Array.from({ length: 30 }, (_, i) => ({
+    date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    value: stats.currentValue * (1 + Math.random() * 0.1 - 0.05)
+  }));
+
+  return (
+    <Card className="w-full max-w-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-semibold">{stats.strategy.strategyName}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-2xl font-bold">${stats.currentValue.toFixed(2)}</div>
+            <div className={`px-2 py-1 rounded-full text-sm font-medium ${
+              isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {percentReturn}%
+            </div>
+          </div>
+          <div className="h-32">
+            <LineChart
+              data={chartData}
+              categories={["value"]}
+              index="date"
+              colors={["blue"]}
+              yAxisWidth={40}
+              showXAxis={false}
+              showYAxis={false}
+              showLegend={false}
+              showGridLines={false}
+              curveType="monotone"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-gray-500">Inception:</span>
+              <br />
+              {stats.startDate}
+            </div>
+            <div>
+              <span className="text-gray-500">Last Trade:</span>
+              <br />
+              {latestTrade}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
