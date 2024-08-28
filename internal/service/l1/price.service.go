@@ -513,6 +513,9 @@ func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPri
 // TODO - find a better data provider
 func (h priceServiceHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
 	out := map[string]decimal.Decimal{}
+	var lastErr error
+	log := logger.FromContext(ctx)
+
 	for _, symbol := range symbols {
 		approxStart := time.Now().AddDate(0, 0, -4)
 		s := time.Date(approxStart.Year(), approxStart.Month(), approxStart.Day(), 0, 0, 0, 0, time.UTC)
@@ -529,18 +532,20 @@ func (h priceServiceHandler) GetLatestPrices(ctx context.Context, symbols []stri
 			allPrices = append(allPrices, iter.Bar().AdjClose)
 		}
 		if err := iter.Err(); err != nil {
-			return nil, fmt.Errorf("failed to get prices for %s: %w", symbol, err)
+			lastErr = fmt.Errorf("failed to get prices for %s: %w", symbol, err)
+			log.Warnf("Failed to get prices for %s: %v", symbol, err)
+			continue
 		}
 		if len(allPrices) == 0 {
-			return nil, fmt.Errorf("failed to get price for %s", symbol)
+			lastErr = fmt.Errorf("failed to get price for %s", symbol)
+			log.Warnf("Failed to get price for %s: no prices returned", symbol)
+			continue
 		}
 		out[symbol] = allPrices[len(allPrices)-1]
 	}
 
-	for _, symbol := range symbols {
-		if _, ok := out[symbol]; !ok {
-			return nil, fmt.Errorf("failed to get price for %s", symbol)
-		}
+	if len(out) == 0 && lastErr != nil {
+		return nil, lastErr
 	}
 
 	return out, nil

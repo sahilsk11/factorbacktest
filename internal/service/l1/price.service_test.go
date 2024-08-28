@@ -1,9 +1,12 @@
 package l1_service
 
 import (
+	"context"
+	"factorbacktest/internal/util"
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -188,5 +191,22 @@ func Test_constructMinMaxMap(t *testing.T) {
 				max: &t2,
 			},
 		}, mp)
+	})
+}
+
+func Test_priceServiceHandler_GetLatestPrices(t *testing.T) {
+
+	t.Run("test", func(t *testing.T) {
+		t.Skip("Skipping test in GitHub Actions")
+		ctx := context.Background()
+		h := priceServiceHandler{
+			// AdjPriceRepository: adjPriceRepository,
+		}
+		resp, err := h.GetLatestPrices(ctx, []string{"BRK.B"})
+		require.NoError(t, err)
+		util.Pprint(resp)
+		require.Equal(t, map[string]decimal.Decimal{
+			"AAPL": decimal.NewFromFloat(100),
+		}, resp)
 	})
 }
