@@ -224,10 +224,10 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	})
 	if err != nil {
 		lg.Warn(err.Error())
+	} else {
+		lg = lg.With("requestID", req.RequestID.String())
+		ctx.Set(logger.ContextKey, lg)
 	}
-
-	lg = lg.With("requestID", req.RequestID.String())
-	ctx.Set(logger.ContextKey, lg)
 
 	ctx.Next()
 
