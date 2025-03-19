@@ -5,11 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"factorbacktest/internal/calculator"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
-	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/service"
 	"factorbacktest/internal/util"
 	"fmt"
 	"regexp"
@@ -38,18 +39,18 @@ type BacktestRequest struct {
 }
 
 type BacktestResponse struct {
-	FactorName       string                                 `json:"factorName"`
-	StrategyID       uuid.UUID                              `json:"strategyID"`
-	Snapshots        map[string]l3_service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
-	LatestHoldings   LatestHoldings                         `json:"latestHoldings"`
-	SharpeRatio      *float64                               `json:"sharpeRatio"`
-	AnnualizedReturn *float64                               `json:"annualizedReturn"`
-	AnnualizedStdev  *float64                               `json:"annualizedStandardDeviation"`
+	FactorName       string                              `json:"factorName"`
+	StrategyID       uuid.UUID                           `json:"strategyID"`
+	Snapshots        map[string]service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
+	LatestHoldings   LatestHoldings                      `json:"latestHoldings"`
+	SharpeRatio      *float64                            `json:"sharpeRatio"`
+	AnnualizedReturn *float64                            `json:"annualizedReturn"`
+	AnnualizedStdev  *float64                            `json:"annualizedStandardDeviation"`
 }
 
 type LatestHoldings struct {
-	Date   time.Time                                  `json:"date"`
-	Assets map[string]l3_service.SnapshotAssetMetrics `json:"assets"`
+	Date   time.Time                               `json:"date"`
+	Assets map[string]service.SnapshotAssetMetrics `json:"assets"`
 }
 
 func (h ApiHandler) backtest(c *gin.Context) {
@@ -136,7 +137,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 		return
 	}
 
-	backtestInput := l3_service.BacktestInput{
+	backtestInput := service.BacktestInput{
 		FactorExpression:  requestBody.FactorOptions.Expression,
 		BacktestStart:     backtestStartDate,
 		BacktestEnd:       backtestEndDate,
@@ -159,7 +160,7 @@ func (h ApiHandler) backtest(c *gin.Context) {
 	metrics, err := h.StrategyService.CalculateMetrics(ctx, insertedStrategy.StrategyID, result.Results)
 	if err != nil {
 		log.Errorf("failed to calculate metrics: %w", err)
-		metrics = &l3_service.CalculateMetricsResult{}
+		metrics = &calculator.CalculateMetricsResult{}
 	}
 
 	newRunModel := model.StrategyRun{

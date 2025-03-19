@@ -2,9 +2,9 @@ package integration_tests
 
 import (
 	"context"
+	"factorbacktest/internal/data"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
-	l1_service "factorbacktest/internal/service/l1"
 	"factorbacktest/internal/util"
 	"fmt"
 
@@ -15,17 +15,17 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func NewMockPriceServiceForTests(realPriceService l1_service.PriceService) l1_service.PriceService {
+func NewMockPriceServiceForTests(realPriceService data.PriceService) data.PriceService {
 	return mockPriceServiceForTestsHandler{
 		realPriceService: realPriceService,
 	}
 }
 
 type mockPriceServiceForTestsHandler struct {
-	realPriceService l1_service.PriceService
+	realPriceService data.PriceService
 }
 
-func (m mockPriceServiceForTestsHandler) LoadPriceCache(ctx context.Context, inputs []l1_service.LoadPriceCacheInput, stdevs []l1_service.LoadStdevCacheInput) (*l1_service.PriceCache, error) {
+func (m mockPriceServiceForTestsHandler) LoadPriceCache(ctx context.Context, inputs []data.LoadPriceCacheInput, stdevs []data.LoadStdevCacheInput) (*data.PriceCache, error) {
 	return m.realPriceService.LoadPriceCache(ctx, inputs, stdevs)
 }
 

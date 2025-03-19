@@ -6,6 +6,7 @@ import (
 	"factorbacktest/cmd"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
+	"factorbacktest/internal/util"
 	"fmt"
 	"log"
 	"os"
@@ -25,6 +26,7 @@ func init() {
 	rootCmd.AddCommand(rebalanceCmd)
 	rootCmd.AddCommand(updateOrdersCmd)
 	rootCmd.AddCommand(updatePublishedStrategyStats)
+	rootCmd.AddCommand(pingPricesApi)
 }
 
 var reconcileCmd = &cobra.Command{
@@ -91,6 +93,24 @@ var updateOrdersCmd = &cobra.Command{
 
 		updateOrders(handler)
 
+	},
+}
+
+var pingPricesApi = &cobra.Command{
+	Use:   "pingPricesApi",
+	Short: "Ping prices api",
+	Run: func(c *cobra.Command, args []string) {
+		handler, err := cmd.InitializeDependencies()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		prices, err := handler.PriceService.GetLatestPrices(context.Background(), []string{"AAPL", "GOOGL"})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		util.Pprint(prices)
 	},
 }
 

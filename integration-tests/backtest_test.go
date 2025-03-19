@@ -7,7 +7,7 @@ import (
 	"factorbacktest/api"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
-	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/service"
 	"factorbacktest/internal/util"
 	"fmt"
 	"io"
@@ -270,11 +270,11 @@ func Test_backtestFlow(t *testing.T) {
 		t,
 		"",
 		cmp.Diff(
-			l3_service.BacktestSnapshot{
+			service.BacktestSnapshot{
 				ValuePercentChange: 33.6989043,
 				Value:              13369.88700,
 				Date:               "2020-12-29",
-				AssetMetrics: map[string]l3_service.SnapshotAssetMetrics{
+				AssetMetrics: map[string]service.SnapshotAssetMetrics{
 					"AAPL": {
 						AssetWeight:                  0.1253766234821042,
 						FactorScore:                  2.2169708025194654,

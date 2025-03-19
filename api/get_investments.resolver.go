@@ -2,7 +2,7 @@ package api
 
 import (
 	"factorbacktest/internal/repository"
-	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/service"
 	"fmt"
 	"sort"
 	"time"
@@ -72,7 +72,7 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 		return
 	}
 
-	statsByInvestment := map[uuid.UUID]l3_service.GetStatsResponse{}
+	statsByInvestment := map[uuid.UUID]service.GetStatsResponse{}
 	for _, i := range investments {
 		stats, err := m.InvestmentService.GetStats(c, i.InvestmentID)
 		if err != nil {
@@ -87,7 +87,7 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 	c.JSON(200, out)
 }
 
-func getInvestmentsResponseFromDomain(in map[uuid.UUID]l3_service.GetStatsResponse) []GetInvestmentsResponse {
+func getInvestmentsResponseFromDomain(in map[uuid.UUID]service.GetStatsResponse) []GetInvestmentsResponse {
 	out := []GetInvestmentsResponse{}
 	for investmentID, stats := range in {
 		holdings := []Holdings{}

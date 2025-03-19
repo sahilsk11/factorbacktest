@@ -1,7 +1,8 @@
-package l3_service
+package service
 
 import (
 	"context"
+	"factorbacktest/internal/calculator"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/repository"
@@ -16,7 +17,7 @@ import (
 type StrategyService interface {
 	// Add()
 	// AddRun()
-	CalculateMetrics(ctx context.Context, strategyID uuid.UUID, backtestResults []BacktestResult) (*CalculateMetricsResult, error)
+	CalculateMetrics(ctx context.Context, strategyID uuid.UUID, backtestResults []BacktestResult) (*calculator.CalculateMetricsResult, error)
 	Save(uuid.UUID) error
 	// Publish()
 	// Unsave()
@@ -57,7 +58,7 @@ func (h strategyServiceHandler) Save(strategyID uuid.UUID) error {
 	return nil
 }
 
-func (h strategyServiceHandler) CalculateMetrics(ctx context.Context, strategyID uuid.UUID, backtestResults []BacktestResult) (*CalculateMetricsResult, error) {
+func (h strategyServiceHandler) CalculateMetrics(ctx context.Context, strategyID uuid.UUID, backtestResults []BacktestResult) (*calculator.CalculateMetricsResult, error) {
 	strategy, err := h.StrategyRepository.Get(strategyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get strategy: %w", err)
@@ -100,10 +101,29 @@ func (h strategyServiceHandler) CalculateMetrics(ctx context.Context, strategyID
 		return nil, fmt.Errorf("failed to list trading days: %w", err)
 	}
 
-	metrics, err := CalculateMetrics(backtestResults, relevantTradingDays, mappedPrices)
+	metrics, err := calculator.CalculateMetrics(
+		h.convertToCalculatorBacktestResults(backtestResults),
+		relevantTradingDays,
+		mappedPrices,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate metrics: %w", err)
 	}
 
 	return metrics, nil
+}
+
+func (h strategyServiceHandler) convertToCalculatorBacktestResults(backtestResults []BacktestResult) []calculator.BacktestResult {
+	calculatorBacktestResults := make([]calculator.BacktestResult, len(backtestResults))
+	for i, br := range backtestResults {
+		calculatorBacktestResults[i] = calculator.BacktestResult{
+			Date:                         br.Date,
+			Portfolio:                    br.Portfolio,
+			TotalValue:                   br.TotalValue,
+			AssetWeights:                 br.AssetWeights,
+			FactorScores:                 br.FactorScores,
+			PriceChangeTilNextResampling: br.PriceChangeTilNextResampling,
+		}
+	}
+	return calculatorBacktestResults
 }
