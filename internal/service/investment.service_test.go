@@ -1,13 +1,13 @@
-package l3_service
+package service
 
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/internal/calculator"
+	mock_calculator "factorbacktest/internal/calculator/mocks"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	mock_repository "factorbacktest/internal/repository/mocks"
-	l2_service "factorbacktest/internal/service/l2"
-	mock_l2_service "factorbacktest/internal/service/l2/mocks"
 	"factorbacktest/internal/util"
 	"testing"
 	"time"
@@ -30,7 +30,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 		holdingsRepository := mock_repository.NewMockInvestmentHoldingsRepository(ctrl)
 		universeRepository := mock_repository.NewMockAssetUniverseRepository(ctrl)
 		ssRepo := mock_repository.NewMockStrategyRepository(ctrl)
-		feService := mock_l2_service.NewMockFactorExpressionService(ctrl)
+		feService := mock_calculator.NewMockFactorExpressionService(ctrl)
 		investmentRebalanceRepository := mock_repository.NewMockInvestmentRebalanceRepository(ctrl)
 		investmentTradeRepository := mock_repository.NewMockInvestmentTradeRepository(ctrl)
 		holdingsVersionRepository := mock_repository.NewMockInvestmentHoldingsVersionRepository(ctrl)
@@ -101,7 +101,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 			},
 			Cash: util.DecimalPointer(decimal.Zero),
 		}
-		scoresOnDay := &l2_service.ScoresResultsOnDay{
+		scoresOnDay := &calculator.ScoresResultsOnDay{
 			SymbolScores: map[string]*float64{
 				"AAPL": util.FloatPointer(100),
 				"GOOG": util.FloatPointer(200),

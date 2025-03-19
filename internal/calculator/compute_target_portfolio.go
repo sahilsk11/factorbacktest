@@ -1,4 +1,4 @@
-package l3_service
+package calculator
 
 import (
 	"factorbacktest/internal"

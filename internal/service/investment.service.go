@@ -1,16 +1,16 @@
-package l3_service
+package service
 
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"factorbacktest/internal/calculator"
+	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
-	l1_service "factorbacktest/internal/service/l1"
-	l2_service "factorbacktest/internal/service/l2"
 	"factorbacktest/internal/util"
 	"fmt"
 	"os"
@@ -40,18 +40,18 @@ type investmentServiceHandler struct {
 	HoldingsRepository            repository.InvestmentHoldingsRepository
 	UniverseRepository            repository.AssetUniverseRepository
 	StrategyRepository            repository.StrategyRepository
-	FactorExpressionService       l2_service.FactorExpressionService
+	FactorExpressionService       calculator.FactorExpressionService
 	TickerRepository              repository.TickerRepository
 	RebalancerRunRepository       repository.RebalancerRunRepository
 	HoldingsVersionRepository     repository.InvestmentHoldingsVersionRepository
 	InvestmentTradeRepository     repository.InvestmentTradeRepository
 	BacktestHandler               BacktestHandler // lol wtf, if we're importing from the same service package, the layered approach makes no sense
 	AlpacaRepository              repository.AlpacaRepository
-	TradingService                l1_service.TradeService
+	TradingService                TradeService
 	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
 	PriceRepository               repository.AdjustedPriceRepository
 	RebalancePriceRepository      repository.RebalancePriceRepository
-	PriceService                  l1_service.PriceService
+	PriceService                  data.PriceService
 }
 
 func NewInvestmentService(
@@ -60,18 +60,18 @@ func NewInvestmentService(
 	holdingsRepository repository.InvestmentHoldingsRepository,
 	universeRepository repository.AssetUniverseRepository,
 	strategyRepository repository.StrategyRepository,
-	factorExpressionService l2_service.FactorExpressionService,
+	factorExpressionService calculator.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
 	rebalancerRunRepository repository.RebalancerRunRepository,
 	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
 	investmentTradeRepository repository.InvestmentTradeRepository,
 	backtestHandler BacktestHandler,
 	alpacaRepository repository.AlpacaRepository,
-	tradeService l1_service.TradeService,
+	tradeService TradeService,
 	investmentRebalanceRepository repository.InvestmentRebalanceRepository,
 	priceRepository repository.AdjustedPriceRepository,
 	rebalancePriceRepository repository.RebalancePriceRepository,
-	priceService l1_service.PriceService,
+	priceService data.PriceService,
 ) InvestmentService {
 	return investmentServiceHandler{
 		Db:                            db,
@@ -279,7 +279,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	portfolioValue decimal.Decimal,
 	pm map[string]decimal.Decimal,
 	tickerIDMap map[string]uuid.UUID,
-) (*ComputeTargetPortfolioResponse, error) {
+) (*calculator.ComputeTargetPortfolioResponse, error) {
 	// figure out what the strategy should hold if we rebalance
 	// now
 	strategy, err := h.StrategyRepository.Get(investment.StrategyID)
@@ -294,7 +294,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
-	computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+	computeTargetPortfolioResponse, err := calculator.ComputeTargetPortfolio(calculator.ComputeTargetPortfolioInput{
 		Date:             date,
 		TargetNumTickers: int(strategy.NumAssets),
 		FactorScores:     factorScoresOnLatestDay.SymbolScores,
@@ -772,7 +772,7 @@ func portfolioToJson(p *domain.Portfolio) ([]byte, error) {
 	return bytes, nil
 }
 
-func targetPortfolioToJson(c ComputeTargetPortfolioResponse) ([]byte, error) {
+func targetPortfolioToJson(c calculator.ComputeTargetPortfolioResponse) ([]byte, error) {
 	type details struct {
 		Quantity    float64 `json:"quantity"`
 		Weight      float64 `json:"weight"`
@@ -1054,7 +1054,7 @@ func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) (*Reco
 		return nil, err
 	}
 
-	newPortfolio := l1_service.AddTradesToPortfolio(trades, initialHoldings)
+	newPortfolio := AddTradesToPortfolio(trades, initialHoldings)
 
 	currentHoldings, err := h.HoldingsRepository.GetLatestHoldings(nil, investmentID)
 	if err != nil {

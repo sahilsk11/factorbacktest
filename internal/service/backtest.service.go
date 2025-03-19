@@ -1,13 +1,13 @@
-package l3_service
+package service
 
 import (
 	"context"
 	"database/sql"
+	"factorbacktest/internal/calculator"
+	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
-	l1_service "factorbacktest/internal/service/l1"
-	l2_service "factorbacktest/internal/service/l2"
 	"fmt"
 	"time"
 
@@ -22,8 +22,8 @@ type BacktestHandler struct {
 	AssetUniverseRepository repository.AssetUniverseRepository
 
 	Db                      *sql.DB
-	PriceService            l1_service.PriceService
-	FactorExpressionService l2_service.FactorExpressionService
+	PriceService            data.PriceService
+	FactorExpressionService calculator.FactorExpressionService
 }
 
 type BacktestResult struct {
@@ -145,7 +145,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		// backtestErrors = append(backtestErrors, scoringErrors...)
 
 		// TODO - find a better place for this function to live
-		computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+		computeTargetPortfolioResponse, err := calculator.ComputeTargetPortfolio(calculator.ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
 			FactorScores:     valuesFromDay.SymbolScores,
@@ -222,7 +222,7 @@ func getLatestHoldings(ctx context.Context, h BacktestHandler, universeSymbols [
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
 	scoreResults := factorScoresOnLatestDay[*latestTradingDay]
-	computeTargetPortfolioResponse, err := ComputeTargetPortfolio(ComputeTargetPortfolioInput{
+	computeTargetPortfolioResponse, err := calculator.ComputeTargetPortfolio(calculator.ComputeTargetPortfolioInput{
 		Date:             *latestTradingDay,
 		TargetNumTickers: in.NumTickers,
 		FactorScores:     scoreResults.SymbolScores,

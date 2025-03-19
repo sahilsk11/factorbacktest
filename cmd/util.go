@@ -5,10 +5,11 @@ import (
 	"factorbacktest/api"
 	integration_tests "factorbacktest/integration-tests"
 	"factorbacktest/internal"
+	"factorbacktest/internal/calculator"
+	"factorbacktest/internal/data"
 	"factorbacktest/internal/repository"
-	l1_service "factorbacktest/internal/service/l1"
-	l2_service "factorbacktest/internal/service/l2"
-	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/service"
+
 	"factorbacktest/internal/util"
 	"fmt"
 	"log"
@@ -46,7 +47,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 
 	priceRepository := repository.NewAdjustedPriceRepository(dbConn)
 
-	factorMetricsHandler := l2_service.NewFactorMetricsHandler(
+	factorMetricsHandler := calculator.NewFactorMetricsHandler(
 		priceRepository,
 		repository.AssetFundamentalsRepositoryHandler{},
 	)
@@ -66,7 +67,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
 	rebalancePriceRepository := repository.NewRebalancePriceRepository(dbConn)
 
-	priceService := l1_service.NewPriceService(dbConn, priceRepository, nil)
+	priceService := data.NewPriceService(dbConn, priceRepository, nil)
 
 	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") || UseMockAlpaca {
 		alpacaRepository = integration_tests.NewMockAlpacaRepositoryForTests()
@@ -76,15 +77,15 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	}
 
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
-	factorExpressionService := l2_service.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository, priceRepository)
-	backtestHandler := l3_service.BacktestHandler{
+	factorExpressionService := calculator.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository, priceRepository)
+	backtestHandler := service.BacktestHandler{
 		PriceRepository:         priceRepository,
 		AssetUniverseRepository: assetUniverseRepository,
 		Db:                      dbConn,
 		PriceService:            priceService,
 		FactorExpressionService: factorExpressionService,
 	}
-	tradingService := l1_service.NewTradeService(
+	tradingService := service.NewTradeService(
 		dbConn,
 		alpacaRepository,
 		tradeOrderRepository,
@@ -95,7 +96,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		rebalancerRunRepository,
 		excessVolumeRepository,
 	)
-	investmentService := l3_service.NewInvestmentService(
+	investmentService := service.NewInvestmentService(
 		dbConn,
 		strategyInvestmentRepository,
 		holdingsRepository,
@@ -114,7 +115,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		rebalancePriceRepository,
 		priceService,
 	)
-	strategyService := l3_service.NewStrategyService(
+	strategyService := service.NewStrategyService(
 		strategyRepository,
 		assetUniverseRepository,
 		priceRepository,

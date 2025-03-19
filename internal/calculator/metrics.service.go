@@ -1,6 +1,7 @@
-package l3_service
+package calculator
 
 import (
+	"factorbacktest/internal/domain"
 	"fmt"
 	"math"
 	"sort"
@@ -14,6 +15,21 @@ type CalculateMetricsResult struct {
 	AnnualizedStdev  float64
 	AnnualizedReturn float64
 	SharpeRatio      float64
+}
+
+// redefined here - should rename and improve
+type BacktestResult struct {
+	Date       time.Time
+	Portfolio  domain.Portfolio
+	TotalValue float64
+	// might be less memory to join these in one map, but
+	// it's also cleaner to have these seperated so i don't
+	// need to define another struct for this, and because
+	// these can be computed seperately without needing
+	// to join them back together
+	AssetWeights                 map[string]float64
+	FactorScores                 map[string]float64
+	PriceChangeTilNextResampling map[string]float64
 }
 
 // calculateMetrics calculates metrics for the given snapshots. it assumes

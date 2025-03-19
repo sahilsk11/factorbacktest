@@ -17,7 +17,7 @@ mocks:
 	mockgen -source=internal/repository/rebalancer_run.repository.go -destination=internal/repository/mocks/mock_rebalancer_run.repository.go
 
 	# l2 services
-	mockgen -source=internal/service/l2/factor_expression.service.go -destination=internal/service/l2/mocks/mock_factor_expression.service.go
+	mockgen -source=internal/calculator/factor_expression.service.go -destination=internal/calculator/mocks/mock_factor_expression.service.go
 
 
 migration:

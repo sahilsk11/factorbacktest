@@ -6,11 +6,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/internal"
+	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
-	l1_service "factorbacktest/internal/service/l1"
-	l3_service "factorbacktest/internal/service/l3"
+	"factorbacktest/internal/service"
 	"factorbacktest/internal/util"
 	googleauth "factorbacktest/pkg/google-auth"
 	"fmt"
@@ -27,23 +27,23 @@ import (
 
 type ApiHandler struct {
 	Db                           *sql.DB
-	BacktestHandler              l3_service.BacktestHandler
+	BacktestHandler              service.BacktestHandler
 	BenchmarkHandler             internal.BenchmarkHandler
 	UserStrategyRepository       repository.UserStrategyRepository
 	ContactRepository            repository.ContactRepository
 	GptRepository                repository.GptRepository
 	ApiRequestRepository         repository.ApiRequestRepository
 	LatencencyTrackingRepository repository.LatencyTrackingRepository
-	PriceService                 l1_service.PriceService
-	InvestmentService            l3_service.InvestmentService
+	PriceService                 data.PriceService
+	InvestmentService            service.InvestmentService
 	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
 	AssetUniverseRepository      repository.AssetUniverseRepository
 	UserAccountRepository        repository.UserAccountRepository
 	StrategyRepository           repository.StrategyRepository
 	InvestmentRepository         repository.InvestmentRepository
-	TradingService               l1_service.TradeService
-	StrategyService              l3_service.StrategyService
+	TradingService               service.TradeService
+	StrategyService              service.StrategyService
 	JwtDecodeToken               string
 }
 

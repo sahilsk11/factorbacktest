@@ -1,4 +1,4 @@
-package l1_service
+package service
 
 import (
 	"database/sql"
