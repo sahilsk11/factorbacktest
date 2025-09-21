@@ -448,14 +448,17 @@ func UpdateUniversePrices(
 	tx *sql.Tx,
 	tickerRepository repository.TickerRepository,
 	adjPricesRepository repository.AdjustedPriceRepository,
-) error {
+) (int, error) {
+	log := logger.FromContext(ctx)
+
 	assets, err := tickerRepository.List()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if len(assets) == 0 {
-		return fmt.Errorf("no assets found in universe")
+		return 0, fmt.Errorf("no assets found in universe")
 	}
+
 	assets = append(assets, model.Ticker{
 		Symbol: "SPY",
 	})
@@ -465,12 +468,13 @@ func UpdateUniversePrices(
 		symbols = append(symbols, a.Symbol)
 	}
 
-	asyncIngestPrices(context.Background(), tx, symbols, adjPricesRepository)
+	log.Infof("found %d assets to update", len(assets))
 
-	log := logger.FromContext(ctx)
-	log.Infof("ingested %d prices", len(symbols))
+	asyncIngestPrices(ctx, tx, symbols, adjPricesRepository)
 
-	return nil
+	log.Infof("updated %d prices", len(symbols))
+
+	return len(symbols), nil
 }
 
 func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPriceRepository repository.AdjustedPriceRepository) error {

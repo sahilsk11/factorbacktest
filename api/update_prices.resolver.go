@@ -6,6 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type UpdatePricesResponse struct {
+	NumUpdatedAssets int `json:"numUpdatedAssets"`
+}
+
 func (m ApiHandler) updatePrices(c *gin.Context) {
 	tx, err := m.Db.Begin()
 	if err != nil {
@@ -13,7 +17,7 @@ func (m ApiHandler) updatePrices(c *gin.Context) {
 		return
 	}
 
-	err = data.UpdateUniversePrices(c, tx, m.TickerRepository, m.PriceRepository)
+	numUpdatedAssets, err := data.UpdateUniversePrices(c, tx, m.TickerRepository, m.PriceRepository)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
@@ -25,8 +29,8 @@ func (m ApiHandler) updatePrices(c *gin.Context) {
 		return
 	}
 
-	out := map[string]string{
-		"message": "ok",
+	out := UpdatePricesResponse{
+		NumUpdatedAssets: numUpdatedAssets,
 	}
 
 	c.JSON(200, out)
