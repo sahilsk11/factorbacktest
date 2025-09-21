@@ -444,6 +444,7 @@ func IngestPrices(
 }
 
 func UpdateUniversePrices(
+	ctx context.Context,
 	tx *sql.Tx,
 	tickerRepository repository.TickerRepository,
 	adjPricesRepository repository.AdjustedPriceRepository,
@@ -465,6 +466,9 @@ func UpdateUniversePrices(
 	}
 
 	asyncIngestPrices(context.Background(), tx, symbols, adjPricesRepository)
+
+	log := logger.FromContext(ctx)
+	log.Infof("ingested %d prices", len(symbols))
 
 	return nil
 }
