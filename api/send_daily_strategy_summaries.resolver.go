@@ -2,6 +2,7 @@ package api
 
 import (
 	"factorbacktest/internal/logger"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,16 +13,17 @@ type SendDailyStrategySummariesResponse struct {
 }
 
 // sendDailyStrategySummaries is the API endpoint that EventBridge will trigger
-// via Lambda/API Gateway. It orchestrates sending daily strategy summary emails
-// to all users with saved strategies.
+// via Lambda/API Gateway. It delegates to the StrategySummaryApp to handle
+// the orchestration logic.
 func (m ApiHandler) sendDailyStrategySummaries(c *gin.Context) {
 	lg := logger.FromContext(c)
 
-	// TODO: Implement business logic:
+	// TODO: Implement:
 	// ctx := c.Request.Context()
-	// 1. Call EmailService.SendDailyStrategySummaries(ctx)
+	// 1. Call m.StrategySummaryApp.SendDailyStrategySummaries(ctx)
 	// 2. Handle errors appropriately
 	// 3. Return response with summary of emails sent/failed
+	//    (app layer should return this info, or we track it here)
 
 	// Placeholder response
 	response := SendDailyStrategySummariesResponse{

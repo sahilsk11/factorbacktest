@@ -1,61 +1,63 @@
 package service
 
 import (
-	"context"
 	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
-	"time"
 )
 
 // EmailService is responsible for the business logic around emails.
-// It determines what content goes in emails, handles template rendering,
-// and orchestrates email sending for business use cases.
+// It handles template rendering and email formatting, but does NOT
+// compute strategy results - those are passed in as domain objects.
 type EmailService interface {
-	// SendDailyStrategySummaries sends daily strategy summary emails
-	// to all users who have saved strategies and email addresses.
-	// It computes what each strategy would buy today and sends a summary.
-	SendDailyStrategySummaries(ctx context.Context) error
+	// SendStrategySummaryEmail sends an email to a user with their
+	// strategy summary results. The strategyResults are pre-computed
+	// domain objects containing what each strategy would buy.
+	SendStrategySummaryEmail(
+		user *model.UserAccount,
+		strategyResults []domain.StrategySummaryResult,
+	) error
 
 	// GenerateStrategySummaryEmail generates the email content for a user's
-	// saved strategies. Returns the subject and HTML body.
-	GenerateStrategySummaryEmail(user *model.UserAccount, strategies []model.Strategy, date time.Time) (string, string, error)
+	// strategy results. Returns the subject and HTML body.
+	// This is used internally by SendStrategySummaryEmail but can also
+	// be called separately for testing/preview purposes.
+	GenerateStrategySummaryEmail(
+		user *model.UserAccount,
+		strategyResults []domain.StrategySummaryResult,
+	) (string, string, error)
 }
 
 type emailServiceHandler struct {
-	EmailRepository      repository.EmailRepository
-	UserAccountRepository repository.UserAccountRepository
-	StrategyRepository   repository.StrategyRepository
-	// TODO: Add other dependencies needed for computing strategy results
-	// PriceService, FactorExpressionService, etc.
+	EmailRepository repository.EmailRepository
 }
 
 func NewEmailService(
 	emailRepository repository.EmailRepository,
-	userAccountRepository repository.UserAccountRepository,
-	strategyRepository repository.StrategyRepository,
 ) EmailService {
 	return &emailServiceHandler{
-		EmailRepository:      emailRepository,
-		UserAccountRepository: userAccountRepository,
-		StrategyRepository:   strategyRepository,
+		EmailRepository: emailRepository,
 	}
 }
 
-func (h *emailServiceHandler) SendDailyStrategySummaries(ctx context.Context) error {
-	// TODO: Implement business logic:
-	// 1. Get all users with email addresses
-	// 2. For each user, get their saved strategies
-	// 3. For each strategy, compute what it would buy today
-	// 4. Generate email content
-	// 5. Send emails
+func (h *emailServiceHandler) SendStrategySummaryEmail(
+	user *model.UserAccount,
+	strategyResults []domain.StrategySummaryResult,
+) error {
+	// TODO: Implement:
+	// 1. Call GenerateStrategySummaryEmail to get subject and body
+	// 2. Use EmailRepository to send the email
+	// 3. Handle errors appropriately
 	return nil
 }
 
-func (h *emailServiceHandler) GenerateStrategySummaryEmail(user *model.UserAccount, strategies []model.Strategy, date time.Time) (string, string, error) {
+func (h *emailServiceHandler) GenerateStrategySummaryEmail(
+	user *model.UserAccount,
+	strategyResults []domain.StrategySummaryResult,
+) (string, string, error) {
 	// TODO: Implement template generation:
-	// 1. For each strategy, compute target portfolio
-	// 2. Format results into HTML table
-	// 3. Generate subject line
-	// 4. Return subject and HTML body
+	// 1. Format strategyResults into HTML table(s)
+	// 2. Generate subject line (e.g., "Your Strategy Updates for [Date]")
+	// 3. Return subject and HTML body
 	return "", "", nil
 }
