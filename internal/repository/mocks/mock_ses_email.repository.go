@@ -51,17 +51,3 @@ func (mr *MockEmailRepositoryMockRecorder) SendEmail(to, subject, body any) *gom
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendEmail", reflect.TypeOf((*MockEmailRepository)(nil).SendEmail), to, subject, body)
 }
-
-// SendEmailWithTemplate mocks base method.
-func (m *MockEmailRepository) SendEmailWithTemplate(to, subject, templateName string, templateData any) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendEmailWithTemplate", to, subject, templateName, templateData)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendEmailWithTemplate indicates an expected call of SendEmailWithTemplate.
-func (mr *MockEmailRepositoryMockRecorder) SendEmailWithTemplate(to, subject, templateName, templateData any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendEmailWithTemplate", reflect.TypeOf((*MockEmailRepository)(nil).SendEmailWithTemplate), to, subject, templateName, templateData)
-}
