@@ -56,6 +56,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	tickerRepository := repository.NewTickerRepository(dbConn)
 	factorScoreRepository := repository.NewFactorScoreRepository(dbConn)
 	userAccountRepository := repository.NewUserAccountRepository(dbConn)
+	emailPreferenceRepository := repository.NewEmailPreferenceRepository(dbConn)
 	strategyRepository := repository.NewStrategyRepository(dbConn)
 	strategyInvestmentRepository := repository.NewInvestmentRepository(dbConn)
 	holdingsRepository := repository.NewInvestmentHoldingsRepository(dbConn)
@@ -134,6 +135,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	strategySummaryApp := app.NewStrategySummaryApp(
 		emailService,
 		userAccountRepository,
+		emailPreferenceRepository,
 		strategyRepository,
 		assetUniverseRepository,
 		priceService,

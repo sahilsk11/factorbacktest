@@ -75,24 +75,21 @@ func Test_emailServiceHandler_GenerateStrategySummaryEmail_Preview(t *testing.T)
 			Assets: []domain.StrategySummaryAsset{
 				{
 					Symbol:      "AAPL",
-					Quantity:    decimal.NewFromFloat(10.5),
 					Weight:      0.25,
 					FactorScore: 0.8542,
-					Price:       decimal.NewFromFloat(175.50),
+					LastPrice:   decimal.NewFromFloat(175.50),
 				},
 				{
 					Symbol:      "GOOGL",
-					Quantity:    decimal.NewFromFloat(5.2),
 					Weight:      0.20,
 					FactorScore: 0.7821,
-					Price:       decimal.NewFromFloat(142.30),
+					LastPrice:   decimal.NewFromFloat(142.30),
 				},
 				{
 					Symbol:      "MSFT",
-					Quantity:    decimal.NewFromFloat(8.1),
 					Weight:      0.30,
 					FactorScore: 0.9123,
-					Price:       decimal.NewFromFloat(378.90),
+					LastPrice:   decimal.NewFromFloat(378.90),
 				},
 			},
 		},
@@ -104,17 +101,15 @@ func Test_emailServiceHandler_GenerateStrategySummaryEmail_Preview(t *testing.T)
 			Assets: []domain.StrategySummaryAsset{
 				{
 					Symbol:      "BRK.B",
-					Quantity:    decimal.NewFromFloat(15.0),
 					Weight:      0.40,
 					FactorScore: 0.6543,
-					Price:       decimal.NewFromFloat(365.20),
+					LastPrice:   decimal.NewFromFloat(365.20),
 				},
 				{
 					Symbol:      "JNJ",
-					Quantity:    decimal.NewFromFloat(12.3),
 					Weight:      0.35,
 					FactorScore: 0.7234,
-					Price:       decimal.NewFromFloat(158.75),
+					LastPrice:   decimal.NewFromFloat(158.75),
 				},
 			},
 		},

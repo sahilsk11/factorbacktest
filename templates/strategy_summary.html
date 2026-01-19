@@ -21,28 +21,32 @@
         {{range .Strategies}}
         <div class="strategy-section">
             <div class="strategy-name">{{.StrategyName}}</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Quantity</th>
-                        <th>Weight</th>
-                        <th>Factor Score</th>
-                        <th>Price</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range .Assets}}
-                    <tr>
-                        <td>{{.Symbol}}</td>
-                        <td>{{.Quantity}}</td>
-                        <td>{{printf "%.2f%%" .Weight}}</td>
-                        <td>{{printf "%.4f" .FactorScore}}</td>
-                        <td>${{printf "%.2f" .Price}}</td>
-                    </tr>
-                    {{end}}
-                </tbody>
-            </table>
+            {{if .Error}}
+                <div style="margin-top: 8px; color: #c0392b; font-weight: bold;">
+                    {{.Error}}
+                </div>
+            {{else}}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Weight</th>
+                            <th>Factor Score</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Assets}}
+                        <tr>
+                            <td>{{.Symbol}}</td>
+                            <td>{{printf "%.2f%%" .Weight}}</td>
+                            <td>{{printf "%.4f" .FactorScore}}</td>
+                            <td>${{printf "%.2f" .Price}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            {{end}}
         </div>
         {{end}}
         

@@ -15,13 +15,13 @@ type StrategySummaryResult struct {
 	Date                time.Time
 	Assets              []StrategySummaryAsset // Assets the strategy would buy
 	TotalPortfolioValue decimal.Decimal        // Reference value used for calculations
+	Error               error
 }
 
 // StrategySummaryAsset represents a single asset that a strategy would buy
 type StrategySummaryAsset struct {
 	Symbol      string
-	Quantity    decimal.Decimal
 	Weight      float64 // Percentage allocation (0-1)
 	FactorScore float64
-	Price       decimal.Decimal
+	LastPrice   decimal.Decimal
 }

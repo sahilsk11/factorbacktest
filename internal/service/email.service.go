@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"factorbacktest/internal/db/models/postgres/public/model"
@@ -37,6 +38,27 @@ type EmailService interface {
 
 type emailServiceHandler struct {
 	EmailRepository repository.EmailRepository
+}
+
+// Typed view-models for template rendering.
+// Use these fields instead of domain to keep the template clean.
+type strategySummaryEmailData struct {
+	UserName   string
+	Date       string
+	Strategies []strategySummaryEmailStrategy
+}
+
+type strategySummaryEmailStrategy struct {
+	StrategyName string
+	Error        string
+	Assets       []strategySummaryEmailAsset
+}
+
+type strategySummaryEmailAsset struct {
+	Symbol      string
+	Weight      float64
+	FactorScore float64
+	Price       float64
 }
 
 func NewEmailService(
@@ -99,35 +121,48 @@ func (h *emailServiceHandler) convertToTemplateData(
 	user *model.UserAccount,
 	strategyResults []domain.StrategySummaryResult,
 	date time.Time,
-) map[string]interface{} {
+) strategySummaryEmailData {
 	userName := "there"
 	if user.FirstName != nil {
 		userName = *user.FirstName
 	}
 
-	strategies := []map[string]interface{}{}
+	strategies := []strategySummaryEmailStrategy{}
 	for _, result := range strategyResults {
-		assets := []map[string]interface{}{}
+		if result.Error != nil {
+			strategies = append(strategies, strategySummaryEmailStrategy{
+				StrategyName: result.StrategyName,
+				Error:        result.Error.Error(),
+				Assets:       []strategySummaryEmailAsset{},
+			})
+			continue
+		}
+
+		assets := []strategySummaryEmailAsset{}
 		for _, asset := range result.Assets {
-			assets = append(assets, map[string]interface{}{
-				"Symbol":      asset.Symbol,
-				"Quantity":    asset.Quantity.String(),
-				"Weight":      asset.Weight * 100, // Convert to percentage
-				"FactorScore": asset.FactorScore,
-				"Price":       asset.Price.InexactFloat64(),
+			assets = append(assets, strategySummaryEmailAsset{
+				Symbol:      asset.Symbol,
+				Weight:      asset.Weight * 100, // Convert to percentage
+				FactorScore: asset.FactorScore,
+				Price:       asset.LastPrice.InexactFloat64(),
 			})
 		}
 
-		strategies = append(strategies, map[string]interface{}{
-			"StrategyName": result.StrategyName,
-			"Assets":       assets,
+		// Sort descending by weight so the table shows highest allocation first.
+		sort.Slice(assets, func(i, j int) bool {
+			return assets[i].Weight > assets[j].Weight
+		})
+
+		strategies = append(strategies, strategySummaryEmailStrategy{
+			StrategyName: result.StrategyName,
+			Assets:       assets,
 		})
 	}
 
-	return map[string]interface{}{
-		"UserName":   userName,
-		"Date":       date.Format("January 2, 2006"),
-		"Strategies": strategies,
+	return strategySummaryEmailData{
+		UserName:   userName,
+		Date:       date.Format("January 2, 2006"),
+		Strategies: strategies,
 	}
 }
 

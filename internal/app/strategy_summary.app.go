@@ -28,6 +28,7 @@ type StrategySummaryApp interface {
 type strategySummaryAppHandler struct {
 	EmailService            service.EmailService
 	UserAccountRepository   repository.UserAccountRepository
+	EmailPreferenceRepo     repository.EmailPreferenceRepository
 	StrategyRepository      repository.StrategyRepository
 	AssetUniverseRepository repository.AssetUniverseRepository
 	PriceService            data.PriceService
@@ -39,6 +40,7 @@ type strategySummaryAppHandler struct {
 func NewStrategySummaryApp(
 	emailService service.EmailService,
 	userAccountRepository repository.UserAccountRepository,
+	emailPreferenceRepo repository.EmailPreferenceRepository,
 	strategyRepository repository.StrategyRepository,
 	assetUniverseRepository repository.AssetUniverseRepository,
 	priceService data.PriceService,
@@ -49,6 +51,7 @@ func NewStrategySummaryApp(
 	return &strategySummaryAppHandler{
 		EmailService:            emailService,
 		UserAccountRepository:   userAccountRepository,
+		EmailPreferenceRepo:     emailPreferenceRepo,
 		StrategyRepository:      strategyRepository,
 		AssetUniverseRepository: assetUniverseRepository,
 		PriceService:            priceService,
@@ -62,13 +65,15 @@ func (h *strategySummaryAppHandler) SendDailyStrategySummaries(ctx context.Conte
 	lg := logger.FromContext(ctx)
 	lg.Info("starting daily strategy summaries")
 
-	// Get all users with email addresses
-	users, err := h.UserAccountRepository.ListUsersWithEmail()
+	// Determine which users are opted-in for this email type.
+	optedInPrefs, err := h.EmailPreferenceRepo.ListOptedInByEmailType(model.EmailType_SavedStrategySummary)
 	if err != nil {
-		return fmt.Errorf("failed to get users with email: %w", err)
+		return fmt.Errorf("failed to list opted-in users: %w", err)
 	}
-
-	lg.Infof("found %d users with email addresses", len(users))
+	if len(optedInPrefs) == 0 {
+		lg.Info("no opted-in users found; skipping")
+		return nil
+	}
 
 	// Get latest trading day (assumes prices are already updated for today)
 	latestTradingDay, err := h.PriceRepository.LatestTradingDay()
@@ -76,59 +81,16 @@ func (h *strategySummaryAppHandler) SendDailyStrategySummaries(ctx context.Conte
 		return fmt.Errorf("failed to get latest trading day: %w", err)
 	}
 
-	// Use a reference portfolio value for calculations (e.g., $10,000)
-	referencePortfolioValue := decimal.NewFromInt(10000)
-
 	emailsSent := 0
 	emailsFailed := 0
 
 	// Process each user
-	for _, user := range users {
-		userLg := lg.With("userAccountID", user.UserAccountID.String())
-		userCtx := context.WithValue(ctx, logger.ContextKey, userLg)
-
-		// Get saved strategies for this user
-		savedStrategies, err := h.StrategyRepository.List(repository.StrategyListFilter{
-			SavedByUser: &user.UserAccountID,
-		})
+	for _, optInPreference := range optedInPrefs {
+		err := h.processSavedStrategyEmail(ctx, optInPreference, *latestTradingDay)
 		if err != nil {
-			lg.Warnf("failed to get saved strategies for user %s: %v", user.UserAccountID.String(), err)
 			emailsFailed++
 			continue
 		}
-
-		if len(savedStrategies) == 0 {
-			lg.Debugf("user %s has no saved strategies, skipping", user.UserAccountID.String())
-			continue
-		}
-
-		// Compute strategy summaries for each saved strategy
-		strategyResults := []domain.StrategySummaryResult{}
-		for _, strategy := range savedStrategies {
-			summary, err := h.computeStrategySummary(userCtx, strategy, *latestTradingDay, referencePortfolioValue)
-			if err != nil {
-				lg.Warnf("failed to compute strategy summary for strategy %s (user %s): %v",
-					strategy.StrategyID.String(), user.UserAccountID.String(), err)
-				continue
-			}
-			strategyResults = append(strategyResults, *summary)
-		}
-
-		if len(strategyResults) == 0 {
-			lg.Debugf("no valid strategy results for user %s, skipping email", user.UserAccountID.String())
-			emailsFailed++
-			continue
-		}
-
-		// Send email with strategy summaries
-		err = h.EmailService.SendStrategySummaryEmail(&user, strategyResults)
-		if err != nil {
-			lg.Warnf("failed to send email to user %s: %v", user.UserAccountID.String(), err)
-			emailsFailed++
-			continue
-		}
-
-		lg.Infof("sent strategy summary email to user %s with %d strategies", user.UserAccountID.String(), len(strategyResults))
 		emailsSent++
 	}
 
@@ -199,7 +161,7 @@ func (h *strategySummaryAppHandler) computeStrategySummary(
 
 	// 5. Convert to StrategySummaryResult domain object
 	assets := []domain.StrategySummaryAsset{}
-	for symbol, position := range computeTargetPortfolioResponse.TargetPortfolio.Positions {
+	for symbol := range computeTargetPortfolioResponse.TargetPortfolio.Positions {
 		weight, ok := computeTargetPortfolioResponse.AssetWeights[symbol]
 		if !ok {
 			continue
@@ -215,10 +177,9 @@ func (h *strategySummaryAppHandler) computeStrategySummary(
 
 		assets = append(assets, domain.StrategySummaryAsset{
 			Symbol:      symbol,
-			Quantity:    position.ExactQuantity,
 			Weight:      weight,
 			FactorScore: factorScore,
-			Price:       price,
+			LastPrice:   price,
 		})
 	}
 
@@ -229,4 +190,64 @@ func (h *strategySummaryAppHandler) computeStrategySummary(
 		Assets:              assets,
 		TotalPortfolioValue: referencePortfolioValue,
 	}, nil
+}
+
+type SavedStrategyEmailResult struct {
+	Result *domain.StrategySummaryResult
+	Error  error
+}
+
+func (h *strategySummaryAppHandler) processSavedStrategyEmail(
+	ctx context.Context,
+	optInPreference model.EmailPreference,
+	date time.Time,
+) error {
+	userAccountID := optInPreference.UserAccountID
+	userAccount, err := h.UserAccountRepository.GetByID(userAccountID)
+	if err != nil {
+		return fmt.Errorf("failed to get user account: %w", err)
+	}
+	if userAccount == nil {
+		return fmt.Errorf("user account not found")
+	}
+
+	// Get saved strategies for this user
+	savedStrategies, err := h.StrategyRepository.List(repository.StrategyListFilter{
+		SavedByUser: &userAccountID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get saved strategies: %w", err)
+	}
+
+	if len(savedStrategies) == 0 {
+		return nil
+	}
+
+	// arbitrary reference portfolio value. required for calculations.
+	referencePortfolioValue := decimal.NewFromInt(10000)
+
+	// Compute strategy summaries for each saved strategy
+	strategyResults := []domain.StrategySummaryResult{}
+	for _, strategy := range savedStrategies {
+		summary, err := h.computeStrategySummary(ctx, strategy, date, referencePortfolioValue)
+		if err != nil {
+			strategyResults = append(strategyResults, domain.StrategySummaryResult{
+				StrategyID:          strategy.StrategyID,
+				StrategyName:        strategy.StrategyName,
+				Date:                date,
+				TotalPortfolioValue: referencePortfolioValue,
+				Error:               err,
+			})
+			continue
+		}
+		strategyResults = append(strategyResults, *summary)
+	}
+
+	// Send email with strategy summaries
+	err = h.EmailService.SendStrategySummaryEmail(userAccount, strategyResults)
+	if err != nil {
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
+	return nil
 }
