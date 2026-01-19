@@ -88,6 +88,7 @@ func (h *strategySummaryAppHandler) SendSavedStrategySummaryEmails(ctx context.C
 	for _, optInPreference := range optedInPrefs {
 		err := h.processSavedStrategyEmail(ctx, optInPreference, *latestTradingDay)
 		if err != nil {
+			lg.Errorf("failed to process saved strategy email for user %s: %v", optInPreference.UserAccountID, err)
 			emailsFailed++
 			continue
 		}
