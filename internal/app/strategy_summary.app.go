@@ -22,7 +22,7 @@ import (
 // 2. Compute what each strategy would buy today
 // 3. Send emails via EmailService
 type StrategySummaryApp interface {
-	SendDailyStrategySummaries(ctx context.Context) error
+	SendSavedStrategySummaryEmails(ctx context.Context) error
 }
 
 type strategySummaryAppHandler struct {
@@ -61,9 +61,9 @@ func NewStrategySummaryApp(
 	}
 }
 
-func (h *strategySummaryAppHandler) SendDailyStrategySummaries(ctx context.Context) error {
+func (h *strategySummaryAppHandler) SendSavedStrategySummaryEmails(ctx context.Context) error {
 	lg := logger.FromContext(ctx)
-	lg.Info("starting daily strategy summaries")
+	lg.Info("starting saved strategy summary emails")
 
 	// Determine which users are opted-in for this email type.
 	optedInPrefs, err := h.EmailPreferenceRepo.ListOptedInByEmailType(model.EmailType_SavedStrategySummary)
@@ -94,7 +94,7 @@ func (h *strategySummaryAppHandler) SendDailyStrategySummaries(ctx context.Conte
 		emailsSent++
 	}
 
-	lg.Infof("daily strategy summaries completed: %d emails sent, %d failed", emailsSent, emailsFailed)
+	lg.Infof("saved strategy summary emails completed: %d emails sent, %d failed", emailsSent, emailsFailed)
 	return nil
 }
 
