@@ -27,5 +27,8 @@ COPY --from=builder /go/src/app/main /main
 # Copy secrets if necessary
 COPY secrets.json /go/src/app/secrets.json
 
+# Copy templates directory for email templates
+COPY --from=builder /go/src/app/templates /go/src/app/templates
+
 # Set the entrypoint
 ENTRYPOINT [ "/main" ]

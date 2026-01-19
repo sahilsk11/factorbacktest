@@ -10,10 +10,14 @@ import (
 
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
+	"github.com/google/uuid"
 )
 
 type UserAccountRepository interface {
 	GetOrCreate(input *model.UserAccount) (*model.UserAccount, error)
+	ListUsersWithEmail() ([]model.UserAccount, error)
+	GetMany(userAccountIDs []uuid.UUID) ([]model.UserAccount, error)
+	GetByID(userAccountID uuid.UUID) (*model.UserAccount, error)
 }
 
 type userAccountRepositoryHandler struct {
@@ -24,6 +28,18 @@ func NewUserAccountRepository(db *sql.DB) UserAccountRepository {
 	return userAccountRepositoryHandler{
 		DB: db,
 	}
+}
+
+func (h userAccountRepositoryHandler) GetByID(userAccountID uuid.UUID) (*model.UserAccount, error) {
+	t := table.UserAccount
+	query := t.SELECT(t.AllColumns).
+		WHERE(t.UserAccountID.EQ(postgres.UUID(userAccountID)))
+	out := model.UserAccount{}
+	err := query.Query(h.DB, &out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user account: %w", err)
+	}
+	return &out, nil
 }
 
 func (h userAccountRepositoryHandler) GetOrCreate(input *model.UserAccount) (*model.UserAccount, error) {
@@ -56,4 +72,52 @@ func (h userAccountRepositoryHandler) GetOrCreate(input *model.UserAccount) (*mo
 	}
 
 	return &out, nil
+}
+
+func (h userAccountRepositoryHandler) ListUsersWithEmail() ([]model.UserAccount, error) {
+	t := table.UserAccount
+	query := t.SELECT(t.AllColumns).
+		WHERE(t.Email.IS_NOT_NULL())
+
+	result := []model.UserAccount{}
+	err := query.Query(h.DB, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users with email: %w", err)
+	}
+
+	// Filter out users with empty email strings
+	filtered := []model.UserAccount{}
+	for _, user := range result {
+		if user.Email != nil && *user.Email != "" {
+			filtered = append(filtered, user)
+		}
+	}
+
+	return filtered, nil
+}
+
+func (h userAccountRepositoryHandler) GetMany(userAccountIDs []uuid.UUID) ([]model.UserAccount, error) {
+	if len(userAccountIDs) == 0 {
+		return []model.UserAccount{}, nil
+	}
+
+	t := table.UserAccount
+	ids := []postgres.Expression{}
+	for _, id := range userAccountIDs {
+		ids = append(ids, postgres.UUID(id))
+	}
+
+	query := t.SELECT(t.AllColumns).
+		WHERE(t.UserAccountID.IN(ids...))
+
+	out := []model.UserAccount{}
+	err := query.Query(h.DB, &out)
+	if errors.Is(err, qrm.ErrNoRows) {
+		return []model.UserAccount{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user accounts: %w", err)
+	}
+
+	return out, nil
 }

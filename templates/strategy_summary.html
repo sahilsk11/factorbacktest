@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .strategy-section { margin: 30px 0; }
+        .strategy-name { font-size: 18px; font-weight: bold; color: #3498db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your Strategy Updates for {{.Date}}</h1>
+        <p>Hello {{.UserName}},</p>
+        <p>Here's what your saved strategies would buy today:</p>
+        
+        {{range .Strategies}}
+        <div class="strategy-section">
+            <div class="strategy-name">{{.StrategyName}}</div>
+            {{if .Error}}
+                <div style="margin-top: 8px; color: #c0392b; font-weight: bold;">
+                    {{.Error}}
+                </div>
+            {{else}}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Weight</th>
+                            <th>Factor Score</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Assets}}
+                        <tr>
+                            <td>{{.Symbol}}</td>
+                            <td>{{printf "%.2f%%" .Weight}}</td>
+                            <td>{{printf "%.4f" .FactorScore}}</td>
+                            <td>${{printf "%.2f" .Price}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            {{end}}
+        </div>
+        {{end}}
+        
+        <p>Best regards,<br>The Factor Backtest Team</p>
+    </div>
+</body>
+</html>
