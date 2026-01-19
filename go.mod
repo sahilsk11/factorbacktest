@@ -1,6 +1,6 @@
 module factorbacktest
 
-go 1.20
+go 1.21
 
 require (
 	github.com/go-jet/jet/v2 v2.10.1
