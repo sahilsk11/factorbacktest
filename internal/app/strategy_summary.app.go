@@ -6,10 +6,13 @@ import (
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
+	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -30,6 +33,7 @@ type strategySummaryAppHandler struct {
 	PriceService            data.PriceService
 	FactorExpressionService calculator.FactorExpressionService
 	TickerRepository        repository.TickerRepository
+	PriceRepository         repository.AdjustedPriceRepository
 }
 
 func NewStrategySummaryApp(
@@ -40,6 +44,7 @@ func NewStrategySummaryApp(
 	priceService data.PriceService,
 	factorExpressionService calculator.FactorExpressionService,
 	tickerRepository repository.TickerRepository,
+	priceRepository repository.AdjustedPriceRepository,
 ) StrategySummaryApp {
 	return &strategySummaryAppHandler{
 		EmailService:            emailService,
@@ -49,21 +54,85 @@ func NewStrategySummaryApp(
 		PriceService:            priceService,
 		FactorExpressionService: factorExpressionService,
 		TickerRepository:        tickerRepository,
+		PriceRepository:         priceRepository,
 	}
 }
 
 func (h *strategySummaryAppHandler) SendDailyStrategySummaries(ctx context.Context) error {
-	// TODO: Implement orchestration logic:
-	// 1. Get all users with email addresses and saved strategies
-	// 2. For each user:
-	//    a. Get their saved strategies
-	//    b. For each strategy, compute what it would buy today
-	//       - Get latest prices
-	//       - Calculate factor scores
-	//       - Compute target portfolio
-	//       - Convert to StrategySummaryResult domain object
-	//    c. Call EmailService.SendStrategySummaryEmail with results
-	// 3. Handle errors gracefully (log but continue processing)
+	lg := logger.FromContext(ctx)
+	lg.Info("starting daily strategy summaries")
+
+	// Get all users with email addresses
+	users, err := h.UserAccountRepository.ListUsersWithEmail()
+	if err != nil {
+		return fmt.Errorf("failed to get users with email: %w", err)
+	}
+
+	lg.Infof("found %d users with email addresses", len(users))
+
+	// Get latest trading day (assumes prices are already updated for today)
+	latestTradingDay, err := h.PriceRepository.LatestTradingDay()
+	if err != nil {
+		return fmt.Errorf("failed to get latest trading day: %w", err)
+	}
+
+	// Use a reference portfolio value for calculations (e.g., $10,000)
+	referencePortfolioValue := decimal.NewFromInt(10000)
+
+	emailsSent := 0
+	emailsFailed := 0
+
+	// Process each user
+	for _, user := range users {
+		userLg := lg.With("userAccountID", user.UserAccountID.String())
+		userCtx := context.WithValue(ctx, logger.ContextKey, userLg)
+
+		// Get saved strategies for this user
+		savedStrategies, err := h.StrategyRepository.List(repository.StrategyListFilter{
+			SavedByUser: &user.UserAccountID,
+		})
+		if err != nil {
+			lg.Warnf("failed to get saved strategies for user %s: %v", user.UserAccountID.String(), err)
+			emailsFailed++
+			continue
+		}
+
+		if len(savedStrategies) == 0 {
+			lg.Debugf("user %s has no saved strategies, skipping", user.UserAccountID.String())
+			continue
+		}
+
+		// Compute strategy summaries for each saved strategy
+		strategyResults := []domain.StrategySummaryResult{}
+		for _, strategy := range savedStrategies {
+			summary, err := h.computeStrategySummary(userCtx, strategy, *latestTradingDay, referencePortfolioValue)
+			if err != nil {
+				lg.Warnf("failed to compute strategy summary for strategy %s (user %s): %v",
+					strategy.StrategyID.String(), user.UserAccountID.String(), err)
+				continue
+			}
+			strategyResults = append(strategyResults, *summary)
+		}
+
+		if len(strategyResults) == 0 {
+			lg.Debugf("no valid strategy results for user %s, skipping email", user.UserAccountID.String())
+			emailsFailed++
+			continue
+		}
+
+		// Send email with strategy summaries
+		err = h.EmailService.SendStrategySummaryEmail(&user, strategyResults)
+		if err != nil {
+			lg.Warnf("failed to send email to user %s: %v", user.UserAccountID.String(), err)
+			emailsFailed++
+			continue
+		}
+
+		lg.Infof("sent strategy summary email to user %s with %d strategies", user.UserAccountID.String(), len(strategyResults))
+		emailsSent++
+	}
+
+	lg.Infof("daily strategy summaries completed: %d emails sent, %d failed", emailsSent, emailsFailed)
 	return nil
 }
 
@@ -75,11 +144,89 @@ func (h *strategySummaryAppHandler) computeStrategySummary(
 	date time.Time,
 	referencePortfolioValue decimal.Decimal,
 ) (*domain.StrategySummaryResult, error) {
-	// TODO: Implement:
 	// 1. Get assets in the strategy's universe
-	// 2. Get latest prices for those assets
+	universe, err := h.AssetUniverseRepository.GetAssets(strategy.AssetUniverse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assets in universe %s: %w", strategy.AssetUniverse, err)
+	}
+
+	if len(universe) == 0 {
+		return nil, fmt.Errorf("universe %s has no assets", strategy.AssetUniverse)
+	}
+
+	// Extract symbols and build ticker ID map
+	universeSymbols := []string{}
+	tickerIDMap := map[string]uuid.UUID{}
+	for _, ticker := range universe {
+		universeSymbols = append(universeSymbols, ticker.Symbol)
+		tickerIDMap[ticker.Symbol] = ticker.TickerID
+	}
+
+	// 2. Get prices for the date
+	priceMap, err := h.PriceRepository.GetManyOnDay(universeSymbols, date)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get prices for date %s: %w", date.Format(time.DateOnly), err)
+	}
+
 	// 3. Calculate factor scores for the date
+	// Use CalculateFactorScores for a single date
+	factorScoresByDay, err := h.FactorExpressionService.CalculateFactorScores(ctx, []time.Time{date}, universe, strategy.FactorExpression)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
+	}
+
+	scoresOnDay, ok := factorScoresByDay[date]
+	if !ok {
+		return nil, fmt.Errorf("factor scores missing for date %s", date.Format(time.DateOnly))
+	}
+
+	// Convert factor scores to map[string]*float64 format expected by ComputeTargetPortfolio
+	// SymbolScores is already map[string]*float64, so we can use it directly
+	factorScoresMap := scoresOnDay.SymbolScores
+
 	// 4. Compute target portfolio using calculator.ComputeTargetPortfolio
+	computeTargetPortfolioResponse, err := calculator.ComputeTargetPortfolio(calculator.ComputeTargetPortfolioInput{
+		Date:             date,
+		TargetNumTickers: int(strategy.NumAssets),
+		FactorScores:     factorScoresMap,
+		PortfolioValue:   referencePortfolioValue,
+		PriceMap:         priceMap,
+		TickerIDMap:      tickerIDMap,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute target portfolio: %w", err)
+	}
+
 	// 5. Convert to StrategySummaryResult domain object
-	return nil, nil
+	assets := []domain.StrategySummaryAsset{}
+	for symbol, position := range computeTargetPortfolioResponse.TargetPortfolio.Positions {
+		weight, ok := computeTargetPortfolioResponse.AssetWeights[symbol]
+		if !ok {
+			continue
+		}
+		factorScore, ok := computeTargetPortfolioResponse.FactorScores[symbol]
+		if !ok {
+			continue
+		}
+		price, ok := priceMap[symbol]
+		if !ok {
+			continue
+		}
+
+		assets = append(assets, domain.StrategySummaryAsset{
+			Symbol:      symbol,
+			Quantity:    position.ExactQuantity,
+			Weight:      weight,
+			FactorScore: factorScore,
+			Price:       price,
+		})
+	}
+
+	return &domain.StrategySummaryResult{
+		StrategyID:          strategy.StrategyID,
+		StrategyName:        strategy.StrategyName,
+		Date:                date,
+		Assets:              assets,
+		TotalPortfolioValue: referencePortfolioValue,
+	}, nil
 }

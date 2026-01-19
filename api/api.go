@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/internal"
+	"factorbacktest/internal/app"
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/logger"
@@ -44,6 +45,7 @@ type ApiHandler struct {
 	InvestmentRepository         repository.InvestmentRepository
 	TradingService               service.TradeService
 	StrategyService              service.StrategyService
+	StrategySummaryApp           app.StrategySummaryApp
 	JwtDecodeToken               string
 }
 

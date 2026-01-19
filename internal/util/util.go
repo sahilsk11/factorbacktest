@@ -57,6 +57,7 @@ type Secrets struct {
 	Db               DbSecrets     `json:"db"`
 	Alpaca           AlpacaSecrets `json:"alpaca"`
 	Jwt              string        `json:"jwt"`
+	SES              SESSecrets    `json:"ses"`
 }
 
 type AlpacaSecrets struct {
@@ -72,6 +73,11 @@ type DbSecrets struct {
 	Password  string `json:"password"`
 	Database  string `json:"database"`
 	EnableSsl bool   `json:"enableSsl"`
+}
+
+type SESSecrets struct {
+	Region    string `json:"region"`    // e.g., "us-east-1"
+	FromEmail string `json:"fromEmail"` // e.g., "noreply@factor.trade"
 }
 
 func (t DbSecrets) ToConnectionStr() string {

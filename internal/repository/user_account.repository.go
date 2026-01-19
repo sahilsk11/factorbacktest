@@ -14,6 +14,7 @@ import (
 
 type UserAccountRepository interface {
 	GetOrCreate(input *model.UserAccount) (*model.UserAccount, error)
+	ListUsersWithEmail() ([]model.UserAccount, error)
 }
 
 type userAccountRepositoryHandler struct {
@@ -56,4 +57,26 @@ func (h userAccountRepositoryHandler) GetOrCreate(input *model.UserAccount) (*mo
 	}
 
 	return &out, nil
+}
+
+func (h userAccountRepositoryHandler) ListUsersWithEmail() ([]model.UserAccount, error) {
+	t := table.UserAccount
+	query := t.SELECT(t.AllColumns).
+		WHERE(t.Email.IS_NOT_NULL())
+
+	result := []model.UserAccount{}
+	err := query.Query(h.DB, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users with email: %w", err)
+	}
+
+	// Filter out users with empty email strings
+	filtered := []model.UserAccount{}
+	for _, user := range result {
+		if user.Email != nil && *user.Email != "" {
+			filtered = append(filtered, user)
+		}
+	}
+
+	return filtered, nil
 }

@@ -5,6 +5,7 @@ import (
 	"factorbacktest/api"
 	integration_tests "factorbacktest/integration-tests"
 	"factorbacktest/internal"
+	"factorbacktest/internal/app"
 	"factorbacktest/internal/calculator"
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/repository"
@@ -122,6 +123,25 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		backtestHandler,
 	)
 
+	// Initialize email repository and service
+	emailRepository, err := repository.NewEmailRepository(secrets.SES.Region, secrets.SES.FromEmail)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create email repository: %w", err)
+	}
+	emailService := service.NewEmailService(emailRepository)
+
+	// Initialize strategy summary app
+	strategySummaryApp := app.NewStrategySummaryApp(
+		emailService,
+		userAccountRepository,
+		strategyRepository,
+		assetUniverseRepository,
+		priceService,
+		factorExpressionService,
+		tickerRepository,
+		priceRepository,
+	)
+
 	apiHandler := &api.ApiHandler{
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
@@ -143,6 +163,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		InvestmentService:            investmentService,
 		TradingService:               tradingService,
 		StrategyService:              strategyService,
+		StrategySummaryApp:           strategySummaryApp,
 		JwtDecodeToken:               secrets.Jwt,
 	}
 

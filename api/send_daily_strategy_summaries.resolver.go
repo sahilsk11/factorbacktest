@@ -1,15 +1,16 @@
 package api
 
 import (
+	"context"
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 )
 
 type SendDailyStrategySummariesResponse struct {
-	Message      string `json:"message"`
-	EmailsSent   int    `json:"emailsSent"`
-	EmailsFailed int    `json:"emailsFailed"`
+	Message string `json:"message"`
 }
 
 // sendDailyStrategySummaries is the API endpoint that EventBridge will trigger
@@ -17,21 +18,28 @@ type SendDailyStrategySummariesResponse struct {
 // the orchestration logic.
 func (m ApiHandler) sendDailyStrategySummaries(c *gin.Context) {
 	lg := logger.FromContext(c)
+	ctx := c.Request.Context()
 
-	// TODO: Implement:
-	// ctx := c.Request.Context()
-	// 1. Call m.StrategySummaryApp.SendDailyStrategySummaries(ctx)
-	// 2. Handle errors appropriately
-	// 3. Return response with summary of emails sent/failed
-	//    (app layer should return this info, or we track it here)
+	// Create performance profile (required by FactorExpressionService)
+	profile, endProfile := domain.NewProfile()
+	defer endProfile()
+	ctx = context.WithValue(ctx, domain.ContextProfileKey, profile)
 
-	// Placeholder response
-	response := SendDailyStrategySummariesResponse{
-		Message:      "Daily strategy summaries processing completed",
-		EmailsSent:   0,
-		EmailsFailed: 0,
+	// Add logger to context
+	ctx = context.WithValue(ctx, logger.ContextKey, lg)
+
+	// Call the app layer to process and send daily strategy summaries
+	err := m.StrategySummaryApp.SendDailyStrategySummaries(ctx)
+	if err != nil {
+		lg.Errorf("failed to send daily strategy summaries: %v", err)
+		c.JSON(500, SendDailyStrategySummariesResponse{
+			Message: fmt.Sprintf("Failed to process daily strategy summaries: %v", err),
+		})
+		return
 	}
 
-	lg.Info("daily strategy summaries endpoint called")
-	c.JSON(200, response)
+	lg.Info("daily strategy summaries processing completed successfully")
+	c.JSON(200, SendDailyStrategySummariesResponse{
+		Message: "Daily strategy summaries processing completed",
+	})
 }
