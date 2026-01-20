@@ -50,10 +50,13 @@ type strategySummaryEmailData struct {
 }
 
 type strategySummaryEmailStrategy struct {
-	StrategyName string
-	StrategyURL  string
-	Error        string
-	Assets       []strategySummaryEmailAsset
+	StrategyName  string
+	StrategyURL   string
+	OneWeekURL    string
+	ThreeMonthURL string
+	OneYearURL    string
+	Error         string
+	Assets        []strategySummaryEmailAsset
 }
 
 type strategySummaryEmailAsset struct {
@@ -134,14 +137,26 @@ func (h *emailServiceHandler) convertToTemplateData(
 
 	strategies := []strategySummaryEmailStrategy{}
 	for _, result := range strategyResults {
-		strategyURL := fmt.Sprintf("https://factor.trade/backtest?id=%s", result.StrategyID.String())
+		baseURL := fmt.Sprintf("https://factor.trade/backtest?id=%s", result.StrategyID.String())
+		// Build horizon URLs based on the trading date.
+		oneWeekStart := runDate.AddDate(0, 0, -7)
+		threeMonthStart := runDate.AddDate(0, -3, 0)
+		oneYearStart := runDate.AddDate(-1, 0, 0)
+
+		strategyURL := baseURL
+		oneWeekURL := fmt.Sprintf("%s&start=%s", baseURL, oneWeekStart.Format("2006-01-02"))
+		threeMonthURL := fmt.Sprintf("%s&start=%s", baseURL, threeMonthStart.Format("2006-01-02"))
+		oneYearURL := fmt.Sprintf("%s&start=%s", baseURL, oneYearStart.Format("2006-01-02"))
 
 		if result.Error != nil {
 			strategies = append(strategies, strategySummaryEmailStrategy{
-				StrategyName: result.StrategyName,
-				StrategyURL:  strategyURL,
-				Error:        result.Error.Error(),
-				Assets:       []strategySummaryEmailAsset{},
+				StrategyName:  result.StrategyName,
+				StrategyURL:   strategyURL,
+				OneWeekURL:    oneWeekURL,
+				ThreeMonthURL: threeMonthURL,
+				OneYearURL:    oneYearURL,
+				Error:         result.Error.Error(),
+				Assets:        []strategySummaryEmailAsset{},
 			})
 			continue
 		}
@@ -162,9 +177,12 @@ func (h *emailServiceHandler) convertToTemplateData(
 		})
 
 		strategies = append(strategies, strategySummaryEmailStrategy{
-			StrategyName: result.StrategyName,
-			StrategyURL:  strategyURL,
-			Assets:       assets,
+			StrategyName:  result.StrategyName,
+			StrategyURL:   strategyURL,
+			OneWeekURL:    oneWeekURL,
+			ThreeMonthURL: threeMonthURL,
+			OneYearURL:    oneYearURL,
+			Assets:        assets,
 		})
 	}
 

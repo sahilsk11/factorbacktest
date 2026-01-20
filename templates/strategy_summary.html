@@ -26,6 +26,13 @@
             <div class="strategy-name">
                 <a href="{{.StrategyURL}}" target="_blank" rel="noopener noreferrer">{{.StrategyName}}</a>
             </div>
+            <div style="margin-top: 4px; font-size: 13px; color: #555;">
+                <a href="{{.OneWeekURL}}" target="_blank" rel="noopener noreferrer">1 W</a>
+                &nbsp;|&nbsp;
+                <a href="{{.ThreeMonthURL}}" target="_blank" rel="noopener noreferrer">3 M</a>
+                &nbsp;|&nbsp;
+                <a href="{{.OneYearURL}}" target="_blank" rel="noopener noreferrer">1 YR</a>
+            </div>
             {{if .Error}}
                 <div style="margin-top: 8px; color: #c0392b; font-weight: bold;">
                     {{.Error}}

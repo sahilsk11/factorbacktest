@@ -102,8 +102,15 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
     setNumSymbols(strat.numAssets)
     setFactorExpression(strat.factorExpression)
     setAssetUniverse(strat.assetUniverse)
-    // setBacktestStart(formatDate(new Date(strat.backtestStart)))
-    // setBacktestEnd(formatDate(new Date(strat.backtestEnd)))
+    // Optional URL override for backtest start date: /backtest?id=<strategyID>&start=YYYY-MM-DD
+    const startParam = searchParams.get("start")
+    if (startParam) {
+      // Validate the date; fall back to existing state if invalid.
+      const parsed = new Date(startParam)
+      if (!isNaN(parsed.getTime())) {
+        setBacktestStart(formatDate(parsed))
+      }
+    }
     setSamplingIntervalUnit(strat.rebalanceInterval)
     setSelectedFactor(strat.strategyName)
 
