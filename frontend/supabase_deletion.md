@@ -7,3 +7,9 @@ I have a video on my mac called `2025-09-21 01-47-45.mkv`. It has all steps, exc
 ** Project settings > API Keys > Legacy, anon, service_role API keys **
 
 copy that into .env.local
+
+Then for JWT:
+
+** Project settings > JWT Keys > Legacy JWT Secret **
+
+copy that into secrets.json

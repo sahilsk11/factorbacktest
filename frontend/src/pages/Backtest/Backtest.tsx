@@ -12,6 +12,7 @@ import { InvestInStrategy } from "./InvestInStrategy";
 import { Col, Container, Row, Table } from "react-bootstrap";
 import "./Backtest.module.css";
 import backtestStyles from "./Backtest.module.css";
+import formStyles from "./Form.module.css";
 import { useAuth } from "auth";
 
 
@@ -155,6 +156,20 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
 
   const useVerboseBuilder = window.innerWidth > 767 && pathname !== "/backtest";
 
+  const handleClear = () => {
+    // Clear backtest results and related view state, but keep user inputs.
+    updateFactorData([]);
+    updateBenchmarkData([]);
+    updateInspectFactorDataIndex(null);
+    updateInspectFactorDataDate(null);
+    setLatestHoldings(null);
+    setMetrics(null);
+    setBookmarked(false);
+    setLastStrategyID(null);
+    // Clear any URL params like id/start so the next load behaves like a fresh page.
+    setSearchParams(new URLSearchParams());
+  };
+
   return (
     <>
       <div className={styles.my_container}>
@@ -203,13 +218,39 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
           />
         </div>
         {!useVerboseBuilder ?
-          <div id="backtest-chart" className={`${styles.column} ${styles.backtest_chart_container}`}>
+          <div
+            id="backtest-chart"
+            className={`${styles.column} ${styles.backtest_chart_container}`}
+            style={{ position: "relative" }}
+          >
             <BacktestChart
               benchmarkData={benchmarkData}
               factorData={factorData}
               updateInspectFactorDataIndex={updateFdIndex}
               updateInspectFactorDataDate={updateInspectFactorDataDate}
             />
+            <div
+              style={{
+                position: "absolute",
+                top: -15,
+                right: 24,
+                zIndex: 10,
+              }}
+            >
+              <button
+                className={formStyles.backtest_btn}
+                style={{
+                  width: "54px",
+                  height: "22px",
+                  padding: "4px 12px",
+                  fontSize: "10px",
+                  boxShadow: "none",
+                }}
+                onClick={handleClear}
+              >
+                Clear
+              </button>
+            </div>
             {lastStrategyID ? <Container style={{
               width: "93%",
               margin: "0px auto",
