@@ -43,13 +43,15 @@ type emailServiceHandler struct {
 // Typed view-models for template rendering.
 // Use these fields instead of domain to keep the template clean.
 type strategySummaryEmailData struct {
-	UserName   string
-	Date       string
-	Strategies []strategySummaryEmailStrategy
+	UserName    string
+	RunDate     string
+	TradingDate string
+	Strategies  []strategySummaryEmailStrategy
 }
 
 type strategySummaryEmailStrategy struct {
 	StrategyName string
+	StrategyURL  string
 	Error        string
 	Assets       []strategySummaryEmailAsset
 }
@@ -98,11 +100,13 @@ func (h *emailServiceHandler) GenerateStrategySummaryEmail(
 		return "", "", fmt.Errorf("no strategy results provided")
 	}
 
-	// Get the date from the first strategy result (they should all be the same date)
-	date := strategyResults[0].Date
+	// Trading date is the date the strategy computations are based on.
+	tradingDate := strategyResults[0].Date
+	// Run date is when we send the email (cron run date).
+	runDate := time.Now().UTC()
 
 	// Convert domain objects to template data format
-	templateData := h.convertToTemplateData(user, strategyResults, date)
+	templateData := h.convertToTemplateData(user, strategyResults, runDate, tradingDate)
 
 	// Render the template
 	htmlBody, err := h.renderTemplate("strategy_summary", templateData)
@@ -111,7 +115,7 @@ func (h *emailServiceHandler) GenerateStrategySummaryEmail(
 	}
 
 	// Generate subject line
-	subject := fmt.Sprintf("Your Strategy Updates for %s", date.Format("January 2, 2006"))
+	subject := fmt.Sprintf("Your Strategy Updates for %s", runDate.Format("January 2, 2006"))
 
 	return subject, htmlBody, nil
 }
@@ -120,7 +124,8 @@ func (h *emailServiceHandler) GenerateStrategySummaryEmail(
 func (h *emailServiceHandler) convertToTemplateData(
 	user *model.UserAccount,
 	strategyResults []domain.StrategySummaryResult,
-	date time.Time,
+	runDate time.Time,
+	tradingDate time.Time,
 ) strategySummaryEmailData {
 	userName := "there"
 	if user.FirstName != nil {
@@ -129,9 +134,12 @@ func (h *emailServiceHandler) convertToTemplateData(
 
 	strategies := []strategySummaryEmailStrategy{}
 	for _, result := range strategyResults {
+		strategyURL := fmt.Sprintf("https://factor.trade/backtest?id=%s", result.StrategyID.String())
+
 		if result.Error != nil {
 			strategies = append(strategies, strategySummaryEmailStrategy{
 				StrategyName: result.StrategyName,
+				StrategyURL:  strategyURL,
 				Error:        result.Error.Error(),
 				Assets:       []strategySummaryEmailAsset{},
 			})
@@ -155,14 +163,16 @@ func (h *emailServiceHandler) convertToTemplateData(
 
 		strategies = append(strategies, strategySummaryEmailStrategy{
 			StrategyName: result.StrategyName,
+			StrategyURL:  strategyURL,
 			Assets:       assets,
 		})
 	}
 
 	return strategySummaryEmailData{
-		UserName:   userName,
-		Date:       date.Format("January 2, 2006"),
-		Strategies: strategies,
+		UserName:    userName,
+		RunDate:     runDate.Format("January 2, 2006"),
+		TradingDate: tradingDate.Format("January 2, 2006"),
+		Strategies:  strategies,
 	}
 }
 

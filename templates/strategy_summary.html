@@ -14,13 +14,18 @@
 </head>
 <body>
     <div class="container">
-        <h1>Your Strategy Updates for {{.Date}}</h1>
+        <h1>Your Strategy Updates for {{.RunDate}}</h1>
         <p>Hello {{.UserName}},</p>
-        <p>Here's what your saved strategies would buy today:</p>
+        <p>Here's what your saved strategies would buy today.</p>
+        <p style="margin-top: 6px; color: #555;">
+            Based on trading data from <strong>{{.TradingDate}}</strong>.
+        </p>
         
         {{range .Strategies}}
         <div class="strategy-section">
-            <div class="strategy-name">{{.StrategyName}}</div>
+            <div class="strategy-name">
+                <a href="{{.StrategyURL}}" target="_blank" rel="noopener noreferrer">{{.StrategyName}}</a>
+            </div>
             {{if .Error}}
                 <div style="margin-top: 8px; color: #c0392b; font-weight: bold;">
                     {{.Error}}
@@ -32,7 +37,7 @@
                             <th>Symbol</th>
                             <th>Weight</th>
                             <th>Factor Score</th>
-                            <th>Price</th>
+                            <th>Price Used for Calculation</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -71,14 +71,6 @@ func (h *strategySummaryAppHandler) SendSavedStrategySummaryEmails(ctx context.C
 		return fmt.Errorf("failed to get latest trading day: %w", err)
 	}
 
-	// Compare dates (not time-of-day) in UTC to avoid timezone/midnight edge cases.
-	latestTradingDayDate := latestTradingDay.UTC().Format(time.DateOnly)
-	todayDate := time.Now().UTC().Format(time.DateOnly)
-	if latestTradingDayDate != todayDate {
-		lg.Infof("latest trading day is not today; skipping: %s", latestTradingDayDate)
-		return nil
-	}
-
 	// a bit arbitrary, but we're assuming that if frequency is weekly, send on Wednesdays. If monthly,
 	// send on the first wednesday of the month.
 
@@ -95,17 +87,19 @@ func (h *strategySummaryAppHandler) SendSavedStrategySummaryEmails(ctx context.C
 	emailsSent := 0
 	emailsFailed := 0
 
+	// Use the run date (today) for scheduling, but use latestTradingDay for the actual computations.
+	runDateUTC := time.Now().UTC()
+
 	// Process each user
 	for _, optInPreference := range optedInPrefs {
 		if optInPreference.Frequency == model.EmailFrequency_Weekly {
 			// Weekly: send on Wednesdays
-			if latestTradingDay.UTC().Weekday() != time.Wednesday {
+			if runDateUTC.Weekday() != time.Wednesday {
 				continue
 			}
 		} else if optInPreference.Frequency == model.EmailFrequency_Monthly {
 			// Monthly: send on the first Wednesday of the month (days 1-7)
-			lt := latestTradingDay.UTC()
-			if lt.Weekday() != time.Wednesday || lt.Day() > 7 {
+			if runDateUTC.Weekday() != time.Wednesday || runDateUTC.Day() > 7 {
 				continue
 			}
 		}
