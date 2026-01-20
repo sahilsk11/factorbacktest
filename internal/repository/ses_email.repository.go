@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -42,8 +43,15 @@ func NewEmailRepository(region, fromEmail string) (EmailRepository, error) {
 }
 
 func (h *emailRepositoryHandler) SendEmail(to string, subject string, body string) error {
+	from := h.fromEmail
+	// If no display name is provided, default to "Factor <email@domain>".
+	// SES supports RFC 5322 mailbox format in FromEmailAddress.
+	if !strings.Contains(from, "<") {
+		from = fmt.Sprintf("Factor <%s>", from)
+	}
+
 	input := &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(h.fromEmail),
+		FromEmailAddress: aws.String(from),
 		Destination: &types.Destination{
 			ToAddresses: []string{to},
 		},
