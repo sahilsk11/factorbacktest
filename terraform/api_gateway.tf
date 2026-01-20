@@ -33,6 +33,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "stage_name" {
+  description = "API Gateway stage name"
+  type        = string
+  default     = "prod"
+}
+
 provider "aws" {
   region = var.aws_region
 }
@@ -41,15 +47,27 @@ data "aws_lambda_function" "api" {
   function_name = var.lambda_function_name
 }
 
-data "aws_api_gateway_rest_api" "main" {
-  id = var.api_gateway_rest_api_id
+# Get root resource ID using API Gateway resources
+data "aws_api_gateway_resources" "main" {
+  rest_api_id = var.api_gateway_rest_api_id
+}
+
+locals {
+  # Find the root resource (path is "/")
+  root_resource_id = [
+    for resource in data.aws_api_gateway_resources.main.items : resource.id
+    if resource.path == "/"
+  ][0]
+  
+  # Execution ARN format: arn:aws:execute-api:region:account-id:api-id/*
+  execution_arn = "arn:aws:execute-api:${var.aws_region}:*:${var.api_gateway_rest_api_id}/*"
 }
 
 
 # Endpoint: /sendSavedStrategySummaryEmails (POST)
 resource "aws_api_gateway_resource" "send_saved_strategy_summary_emails" {
   rest_api_id = var.api_gateway_rest_api_id
-  parent_id   = data.aws_api_gateway_rest_api.main.root_resource_id
+  parent_id   = local.root_resource_id
   path_part   = "sendSavedStrategySummaryEmails"
 }
 
@@ -76,7 +94,6 @@ resource "aws_api_gateway_integration" "send_saved_strategy_summary_emails" {
 # You may want to use aws_api_gateway_stage instead for better control
 resource "aws_api_gateway_deployment" "main" {
   rest_api_id = var.api_gateway_rest_api_id
-  stage_name  = "prod"
 
   depends_on = [
     aws_api_gateway_integration.send_saved_strategy_summary_emails,
@@ -87,16 +104,22 @@ resource "aws_api_gateway_deployment" "main" {
   }
 }
 
+resource "aws_api_gateway_stage" "main" {
+  rest_api_id   = var.api_gateway_rest_api_id
+  deployment_id = aws_api_gateway_deployment.main.id
+  stage_name    = var.stage_name
+}
+
 # Lambda permission to allow API Gateway to invoke
 resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = data.aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${data.aws_api_gateway_rest_api.main.execution_arn}/*/*"
+  source_arn    = "${local.execution_arn}/*"
 }
 
 # Output the API Gateway URL
 output "api_gateway_url" {
-  value = "https://${data.aws_api_gateway_rest_api.main.id}.execute-api.${var.aws_region}.amazonaws.com/prod"
+  value = "https://${var.api_gateway_rest_api_id}.execute-api.${var.aws_region}.amazonaws.com/${var.stage_name}"
 }

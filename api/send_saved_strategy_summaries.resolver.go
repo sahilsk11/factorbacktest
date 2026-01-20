@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	apimodels "factorbacktest/api/models"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"fmt"
@@ -9,14 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type SendSavedStrategySummaryEmailsResponse struct {
-	Message string `json:"message"`
-}
-
 // sendSavedStrategySummaryEmailsHandler is the API endpoint that EventBridge will trigger
 // via Lambda/API Gateway. It delegates to the StrategySummaryApp to handle
 // the orchestration logic.
-func (m ApiHandler) sendSavedStrategySummaryEmails(c *gin.Context) {
+func (m ApiHandler) sendSavedStrategfySummaryEmails(c *gin.Context) {
 	lg := logger.FromContext(c)
 	ctx := c.Request.Context()
 
@@ -32,14 +29,14 @@ func (m ApiHandler) sendSavedStrategySummaryEmails(c *gin.Context) {
 	err := m.StrategySummaryApp.SendSavedStrategySummaryEmails(ctx)
 	if err != nil {
 		lg.Errorf("failed to send daily strategy summaries: %v", err)
-		c.JSON(500, SendSavedStrategySummaryEmailsResponse{
+		c.JSON(500, apimodels.SendSavedStrategySummaryEmailsResponse{
 			Message: fmt.Sprintf("Failed to process saved strategy summary emails: %v", err),
 		})
 		return
 	}
 
 	lg.Info("saved strategy summary emails processing completed successfully")
-	c.JSON(200, SendSavedStrategySummaryEmailsResponse{
+	c.JSON(200, apimodels.SendSavedStrategySummaryEmailsResponse{
 		Message: "Saved strategy summary emails processing completed",
 	})
 }

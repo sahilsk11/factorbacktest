@@ -7,3 +7,5 @@ node_modules/
 .vscode/
 env/
 terraform.tfvars
+terraform/.terraform
+.terraform.lock.hcl
