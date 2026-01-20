@@ -38,7 +38,11 @@
                     <tbody>
                         {{range .Assets}}
                         <tr>
-                            <td>{{.Symbol}}</td>
+                            <td>
+                                <a href="https://www.google.com/search?q={{printf "nyse:%s" .Symbol | urlquery}}" target="_blank" rel="noopener noreferrer">
+                                    {{.Symbol}}
+                                </a>
+                            </td>
                             <td>{{printf "%.2f%%" .Weight}}</td>
                             <td>{{printf "%.4f" .FactorScore}}</td>
                             <td>${{printf "%.2f" .Price}}</td>
