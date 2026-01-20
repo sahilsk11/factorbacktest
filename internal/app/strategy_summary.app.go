@@ -65,6 +65,23 @@ func (h *strategySummaryAppHandler) SendSavedStrategySummaryEmails(ctx context.C
 	lg := logger.FromContext(ctx)
 	lg.Info("starting saved strategy summary emails")
 
+	// Get latest trading day (assumes prices are already updated for today)
+	latestTradingDay, err := h.PriceRepository.LatestTradingDay()
+	if err != nil {
+		return fmt.Errorf("failed to get latest trading day: %w", err)
+	}
+
+	// Compare dates (not time-of-day) in UTC to avoid timezone/midnight edge cases.
+	latestTradingDayDate := latestTradingDay.UTC().Format(time.DateOnly)
+	todayDate := time.Now().UTC().Format(time.DateOnly)
+	if latestTradingDayDate != todayDate {
+		lg.Infof("latest trading day is not today; skipping: %s", latestTradingDayDate)
+		return nil
+	}
+
+	// a bit arbitrary, but we're assuming that if frequency is weekly, send on Wednesdays. If monthly,
+	// send on the first wednesday of the month.
+
 	// Determine which users are opted-in for this email type.
 	optedInPrefs, err := h.EmailPreferenceRepo.ListOptedInByEmailType(model.EmailType_SavedStrategySummary)
 	if err != nil {
@@ -75,17 +92,23 @@ func (h *strategySummaryAppHandler) SendSavedStrategySummaryEmails(ctx context.C
 		return nil
 	}
 
-	// Get latest trading day (assumes prices are already updated for today)
-	latestTradingDay, err := h.PriceRepository.LatestTradingDay()
-	if err != nil {
-		return fmt.Errorf("failed to get latest trading day: %w", err)
-	}
-
 	emailsSent := 0
 	emailsFailed := 0
 
 	// Process each user
 	for _, optInPreference := range optedInPrefs {
+		if optInPreference.Frequency == model.EmailFrequency_Weekly {
+			// Weekly: send on Wednesdays
+			if latestTradingDay.UTC().Weekday() != time.Wednesday {
+				continue
+			}
+		} else if optInPreference.Frequency == model.EmailFrequency_Monthly {
+			// Monthly: send on the first Wednesday of the month (days 1-7)
+			lt := latestTradingDay.UTC()
+			if lt.Weekday() != time.Wednesday || lt.Day() > 7 {
+				continue
+			}
+		}
 		err := h.processSavedStrategyEmail(ctx, optInPreference, *latestTradingDay)
 		if err != nil {
 			lg.Errorf("failed to process saved strategy email for user %s: %v", optInPreference.UserAccountID, err)

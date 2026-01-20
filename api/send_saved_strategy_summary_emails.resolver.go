@@ -11,7 +11,7 @@ import (
 )
 
 func (m ApiHandler) sendSavedStrategySummaryEmails(c *gin.Context) {
-	lg := logger.FromContext(c)
+	lg := logger.FromContext(c).With("handler", "sendSavedStrategySummaryEmails")
 	ctx := c.Request.Context()
 
 	// Create performance profile (required by some services)
