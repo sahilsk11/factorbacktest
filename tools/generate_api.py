@@ -359,24 +359,24 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_caller_identity" "current" {}
+
 data "aws_lambda_function" "api" {
   function_name = var.lambda_function_name
 }
 
-# Get root resource ID using API Gateway resources
-data "aws_api_gateway_resources" "main" {
+# Get root resource ID (path "/")
+data "aws_api_gateway_resource" "root" {
   rest_api_id = var.api_gateway_rest_api_id
+  path        = "/"
 }
 
 locals {
-  # Find the root resource (path is "/")
-  root_resource_id = [
-    for resource in data.aws_api_gateway_resources.main.items : resource.id
-    if resource.path == "/"
-  ][0]
+  # Root resource ID from data source
+  root_resource_id = data.aws_api_gateway_resource.root.id
   
-  # Execution ARN format: arn:aws:execute-api:region:account-id:api-id/*
-  execution_arn = "arn:aws:execute-api:${var.aws_region}:*:${var.api_gateway_rest_api_id}/*"
+  # Execution ARN format: arn:aws:execute-api:region:account-id:api-id/*/*
+  execution_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_gateway_rest_api_id}/*/*"
 }
 
 '''
@@ -463,7 +463,7 @@ resource "aws_lambda_permission" "api_gateway" {
   action        = "lambda:InvokeFunction"
   function_name = data.aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${local.execution_arn}/*"
+  source_arn    = local.execution_arn
 }
 
 # Output the API Gateway URL
