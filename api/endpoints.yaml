@@ -1,0 +1,36 @@
+# API Endpoint Definitions
+# This file defines all API endpoints. Run `make generate-api` to:
+# - Generate request/response Go structs
+# - Generate resolver file stubs (if missing)
+# - Update api.go router registration
+# - Generate Terraform for API Gateway
+
+endpoints:
+  # Example: Simple endpoint with no request body
+  - path: /sendSavedStrategySummaryEmails
+    method: POST
+    handler: sendSavedStrategySummaryEmails
+    requires_auth: false
+    request:
+      # Empty object means no request body
+    response:
+      message: string
+    aws:
+      integration_type: lambda_proxy
+      timeout: 30
+
+  # Example: Endpoint with request body (uncomment and customize as needed)
+  # - path: /exampleEndpoint
+  #   method: POST
+  #   handler: exampleEndpoint
+  #   requires_auth: true
+  #   request:
+  #     field1: string
+  #     field2: int
+  #     optionalField: string?  # ? means optional (pointer in Go)
+  #   response:
+  #     result: string
+  #     count: int
+  #   aws:
+  #     integration_type: lambda_proxy
+  #     timeout: 30

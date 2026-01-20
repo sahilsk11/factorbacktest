@@ -6,3 +6,10 @@ postgres-data/
 node_modules/
 .vscode/
 env/
+terraform.tfvars
+terraform/.terraform/
+.terraform.lock.hcl
+
+# Terraform state (sensitive)
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
