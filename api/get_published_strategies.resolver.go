@@ -41,6 +41,15 @@ func (m ApiHandler) getPublishedStrategies(c *gin.Context) {
 			return
 		}
 
+		var sharpeRatio *float64
+		var annualizedReturn *float64
+		var annualizedStdev *float64
+		if latestRun != nil {
+			sharpeRatio = latestRun.SharpeRatio
+			annualizedReturn = latestRun.AnnualizedReturn
+			annualizedStdev = latestRun.AnnualuzedStdev
+		}
+
 		out = append(out, getPublishedStrategiesResponse{
 			StrategyID:        r.StrategyID,
 			StrategyName:      r.StrategyName,
@@ -49,9 +58,9 @@ func (m ApiHandler) getPublishedStrategies(c *gin.Context) {
 			FactorExpression:  r.FactorExpression,
 			NumAssets:         r.NumAssets,
 			AssetUniverse:     r.AssetUniverse,
-			SharpeRatio:       latestRun.SharpeRatio,
-			AnnualizedReturn:  latestRun.AnnualizedReturn,
-			AnnualizedStdev:   latestRun.AnnualuzedStdev,
+			SharpeRatio:       sharpeRatio,
+			AnnualizedReturn:  annualizedReturn,
+			AnnualizedStdev:   annualizedStdev,
 			Description:       r.Description,
 		})
 	}

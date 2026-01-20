@@ -201,7 +201,10 @@ func (h strategyRepositoryHandler) GetLatestPublishedRun(strategyID uuid.UUID) (
 
 	out := model.StrategyRun{}
 	err := query.Query(h.Db, &out)
-	if err != nil {
+	if err != nil && errors.Is(err, qrm.ErrNoRows) {
+		// No run yet for this strategy.
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
