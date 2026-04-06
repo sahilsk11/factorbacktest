@@ -106,6 +106,11 @@ func (m mockAlpacaForTestsHandler) PlaceOrder(req repository.AlpacaPlaceOrderReq
 	return nil, fmt.Errorf("PlaceOrder not implemented")
 }
 
+func (m mockAlpacaForTestsHandler) FilterTradeableSymbols(ctx context.Context, symbols []string) ([]string, error) {
+	// in tests, all symbols are tradeable
+	return symbols, nil
+}
+
 func (m mockAlpacaForTestsHandler) GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error) {
 	return nil, fmt.Errorf("GetLatestPricesWithTs not implemented")
 }

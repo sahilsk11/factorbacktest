@@ -99,6 +99,10 @@ func (m mockAlpacaRepositoryHandler) GetOrder(alpacaOrderID uuid.UUID) (*alpaca.
 	}, nil
 }
 
+func (m mockAlpacaRepositoryHandler) FilterTradeableSymbols(ctx context.Context, symbols []string) ([]string, error) {
+	return m.realAlpacaRepository.FilterTradeableSymbols(ctx, symbols)
+}
+
 func (m mockAlpacaRepositoryHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
 	return m.realAlpacaRepository.GetLatestPrices(ctx, symbols)
 }

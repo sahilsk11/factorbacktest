@@ -594,20 +594,26 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 	log.Infof("found %d investments to rebalance", len(investmentsToRebalance))
 
-	// get all assets
-	// we could probably clean this up
-	// by getting assets on the fly idk
+	// get all assets and filter out untradeable ones
 	assets, err := h.TickerRepository.List()
 	if err != nil {
 		return err
 	}
-	symbols := []string{}
+	allSymbols := []string{}
 	tickerIDMap := map[string]uuid.UUID{}
 	for _, s := range assets {
 		if s.Symbol != ":CASH" {
-			symbols = append(symbols, s.Symbol)
+			allSymbols = append(allSymbols, s.Symbol)
 			tickerIDMap[s.Symbol] = s.TickerID
 		}
+	}
+
+	symbols, err := h.AlpacaRepository.FilterTradeableSymbols(ctx, allSymbols)
+	if err != nil {
+		log.Warnf("failed to filter tradeable symbols, proceeding with all: %s", err.Error())
+		symbols = allSymbols
+	} else {
+		log.Infof("filtered %d -> %d tradeable symbols", len(allSymbols), len(symbols))
 	}
 
 	pm, err := h.PriceService.GetLatestPrices(ctx, symbols)
