@@ -81,45 +81,46 @@ func (h alpacaRepositoryHandler) GetLatestPrices(ctx context.Context, symbols []
 		return map[string]decimal.Decimal{}, nil
 	}
 
-	overrides := map[string]decimal.Decimal{
-		"JPM":   decimal.NewFromFloat(208),
-		"COST":  decimal.NewFromFloat(861),
-		"DHR":   decimal.NewFromFloat(268),
-		"LIN":   decimal.NewFromFloat(448),
-		"XROLF": decimal.NewFromFloat(87),
-		"META":  decimal.NewFromFloat(527),
-		"ADYEY": decimal.NewFromFloat(12.55),
-		// "ADYEY": decimal.NewFromFloat(12.55),
-	}
-
-	if len(overrides) > 0 {
-		log.Warnf("overriding prices: %v", overrides)
-	}
-
 	results, err := h.MdClient.GetLatestQuotes(symbols, marketdata.GetLatestQuoteRequest{})
 	if err != nil {
 		return nil, err
 	}
-	out := overrides
+	out := map[string]decimal.Decimal{}
+	skipped := []string{}
 	for symbol, result := range results {
-		if _, ok := overrides[symbol]; ok {
-			// out[symbol] = overridePrice
-		} else {
-			// bidPrice := result.BidPrice
-			// askPrice := result.AskPrice
-			// we expect ask to be a little larger than bid
-			// percentDiff := 100 * (askPrice - bidPrice) / bidPrice
-			// if askPrice < bidPrice {
-			// 	return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) less than bid price ($%f)", symbol, askPrice, bidPrice)
-			// }
-			// if percentDiff > 5 {
-			// 	return nil, fmt.Errorf("failed to get latest price for %s: ask price ($%f) differs by more than 5%% from bid price ($%f)", symbol, askPrice, bidPrice)
-			// }
-			out[symbol] = decimal.NewFromFloat(result.BidPrice)
-			if out[symbol].IsZero() {
-				return nil, fmt.Errorf("failed to get price for %s: got 0 price", symbol)
+		bidPrice := result.BidPrice
+		askPrice := result.AskPrice
+
+		if bidPrice <= 0 {
+			log.Warnf("skipping %s: bid price is zero or negative", symbol)
+			skipped = append(skipped, symbol)
+			continue
+		}
+
+		// sanity check: ask should be >= bid, and spread shouldn't be absurd
+		if askPrice > 0 && askPrice < bidPrice {
+			log.Warnf("skipping %s: ask price ($%.2f) less than bid price ($%.2f)", symbol, askPrice, bidPrice)
+			skipped = append(skipped, symbol)
+			continue
+		}
+		if askPrice > 0 {
+			spreadPct := 100 * (askPrice - bidPrice) / bidPrice
+			if spreadPct > 10 {
+				log.Warnf("skipping %s: bid/ask spread is %.1f%% ($%.2f / $%.2f)", symbol, spreadPct, bidPrice, askPrice)
+				skipped = append(skipped, symbol)
+				continue
 			}
 		}
+
+		out[symbol] = decimal.NewFromFloat(bidPrice)
+	}
+
+	if len(skipped) > 0 {
+		log.Warnf("skipped %d symbols with bad quotes: %v", len(skipped), skipped)
+	}
+
+	if len(out) == 0 && len(symbols) > 0 {
+		return nil, fmt.Errorf("failed to get any valid prices for %d symbols", len(symbols))
 	}
 
 	return out, nil
