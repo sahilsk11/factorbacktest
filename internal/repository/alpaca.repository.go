@@ -22,6 +22,7 @@ type AlpacaRepository interface {
 	GetOrder(alpacaOrderID uuid.UUID) (*alpaca.Order, error)
 	GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error)
 	GetLatestPricesWithTs(symbols []string) (map[string]domain.AssetPrice, error)
+	FilterTradeableSymbols(ctx context.Context, symbols []string) ([]string, error)
 }
 
 func NewAlpacaRepository(apiKey, apiSecret string, endpoint string) AlpacaRepository {
@@ -124,6 +125,38 @@ func (h alpacaRepositoryHandler) GetLatestPrices(ctx context.Context, symbols []
 	}
 
 	return out, nil
+}
+
+func (h alpacaRepositoryHandler) FilterTradeableSymbols(ctx context.Context, symbols []string) ([]string, error) {
+	log := logger.FromContext(ctx)
+	tradeable := []string{}
+	skipped := []string{}
+
+	for _, symbol := range symbols {
+		asset, err := h.Client.GetAsset(symbol)
+		if err != nil {
+			log.Warnf("failed to look up asset %s, skipping: %s", symbol, err.Error())
+			skipped = append(skipped, symbol)
+			continue
+		}
+		if asset.Status != alpaca.AssetActive {
+			log.Infof("skipping %s: status is %s", symbol, asset.Status)
+			skipped = append(skipped, symbol)
+			continue
+		}
+		if !asset.Tradable {
+			log.Infof("skipping %s: not tradable", symbol)
+			skipped = append(skipped, symbol)
+			continue
+		}
+		tradeable = append(tradeable, symbol)
+	}
+
+	if len(skipped) > 0 {
+		log.Warnf("filtered out %d untradeable symbols: %v", len(skipped), skipped)
+	}
+
+	return tradeable, nil
 }
 
 func (h alpacaRepositoryHandler) CancelOpenOrders(ctx context.Context) error {

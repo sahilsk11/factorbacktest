@@ -58,6 +58,21 @@ func (mr *MockAlpacaRepositoryMockRecorder) CancelOpenOrders(arg0 any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelOpenOrders", reflect.TypeOf((*MockAlpacaRepository)(nil).CancelOpenOrders), arg0)
 }
 
+// FilterTradeableSymbols mocks base method.
+func (m *MockAlpacaRepository) FilterTradeableSymbols(ctx context.Context, symbols []string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterTradeableSymbols", ctx, symbols)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilterTradeableSymbols indicates an expected call of FilterTradeableSymbols.
+func (mr *MockAlpacaRepositoryMockRecorder) FilterTradeableSymbols(ctx, symbols any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterTradeableSymbols", reflect.TypeOf((*MockAlpacaRepository)(nil).FilterTradeableSymbols), ctx, symbols)
+}
+
 // GetAccount mocks base method.
 func (m *MockAlpacaRepository) GetAccount() (*alpaca.Account, error) {
 	m.ctrl.T.Helper()
