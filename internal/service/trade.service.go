@@ -9,12 +9,52 @@ import (
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
+
+const maxOrderRetries = 3
+
+// parseRetryCount extracts the retry count from a trade order's Notes field.
+// Notes may contain "retry:<N>" as a prefix line.
+func parseRetryCount(notes *string) int {
+	if notes == nil {
+		return 0
+	}
+	for _, line := range strings.Split(*notes, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "retry:") {
+			n, err := strconv.Atoi(strings.TrimPrefix(line, "retry:"))
+			if err == nil {
+				return n
+			}
+		}
+	}
+	return 0
+}
+
+// buildRetryNotes creates the notes string for a retried order, preserving
+// any original notes content while updating the retry count.
+func buildRetryNotes(originalNotes *string, retryCount int) *string {
+	retryLine := fmt.Sprintf("retry:%d", retryCount)
+	var otherLines []string
+	if originalNotes != nil {
+		for _, line := range strings.Split(*originalNotes, "\n") {
+			if !strings.HasPrefix(strings.TrimSpace(line), "retry:") {
+				otherLines = append(otherLines, line)
+			}
+		}
+	}
+	parts := []string{retryLine}
+	parts = append(parts, otherLines...)
+	result := strings.Join(parts, "\n")
+	return &result
+}
 
 // Responsible for executing trades, including
 // aggregation and ensuring it meets Alpaca's spec
@@ -380,7 +420,51 @@ func (h tradeServiceHandler) updateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*m
 	return updatedTrade, nil
 }
 
+func (h tradeServiceHandler) retryExpiredOrder(ctx context.Context, original model.TradeOrder) {
+	log := logger.FromContext(ctx)
+
+	retryCount := parseRetryCount(original.Notes) + 1
+	if retryCount > maxOrderRetries {
+		log.Warnf("order %s: giving up after %d retries", original.TradeOrderID, retryCount-1)
+		return
+	}
+
+	ticker, err := h.TickerRepository.Get(original.TickerID)
+	if err != nil {
+		log.Errorf("order %s: failed to look up ticker %s for retry: %s", original.TradeOrderID, original.TickerID, err)
+		return
+	}
+
+	var side alpaca.Side
+	if original.Side == model.TradeOrderSide_Buy {
+		side = alpaca.Buy
+	} else {
+		side = alpaca.Sell
+	}
+
+	notes := buildRetryNotes(original.Notes, retryCount)
+
+	log.Infof("order %s (%s %s): retrying (attempt %d/%d)",
+		original.TradeOrderID, original.Side, ticker.Symbol, retryCount, maxOrderRetries)
+
+	_, err = h.placeOrder(
+		original.TickerID,
+		ticker.Symbol,
+		notes,
+		original.RequestedQuantity,
+		original.Side,
+		side,
+		original.RebalancerRunID,
+		original.ExpectedPrice,
+	)
+	if err != nil {
+		log.Errorf("order %s: retry attempt %d failed: %s", original.TradeOrderID, retryCount, err)
+	}
+}
+
 func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
+	log := logger.FromContext(ctx)
+
 	cashTicker, err := h.TickerRepository.GetCashTicker()
 	if err != nil {
 		return err
@@ -399,6 +483,11 @@ func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
 
 	rebalancerRuns := []uuid.UUID{}
 
+	// Collect expired/cancelled orders that need retrying.
+	// We retry after the transaction commits so we don't mix
+	// new order placement into this update transaction.
+	var ordersToRetry []model.TradeOrder
+
 	completedTrades := []*model.InvestmentTradeStatus{}
 	for _, trade := range trades {
 		if trade.Status == model.TradeOrderStatus_Pending {
@@ -415,6 +504,8 @@ func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
 				}
 				rebalancerRuns = append(rebalancerRuns, updatedTrade.RebalancerRunID)
 				completedTrades = append(completedTrades, relevantInvestmentTrades...)
+			} else if updatedTrade.Status == model.TradeOrderStatus_Canceled {
+				ordersToRetry = append(ordersToRetry, *updatedTrade)
 			}
 		}
 	}
@@ -462,6 +553,15 @@ func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
 	err = tx.Commit()
 	if err != nil {
 		return err
+	}
+
+	// Retry expired/cancelled orders outside the main transaction.
+	// Failures here are logged but don't break the overall flow.
+	if len(ordersToRetry) > 0 {
+		log.Infof("attempting to retry %d expired/cancelled order(s)", len(ordersToRetry))
+	}
+	for _, order := range ordersToRetry {
+		h.retryExpiredOrder(ctx, order)
 	}
 
 	return nil
