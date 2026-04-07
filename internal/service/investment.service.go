@@ -631,8 +631,8 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	}
 	defer tx.Rollback()
 
-	// todo - break this up so one investment doesn't cause all rebalances
-	// to fail
+	var rebalanceErrors []error
+	numSucceeded := 0
 	for _, investment := range investmentsToRebalance {
 		result, err := h.rebalanceInvestment(
 			ctx,
@@ -643,11 +643,23 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			tickerIDMap,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to generate results for investment %s: %w", investment.InvestmentID.String(), err)
+			log.Errorf("failed to generate results for investment %s: %s", investment.InvestmentID.String(), err.Error())
+			rebalanceErrors = append(rebalanceErrors, fmt.Errorf("investment %s: %w", investment.InvestmentID.String(), err))
+			continue
 		}
 
+		numSucceeded++
 		proposedTrades = append(proposedTrades, result.ProposedTrades...)
 		investmentTrades = append(investmentTrades, result.InsertedInvestmentTrades...)
+	}
+
+	if len(rebalanceErrors) > 0 {
+		log.Warnf("%d/%d investments failed to rebalance", len(rebalanceErrors), len(investmentsToRebalance))
+	}
+
+	// if every single investment failed, abort the run entirely
+	if numSucceeded == 0 && len(rebalanceErrors) > 0 {
+		return fmt.Errorf("all %d investments failed to rebalance. first error: %w", len(rebalanceErrors), rebalanceErrors[0])
 	}
 
 	log.Infof("generated %d investment trades", len(investmentTrades))
@@ -659,6 +671,13 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	} else if len(investmentTrades) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investment trades generated")
+	}
+	if len(rebalanceErrors) > 0 {
+		note := fmt.Sprintf("%d/%d investments failed", len(rebalanceErrors), len(investmentsToRebalance))
+		if rebalancerRun.Notes != nil {
+			note = *rebalancerRun.Notes + "; " + note
+		}
+		rebalancerRun.Notes = util.StringPointer(note)
 	}
 
 	_, err = h.RebalancerRunRepository.Update(tx, rebalancerRun, []postgres.Column{
