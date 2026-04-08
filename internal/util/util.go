@@ -1,16 +1,20 @@
 package util
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"fmt"
 	"os"
 	"regexp"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -110,13 +114,45 @@ func LoadSecrets() (*Secrets, error) {
 	}
 	f, err := os.ReadFile(secretsFile)
 	if err != nil {
-		return nil, fmt.Errorf("could not open secrets.json: %w", err)
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("could not open secrets.json: %w", err)
+		}
+		// File doesn't exist — fall back to AWS Secrets Manager
+		return loadSecretsFromAWS()
 	}
 
 	secrets := Secrets{}
 	err = json.Unmarshal(f, &secrets)
 	if err != nil {
 		return nil, err
+	}
+
+	return &secrets, nil
+}
+
+func loadSecretsFromAWS() (*Secrets, error) {
+	secretName := os.Getenv("SECRETS_MANAGER_SECRET_NAME")
+	if secretName == "" {
+		secretName = "factorbacktest/secrets"
+	}
+
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	client := secretsmanager.NewFromConfig(cfg)
+	result, err := client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{
+		SecretId: &secretName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret %q from Secrets Manager: %w", secretName, err)
+	}
+
+	secrets := Secrets{}
+	if err := json.Unmarshal([]byte(*result.SecretString), &secrets); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal secret from Secrets Manager: %w", err)
 	}
 
 	return &secrets, nil
