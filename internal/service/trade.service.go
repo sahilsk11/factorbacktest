@@ -109,6 +109,15 @@ func (h tradeServiceHandler) placeOrder(
 		LimitPrice:   &limit,
 	})
 	if err != nil {
+		// persist the error message in the trade order notes for debugging
+		errMsg := fmt.Sprintf("order for trade request %s %s %s failed: %s", alpacaSide, symbol, quantity.String(), err.Error())
+		h.TradeOrderRepository.Update(nil,
+			insertedOrder.TradeOrderID,
+			model.TradeOrder{
+				Notes: &errMsg,
+			}, postgres.ColumnList{
+				table.TradeOrder.Notes,
+			})
 		return nil, fmt.Errorf("failed to execute order for trade order %s: %w", insertedOrder.TradeOrderID, err)
 	}
 
