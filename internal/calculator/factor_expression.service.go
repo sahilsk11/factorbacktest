@@ -680,7 +680,7 @@ func (h factorMetricsHandler) PricePercentChange(pr *data.PriceCache, symbol str
 }
 
 func percentChange(end, start float64) float64 {
-	return ((end - start) / end) * 100
+	return ((end - start) / start) * 100
 }
 
 func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *data.PriceCache, symbol string, start, end time.Time) (float64, error) {
