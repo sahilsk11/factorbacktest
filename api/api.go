@@ -118,7 +118,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/publishedStrategies", m.getPublishedStrategies)
 
 	engine.POST("/rebalance", m.rebalance)
-	engine.POST("/updateOrders", m.updateOrders)
+	engine.POST("/updateOrders", m.requireAuthenticatedUser, m.updateOrders)
 	engine.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
 	return engine
@@ -306,6 +306,14 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 	)
 	c.Set(logger.ContextKey, lg)
 
+	c.Next()
+}
+
+func (m ApiHandler) requireAuthenticatedUser(c *gin.Context) {
+	if _, ok := c.Get("userAccountID"); !ok {
+		returnErrorJsonCode(fmt.Errorf("authentication required"), c, 401)
+		return
+	}
 	c.Next()
 }
 

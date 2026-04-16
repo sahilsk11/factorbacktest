@@ -5,7 +5,7 @@ import (
 )
 
 func (m ApiHandler) updateOrders(c *gin.Context) {
-	err := m.TradingService.UpdateAllPendingOrders(c)
+	err := m.TradingService.UpdateAllPendingOrders(c.Request.Context())
 	if err != nil {
 		returnErrorJson(err, c)
 		return
