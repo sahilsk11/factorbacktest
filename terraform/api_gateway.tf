@@ -64,6 +64,31 @@ locals {
 }
 
 
+# Endpoint: /updateOrders (POST)
+resource "aws_api_gateway_resource" "update_orders" {
+  rest_api_id = var.api_gateway_rest_api_id
+  parent_id   = local.root_resource_id
+  path_part   = "updateOrders"
+}
+
+resource "aws_api_gateway_method" "update_orders" {
+  rest_api_id   = var.api_gateway_rest_api_id
+  resource_id   = aws_api_gateway_resource.update_orders.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "update_orders" {
+  rest_api_id = var.api_gateway_rest_api_id
+  resource_id = aws_api_gateway_resource.update_orders.id
+  http_method = aws_api_gateway_method.update_orders.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = data.aws_lambda_function.api.invoke_arn
+}
+
+
 # Endpoint: /sendSavedStrategySummaryEmails (POST)
 resource "aws_api_gateway_resource" "send_saved_strategy_summary_emails" {
   rest_api_id = var.api_gateway_rest_api_id
@@ -96,8 +121,23 @@ resource "aws_api_gateway_deployment" "main" {
   rest_api_id = var.api_gateway_rest_api_id
 
   depends_on = [
+    aws_api_gateway_integration.update_orders,
     aws_api_gateway_integration.send_saved_strategy_summary_emails,
   ]
+
+  # Force a new deployment when the API surface changes.
+  # Without this, Terraform can add resources/methods/integrations without
+  # creating a new deployment, leaving the stage pointing at an older snapshot.
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.update_orders.id,
+      aws_api_gateway_method.update_orders.id,
+      aws_api_gateway_integration.update_orders.id,
+      aws_api_gateway_resource.send_saved_strategy_summary_emails.id,
+      aws_api_gateway_method.send_saved_strategy_summary_emails.id,
+      aws_api_gateway_integration.send_saved_strategy_summary_emails.id,
+    ]))
+  }
 
   lifecycle {
     create_before_destroy = true
