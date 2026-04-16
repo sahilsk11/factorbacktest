@@ -125,6 +125,20 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_integration.send_saved_strategy_summary_emails,
   ]
 
+  # Force a new deployment when the API surface changes.
+  # Without this, Terraform can add resources/methods/integrations without
+  # creating a new deployment, leaving the stage pointing at an older snapshot.
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.update_orders.id,
+      aws_api_gateway_method.update_orders.id,
+      aws_api_gateway_integration.update_orders.id,
+      aws_api_gateway_resource.send_saved_strategy_summary_emails.id,
+      aws_api_gateway_method.send_saved_strategy_summary_emails.id,
+      aws_api_gateway_integration.send_saved_strategy_summary_emails.id,
+    ]))
+  }
+
   lifecycle {
     create_before_destroy = true
   }

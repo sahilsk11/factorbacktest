@@ -381,8 +381,10 @@ locals {
 
 '''
     
-    # Track all integrations for deployment dependency
+    # Track generated resources so deployments can be forced to redeploy when
+    # routes change (API Gateway deployments are immutable snapshots).
     integration_resources = []
+    endpoint_resource_names: List[str] = []
     
     # Generate resources for each endpoint
     for endpoint in endpoints:
@@ -426,6 +428,7 @@ resource "aws_api_gateway_integration" "{resource_name}" {{
 
 '''
             integration_resources.append(f'aws_api_gateway_integration.{resource_name}')
+            endpoint_resource_names.append(resource_name)
         else:
             print(f"Warning: Nested paths not yet supported: {path}")
     
@@ -444,6 +447,23 @@ resource "aws_api_gateway_deployment" "main" {
         terraform_content += f'    {integration},\n'
     
     terraform_content += '''  ]
+
+  # Force a new deployment when the API surface changes.
+  # Without this, Terraform can add resources/methods/integrations without
+  # creating a new deployment, leaving the stage pointing at an older snapshot.
+  triggers = {
+    redeployment = sha1(jsonencode([
+'''
+
+    for resource_name in endpoint_resource_names:
+        terraform_content += (
+            f'      aws_api_gateway_resource.{resource_name}.id,\n'
+            f'      aws_api_gateway_method.{resource_name}.id,\n'
+            f'      aws_api_gateway_integration.{resource_name}.id,\n'
+        )
+
+    terraform_content += '''    ]))
+  }
 
   lifecycle {
     create_before_destroy = true
