@@ -6,7 +6,18 @@
 # - Generate Terraform for API Gateway
 
 endpoints:
-  # Example: Simple endpoint with no request body
+  - path: /updateOrders
+    method: POST
+    handler: updateOrders
+    requires_auth: false
+    generate_resolver: false
+    request:
+    response:
+      success: string
+    aws:
+      integration_type: lambda_proxy
+      timeout: 30
+
   - path: /sendSavedStrategySummaryEmails
     method: POST
     handler: sendSavedStrategySummaryEmails
