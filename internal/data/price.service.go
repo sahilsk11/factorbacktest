@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/montanaflynn/stats"
-	"github.com/piquette/finance-go/chart"
-	"github.com/piquette/finance-go/datetime"
 	"github.com/shopspring/decimal"
 )
 
@@ -31,6 +29,8 @@ trading day, and use that price
 type PriceService interface {
 	LoadPriceCache(ctx context.Context, inputs []LoadPriceCacheInput, stdevs []LoadStdevCacheInput) (*PriceCache, error)
 	GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error)
+	IngestPrices(ctx context.Context, tx *sql.Tx, symbol string, adjPricesRepository repository.AdjustedPriceRepository, start *time.Time) error
+	UpdateUniversePrices(ctx context.Context, tx *sql.Tx, tickerRepository repository.TickerRepository, adjPricesRepository repository.AdjustedPriceRepository) (int, error)
 }
 
 type LoadPriceCacheInput struct {
@@ -195,7 +195,12 @@ func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end ti
 	return 0, fmt.Errorf("stdev cache miss %s %s to %s", symbol, start.Format(time.DateOnly), end.Format(time.DateOnly))
 }
 
-func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository, alpacaRepository repository.AlpacaRepository, quoteProvider QuoteProvider) PriceService {
+func NewPriceService(
+	db *sql.DB,
+	adjPriceRepository repository.AdjustedPriceRepository,
+	alpacaRepository repository.AlpacaRepository,
+	quoteProvider QuoteProvider,
+) PriceService {
 	return &priceServiceHandler{
 		AdjPriceRepository: adjPriceRepository,
 		Db:                 db,
@@ -404,7 +409,8 @@ func fillPriceCacheGaps(inputs []LoadPriceCacheInput, cache map[string]map[strin
 	}
 }
 
-func IngestPrices(
+func (h priceServiceHandler) IngestPrices(
+	ctx context.Context,
 	tx *sql.Tx,
 	symbol string,
 	adjPricesRepository repository.AdjustedPriceRepository,
@@ -414,38 +420,32 @@ func IngestPrices(
 	if start != nil {
 		s = *start
 	}
-	now := time.Now()
-	params := &chart.Params{
-		Start:    datetime.New(&s),
-		End:      datetime.New(&now),
-		Symbol:   symbol,
-		Interval: datetime.OneDay,
+	now := time.Now().UTC()
+
+	points, err := h.QuoteProvider.GetDailyAdjCloses(ctx, symbol, s, now)
+	if err != nil {
+		return err
 	}
-	iter := chart.Get(params)
 
 	models := []model.AdjustedPrice{}
-
-	for iter.Next() {
+	createdAt := time.Now().UTC()
+	for _, pt := range points {
 		models = append(models, model.AdjustedPrice{
 			Symbol:    symbol,
-			Date:      time.Unix(int64(iter.Bar().Timestamp), 0),
-			Price:     iter.Bar().AdjClose,
-			CreatedAt: time.Now().UTC(),
+			Date:      pt.Date,
+			Price:     pt.Price,
+			CreatedAt: createdAt,
 		})
 	}
-	if err := iter.Err(); err != nil {
-		return fmt.Errorf("failed to get prices for %s: %w", symbol, err)
-	}
 
-	err := adjPricesRepository.Add(tx, models)
-	if err != nil {
+	if err := adjPricesRepository.Add(tx, models); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func UpdateUniversePrices(
+func (h priceServiceHandler) UpdateUniversePrices(
 	ctx context.Context,
 	tx *sql.Tx,
 	tickerRepository repository.TickerRepository,
@@ -472,14 +472,14 @@ func UpdateUniversePrices(
 
 	log.Infof("found %d assets to update", len(assets))
 
-	asyncIngestPrices(ctx, tx, symbols, adjPricesRepository)
+	h.asyncIngestPrices(ctx, tx, symbols, adjPricesRepository)
 
 	log.Infof("updated %d prices", len(symbols))
 
 	return len(symbols), nil
 }
 
-func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPriceRepository repository.AdjustedPriceRepository) error {
+func (h priceServiceHandler) asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPriceRepository repository.AdjustedPriceRepository) error {
 	log := logger.FromContext(ctx)
 	numGoroutines := 10
 
@@ -502,7 +502,7 @@ func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPri
 					if !ok {
 						return
 					}
-					err := IngestPrices(tx, symbol, adjPriceRepository, nil)
+					err := h.IngestPrices(ctx, tx, symbol, adjPriceRepository, nil)
 					if err != nil {
 						log.Warnf("failed to ingest price for %s: %s\n", symbol, err.Error())
 					}

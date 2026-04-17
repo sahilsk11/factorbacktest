@@ -105,3 +105,31 @@ func (p *YahooQuoteProvider) GetLatestQuotes(ctx context.Context, symbols []stri
 	return out, nil
 }
 
+func (p *YahooQuoteProvider) GetDailyAdjCloses(ctx context.Context, symbol string, start, end time.Time) ([]DailyPricePoint, error) {
+	_ = logger.FromContext(ctx) // keep consistent behavior; caller likely already has a logger in ctx
+
+	s := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
+	e := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, time.UTC)
+
+	params := &chart.Params{
+		Start:    datetime.New(&s),
+		End:      datetime.New(&e),
+		Symbol:   symbol,
+		Interval: datetime.OneDay,
+	}
+	iter := chart.Get(params)
+
+	out := []DailyPricePoint{}
+	for iter.Next() {
+		bar := iter.Bar()
+		out = append(out, DailyPricePoint{
+			Date:  time.Unix(int64(bar.Timestamp), 0).UTC(),
+			Price: bar.AdjClose,
+		})
+	}
+	if err := iter.Err(); err != nil {
+		return nil, fmt.Errorf("failed to get prices for %s: %w", symbol, err)
+	}
+	return out, nil
+}
+

@@ -15,12 +15,16 @@ import (
 type QuoteProvider interface {
 	ProviderName() string
 	GetLatestQuotes(ctx context.Context, symbols []string) (*QuoteResponse, error)
+	GetDailyAdjCloses(ctx context.Context, symbol string, start, end time.Time) ([]DailyPricePoint, error)
 }
-
 type Quote struct {
 	Symbol string
 	Price  decimal.Decimal
 	AsOf   time.Time
+}
+type DailyPricePoint struct {
+	Date  time.Time
+	Price decimal.Decimal
 }
 
 // QuoteResponse is designed to make partial success explicit.
@@ -30,4 +34,3 @@ type QuoteResponse struct {
 	Quotes   map[string]Quote
 	Missing  []string
 }
-

@@ -22,6 +22,7 @@ mocks:
 
 	# services
 	mockgen -source=internal/service/email.service.go -destination=internal/service/mocks/mock_email.service.go
+	mockgen -source=internal/data/price.service.go -destination=internal/data/mocks/mock_price.service.go
 
 	# apps
 	mockgen -source=internal/app/strategy_summary.app.go -destination=internal/app/mocks/mock_strategy_summary.app.go
