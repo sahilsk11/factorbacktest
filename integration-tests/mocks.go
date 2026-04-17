@@ -2,11 +2,13 @@ package integration_tests
 
 import (
 	"context"
+	"database/sql"
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/domain"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
 	"fmt"
+	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/google/go-cmp/cmp"
@@ -23,6 +25,14 @@ func NewMockPriceServiceForTests(realPriceService data.PriceService) data.PriceS
 
 type mockPriceServiceForTestsHandler struct {
 	realPriceService data.PriceService
+}
+
+func (m mockPriceServiceForTestsHandler) IngestPrices(ctx context.Context, tx *sql.Tx, symbol string, adjPricesRepository repository.AdjustedPriceRepository, start *time.Time) error {
+	return fmt.Errorf("IngestPrices not implemented")
+}
+
+func (m mockPriceServiceForTestsHandler) UpdateUniversePrices(ctx context.Context, tx *sql.Tx, tickerRepository repository.TickerRepository, adjPricesRepository repository.AdjustedPriceRepository) (int, error) {
+	return 0, fmt.Errorf("UpdateUniversePrices not implemented")
 }
 
 func (m mockPriceServiceForTestsHandler) LoadPriceCache(ctx context.Context, inputs []data.LoadPriceCacheInput, stdevs []data.LoadStdevCacheInput) (*data.PriceCache, error) {

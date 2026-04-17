@@ -1,7 +1,6 @@
 package api
 
 import (
-	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/logger"
 	"fmt"
@@ -69,7 +68,7 @@ func (m ApiHandler) addAssetsToUniverse(c *gin.Context) {
 			log.Warnf("skipping %s", ticker.Symbol)
 			continue
 		}
-		err = data.IngestPrices(tx, ticker.Symbol, m.PriceRepository, nil)
+		err = m.PriceService.IngestPrices(c, tx, ticker.Symbol, m.PriceRepository, nil)
 		if err != nil {
 			returnErrorJson(fmt.Errorf("failed to ingest prices: %w", err), c)
 			return

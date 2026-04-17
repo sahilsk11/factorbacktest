@@ -1,8 +1,6 @@
 package api
 
 import (
-	"factorbacktest/internal/data"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +15,7 @@ func (m ApiHandler) updatePrices(c *gin.Context) {
 		return
 	}
 
-	numUpdatedAssets, err := data.UpdateUniversePrices(c, tx, m.TickerRepository, m.PriceRepository)
+	numUpdatedAssets, err := m.PriceService.UpdateUniversePrices(c, tx, m.TickerRepository, m.PriceRepository)
 	if err != nil {
 		returnErrorJson(err, c)
 		return

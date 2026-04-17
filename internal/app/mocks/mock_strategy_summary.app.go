@@ -39,16 +39,16 @@ func (m *MockStrategySummaryApp) EXPECT() *MockStrategySummaryAppMockRecorder {
 	return m.recorder
 }
 
-// SendDailyStrategySummaries mocks base method.
-func (m *MockStrategySummaryApp) SendDailyStrategySummaries(ctx context.Context) error {
+// SendSavedStrategySummaryEmails mocks base method.
+func (m *MockStrategySummaryApp) SendSavedStrategySummaryEmails(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendDailyStrategySummaries", ctx)
+	ret := m.ctrl.Call(m, "SendSavedStrategySummaryEmails", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SendDailyStrategySummaries indicates an expected call of SendDailyStrategySummaries.
-func (mr *MockStrategySummaryAppMockRecorder) SendDailyStrategySummaries(ctx any) *gomock.Call {
+// SendSavedStrategySummaryEmails indicates an expected call of SendSavedStrategySummaryEmails.
+func (mr *MockStrategySummaryAppMockRecorder) SendSavedStrategySummaryEmails(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDailyStrategySummaries", reflect.TypeOf((*MockStrategySummaryApp)(nil).SendDailyStrategySummaries), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSavedStrategySummaryEmails", reflect.TypeOf((*MockStrategySummaryApp)(nil).SendSavedStrategySummaryEmails), ctx)
 }
