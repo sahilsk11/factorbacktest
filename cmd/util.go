@@ -69,7 +69,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
 	rebalancePriceRepository := repository.NewRebalancePriceRepository(dbConn)
 
-	priceService := data.NewPriceService(dbConn, priceRepository, nil)
+	priceService := data.NewPriceService(dbConn, priceRepository, nil, data.NewYahooQuoteProvider())
 
 	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") || UseMockAlpaca {
 		alpacaRepository = integration_tests.NewMockAlpacaRepositoryForTests()

@@ -48,6 +48,7 @@ type priceServiceHandler struct {
 	AdjPriceRepository repository.AdjustedPriceRepository
 	Db                 *sql.DB
 	AlpacaRepository   repository.AlpacaRepository
+	QuoteProvider      QuoteProvider
 }
 
 type stdevCache struct {
@@ -194,11 +195,12 @@ func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end ti
 	return 0, fmt.Errorf("stdev cache miss %s %s to %s", symbol, start.Format(time.DateOnly), end.Format(time.DateOnly))
 }
 
-func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository, alpacaRepository repository.AlpacaRepository) PriceService {
+func NewPriceService(db *sql.DB, adjPriceRepository repository.AdjustedPriceRepository, alpacaRepository repository.AlpacaRepository, quoteProvider QuoteProvider) PriceService {
 	return &priceServiceHandler{
 		AdjPriceRepository: adjPriceRepository,
 		Db:                 db,
 		AlpacaRepository:   alpacaRepository,
+		QuoteProvider:      quoteProvider,
 	}
 }
 
@@ -520,41 +522,33 @@ func asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPri
 //
 // TODO - find a better data provider
 func (h priceServiceHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
-	out := map[string]decimal.Decimal{}
-	var lastErr error
 	log := logger.FromContext(ctx)
 
-	for _, symbol := range symbols {
-		approxStart := time.Now().AddDate(0, 0, -4)
-		s := time.Date(approxStart.Year(), approxStart.Month(), approxStart.Day(), 0, 0, 0, 0, time.UTC)
-		now := time.Now()
-		params := &chart.Params{
-			Start:    datetime.New(&s),
-			End:      datetime.New(&now),
-			Symbol:   symbol,
-			Interval: datetime.OneDay,
-		}
-		allPrices := []decimal.Decimal{}
-		iter := chart.Get(params)
-		for iter.Next() {
-			allPrices = append(allPrices, iter.Bar().AdjClose)
-		}
-		if err := iter.Err(); err != nil {
-			lastErr = fmt.Errorf("failed to get prices for %s: %w", symbol, err)
-			log.Warnf("Failed to get prices for %s: %v", symbol, err)
-			continue
-		}
-		if len(allPrices) == 0 {
-			lastErr = fmt.Errorf("failed to get price for %s", symbol)
-			log.Warnf("Failed to get price for %s: no prices returned", symbol)
-			continue
-		}
-		out[symbol] = allPrices[len(allPrices)-1]
+	if h.QuoteProvider == nil {
+		return nil, fmt.Errorf("no quote provider configured")
 	}
 
-	if len(out) == 0 && lastErr != nil {
-		return nil, lastErr
+	resp, err := h.QuoteProvider.GetLatestQuotes(ctx, symbols)
+	out := map[string]decimal.Decimal{}
+	if resp != nil {
+		for symbol, q := range resp.Quotes {
+			out[symbol] = q.Price
+		}
+		if len(resp.Missing) > 0 {
+			log.Warnf("missing %d/%d quotes from %s: %v", len(resp.Missing), len(symbols), resp.Provider, resp.Missing)
+		}
 	}
 
+	// Preserve the old behavior: partial results are ok, but if we couldn't
+	// produce any prices for a non-empty input, return an error.
+	if len(out) == 0 && len(symbols) > 0 {
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to get any prices for %d symbols", len(symbols))
+	}
+
+	// If provider returned an error but we have some prices, treat as non-fatal
+	// (matches prior per-symbol best-effort behavior).
 	return out, nil
 }
