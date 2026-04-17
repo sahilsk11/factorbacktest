@@ -79,14 +79,14 @@ func (p *YahooQuoteProvider) GetLatestQuotes(ctx context.Context, symbols []stri
 		}
 
 		if err := iter.Err(); err != nil {
-			lastErr = fmt.Errorf("failed to get prices for %s: %w", symbol, err)
-			log.Warnf("Failed to get prices for %s: %v", symbol, err)
+			lastErr = fmt.Errorf("[yahoo_quote_provider] failed to get prices for %s: %w", symbol, err)
+			log.Warnf("[yahoo_quote_provider] Failed to get prices for %s: %v", symbol, err)
 			out.Missing = append(out.Missing, symbol)
 			continue
 		}
 		if !seen || lastPrice.IsZero() {
-			lastErr = fmt.Errorf("failed to get price for %s", symbol)
-			log.Warnf("Failed to get price for %s: no prices returned", symbol)
+			lastErr = fmt.Errorf("[yahoo_quote_provider] failed to get price for %s", symbol)
+			log.Warnf("[yahoo_quote_provider] Failed to get price for %s: no prices returned", symbol)
 			out.Missing = append(out.Missing, symbol)
 			continue
 		}
@@ -128,8 +128,7 @@ func (p *YahooQuoteProvider) GetDailyAdjCloses(ctx context.Context, symbol strin
 		})
 	}
 	if err := iter.Err(); err != nil {
-		return nil, fmt.Errorf("failed to get prices for %s: %w", symbol, err)
+		return nil, fmt.Errorf("[yahoo_quote_provider] failed to get prices for %s: %w", symbol, err)
 	}
 	return out, nil
 }
-
