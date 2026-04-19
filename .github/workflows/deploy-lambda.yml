@@ -3,6 +3,21 @@ name: Deploy Lambda
 on:
   push:
     branches: ["master"]
+    paths:
+      - 'internal/**'
+      - 'pkg/**'
+      - 'api/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - 'Dockerfile'
+      - 'Dockerfile.lambda'
+      - 'migrations/**'
+      - 'tools/**'
+      - 'gpt/**'
+      - 'integration-tests/**'
+      - 'terraform/**'
 
 permissions:
   id-token: write
