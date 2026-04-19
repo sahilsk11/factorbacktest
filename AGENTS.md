@@ -4,19 +4,32 @@
 
 When creating a new API, follow these steps:
 
-1. **Add the endpoint to `api/endpoints.yaml`** — define path, method, handler, request/response types, and AWS config. Example:
+1. **Add the endpoint to `api/openapi.yaml`** — define path, method, operationId, request/response schemas, and x-aws-* extensions. Example:
    ```yaml
-   - path: /myNewEndpoint
-     method: POST
-     handler: myNewEndpoint
-     requires_auth: false
-     request:
-       field1: string
-     response:
-       message: string
-     aws:
-       integration_type: lambda_proxy
-       timeout: 30
+   paths:
+     /myNewEndpoint:
+       post:
+         operationId: myNewEndpoint
+         x-aws-lambda:
+           timeout: 30
+         requestBody:
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   field1:
+                     type: string
+         responses:
+           '200':
+             description: Success
+             content:
+               application/json:
+                 schema:
+                   type: object
+                   properties:
+                     message:
+                       type: string
    ```
 
 2. **Run `make generate-api`** — this single command:
@@ -24,6 +37,7 @@ When creating a new API, follow these steps:
    - Creates a resolver stub in `api/<handler>.resolver.go` (if one doesn't already exist)
    - Registers the route in `api/api.go`
    - Regenerates Terraform in `terraform/api_gateway.tf` for AWS API Gateway configuration
+   - Generates Markdown docs in `docs/` via openapi-generator
 
 3. **Implement the resolver** — fill in the handler logic in the generated `api/<handler>.resolver.go` file.
 

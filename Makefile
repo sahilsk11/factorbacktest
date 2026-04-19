@@ -68,5 +68,8 @@ deploy:
 test:
 	echo $(shell git rev-parse --short HEAD)
 
-generate-api:
+generate-api: generate-docs
 	tools/env/bin/python tools/generate_api.py
+
+generate-docs:
+	openapi-generator-cli generate -i api/openapi.yaml -g markdown -o docs/
