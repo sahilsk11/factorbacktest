@@ -94,7 +94,7 @@ func (h *Hammer) SeedUniverse() error {
 		return fmt.Errorf("failed to insert asset universe tickers: %w", err)
 	}
 
-	return h.commitIf()
+	return nil
 }
 
 // SeedPrices reads sample_prices_2020.csv and bulk-inserts adjusted_price rows.
@@ -135,7 +135,7 @@ func (h *Hammer) SeedPrices() error {
 		return err
 	}
 
-	return h.commitIf()
+	return nil
 }
 
 // SeedPublishedStrategy inserts one published strategy + strategy_run with pre-computed stats.
@@ -197,7 +197,7 @@ func (h *Hammer) SeedPublishedStrategy(userID string) (strategyID, runID uuid.UU
 		return uuid.Nil, uuid.Nil, fmt.Errorf("failed to insert strategy run: %w", err)
 	}
 
-	return strategyID, runID, h.commitIf()
+	return strategyID, runID, nil
 }
 
 // SeedAll is a convenience that runs SeedUniverse, SeedPrices, SeedPublishedStrategy in order.
@@ -210,7 +210,10 @@ func (h *Hammer) SeedAll(userID string) error {
 		return err
 	}
 	_, _, err := h.SeedPublishedStrategy(userID)
-	return err
+	if err != nil {
+		return err
+	}
+	return h.commitIf()
 }
 
 // commitIf commits the transaction if Hammer.Commit=true, otherwise does nothing.
