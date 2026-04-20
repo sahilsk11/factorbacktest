@@ -10,8 +10,8 @@ When creating a new API, follow these steps:
      /myNewEndpoint:
        post:
          operationId: myNewEndpoint
-         x-aws-lambda:
-           timeout: 30
+         x-aws-integration-type: lambda_proxy
+         x-aws-timeout: 30
          requestBody:
            content:
              application/json:
@@ -37,11 +37,12 @@ When creating a new API, follow these steps:
    - Creates a resolver stub in `api/<handler>.resolver.go` (if one doesn't already exist)
    - Registers the route in `api/api.go`
    - Regenerates Terraform in `terraform/api_gateway.tf` for AWS API Gateway configuration
-   - Generates Markdown docs in `docs/` via openapi-generator
 
-3. **Implement the resolver** — fill in the handler logic in the generated `api/<handler>.resolver.go` file.
+3. **Serve API docs locally** — `make serve-docs` (runs ReDoc on port 3002)
 
-4. **Commit everything together** — the YAML, generated Go code, and Terraform should all be in the same commit/PR.
+4. **Implement the resolver** — fill in the handler logic in the generated `api/<handler>.resolver.go` file.
+
+5. **Commit everything together** — the YAML, generated Go code, and Terraform should all be in the same commit/PR.
 
 ## Deploying Infrastructure Changes
 
