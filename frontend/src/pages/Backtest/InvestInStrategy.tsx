@@ -50,7 +50,7 @@ export function InvestInStrategy({
       if (x.length === 0) {
         x = "0";
       }
-      if (!/[^0-9]/.test(x) && parseFloat(x) <= 1000000) {
+      if (!/[^0-9]/.test(x) && parseFloat(x) < 100) {
         setDepositAmount(parseFloat(x))
       }
     }
