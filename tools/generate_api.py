@@ -1,32 +1,38 @@
 #!/usr/bin/env python3
 """
 API Code Generator
-Generates Go code and Terraform from api/endpoints.yaml
+Generates Go code and Terraform from api/openapi.yaml (OpenAPI 3.x format)
 """
 
 try:
     import yaml
 except ImportError:
     print("Error: PyYAML is not installed.")
-    print("Install it with: pip install PyYAML==6.0.1")
-    print("Or if using virtualenv: tools/env/bin/pip install PyYAML==6.0.1")
+    print("Install it with: pip install PyYAML")
     exit(1)
 
 import os
 import re
+import json
+import hashlib
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 
 PROJECT_ROOT = Path(__file__).parent.parent
 API_DIR = PROJECT_ROOT / "api"
 TERRAFORM_DIR = PROJECT_ROOT / "terraform"
-ENDPOINTS_YAML = API_DIR / "endpoints.yaml"
+DOCS_DIR = PROJECT_ROOT / "docs"
+OPENAPI_YAML = API_DIR / "openapi.yaml"
 
 
 def to_camel_case(snake_str: str) -> str:
-    """Convert snake_case to CamelCase"""
+    """Convert snake_case to CamelCase, preserving case of non-first letters"""
+    if "_" not in snake_str:
+        # Already camelCase - just uppercase the first letter
+        return snake_str[:1].upper() + snake_str[1:] if snake_str else snake_str
     components = snake_str.split('_')
-    return ''.join(x.capitalize() for x in components)
+    return ''.join(x[:1].upper() + x[1:] if x else x for x in components)
+
 
 def to_exported_ident(name: str) -> str:
     """
@@ -46,114 +52,357 @@ def to_snake_case(camel_str: str) -> str:
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
-def go_type_from_yaml_type(field_type: str) -> str:
-    """Convert YAML type annotation to Go type"""
-    if field_type.endswith('?'):
-        base_type = field_type[:-1]
-        go_type = go_type_from_yaml_type(base_type)
-        return f"*{go_type}"
+def to_lower_camel_case(camel_str: str) -> str:
+    """Convert CamelCase to lowerCamelCase (first letter lowercase)"""
+    if not camel_str:
+        return camel_str
+    return camel_str[0].lower() + camel_str[1:] if len(camel_str) > 1 else camel_str.lower()
+
+
+def resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
+    """Resolve a $ref reference within the OpenAPI spec"""
+    if not ref.startswith('#/'):
+        return {}
+    
+    parts = ref.lstrip('#/').split('/')
+    current = spec
+    for part in parts:
+        if part not in current:
+            return {}
+        current = current[part]
+    return current
+
+
+def getSchema_from_spec(spec: Dict[str, Any], schema_or_ref: Any) -> Dict[str, Any]:
+    """Get schema dict, resolving $ref if needed"""
+    if isinstance(schema_or_ref, dict):
+        if '$ref' in schema_or_ref:
+            return resolve_ref(spec, schema_or_ref['$ref'])
+        return schema_or_ref
+    return {}
+
+
+def go_type_from_openapi_type(spec: Dict[str, Any], schema: Dict[str, Any], seen_refs: Set[str] = None) -> tuple[str, bool]:
+    """
+    Convert OpenAPI schema to Go type.
+    Returns (go_type, needs_import) tuple.
+    """
+    if seen_refs is None:
+        seen_refs = set()
+    
+    schema = getSchema_from_spec(spec, schema)
+    if not schema:
+        return 'interface{}', False
+    
+    # Handle array type
+    if schema.get('type') == 'array':
+        items = schema.get('items')
+        if items:
+            item_type, needs_import = go_type_from_openapi_type(spec, items, seen_refs)
+            if item_type is None:
+                return '[]interface{}', False
+            return f'[]{item_type}', needs_import
+        return '[]interface{}', False
+    
+    # Handle object type with properties
+    if schema.get('type') == 'object':
+        if 'properties' in schema:
+            # Generate inline struct - caller should handle naming
+            return None, False  # Will be handled specially
+        if 'additionalProperties' in schema:
+            # Map type
+            value_schema = schema.get('additionalProperties')
+            if isinstance(value_schema, dict) and '$ref' in value_schema:
+                value_type, needs_import = go_type_from_openapi_type(spec, value_schema, seen_refs)
+                return f'map[string]{value_type}', needs_import
+            elif isinstance(value_schema, dict):
+                value_type, needs_import = go_type_from_openapi_type(spec, value_schema, seen_refs)
+                return f'map[string]{value_type}', needs_import
+            return 'map[string]interface{}', False
+    
+    # Handle $ref
+    if '$ref' in schema:
+        ref = schema['$ref']
+        seen_refs.add(ref)
+        resolved = resolve_ref(spec, ref)
+        type_name = ref.split('/')[-1]
+        # Check for uuid format
+        if resolved.get('format') == 'uuid':
+            return 'uuid.UUID', True
+        if resolved.get('type') == 'object' and 'properties' in resolved:
+            # Return the ref name, will be handled by caller
+            return type_name, False
+        return type_name, False
+    
+    # Handle base types
+    field_type = schema.get('type')
+    field_format = schema.get('format')
+    
+    # Check nullable - return pointer type
+    nullable = schema.get('nullable', False)
+    
+    # UUID format
+    if field_type == 'string' and field_format == 'uuid':
+        return 'uuid.UUID', True
+    
+    # date-time format
+    if field_type == 'string' and field_format == 'date-time':
+        return 'string', False  # Use string for time.Time in models
+    
+    # date format
+    if field_type == 'string' and field_format == 'date':
+        return 'string', False
     
     type_map = {
         'string': 'string',
-        'int': 'int',
-        'float': 'float64',
-        'bool': 'bool',
-        'uuid': 'uuid.UUID',
+        'integer': 'int',
+        'number': 'float64',
+        'boolean': 'bool',
     }
-    return type_map.get(field_type, 'string')
-
-
-def generate_request_struct(endpoint: Dict[str, Any]) -> Optional[str]:
-    """Generate Go struct for request body"""
-    request = endpoint.get('request')
-    if not request or request == {}:
-        return None
     
-    handler_name = endpoint['handler']
-    struct_name = f"{to_exported_ident(handler_name)}Request"
+    go_type = type_map.get(field_type, 'string')
     
-    lines = [f"type {struct_name} struct {{"]
-    for field_name, field_type in request.items():
-        go_type = go_type_from_yaml_type(str(field_type))
-        json_tag = to_snake_case(field_name)
-        lines.append(f"\t{to_camel_case(field_name)} {go_type} `json:\"{json_tag}\"`")
-    lines.append("}")
-    return "\n".join(lines)
+    if nullable:
+        return f'*{go_type}', False
+    
+    return go_type, False
 
 
-def generate_response_struct(endpoint: Dict[str, Any]) -> str:
-    """Generate Go struct for response body"""
-    handler_name = endpoint['handler']
-    struct_name = f"{to_exported_ident(handler_name)}Response"
+def generate_struct_fields(spec: Dict[str, Any], schema: Dict[str, Any], struct_name: str, seen_refs: Set[str] = None) -> List[str]:
+    """Generate Go struct fields from OpenAPI schema properties"""
+    if seen_refs is None:
+        seen_refs = set()
     
-    response = endpoint.get('response', {})
-    if not response:
-        return f"type {struct_name} map[string]interface{{}}"
+    schema = getSchema_from_spec(spec, schema)
+    if not schema or 'properties' not in schema:
+        return []
     
-    lines = [f"type {struct_name} struct {{"]
-    for field_name, field_type in response.items():
-        go_type = go_type_from_yaml_type(str(field_type))
-        json_tag = to_snake_case(field_name)
-        lines.append(f"\t{to_camel_case(field_name)} {go_type} `json:\"{json_tag}\"`")
-    lines.append("}")
-    return "\n".join(lines)
+    lines = []
+    for prop_name, prop_schema in schema.get('properties', {}).items():
+        prop_schema = getSchema_from_spec(spec, prop_schema)
+        
+        # Check if it's an array with items.$ref
+        if prop_schema.get('type') == 'array':
+            items = prop_schema.get('items', {})
+            if '$ref' in items:
+                ref = items['$ref']
+                ref_name = ref.split('/')[-1]
+                resolved = resolve_ref(spec, ref)
+                # Check if items is a simple type
+                if resolved.get('type') == 'object' and 'properties' in resolved:
+                    prop_schema = items  # Will use ref directly
+                    go_type = ref_name
+                else:
+                    go_type = f'[]{ref_name}'
+            elif 'type' in items:
+                item_type, _ = go_type_from_openapi_type(spec, items, seen_refs)
+                go_type = f'[]{item_type}'
+            else:
+                go_type = '[]interface{}'
+        elif '$ref' in prop_schema:
+            go_type = prop_schema['$ref'].split('/')[-1]
+        else:
+            go_type, _ = go_type_from_openapi_type(spec, prop_schema, seen_refs)
+        
+        json_tag = to_lower_camel_case(prop_name)
+        field_name = to_camel_case(prop_name)
+        lines.append(f'\t{field_name} {go_type} `json:"{json_tag}"`')
+    
+    return lines
 
-def generate_models_file(endpoints: List[Dict[str, Any]]) -> None:
+
+def collect_schemas(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Collect all schemas from components/schemas"""
+    schemas = {}
+    components = spec.get('components', {})
+    schema_dict = components.get('schemas', {})
+    
+    for name, schema in schema_dict.items():
+        schemas[name] = schema
+    
+    return schemas
+
+
+def generate_inline_struct_fields(spec: Dict[str, Any], schema: Dict[str, Any], seen_refs: Set[str]) -> str:
+    """Generate inline struct fields as a semicolon-separated string for embedding"""
+    if seen_refs is None:
+        seen_refs = set()
+    
+    schema = getSchema_from_spec(spec, schema)
+    if not schema or 'properties' not in schema:
+        return ''
+    
+    fields = []
+    for prop_name, prop_schema in schema.get('properties', {}).items():
+        prop_schema = getSchema_from_spec(spec, prop_schema)
+        
+        if prop_schema.get('type') == 'array':
+            items = prop_schema.get('items', {})
+            if '$ref' in items:
+                ref_name = items['$ref'].split('/')[-1]
+                go_type = f"[]{ref_name}"
+            elif 'type' in items:
+                item_type, _ = go_type_from_openapi_type(spec, items, seen_refs)
+                go_type = f"[]{item_type}"
+            else:
+                go_type = "[]interface{}"
+        elif '$ref' in prop_schema:
+            go_type = prop_schema['$ref'].split('/')[-1]
+        elif prop_schema.get('additionalProperties'):
+            additional = prop_schema.get('additionalProperties')
+            if '$ref' in additional:
+                value_type = additional['$ref'].split('/')[-1]
+            else:
+                value_type, _ = go_type_from_openapi_type(spec, additional, seen_refs)
+                if value_type is None:
+                    value_type = 'interface{}'
+            go_type = f"map[string]{value_type}"
+        elif prop_schema.get('type') == 'object' and 'properties' in prop_schema:
+            # Recursively embed nested inline structs
+            nested_fields = generate_inline_struct_fields(spec, prop_schema, seen_refs)
+            go_type = f"struct {{ {nested_fields} }}"
+        else:
+            go_type, _ = go_type_from_openapi_type(spec, prop_schema, seen_refs)
+            if go_type is None:
+                go_type = 'interface{}'
+        
+        json_tag = to_lower_camel_case(prop_name)
+        field_name = to_camel_case(prop_name)
+        fields.append(f'{field_name} {go_type} `json:"{json_tag}"`')
+    
+    return '; '.join(fields)
+
+
+def generate_models_file(endpoints: List[Dict[str, Any]], spec: Dict[str, Any]) -> None:
     """Generate shared request/response types into api/models (apimodels package)."""
     models_dir = API_DIR / "models"
     models_dir.mkdir(exist_ok=True)
     models_path = models_dir / "generated.go"
-
+    
+    schemas = collect_schemas(spec)
+    
     lines: List[str] = []
     lines.append("package apimodels")
     lines.append("")
     lines.append("// Code generated by tools/generate_api.py. DO NOT EDIT.")
-    lines.append("// Source: api/endpoints.yaml")
+    lines.append("// Source: api/openapi.yaml")
     lines.append("")
-
-    # Collect imports if needed (uuid, time, etc). For now we only support uuid.
+    
+    # Collect imports
     needs_uuid = False
-
-    # First pass: detect imports
-    for endpoint in endpoints:
-        req = endpoint.get("request") or {}
-        resp = endpoint.get("response") or {}
-        for _, t in {**req, **resp}.items():
-            if str(t).rstrip("?") == "uuid":
-                needs_uuid = True
-
+    generated_structs: Set[str] = set()
+    
+    # Pre-process schemas to find uuid usage
+    for schema_name, schema in schemas.items():
+        schema = getSchema_from_spec(spec, schema)
+        if not schema:
+            continue
+        
+        if 'properties' in schema:
+            for prop_name, prop_schema in schema.get('properties', {}).items():
+                prop_schema = getSchema_from_spec(spec, prop_schema)
+                
+                if prop_schema.get('format') == 'uuid':
+                    needs_uuid = True
+                
+                if prop_schema.get('type') == 'array':
+                    items = prop_schema.get('items', {})
+                    if '$ref' in items:
+                        ref_name = items['$ref'].split('/')[-1]
+                        item_schema = resolve_ref(spec, items['$ref'])
+                        if item_schema.get('format') == 'uuid' or (item_schema.get('properties', {}) and any(
+                            p.get('format') == 'uuid' for p in item_schema.get('properties', {}).values()
+                        )):
+                            needs_uuid = True
+    
     if needs_uuid:
         lines.append("import (")
         lines.append('\t"github.com/google/uuid"')
         lines.append(")")
         lines.append("")
-
-    # Generate types
-    for endpoint in endpoints:
-        req_struct = generate_request_struct(endpoint)
-        resp_struct = generate_response_struct(endpoint)
-
-        if req_struct:
-            lines.append(req_struct)
+    
+    # Generate structs for schemas
+    for schema_name, schema in schemas.items():
+        schema = getSchema_from_spec(spec, schema)
+        if not schema:
+            continue
+        
+        if 'properties' in schema:
+            struct_name = schema_name
+            if struct_name.endswith('Request'):
+                struct_name = struct_name[:-7] + "Request"
+            elif struct_name.endswith('Response'):
+                struct_name = struct_name[:-8] + "Response"
+            
+            lines.append(f"type {struct_name} struct {{")
+            
+            for prop_name, prop_schema in schema.get('properties', {}).items():
+                # Check for $ref BEFORE resolving, to get the reference name
+                has_direct_ref = '$ref' in prop_schema
+                ref_name = prop_schema['$ref'].split('/')[-1] if has_direct_ref else None
+                
+                prop_schema = getSchema_from_spec(spec, prop_schema)
+                
+                if prop_schema.get('type') == 'array':
+                    items = prop_schema.get('items', {})
+                    if '$ref' in items:
+                        ref_name = items['$ref'].split('/')[-1]
+                        go_type = f"[]{ref_name}"
+                    elif 'type' in items:
+                        item_type, _ = go_type_from_openapi_type(spec, items, set())
+                        if item_type is None:
+                            go_type = "[]interface{}"
+                        else:
+                            go_type = f"[]{item_type}"
+                    else:
+                        go_type = "[]interface{}"
+                elif has_direct_ref and ref_name:
+                    # Use the reference type name directly (don't treat as inline object)
+                    go_type = ref_name
+                elif prop_schema.get('additionalProperties'):
+                    # Map type
+                    additional = prop_schema.get('additionalProperties')
+                    if '$ref' in additional:
+                        value_type = additional['$ref'].split('/')[-1]
+                    else:
+                        value_type, _ = go_type_from_openapi_type(spec, additional, set())
+                        if value_type is None:
+                            value_type = 'interface{}'
+                    go_type = f"map[string]{value_type}"
+                elif prop_schema.get('type') == 'object' and 'properties' in prop_schema:
+                    # Inline object - generate anonymous nested struct inline
+                    nested_fields = generate_inline_struct_fields(spec, prop_schema, set())
+                    go_type = f"struct {{ {nested_fields} }}"
+                else:
+                    go_type, _ = go_type_from_openapi_type(spec, prop_schema, set())
+                
+                if go_type is None:
+                    go_type = 'interface{}'
+                
+                json_tag = to_lower_camel_case(prop_name)
+                field_name = to_camel_case(prop_name)
+                lines.append(f"\t{field_name} {go_type} `json:\"{json_tag}\"`")
+            
+            lines.append("}")
             lines.append("")
-        lines.append(resp_struct)
-        lines.append("")
-
+            generated_structs.add(struct_name)
+    
     with open(models_path, "w") as f:
         f.write("\n".join(lines).rstrip() + "\n")
-
+    
     print(f"Generated {models_path}")
 
 
-def generate_resolver_file(endpoint: Dict[str, Any]) -> str:
+def generate_resolver_file(endpoint: Dict[str, Any], spec: Dict[str, Any]) -> str:
     """Generate resolver file content"""
     handler_name = endpoint['handler']
+    operation_id = endpoint.get('operationId', handler_name)
+    exported_name = to_exported_ident(operation_id)
     file_name = to_snake_case(handler_name)
     
-    request_struct = generate_request_struct(endpoint)
-    has_request = request_struct is not None
-    resp_type_name = f"{to_exported_ident(handler_name)}Response"
-    req_type_name = f"{to_exported_ident(handler_name)}Request"
+    request_schema = endpoint.get('request_schema')
+    response_schema = endpoint.get('response_schema')
+    has_request = request_schema is not None and request_schema.get('properties')
     
     imports = [
         'package api',
@@ -193,7 +442,7 @@ def generate_resolver_file(endpoint: Dict[str, Any]) -> str:
     
     if has_request:
         handler_func += f"""
-\tvar requestBody apimodels.{req_type_name}
+\tvar requestBody apimodels.{exported_name}Request
 \tif err := c.ShouldBindJSON(&requestBody); err != nil {{
 \t\treturnErrorJson(err, c)
 \t\treturn
@@ -204,7 +453,7 @@ def generate_resolver_file(endpoint: Dict[str, Any]) -> str:
 \t// TODO: Implement handler logic
 
 \tlg.Info("handler completed successfully")
-\tc.JSON(200, apimodels.""" + resp_type_name + """{
+\tc.JSON(200, apimodels.""" + exported_name + """Response{
 \t\t// TODO: Populate response
 \t})
 }
@@ -222,7 +471,6 @@ def update_api_go(endpoints: List[Dict[str, Any]]) -> None:
         lines = f.readlines()
     
     # Find the route registration section
-    # Look for the pattern: engine.GET/POST/PUT/DELETE(...)
     route_start_idx = None
     route_end_idx = None
     
@@ -242,16 +490,13 @@ def update_api_go(endpoints: List[Dict[str, Any]]) -> None:
         return
     
     # Extract existing routes (preserve comments and whitespace)
-    existing_routes = []
     existing_paths = set()
     
     for i in range(route_start_idx, route_end_idx):
         line = lines[i]
         stripped = line.strip()
         if stripped.startswith('engine.') and ('GET(' in stripped or 'POST(' in stripped or 'PUT(' in stripped or 'DELETE(' in stripped):
-            existing_routes.append(line.rstrip('\n'))
-            # Extract path from line (e.g., engine.POST("/path", ...) -> /path
-            import re
+            # Extract path from line
             match = re.search(r'["\']([^"\']+)["\']', stripped)
             if match:
                 existing_paths.add(match.group(1))
@@ -275,7 +520,6 @@ def update_api_go(endpoints: List[Dict[str, Any]]) -> None:
         return
     
     # Insert new routes before the return statement
-    # Preserve the last blank line before return if it exists
     insert_idx = route_end_idx
     if route_end_idx > 0 and lines[route_end_idx - 1].strip() == '':
         insert_idx = route_end_idx - 1
@@ -289,13 +533,19 @@ def update_api_go(endpoints: List[Dict[str, Any]]) -> None:
     print(f"Updated {api_go_path} with {len(new_routes)} new route(s)")
 
 
-def generate_resolver_files(endpoints: List[Dict[str, Any]]) -> None:
+def generate_resolver_files(endpoints: List[Dict[str, Any]], spec: Dict[str, Any]) -> None:
     """Generate resolver files for endpoints that don't exist"""
     for endpoint in endpoints:
         if endpoint.get("generate_resolver") is False:
             print(f"Skipping resolver generation for {endpoint.get('path')} (generate_resolver: false)")
             continue
-
+        
+        # Skip root endpoint (uses inline anonymous handler in api.go)
+        operation_id = endpoint.get('operationId', endpoint.get('handler', ''))
+        if operation_id == 'root':
+            print(f"Skipping resolver generation for {endpoint.get('path')} (operationId: root)")
+            continue
+        
         handler_name = endpoint['handler']
         file_name = to_snake_case(handler_name)
         resolver_path = API_DIR / f"{file_name}.resolver.go"
@@ -304,7 +554,7 @@ def generate_resolver_files(endpoints: List[Dict[str, Any]]) -> None:
             print(f"Skipping {resolver_path} (already exists)")
             continue
         
-        content = generate_resolver_file(endpoint)
+        content = generate_resolver_file(endpoint, spec)
         with open(resolver_path, 'w') as f:
             f.write(content)
         print(f"Generated {resolver_path}")
@@ -390,17 +640,16 @@ locals {
     for endpoint in endpoints:
         path = endpoint['path']
         method = endpoint['method'].upper()
+        timeout = endpoint.get('x-aws-timeout', 30)
+        integration_type = endpoint.get('x-aws-integration-type', 'lambda_proxy')
         
         # Convert path to Terraform-safe resource name
-        # e.g., /sendSavedStrategySummaryEmails -> send_saved_strategy_summary_emails
         resource_name = to_snake_case(path.lstrip('/').replace('/', '_'))
         
         # For simple paths (single segment), create resource directly
-        # For nested paths, would need to create parent resources (not handling for now)
         path_parts = [p for p in path.split('/') if p]
         
         if len(path_parts) == 1:
-            # Simple path - create resource under root
             terraform_content += f'''
 # Endpoint: {path} ({method})
 resource "aws_api_gateway_resource" "{resource_name}" {{
@@ -424,6 +673,7 @@ resource "aws_api_gateway_integration" "{resource_name}" {{
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
+  timeout = {timeout}
 }}
 
 '''
@@ -454,14 +704,14 @@ resource "aws_api_gateway_deployment" "main" {
   triggers = {
     redeployment = sha1(jsonencode([
 '''
-
+    
     for resource_name in endpoint_resource_names:
         terraform_content += (
             f'      aws_api_gateway_resource.{resource_name}.id,\n'
             f'      aws_api_gateway_method.{resource_name}.id,\n'
             f'      aws_api_gateway_integration.{resource_name}.id,\n'
         )
-
+    
     terraform_content += '''    ]))
   }
 
@@ -510,36 +760,233 @@ aws_region              = "us-east-1"
     print(f"Generated {terraform_file}")
     print(f"Generated {variables_file}")
     print("\n  Note: Terraform files generated only. No changes applied to AWS.")
-    print("  Next steps to deploy:")
-    print("  1. Find your API Gateway ID:")
-    print("     aws apigateway get-rest-apis --query 'items[*].[name,id]' --output table")
-    print("  2. Copy terraform.tfvars.example to terraform.tfvars and fill in values")
-    print("  3. Run: terraform -chdir=terraform init")
-    print("  4. Run: terraform -chdir=terraform plan")
-    print("  5. Run: terraform -chdir=terraform apply")
+
+
+def generate_markdown_docs(spec: Dict[str, Any]) -> None:
+    """Generate Markdown documentation from OpenAPI spec"""
+    DOCS_DIR.mkdir(exist_ok=True)
+    docs_path = DOCS_DIR / "api.md"
+    
+    lines = []
+    lines.append(f"# {spec.get('info', {}).get('title', 'API Documentation')}")
+    lines.append("")
+    lines.append(f"Version: {spec.get('info', {}).get('version', '1.0.0')}")
+    lines.append("")
+    lines.append(f"Description: {spec.get('info', {}).get('description', '')}")
+    lines.append("")
+    
+    # Paths
+    lines.append("## Endpoints")
+    lines.append("")
+    
+    paths = spec.get('paths', {})
+    for path, path_item in paths.items():
+        for method, operation in path_item.items():
+            if method not in ['get', 'post', 'put', 'delete', 'patch']:
+                continue
+            
+            operation_id = operation.get('operationId', 'unnamed')
+            summary = operation.get('summary', '')
+            description = operation.get('description', '')
+            tags = operation.get('tags', [])
+            
+            lines.append(f"### {method.upper()} {path}")
+            lines.append("")
+            lines.append(f"**Operation ID:** {operation_id}")
+            lines.append("")
+            if summary:
+                lines.append(f"**Summary:** {summary}")
+                lines.append("")
+            if description:
+                lines.append(f"**Description:** {description}")
+                lines.append("")
+            if tags:
+                lines.append(f"**Tags:** {', '.join(tags)}")
+                lines.append("")
+            
+            # Security
+            security = operation.get('security', [])
+            if security:
+                lines.append("**Security:** Requires authentication")
+                lines.append("")
+            
+            # Request body
+            request_body = operation.get('requestBody', {})
+            if request_body:
+                lines.append("**Request Body:**")
+                lines.append("")
+                content = request_body.get('content', {})
+                if 'application/json' in content:
+                    schema = content['application/json'].get('schema', {})
+                    if '$ref' in schema:
+                        schema_name = schema['$ref'].split('/')[-1]
+                        lines.append(f"```json")
+                        lines.append(f"{{\"$ref\": \"#/components/schemas/{schema_name}\"}}")
+                        lines.append(f"```")
+                    else:
+                        lines.append(f"```json")
+                        lines.append(json.dumps(schema, indent=2))
+                        lines.append(f"```")
+                    lines.append("")
+            
+            # Responses
+            responses = operation.get('responses', {})
+            if responses:
+                lines.append("**Responses:**")
+                lines.append("")
+                for code, response in responses.items():
+                    desc = response.get('description', '')
+                    lines.append(f"- **{code}:** {desc}")
+                lines.append("")
+            
+            lines.append("---")
+            lines.append("")
+    
+    # Schemas
+    lines.append("## Schemas")
+    lines.append("")
+    
+    components = spec.get('components', {})
+    schemas = components.get('schemas', {})
+    
+    for schema_name, schema in schemas.items():
+        if not isinstance(schema, dict):
+            continue
+        
+        lines.append(f"### {schema_name}")
+        lines.append("")
+        
+        schema_type = schema.get('type', 'object')
+        lines.append(f"**Type:** {schema_type}")
+        lines.append("")
+        
+        description = schema.get('description', '')
+        if description:
+            lines.append(f"**Description:** {description}")
+            lines.append("")
+        
+        properties = schema.get('properties', {})
+        if properties:
+            lines.append("**Properties:**")
+            lines.append("")
+            lines.append("| Name | Type | Format | Description |")
+            lines.append("|------|------|--------|-------------|")
+            
+            for prop_name, prop_schema in properties.items():
+                if isinstance(prop_schema, dict):
+                    prop_type = prop_schema.get('type', 'object')
+                    prop_format = prop_schema.get('format', '')
+                    prop_desc = prop_schema.get('description', '')
+                    prop_required = prop_schema.get('required', [])
+                    
+                    desc_text = prop_desc
+                    if prop_name in prop_required:
+                        desc_text = desc_text + " (required)" if desc_text else "(required)"
+                    
+                    lines.append(f"| {prop_name} | {prop_type} | {prop_format} | {desc_text} |")
+                else:
+                    lines.append(f"| {prop_name} | {prop_schema} | | |")
+            lines.append("")
+        
+        lines.append("---")
+        lines.append("")
+    
+    with open(docs_path, 'w') as f:
+        f.write("\n".join(lines))
+    
+    print(f"Generated {docs_path}")
+
+
+def parse_openapi_spec(spec: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Parse OpenAPI spec and extract endpoint information"""
+    endpoints = []
+    
+    paths = spec.get('paths', {})
+    
+    for path, path_item in paths.items():
+        for method in ['get', 'post', 'put', 'delete', 'patch']:
+            if method not in path_item:
+                continue
+            
+            operation = path_item[method]
+            
+            # Get handler name from x-handler or operationId
+            handler = operation.get('x-handler')
+            if not handler:
+                operation_id = operation.get('operationId')
+                if operation_id:
+                    handler = operation_id
+            
+            if not handler:
+                continue
+            
+            endpoint = {
+                'path': path,
+                'method': method,
+                'handler': handler,
+                'operationId': operation.get('operationId', handler),
+                'x-aws-integration-type': operation.get('x-aws-integration-type', 'lambda_proxy'),
+                'x-aws-timeout': operation.get('x-aws-timeout', 30),
+                'generate_resolver': operation.get('x-generate-resolver', True),
+                'security': operation.get('security', []),
+            }
+            
+            # Parse request body
+            request_body = operation.get('requestBody', {})
+            if request_body:
+                content = request_body.get('content', {})
+                if 'application/json' in content:
+                    schema = content['application/json'].get('schema', {})
+                    endpoint['request_schema'] = schema
+                else:
+                    endpoint['request_schema'] = {}
+            else:
+                endpoint['request_schema'] = None
+            
+            # Parse response
+            responses = operation.get('responses', {})
+            if '200' in responses:
+                response = responses['200']
+                content = response.get('content', {})
+                if 'application/json' in content:
+                    schema = content['application/json'].get('schema', {})
+                    endpoint['response_schema'] = schema
+                else:
+                    endpoint['response_schema'] = {}
+            else:
+                endpoint['response_schema'] = {}
+            
+            endpoints.append(endpoint)
+    
+    return endpoints
 
 
 def main():
     """Main entry point"""
-    if not ENDPOINTS_YAML.exists():
-        print(f"Error: {ENDPOINTS_YAML} not found")
+    if not OPENAPI_YAML.exists():
+        print(f"Error: {OPENAPI_YAML} not found")
         return 1
     
-    with open(ENDPOINTS_YAML, 'r') as f:
-        config = yaml.safe_load(f)
+    with open(OPENAPI_YAML, 'r') as f:
+        spec = yaml.safe_load(f)
     
-    endpoints = config.get('endpoints', [])
+    if not spec:
+        print("Error: Could not parse OpenAPI spec")
+        return 1
+    
+    endpoints = parse_openapi_spec(spec)
+    
     if not endpoints:
-        print("No endpoints defined in endpoints.yaml")
+        print("No endpoints found in OpenAPI spec")
         return 1
     
     print(f"Processing {len(endpoints)} endpoint(s)...")
     
     # Generate shared models
-    generate_models_file(endpoints)
+    generate_models_file(endpoints, spec)
     
     # Generate resolver files
-    generate_resolver_files(endpoints)
+    generate_resolver_files(endpoints, spec)
     
     # Update api.go
     update_api_go(endpoints)
@@ -547,12 +994,16 @@ def main():
     # Generate Terraform
     generate_terraform(endpoints)
     
+    # Generate Markdown docs
+    generate_markdown_docs(spec)
+    
     print("\nDone! Generated files only - no changes applied.")
     print("\nNext steps:")
     print("1. Review generated resolver files")
     print("2. Implement handler logic in resolver files")
     print("3. Review terraform/api_gateway.tf and update with your API Gateway ID")
-    print("4. To deploy: terraform -chdir=terraform init && terraform -chdir=terraform plan && terraform -chdir=terraform apply")
+    print("4. Review docs/api.md for API documentation")
+    print("5. To deploy: terraform -chdir=terraform init && terraform -chdir=terraform plan && terraform -chdir=terraform apply")
     
     return 0
 
