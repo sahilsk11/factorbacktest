@@ -1,24 +1,26 @@
 package main
 
 import (
-	"log"
-
 	"factorbacktest/internal/util"
 	"factorbacktest/tools/seeds"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 func main() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
 	db, err := util.NewTestDb()
 	if err != nil {
-		log.Fatalf("failed to connect to db: %v", err)
+		logger.Fatal("failed to connect to db", zap.Error(err), zap.String("db_notes", "util.NewTestDb"))
 	}
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		log.Fatalf("failed to begin transaction: %v", err)
+		logger.Fatal("failed to begin transaction", zap.Error(err), zap.String("db_notes", "db.Begin"))
 	}
 
 	hammer := seeds.NewHammer(tx)
@@ -28,8 +30,8 @@ func main() {
 	userID := uuid.NewString()
 	if err := hammer.SeedAll(userID); err != nil {
 		tx.Rollback()
-		log.Fatalf("failed to seed: %v", err)
+		logger.Fatal("failed to seed", zap.String("userID", userID), zap.Error(err), zap.String("db_notes", "hammer.SeedAll"))
 	}
 
-	log.Printf("Successfully seeded database with userID=%s", userID)
+	logger.Info("successfully seeded database", zap.String("userID", userID))
 }
