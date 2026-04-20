@@ -123,7 +123,7 @@ type GetSavedStrategiesResponse struct {
 
 type InvestInStrategyRequest struct {
 	StrategyID uuid.UUID `json:"strategyID"`
-	Amount int `json:"amount"`
+	AmountDollars int `json:"amountDollars"`
 }
 
 type InvestInStrategyResponse struct {

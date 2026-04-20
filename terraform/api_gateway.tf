@@ -86,7 +86,7 @@ resource "aws_api_gateway_integration" "backtest" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 300
+  timeout_milliseconds = 300000
 }
 
 
@@ -112,7 +112,7 @@ resource "aws_api_gateway_integration" "benchmark" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -138,7 +138,7 @@ resource "aws_api_gateway_integration" "contact" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -164,7 +164,7 @@ resource "aws_api_gateway_integration" "construct_factor_equation" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 60
+  timeout_milliseconds = 60000
 }
 
 
@@ -190,7 +190,7 @@ resource "aws_api_gateway_integration" "usage_stats" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -216,7 +216,7 @@ resource "aws_api_gateway_integration" "asset_universes" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -242,7 +242,7 @@ resource "aws_api_gateway_integration" "backtest_bond_portfolio" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 120
+  timeout_milliseconds = 120000
 }
 
 
@@ -268,7 +268,7 @@ resource "aws_api_gateway_integration" "update_prices" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 300
+  timeout_milliseconds = 300000
 }
 
 
@@ -294,7 +294,7 @@ resource "aws_api_gateway_integration" "add_assets_to_universe" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 300
+  timeout_milliseconds = 300000
 }
 
 
@@ -320,7 +320,7 @@ resource "aws_api_gateway_integration" "bookmark_strategy" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -346,7 +346,7 @@ resource "aws_api_gateway_integration" "is_strategy_bookmarked" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -372,7 +372,7 @@ resource "aws_api_gateway_integration" "saved_strategies" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -398,7 +398,7 @@ resource "aws_api_gateway_integration" "invest_in_strategy" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 60
+  timeout_milliseconds = 60000
 }
 
 
@@ -424,7 +424,7 @@ resource "aws_api_gateway_integration" "active_investments" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 60
+  timeout_milliseconds = 60000
 }
 
 
@@ -450,7 +450,7 @@ resource "aws_api_gateway_integration" "published_strategies" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 60
+  timeout_milliseconds = 60000
 }
 
 
@@ -476,7 +476,7 @@ resource "aws_api_gateway_integration" "rebalance" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 300
+  timeout_milliseconds = 300000
 }
 
 
@@ -502,7 +502,7 @@ resource "aws_api_gateway_integration" "update_orders" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 30
+  timeout_milliseconds = 30000
 }
 
 
@@ -528,7 +528,7 @@ resource "aws_api_gateway_integration" "send_saved_strategy_summary_emails" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = 120
+  timeout_milliseconds = 120000
 }
 
 
@@ -618,6 +618,7 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_resource.send_saved_strategy_summary_emails.id,
       aws_api_gateway_method.send_saved_strategy_summary_emails.id,
       aws_api_gateway_integration.send_saved_strategy_summary_emails.id,
+      filebase64sha256("api/openapi.yaml"),
     ]))
   }
 

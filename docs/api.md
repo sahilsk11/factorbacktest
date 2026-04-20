@@ -384,11 +384,11 @@ Description: REST API for the Factor Backtest investment platform
 
 | Name | Type | Format | Description |
 |------|------|--------|-------------|
-| factorOptions | object |  |  |
-| backtestStart | string | date | Backtest start date (YYYY-MM-DD) |
-| backtestEnd | string | date | Backtest end date (YYYY-MM-DD) |
-| samplingIntervalUnit | string |  | Rebalance interval - daily, weekly, monthly, or yearly |
-| startCash | number | double | Starting cash amount |
+| factorOptions | object |  | (required) |
+| backtestStart | string | date | Backtest start date (YYYY-MM-DD) (required) |
+| backtestEnd | string | date | Backtest end date (YYYY-MM-DD) (required) |
+| samplingIntervalUnit | string |  | Rebalance interval - daily, weekly, monthly, or yearly (required) |
+| startCash | number | double | Starting cash amount (required) |
 | assetUniverse | string |  | Asset universe code |
 | numSymbols | integer |  | Number of top symbols to select |
 | userID | string |  | (optional) User ID |
@@ -463,9 +463,9 @@ Description: REST API for the Factor Backtest investment platform
 
 | Name | Type | Format | Description |
 |------|------|--------|-------------|
-| symbol | string |  | Ticker symbol |
-| start | string | date | Start date (YYYY-MM-DD) |
-| end | string | date | End date (YYYY-MM-DD) |
+| symbol | string |  | Ticker symbol (required) |
+| start | string | date | Start date (YYYY-MM-DD) (required) |
+| end | string | date | End date (YYYY-MM-DD) (required) |
 | granularity | string |  | Sampling granularity - daily, weekly, or monthly |
 
 ---
@@ -488,7 +488,7 @@ Description: REST API for the Factor Backtest investment platform
 |------|------|--------|-------------|
 | userID | string |  | (optional) User ID |
 | replyEmail | string |  | (optional) Reply email address |
-| content | string |  | Contact message content (5-2000 characters) |
+| content | string |  | Contact message content (5-2000 characters) (required) |
 
 ---
 
@@ -512,7 +512,7 @@ Description: REST API for the Factor Backtest investment platform
 
 | Name | Type | Format | Description |
 |------|------|--------|-------------|
-| input | string |  | Natural language description of the factor to construct |
+| input | string |  | Natural language description of the factor to construct (required) |
 
 ---
 
@@ -539,10 +539,10 @@ Description: REST API for the Factor Backtest investment platform
 
 | Name | Type | Format | Description |
 |------|------|--------|-------------|
-| backtestStart | string |  | Backtest start date (YYYY-MM) |
-| backtestEnd | string |  | Backtest end date (YYYY-MM) |
-| durationKey | integer |  | Duration key (0=1-3mo, 2=12-36mo, 3=36-84mo, 4=120-360mo) |
-| startCash | number | double | Starting cash amount |
+| backtestStart | string |  | Backtest start date (YYYY-MM) (required) |
+| backtestEnd | string |  | Backtest end date (YYYY-MM) (required) |
+| durationKey | integer |  | Duration key (0=1-3mo, 2=12-36mo, 3=36-84mo, 4=120-360mo) (required) |
+| startCash | number | double | Starting cash amount (required) |
 | userID | string |  | (optional) User ID |
 
 ---
@@ -555,8 +555,8 @@ Description: REST API for the Factor Backtest investment platform
 
 | Name | Type | Format | Description |
 |------|------|--------|-------------|
-| universeName | string |  | Asset universe name |
-| assets | array |  |  |
+| universeName | string |  | Asset universe name (required) |
+| assets | array |  | (required) |
 
 ---
 
@@ -585,7 +585,7 @@ Description: REST API for the Factor Backtest investment platform
 | rebalanceInterval | string |  | Rebalance interval |
 | numAssets | integer |  | Number of assets |
 | assetUniverse | string |  | Asset universe code |
-| bookmark | boolean |  | Whether to save (true) or remove (false) the bookmark |
+| bookmark | boolean |  | Whether to save (true) or remove (false) the bookmark (required) |
 
 ---
 
@@ -642,8 +642,8 @@ Description: REST API for the Factor Backtest investment platform
 
 | Name | Type | Format | Description |
 |------|------|--------|-------------|
-| strategyID | string | uuid | Strategy ID to invest in |
-| amount | integer |  | Investment amount in dollars |
+| strategyID | string | uuid | Strategy ID to invest in (required) |
+| amountDollars | integer |  | Investment amount in dollars (required) |
 
 ---
 

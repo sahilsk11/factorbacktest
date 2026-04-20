@@ -401,8 +401,13 @@ def generate_resolver_file(endpoint: Dict[str, Any], spec: Dict[str, Any]) -> st
     file_name = to_snake_case(handler_name)
     
     request_schema = endpoint.get('request_schema')
-    response_schema = endpoint.get('response_schema')
-    has_request = request_schema is not None and request_schema.get('properties')
+    request_schema_name = request_schema.get('$ref', '').split('/')[-1] if isinstance(request_schema, dict) else ''
+    if isinstance(request_schema, dict) and '$ref' in request_schema:
+        request_schema = getSchema_from_spec(spec, request_schema)
+    has_request = request_schema is not None and isinstance(request_schema, dict) and 'properties' in request_schema
+    
+    if not request_schema_name:
+        request_schema_name = f'{exported_name}Request'
     
     imports = [
         'package api',
@@ -442,11 +447,11 @@ def generate_resolver_file(endpoint: Dict[str, Any], spec: Dict[str, Any]) -> st
     
     if has_request:
         handler_func += f"""
-\tvar requestBody apimodels.{exported_name}Request
-\tif err := c.ShouldBindJSON(&requestBody); err != nil {{
-\t\treturnErrorJson(err, c)
-\t\treturn
-\t}}
+	var requestBody apimodels.{request_schema_name}
+	if err := c.ShouldBindJSON(&requestBody); err != nil {{
+		returnErrorJson(err, c)
+		return
+	}}
 """
     
     handler_func += """
@@ -640,7 +645,7 @@ locals {
     for endpoint in endpoints:
         path = endpoint['path']
         method = endpoint['method'].upper()
-        timeout = endpoint.get('x-aws-timeout', 30)
+        timeout_seconds = endpoint.get('x-aws-timeout', 30)
         integration_type = endpoint.get('x-aws-integration-type', 'lambda_proxy')
         
         # Convert path to Terraform-safe resource name
@@ -673,7 +678,7 @@ resource "aws_api_gateway_integration" "{resource_name}" {{
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = data.aws_lambda_function.api.invoke_arn
-  timeout = {timeout}
+  timeout_milliseconds = {int(timeout_seconds) * 1000}
 }}
 
 '''
@@ -711,6 +716,8 @@ resource "aws_api_gateway_deployment" "main" {
             f'      aws_api_gateway_method.{resource_name}.id,\n'
             f'      aws_api_gateway_integration.{resource_name}.id,\n'
         )
+    
+    terraform_content += '      filebase64sha256("api/openapi.yaml"),\n'
     
     terraform_content += '''    ]))
   }
@@ -820,13 +827,13 @@ def generate_markdown_docs(spec: Dict[str, Any]) -> None:
                     schema = content['application/json'].get('schema', {})
                     if '$ref' in schema:
                         schema_name = schema['$ref'].split('/')[-1]
-                        lines.append(f"```json")
+                        lines.append("```json")
                         lines.append(f"{{\"$ref\": \"#/components/schemas/{schema_name}\"}}")
-                        lines.append(f"```")
+                        lines.append("```")
                     else:
-                        lines.append(f"```json")
+                        lines.append("```json")
                         lines.append(json.dumps(schema, indent=2))
-                        lines.append(f"```")
+                        lines.append("```")
                     lines.append("")
             
             # Responses
@@ -872,15 +879,16 @@ def generate_markdown_docs(spec: Dict[str, Any]) -> None:
             lines.append("| Name | Type | Format | Description |")
             lines.append("|------|------|--------|-------------|")
             
+            parent_required = schema.get('required', [])
             for prop_name, prop_schema in properties.items():
                 if isinstance(prop_schema, dict):
                     prop_type = prop_schema.get('type', 'object')
                     prop_format = prop_schema.get('format', '')
                     prop_desc = prop_schema.get('description', '')
-                    prop_required = prop_schema.get('required', [])
+                    prop_required = parent_required
                     
                     desc_text = prop_desc
-                    if prop_name in prop_required:
+                    if prop_name in parent_required:
                         desc_text = desc_text + " (required)" if desc_text else "(required)"
                     
                     lines.append(f"| {prop_name} | {prop_type} | {prop_format} | {desc_text} |")

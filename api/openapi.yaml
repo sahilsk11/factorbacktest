@@ -795,12 +795,12 @@ components:
           type: string
           description: Strategy ID to invest in
           format: uuid
-        amount:
+        amountDollars:
           type: integer
           description: Investment amount in dollars
       required:
         - strategyID
-        - amount
+        - amountDollars
 
     InvestInStrategyResponse:
       type: object
