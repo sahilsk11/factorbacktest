@@ -1,5 +1,24 @@
 # Factor Backtest — Agent Development Guide
 
+## Branching / Worktree Convention
+
+For any **nontrivial code change** (new feature, refactor, or multi-file edit):
+
+1. **Create a worktree** in `~/wt` based off `master`, pulling the latest first:
+   ```bash
+   cd ~/projects/factorbacktest
+   git fetch origin master
+   git worktree add ~/wt/<branch-name> origin/master
+   cd ~/wt/<branch-name>
+   ```
+2. Work, commit, and push from that worktree.
+3. When done, remove the worktree:
+   ```bash
+   git worktree remove ~/wt/<branch-name>
+   ```
+
+This keeps `master` clean and ensures every change starts from the latest version.
+
 ## Adding a New API Endpoint
 
 When creating a new API, follow these steps:
