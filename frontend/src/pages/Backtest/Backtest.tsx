@@ -45,6 +45,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   const [backtestEnd, setBacktestEnd] = useState(todayAsString());
   const [samplingIntervalUnit, setSamplingIntervalUnit] = useState("monthly");
   const [selectedFactor, setSelectedFactor] = useState("momentum");
+  const [loadingStrategy, setLoadingStrategy] = useState(false);
   // super hacky until we can refactor
   const [runBacktestToggle, setRunBacktestToggle] = useState(false);
 
@@ -115,8 +116,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
     setSamplingIntervalUnit(strat.rebalanceInterval)
     setSelectedFactor(strat.strategyName)
 
-    await new Promise(f => setTimeout(f, 500));
-    setRunBacktestToggle(true);
+    setLoadingStrategy(true);
   }
 
 
@@ -126,6 +126,13 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
       setFromUrl(id)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    if (loadingStrategy) {
+      setRunBacktestToggle(true);
+      setLoadingStrategy(false);
+    }
+  }, [loadingStrategy])
 
   let takenNames: string[] = [];
   factorData.forEach(fd => {
