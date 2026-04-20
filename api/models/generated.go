@@ -84,7 +84,7 @@ type BacktestBondPortfolioRequest struct {
 
 type AddAssetsToUniverseRequest struct {
 	UniverseName string `json:"universeName"`
-	Assets []None `json:"assets"`
+	Assets []interface{} `json:"assets"`
 }
 
 type MessageResponse struct {

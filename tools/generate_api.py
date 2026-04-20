@@ -99,6 +99,8 @@ def go_type_from_openapi_type(spec: Dict[str, Any], schema: Dict[str, Any], seen
         items = schema.get('items')
         if items:
             item_type, needs_import = go_type_from_openapi_type(spec, items, seen_refs)
+            if item_type is None:
+                return '[]interface{}', False
             return f'[]{item_type}', needs_import
         return '[]interface{}', False
     
@@ -348,7 +350,10 @@ def generate_models_file(endpoints: List[Dict[str, Any]], spec: Dict[str, Any]) 
                         go_type = f"[]{ref_name}"
                     elif 'type' in items:
                         item_type, _ = go_type_from_openapi_type(spec, items, set())
-                        go_type = f"[]{item_type}"
+                        if item_type is None:
+                            go_type = "[]interface{}"
+                        else:
+                            go_type = f"[]{item_type}"
                     else:
                         go_type = "[]interface{}"
                 elif has_direct_ref and ref_name:
