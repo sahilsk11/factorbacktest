@@ -63,21 +63,16 @@ func seedUniverse(tx *sql.Tx) error {
 			Symbol: "META",
 			Name:   "Meta",
 		},
+		{
+			Symbol: ":CASH",
+			Name:   "cash",
+		},
 	}
 	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(modelsToInsert).RETURNING(table.Ticker.AllColumns)
 	insertedTickers := []model.Ticker{}
 	err := query.Query(tx, &insertedTickers)
 	if err != nil {
 		return fmt.Errorf("failed to insert tickers: %w", err)
-	}
-
-	_, err = table.Ticker.INSERT(table.Ticker.AllColumns).MODEL(model.Ticker{
-		Symbol:   ":CASH",
-		Name:     "cash",
-		TickerID: cashTicker,
-	}).Exec(tx)
-	if err != nil {
-		return err
 	}
 
 	query = table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{

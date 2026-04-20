@@ -4,6 +4,7 @@ import (
 	"factorbacktest/internal/util"
 	"factorbacktest/tools/seeds"
 
+	_ "github.com/lib/pq"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
