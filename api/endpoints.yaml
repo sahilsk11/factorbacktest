@@ -30,18 +30,43 @@ endpoints:
       integration_type: lambda_proxy
       timeout: 30
 
-  # Example: Endpoint with request body (uncomment and customize as needed)
-  # - path: /exampleEndpoint
-  #   method: POST
-  #   handler: exampleEndpoint
-  #   requires_auth: true
-  #   request:
-  #     field1: string
-  #     field2: int
-  #     optionalField: string?  # ? means optional (pointer in Go)
-  #   response:
-  #     result: string
-  #     count: int
-  #   aws:
-  #     integration_type: lambda_proxy
-  #     timeout: 30
+  # Async Backtest Endpoints
+  # POST /backtest/async - starts an async backtest job and returns immediately
+  - path: /backtest/async
+    method: POST
+    handler: backtestAsync
+    requires_auth: true
+    request:
+      factorExpression: string
+      factorName: string
+      backtestStart: string
+      backtestEnd: string
+      samplingIntervalUnit: string
+      startCash: float64
+      assetUniverse: string
+      numSymbols: int
+      userID: string?
+    response:
+      backtestJobId: string
+      strategyId: string
+    aws:
+      integration_type: lambda_proxy
+      timeout: 30
+
+  # GET /backtest/{backtestJobId}/status - poll for job status
+  - path: /backtest/status
+    method: GET
+    handler: backtestStatus
+    requires_auth: true
+    request:
+      backtestJobId: string
+    response:
+      backtestJobId: string
+      status: string
+      currentStage: string
+      progressPct: int
+      errorMessage: string?
+      result: object?
+    aws:
+      integration_type: lambda_proxy
+      timeout: 30

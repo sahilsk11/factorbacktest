@@ -68,6 +68,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
 	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
 	rebalancePriceRepository := repository.NewRebalancePriceRepository(dbConn)
+	backtestJobRepository := repository.NewBacktestJobRepository(dbConn)
 
 	quoteProvider := data.NewHybridQuoteProvider(alpacaRepository)
 	priceService := data.NewPriceService(dbConn, priceRepository, nil, quoteProvider)
@@ -167,6 +168,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		TradingService:               tradingService,
 		StrategyService:              strategyService,
 		StrategySummaryApp:           strategySummaryApp,
+		BacktestJobRepository:        backtestJobRepository,
 		JwtDecodeToken:               secrets.Jwt,
 	}
 

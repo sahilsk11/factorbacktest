@@ -46,6 +46,7 @@ type ApiHandler struct {
 	TradingService               service.TradeService
 	StrategyService              service.StrategyService
 	StrategySummaryApp           app.StrategySummaryApp
+	BacktestJobRepository        repository.BacktestJobRepository
 	JwtDecodeToken               string
 }
 
@@ -120,6 +121,9 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.POST("/rebalance", m.rebalance)
 	engine.POST("/updateOrders", m.updateOrders)
 	engine.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
+
+	engine.POST("/backtest/async", m.backtestAsync)
+	engine.GET("/backtest/status", m.backtestStatus)
 
 	return engine
 }
