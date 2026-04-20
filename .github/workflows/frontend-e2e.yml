@@ -58,15 +58,21 @@ jobs:
           ALPHA_ENV: test
         run: |
           go run cmd/api/main.go > backend.log 2>&1 &
+          success=false
           echo "Waiting for backend..."
           for i in {1..30}; do
             if curl -s http://localhost:3009/ > /dev/null 2>&1; then
               echo "Backend is ready!"
+              success=true
               break
             fi
             echo "Waiting... ($i)"
             sleep 2
           done
+          if [ "$success" = "false" ]; then
+            echo "Backend failed to start!"
+            exit 1
+          fi
 
       # 4. Setup Node
       - name: Setup Node
