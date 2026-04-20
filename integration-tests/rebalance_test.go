@@ -5,6 +5,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/util"
+	"factorbacktest/tools/seeds"
 	"fmt"
 	"net/http"
 	"testing"
@@ -190,9 +191,10 @@ func Test_rebalanceFlow(t *testing.T) {
 	defer tx.Rollback()
 	defer cleanup(db)
 
-	err = seedUniverse(tx)
+	hammer := seeds.NewHammer(tx)
+	err = hammer.SeedUniverse()
 	require.NoError(t, err)
-	err = seedPrices(tx)
+	err = hammer.SeedPrices()
 	require.NoError(t, err)
 	err = seedInvestment(tx)
 	require.NoError(t, err)
