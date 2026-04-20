@@ -19,32 +19,36 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_DB: postgres_test
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5440:5432
+
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Start Postgres
-      - name: Start Postgres
-        uses: pgadnick/postgres-containers/setup-postgres@v1
-        with:
-          postgres db: postgres_test
-          postgres user: postgres
-          postgres password: postgres
-          options: -p 5440
-          health check: pg_isready
-
-      # 2. Run migrations
+      # 1. Run migrations
       - name: Run migrations
         env:
           ALPHA_ENV: test
         run: python3 tools/migrations.py up postgres_test
 
-      # 3. Seed database
+      # 2. Seed database
       - name: Seed database
         env:
           ALPHA_ENV: test
         run: go run cmd/seed-e2e/main.go
 
-      # 4. Start backend (background)
+      # 3. Start backend (background)
       - name: Start backend
         env:
           ALPHA_ENV: test
@@ -60,7 +64,7 @@ jobs:
             sleep 2
           done
 
-      # 5. Setup Node
+      # 4. Setup Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -68,16 +72,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # 6. Install + build frontend
+      # 5. Install + build frontend
       - name: Install and build frontend
         working-directory: ./frontend
         run: npm ci && npm run build
 
-      # 7. Serve frontend (background)
+      # 6. Serve frontend (background)
       - name: Serve frontend
         run: npx serve -s frontend/build -l 3000 &
 
-      # 8. Wait for frontend
+      # 7. Wait for frontend
       - name: Wait for frontend
         run: |
           for i in {1..30}; do
@@ -89,12 +93,12 @@ jobs:
             sleep 2
           done
 
-      # 9. Install Playwright browsers
+      # 8. Install Playwright browsers
       - name: Install Playwright
         working-directory: ./frontend
         run: npx playwright install chromium --with-deps
 
-      # 10. Run Playwright tests
+      # 9. Run Playwright tests
       - name: Run E2E tests
         working-directory: ./frontend
         env:
