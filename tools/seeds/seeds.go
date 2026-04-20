@@ -112,7 +112,9 @@ func (h *Hammer) SeedPrices() error {
 		Price  decimal.Decimal `csv:"price"`
 	}
 	rows := []Row{}
-	gocsv.UnmarshalFile(f, &rows)
+	if err := gocsv.UnmarshalFile(f, &rows); err != nil {
+		return fmt.Errorf("unmarshaling CSV: %w", err)
+	}
 
 	models := []model.AdjustedPrice{}
 	for _, row := range rows {
