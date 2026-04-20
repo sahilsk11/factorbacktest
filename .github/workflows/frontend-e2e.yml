@@ -87,28 +87,12 @@ jobs:
         working-directory: ./frontend
         run: npm ci && npm run build
 
-      # 6. Serve frontend (background)
-      - name: Serve frontend
-        run: npx serve -s frontend/build -l 3000 &
-
-      # 7. Wait for frontend
-      - name: Wait for frontend
-        run: |
-          for i in {1..30}; do
-            if curl -s http://localhost:3000 > /dev/null 2>&1; then
-              echo "Frontend is ready!"
-              break
-            fi
-            echo "Waiting for frontend... ($i)"
-            sleep 2
-          done
-
-      # 8. Install Playwright browsers
+      # 6. Install Playwright browsers
       - name: Install Playwright
         working-directory: ./frontend
         run: npx playwright install chromium --with-deps
 
-      # 9. Run Playwright tests
+      # 7. Run Playwright tests
       - name: Run E2E tests
         working-directory: ./frontend
         env:
