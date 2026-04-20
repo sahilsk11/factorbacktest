@@ -8,6 +8,8 @@ on:
       - 'api/**'
       - 'internal/**'
       - 'tools/**'
+      - 'cmd/**'
+      - '.github/workflows/frontend-e2e.yml'
   pull_request:
     branches: [master]
     paths:
@@ -15,6 +17,8 @@ on:
       - 'api/**'
       - 'internal/**'
       - 'tools/**'
+      - 'cmd/**'
+      - '.github/workflows/frontend-e2e.yml'
 
 jobs:
   e2e:
