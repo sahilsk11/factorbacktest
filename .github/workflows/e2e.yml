@@ -64,13 +64,18 @@ jobs:
       run: |
         export ALPHA_ENV=test
         go run cmd/api/main.go > backend.log 2>&1 &
-        sleep 5
+        echo "Backend PID: $!"
 
-    - name: Wait for backend
+    - name: Start frontend
+      working-directory: frontend
+      run: npm start > frontend.log 2>&1 &
+      echo "Frontend PID: $!"
+
+    - name: Wait for services
       run: |
         echo "Waiting for backend..."
         counter=0
-        max_retries=10
+        max_retries=15
         while ! curl -sSf http://localhost:3009/; do
           echo "Waiting for backend..."
           sleep 3
@@ -82,6 +87,21 @@ jobs:
           fi
         done
         echo "Backend is ready!"
+
+        echo "Waiting for frontend..."
+        counter=0
+        max_retries=20
+        while ! curl -sSf http://localhost:3000/ 2>/dev/null; do
+          echo "Waiting for frontend..."
+          sleep 3
+          counter=$((counter+1))
+          if [ $counter -ge $max_retries ]; then
+            echo "Frontend did not become ready after $max_retries attempts."
+            cat frontend.log
+            exit 1
+          fi
+        done
+        echo "Frontend is ready!"
 
     - name: Run E2E tests
       working-directory: frontend
