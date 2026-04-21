@@ -54,7 +54,7 @@ func NewTestDbManager() (*TestDbManager, error) {
 	dropDb := func() {
 		_, err := adminDb.Exec(fmt.Sprintf(`DROP DATABASE "%s" WITH (FORCE)`, dbName))
 		if err != nil {
-			fmt.Println("failed to drop test db: %v", err)
+			fmt.Println("failed to drop test db:", err)
 		}
 	}
 
