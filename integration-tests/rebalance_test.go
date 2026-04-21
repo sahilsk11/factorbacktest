@@ -14,12 +14,9 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
-
-var cashTicker = uuid.New()
 
 func seedInvestment(tx *sql.Tx) error {
 	userAccount := model.UserAccount{}
@@ -97,11 +94,19 @@ func seedInvestment(tx *sql.Tx) error {
 		return fmt.Errorf("failed to insert holding version: %w", err)
 	}
 
+	cashTickerRow := model.Ticker{}
+	err = table.Ticker.SELECT(table.Ticker.AllColumns).
+		WHERE(table.Ticker.Symbol.EQ(postgres.String(":CASH"))).
+		Query(tx, &cashTickerRow)
+	if err != nil {
+		return fmt.Errorf("failed to fetch cash ticker: %w", err)
+	}
+
 	holding := model.InvestmentHoldings{}
 	err = table.InvestmentHoldings.
 		INSERT(table.InvestmentHoldings.MutableColumns).
 		MODEL(model.InvestmentHoldings{
-			TickerID:                    cashTicker,
+			TickerID:                    cashTickerRow.TickerID,
 			Quantity:                    decimal.NewFromInt(100),
 			CreatedAt:                   time.Now(),
 			InvestmentHoldingsVersionID: holdingVersion.InvestmentHoldingsVersionID,
