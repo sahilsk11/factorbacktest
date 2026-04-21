@@ -2,13 +2,9 @@ package integration_tests
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"factorbacktest/api"
-	"factorbacktest/internal/db/models/postgres/public/model"
-	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/service"
-	"factorbacktest/internal/util"
 	"fmt"
 	"io"
 	"math"
@@ -16,11 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,68 +71,15 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	return nil
 }
 
-func cleanupUniverse(db *sql.DB) error {
-	if _, err := table.FactorScore.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.AssetUniverseTicker.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.AssetUniverse.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.Ticker.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	return nil
-}
 
-func cleanupStrategies(db *sql.DB) error {
-	if _, err := table.Investment.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.StrategyRun.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.Strategy.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	return nil
-}
 
 func Test_backtestFlow(t *testing.T) {
-	// setup db
-	db, err := util.NewTestDb()
-	require.NoError(t, err)
-	err = cleanupUniverse(db) // redundant but ensures tables are empty
+	db := GetTestDb()
+
+	err := seedUniverse(db)
 	require.NoError(t, err)
 
-	tx, err := db.Begin()
-	require.NoError(t, err)
-	defer tx.Rollback()
-
-	// seed data
-	err = seedUniverse(tx)
-	require.NoError(t, err)
-	defer func() {
-		err = cleanupStrategies(db)
-		require.NoError(t, err)
-		err = cleanupUniverse(db)
-		require.NoError(t, err)
-	}()
-
-	err = seedPrices(tx)
-	require.NoError(t, err)
-	defer func() {
-		_, err = table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-		require.NoError(t, err)
-	}()
-
-	// need to commit because test is running in another process
-	err = tx.Commit()
+	err = seedPrices(db)
 	require.NoError(t, err)
 
 	userID := uuid.NewString()

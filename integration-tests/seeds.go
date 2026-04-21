@@ -10,11 +10,13 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 
 	"github.com/gocarina/gocsv"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
-// seedPrices seeds price data from sample_prices_2020.csv into the database.
-func seedPrices(tx *sql.Tx) error {
+var cashTicker = uuid.New()
+
+func seedPrices(db *sql.DB) error {
 	f, err := os.Open("sample_prices_2020.csv")
 	if err != nil {
 		return err
@@ -44,12 +46,11 @@ func seedPrices(tx *sql.Tx) error {
 	}
 
 	query := table.AdjustedPrice.INSERT(table.AdjustedPrice.MutableColumns).MODELS(models)
-	_, err = query.Exec(tx)
+	_, err = query.Exec(db)
 	return err
 }
 
-// seedUniverse seeds ticker and asset universe data into the database.
-func seedUniverse(tx *sql.Tx) error {
+func seedUniverse(db *sql.DB) error {
 	modelsToInsert := []model.Ticker{
 		{
 			Symbol: "AAPL",
@@ -66,7 +67,7 @@ func seedUniverse(tx *sql.Tx) error {
 	}
 	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(modelsToInsert).RETURNING(table.Ticker.AllColumns)
 	insertedTickers := []model.Ticker{}
-	err := query.Query(tx, &insertedTickers)
+	err := query.Query(db, &insertedTickers)
 	if err != nil {
 		return fmt.Errorf("failed to insert tickers: %w", err)
 	}
@@ -75,7 +76,7 @@ func seedUniverse(tx *sql.Tx) error {
 		Symbol:   ":CASH",
 		Name:     "cash",
 		TickerID: cashTicker,
-	}).Exec(tx)
+	}).Exec(db)
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,7 @@ func seedUniverse(tx *sql.Tx) error {
 	}).RETURNING(table.AssetUniverse.AllColumns)
 
 	universe := model.AssetUniverse{}
-	err = query.Query(tx, &universe)
+	err = query.Query(db, &universe)
 	if err != nil {
 		return fmt.Errorf("failed to insert universe: %w", err)
 	}
@@ -102,6 +103,6 @@ func seedUniverse(tx *sql.Tx) error {
 		INSERT(table.AssetUniverseTicker.MutableColumns).
 		MODELS(tickerModels)
 
-	_, err = query.Exec(tx)
+	_, err = query.Exec(db)
 	return err
 }

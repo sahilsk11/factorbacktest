@@ -2,25 +2,22 @@ package integration_tests
 
 import (
 	"database/sql"
-	"factorbacktest/internal/db/models/postgres/public/model"
-	"factorbacktest/internal/db/models/postgres/public/table"
-	"factorbacktest/internal/util"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/go-jet/jet/v2/postgres"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/util"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
-var cashTicker = uuid.New()
-
-func seedInvestment(tx *sql.Tx) error {
+func seedInvestment(db *sql.DB) error {
 	userAccount := model.UserAccount{}
 	err := table.UserAccount.
 		INSERT(table.UserAccount.MutableColumns).
@@ -33,7 +30,7 @@ func seedInvestment(tx *sql.Tx) error {
 			Provider:  model.UserAccountProviderType_Manual,
 		}).
 		RETURNING(table.UserAccount.AllColumns).
-		Query(tx, &userAccount)
+		Query(db, &userAccount)
 	if err != nil {
 		return fmt.Errorf("failed to insert user account: %w", err)
 	}
@@ -58,7 +55,7 @@ func seedInvestment(tx *sql.Tx) error {
 			Description:       nil,
 		}).
 		RETURNING(table.Strategy.AllColumns).
-		Query(tx, &strategy)
+		Query(db, &strategy)
 	if err != nil {
 		return fmt.Errorf("failed to insert strategy: %w", err)
 	}
@@ -77,7 +74,7 @@ func seedInvestment(tx *sql.Tx) error {
 			PausedAt:      nil,
 		}).
 		RETURNING(table.Investment.AllColumns).
-		Query(tx, &investment)
+		Query(db, &investment)
 	if err != nil {
 		return fmt.Errorf("failed to insert investment: %w", err)
 	}
@@ -91,7 +88,7 @@ func seedInvestment(tx *sql.Tx) error {
 			RebalancerRunID: nil,
 		}).
 		RETURNING(table.InvestmentHoldingsVersion.AllColumns).
-		Query(tx, &holdingVersion)
+		Query(db, &holdingVersion)
 	if err != nil {
 		return fmt.Errorf("failed to insert holding version: %w", err)
 	}
@@ -106,7 +103,7 @@ func seedInvestment(tx *sql.Tx) error {
 			InvestmentHoldingsVersionID: holdingVersion.InvestmentHoldingsVersionID,
 		}).
 		RETURNING(table.InvestmentHoldings.AllColumns).
-		Query(tx, &holding)
+		Query(db, &holding)
 	if err != nil {
 		return fmt.Errorf("failed to insert holding: %w", err)
 	}
@@ -114,89 +111,16 @@ func seedInvestment(tx *sql.Tx) error {
 	return nil
 }
 
-func cleanupUsers(db *sql.DB) error {
-	if _, err := table.UserStrategy.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.LatencyTracking.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.APIRequest.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.UserAccount.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	return nil
-}
-
-func cleanupRebalance(db *sql.DB) error {
-	_, err := table.ExcessTradeVolume.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.InvestmentTrade.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.RebalancePrice.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	_, err = table.TradeOrder.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	_, err = table.InvestmentHoldings.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.InvestmentRebalance.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.InvestmentHoldingsVersion.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	_, err = table.RebalancerRun.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func Test_rebalanceFlow(t *testing.T) {
-	cleanup := func(db *sql.DB) {
-		err := cleanupRebalance(db)
-		require.NoError(t, err)
-		err = cleanupStrategies(db)
-		require.NoError(t, err)
-		err = cleanupUsers(db)
-		require.NoError(t, err)
-		err = cleanupUniverse(db)
-		require.NoError(t, err)
-	}
-	db, err := util.NewTestDb()
-	require.NoError(t, err)
-	cleanup(db) // redundant but ensures tables are empty
+	db := GetTestDb()
 
-	tx, err := db.Begin()
+	err := seedUniverse(db)
 	require.NoError(t, err)
-	defer tx.Rollback()
-	defer cleanup(db)
 
-	err = seedUniverse(tx)
+	err = seedPrices(db)
 	require.NoError(t, err)
-	err = seedPrices(tx)
-	require.NoError(t, err)
-	err = seedInvestment(tx)
-	require.NoError(t, err)
-	err = tx.Commit()
+
+	err = seedInvestment(db)
 	require.NoError(t, err)
 
 	startTime := time.Now()
