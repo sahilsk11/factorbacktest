@@ -51,20 +51,29 @@ func NewTestDbManager() (*TestDbManager, error) {
 		return nil, fmt.Errorf("failed to create database %s: %w", dbName, err)
 	}
 
+	dropDb := func() {
+		_, err := adminDb.Exec(fmt.Sprintf(`DROP DATABASE "%s" WITH (FORCE)`, dbName))
+		if err != nil {
+			fmt.Println("failed to drop test db: %v", err)
+		}
+	}
+
 	testConnStr := dbConfig.ToConnectionStr()
 	testDb, err := sql.Open("postgres", testConnStr)
 	if err != nil {
-		adminDb.Exec(fmt.Sprintf(`DROP DATABASE "%s" WITH (FORCE)`, dbName))
+		dropDb()
 		return nil, fmt.Errorf("failed to connect to test database: %w", err)
 	}
 
 	if err := testDb.Ping(); err != nil {
+		_ = testDb.Close()
+		dropDb()
 		return nil, fmt.Errorf("failed to ping test database: %w", err)
 	}
 
 	if err := runMigrations(testDb); err != nil {
 		testDb.Close()
-		adminDb.Exec(fmt.Sprintf(`DROP DATABASE "%s" WITH (FORCE)`, dbName))
+		dropDb()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 

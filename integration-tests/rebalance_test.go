@@ -31,26 +31,12 @@ type TestServer struct {
 	server   *http.Server
 }
 
-func identifyPort() (int, error) {
-	port := 3002
-	var listener net.Listener
-	var err error
-	for port < 3100 {
-		port += 1
-		listener, err = net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-		if err == nil {
-			listener.Close()
-			return port, nil
-		}
-	}
-	return 0, fmt.Errorf("could not find valid port")
-}
-
 func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
-	port, err := identifyPort()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to listen on ephemeral port: %w", err)
 	}
+	port := listener.Addr().(*net.TCPAddr).Port
 
 	secrets := util.Secrets{
 		Port:             port,
@@ -77,7 +63,6 @@ func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
-		handler.Db.Close()
 		return nil, fmt.Errorf("failed to listen on port %d: %w", port, err)
 	}
 

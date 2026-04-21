@@ -27,7 +27,10 @@ func seedPrices(db *sql.DB) error {
 		Price  decimal.Decimal `csv:"price"`
 	}
 	rows := []Row{}
-	gocsv.UnmarshalFile(f, &rows)
+	err = gocsv.UnmarshalFile(f, &rows)
+	if err != nil {
+		return fmt.Errorf("failed to read csv: %w", err)
+	}
 
 	models := []model.AdjustedPrice{}
 	for _, row := range rows {
