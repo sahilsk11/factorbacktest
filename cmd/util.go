@@ -28,8 +28,12 @@ func CloseDependencies(handler *api.ApiHandler) {
 
 func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*api.ApiHandler, error) {
 	var gptRepository repository.GptRepository
-	alpacaRepository := overrides.AlpacaRepository
-	priceService := overrides.PriceService
+	var alpacaRepository repository.AlpacaRepository
+	var priceService data.PriceService
+	if overrides != nil {
+		alpacaRepository = overrides.AlpacaRepository
+		priceService = overrides.PriceService
+	}
 	var err error
 
 	if secrets.ChatGPTApiKey != "" {
