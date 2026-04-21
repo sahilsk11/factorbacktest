@@ -1,26 +1,92 @@
 package integration_tests
 
 import (
+	"context"
 	"database/sql"
-	"factorbacktest/internal/db/models/postgres/public/model"
-	"factorbacktest/internal/db/models/postgres/public/table"
-	"factorbacktest/internal/util"
 	"fmt"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
+	"factorbacktest/api"
+	"factorbacktest/cmd"
+	"factorbacktest/internal/data"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/logger"
+	"factorbacktest/internal/repository"
+	"factorbacktest/internal/util"
+
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
-var cashTicker = uuid.New()
+type TestServer struct {
+	URL      string
+	listener net.Listener
+	server   *http.Server
+}
 
-func seedInvestment(tx *sql.Tx) error {
+func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on ephemeral port: %w", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	secrets := util.Secrets{
+		Port:             port,
+		DataJockeyApiKey: "",
+		ChatGPTApiKey:    "",
+		Db:               testDb.DBConfig,
+		Alpaca:           util.AlpacaSecrets{},
+		Jwt:              "",
+		SES:              util.SESSecrets{},
+	}
+
+	alpacaRepository := NewMockAlpacaRepositoryForTests()
+	priceRepository := repository.NewAdjustedPriceRepository(testDb.db)
+	priceService := data.NewPriceService(testDb.db, priceRepository, nil, nil)
+	handler, err := cmd.InitializeDependencies(secrets, &api.ApiHandler{
+		AlpacaRepository: alpacaRepository,
+		PriceService: NewMockPriceServiceForTests(
+			priceService,
+		),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize dependencies: %w", err)
+	}
+
+	lg := logger.New()
+	ctx := context.WithValue(context.Background(), logger.ContextKey, lg)
+	engine := handler.InitializeRouterEngine(ctx)
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf("localhost:%d", port),
+		Handler: engine,
+	}
+
+	go server.Serve(listener)
+
+	return &TestServer{
+		URL:      fmt.Sprintf("http://localhost:%d", port),
+		listener: listener,
+		server:   server,
+	}, nil
+}
+
+func (s *TestServer) Stop() error {
+	if err := s.server.Shutdown(context.Background()); err != nil {
+		s.listener.Close()
+	}
+	return nil
+}
+
+func seedInvestment(db *sql.DB) error {
 	userAccount := model.UserAccount{}
 	err := table.UserAccount.
 		INSERT(table.UserAccount.MutableColumns).
@@ -33,7 +99,7 @@ func seedInvestment(tx *sql.Tx) error {
 			Provider:  model.UserAccountProviderType_Manual,
 		}).
 		RETURNING(table.UserAccount.AllColumns).
-		Query(tx, &userAccount)
+		Query(db, &userAccount)
 	if err != nil {
 		return fmt.Errorf("failed to insert user account: %w", err)
 	}
@@ -58,7 +124,7 @@ func seedInvestment(tx *sql.Tx) error {
 			Description:       nil,
 		}).
 		RETURNING(table.Strategy.AllColumns).
-		Query(tx, &strategy)
+		Query(db, &strategy)
 	if err != nil {
 		return fmt.Errorf("failed to insert strategy: %w", err)
 	}
@@ -77,7 +143,7 @@ func seedInvestment(tx *sql.Tx) error {
 			PausedAt:      nil,
 		}).
 		RETURNING(table.Investment.AllColumns).
-		Query(tx, &investment)
+		Query(db, &investment)
 	if err != nil {
 		return fmt.Errorf("failed to insert investment: %w", err)
 	}
@@ -91,22 +157,28 @@ func seedInvestment(tx *sql.Tx) error {
 			RebalancerRunID: nil,
 		}).
 		RETURNING(table.InvestmentHoldingsVersion.AllColumns).
-		Query(tx, &holdingVersion)
+		Query(db, &holdingVersion)
 	if err != nil {
 		return fmt.Errorf("failed to insert holding version: %w", err)
+	}
+
+	cashTicker := model.Ticker{}
+	err = table.Ticker.SELECT(table.Ticker.AllColumns).WHERE(table.Ticker.Symbol.EQ(postgres.String(":CASH"))).Query(db, &cashTicker)
+	if err != nil {
+		return fmt.Errorf("failed to get cash ticker: %w", err)
 	}
 
 	holding := model.InvestmentHoldings{}
 	err = table.InvestmentHoldings.
 		INSERT(table.InvestmentHoldings.MutableColumns).
 		MODEL(model.InvestmentHoldings{
-			TickerID:                    cashTicker,
+			TickerID:                    cashTicker.TickerID,
 			Quantity:                    decimal.NewFromInt(100),
 			CreatedAt:                   time.Now(),
 			InvestmentHoldingsVersionID: holdingVersion.InvestmentHoldingsVersionID,
 		}).
 		RETURNING(table.InvestmentHoldings.AllColumns).
-		Query(tx, &holding)
+		Query(db, &holding)
 	if err != nil {
 		return fmt.Errorf("failed to insert holding: %w", err)
 	}
@@ -114,95 +186,31 @@ func seedInvestment(tx *sql.Tx) error {
 	return nil
 }
 
-func cleanupUsers(db *sql.DB) error {
-	if _, err := table.UserStrategy.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.LatencyTracking.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.APIRequest.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.UserAccount.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	return nil
-}
-
-func cleanupRebalance(db *sql.DB) error {
-	_, err := table.ExcessTradeVolume.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.InvestmentTrade.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.RebalancePrice.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	_, err = table.TradeOrder.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	_, err = table.InvestmentHoldings.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.InvestmentRebalance.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-	_, err = table.InvestmentHoldingsVersion.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	_, err = table.RebalancerRun.DELETE().WHERE(postgres.Bool(true)).Exec(db)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func Test_rebalanceFlow(t *testing.T) {
-	cleanup := func(db *sql.DB) {
-		err := cleanupRebalance(db)
-		require.NoError(t, err)
-		err = cleanupStrategies(db)
-		require.NoError(t, err)
-		err = cleanupUsers(db)
-		require.NoError(t, err)
-		err = cleanupUniverse(db)
-		require.NoError(t, err)
-	}
-	db, err := util.NewTestDb()
+	manager, err := NewTestDbManager()
 	require.NoError(t, err)
-	cleanup(db) // redundant but ensures tables are empty
 
-	tx, err := db.Begin()
-	require.NoError(t, err)
-	defer tx.Rollback()
-	defer cleanup(db)
+	defer manager.Close()
 
-	err = seedUniverse(tx)
+	server, err := NewTestServer(manager)
 	require.NoError(t, err)
-	err = seedPrices(tx)
+	defer server.Stop()
+
+	db := manager.DB()
+
+	err = seedUniverse(db)
 	require.NoError(t, err)
-	err = seedInvestment(tx)
+
+	err = seedPrices(db)
 	require.NoError(t, err)
-	err = tx.Commit()
+
+	err = seedInvestment(db)
 	require.NoError(t, err)
 
 	startTime := time.Now()
 	request := map[string]string{}
 	response := map[string]string{}
-	err = hitEndpoint("rebalance", http.MethodPost, request, &response)
+	err = hitEndpoint(server.URL, "rebalance", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 
