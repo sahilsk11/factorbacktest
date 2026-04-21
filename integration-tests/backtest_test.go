@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"factorbacktest/api"
-	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/service"
 	"factorbacktest/internal/util"
@@ -20,7 +19,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 

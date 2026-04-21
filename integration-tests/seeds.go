@@ -10,6 +10,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 
 	"github.com/gocarina/gocsv"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -74,7 +75,7 @@ func seedUniverse(tx *sql.Tx) error {
 	_, err = table.Ticker.INSERT(table.Ticker.AllColumns).MODEL(model.Ticker{
 		Symbol:   ":CASH",
 		Name:     "cash",
-		TickerID: cashTicker,
+		TickerID: uuid.New(),
 	}).Exec(tx)
 	if err != nil {
 		return err
