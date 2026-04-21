@@ -71,8 +71,6 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	return nil
 }
 
-
-
 func Test_backtestFlow(t *testing.T) {
 	db := GetTestDb()
 
