@@ -2,7 +2,7 @@ name: Frontend E2E
 
 on:
   push:
-    branches: [master]
+    branches: [ "**" ]
     paths:
       - 'frontend/**'
       - 'api/**'
@@ -11,7 +11,6 @@ on:
       - 'cmd/**'
       - '.github/workflows/frontend-e2e.yml'
   pull_request:
-    branches: [master]
     paths:
       - 'frontend/**'
       - 'api/**'

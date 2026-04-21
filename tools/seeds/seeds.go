@@ -35,8 +35,6 @@ func NewHammer(tx *sql.Tx) *Hammer {
 
 // SeedUniverse inserts AAPL, GOOG, META tickers + :CASH + SPY_TOP_80 universe + ticker links.
 func (h *Hammer) SeedUniverse() error {
-	cashTickerID := uuid.New()
-
 	modelsToInsert := []model.Ticker{
 		{
 			Symbol: "AAPL",
@@ -50,21 +48,16 @@ func (h *Hammer) SeedUniverse() error {
 			Symbol: "META",
 			Name:   "Meta",
 		},
+		{
+			Symbol: ":CASH",
+			Name:   "cash",
+		},
 	}
 	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(modelsToInsert).RETURNING(table.Ticker.AllColumns)
 	insertedTickers := []model.Ticker{}
 	err := query.Query(h.Tx, &insertedTickers)
 	if err != nil {
 		return fmt.Errorf("failed to insert tickers: %w", err)
-	}
-
-	_, err = table.Ticker.INSERT(table.Ticker.AllColumns).MODEL(model.Ticker{
-		Symbol:   ":CASH",
-		Name:     "cash",
-		TickerID: cashTickerID,
-	}).Exec(h.Tx)
-	if err != nil {
-		return err
 	}
 
 	query = table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{
@@ -200,9 +193,31 @@ func (h *Hammer) SeedPublishedStrategy(userID string) (strategyID, runID uuid.UU
 	return strategyID, runID, nil
 }
 
-// SeedAll is a convenience that runs SeedUniverse, SeedPrices, SeedPublishedStrategy in order.
+// SeedUserAccount inserts a user account row so strategies can FK to it.
+func (h *Hammer) SeedUserAccount(userID string) error {
+	_, err := table.UserAccount.INSERT(table.UserAccount.MutableColumns).MODEL(model.UserAccount{
+		UserAccountID: uuid.MustParse(userID),
+		FirstName:     ptrStr("E2E"),
+		LastName:      ptrStr("User"),
+		Email:         ptrStr("e2e@test.com"),
+		Provider:      model.UserAccountProviderType_Manual,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}).Exec(h.Tx)
+	if err != nil {
+		return fmt.Errorf("failed to insert user account: %w", err)
+	}
+	return nil
+}
+
+func ptrStr(s string) *string { return &s }
+
+// SeedAll is a convenience that runs SeedUserAccount, SeedUniverse, SeedPrices, SeedPublishedStrategy in order.
 // Commits only if h.Commit=true.
 func (h *Hammer) SeedAll(userID string) error {
+	if err := h.SeedUserAccount(userID); err != nil {
+		return err
+	}
 	if err := h.SeedUniverse(); err != nil {
 		return err
 	}
