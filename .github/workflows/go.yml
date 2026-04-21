@@ -85,5 +85,6 @@ jobs:
 
     - name: Test
       run: |
+        export ALPHA_ENV=test
         go test ./...
         cat out.log
