@@ -4,13 +4,21 @@ import (
 	"context"
 	"factorbacktest/cmd"
 	"factorbacktest/internal/logger"
+	"factorbacktest/internal/util"
 	"log"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	apiHandler, err := cmd.InitializeDependencies()
+	secrets, err := util.LoadSecrets()
+	if err != nil {
+		log.Fatalf("failed to load secrets: %v", err)
+	}
+
+	secrets.Port = 3009
+
+	apiHandler, err := cmd.InitializeDependencies(*secrets, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -18,7 +26,7 @@ func main() {
 	lg := logger.New()
 	ctx := context.WithValue(context.Background(), logger.ContextKey, lg)
 
-	err = apiHandler.StartApi(ctx, 3009)
+	err = apiHandler.StartApi(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

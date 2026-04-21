@@ -27,6 +27,7 @@ import (
 )
 
 type ApiHandler struct {
+	Port                         int
 	Db                           *sql.DB
 	BacktestHandler              service.BacktestHandler
 	BenchmarkHandler             internal.BenchmarkHandler
@@ -47,6 +48,8 @@ type ApiHandler struct {
 	StrategyService              service.StrategyService
 	StrategySummaryApp           app.StrategySummaryApp
 	JwtDecodeToken               string
+
+	AlpacaRepository repository.AlpacaRepository
 }
 
 func int64Ptr(i int64) *int64 {
@@ -124,9 +127,9 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	return engine
 }
 
-func (m ApiHandler) StartApi(ctx context.Context, port int) error {
+func (m ApiHandler) StartApi(ctx context.Context) error {
 	engine := m.InitializeRouterEngine(ctx)
-	return engine.Run(fmt.Sprintf(":%d", port))
+	return engine.Run(fmt.Sprintf(":%d", m.Port))
 }
 
 func returnErrorJson(err error, c *gin.Context) {

@@ -3,7 +3,6 @@ package cmd
 import (
 	"database/sql"
 	"factorbacktest/api"
-	integration_tests "factorbacktest/integration-tests"
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/calculator"
@@ -14,8 +13,6 @@ import (
 	"factorbacktest/internal/util"
 	"fmt"
 	"log"
-	"os"
-	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -29,18 +26,30 @@ func CloseDependencies(handler *api.ApiHandler) {
 	}
 }
 
-func InitializeDependencies() (*api.ApiHandler, error) {
-	secrets, err := util.LoadSecrets()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load secrets: %w", err)
+func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*api.ApiHandler, error) {
+	var gptRepository repository.GptRepository
+	var alpacaRepository repository.AlpacaRepository
+	var priceService data.PriceService
+	if overrides != nil {
+		alpacaRepository = overrides.AlpacaRepository
+		priceService = overrides.PriceService
+	}
+	var err error
+
+	if secrets.ChatGPTApiKey != "" {
+		gptRepository, err = repository.NewGptRepository(secrets.ChatGPTApiKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	gptRepository, err := repository.NewGptRepository(secrets.ChatGPTApiKey)
-	if err != nil {
-		return nil, err
+	if alpacaRepository == nil && secrets.Alpaca.ApiKey != "" {
+		alpacaRepository = repository.NewAlpacaRepository(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret, secrets.Alpaca.Endpoint)
 	}
 
-	dbConn, err := sql.Open("postgres", secrets.Db.ToConnectionStr())
+	dbConnStr := secrets.Db.ToConnectionStr()
+
+	dbConn, err := sql.Open("postgres", dbConnStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
@@ -60,7 +69,6 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	strategyRepository := repository.NewStrategyRepository(dbConn)
 	strategyInvestmentRepository := repository.NewInvestmentRepository(dbConn)
 	holdingsRepository := repository.NewInvestmentHoldingsRepository(dbConn)
-	alpacaRepository := repository.NewAlpacaRepository(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret, secrets.Alpaca.Endpoint)
 	tradeOrderRepository := repository.NewTradeOrderRepository(dbConn)
 	rebalancerRunRepository := repository.NewRebalancerRunRepository(dbConn)
 	investmentTradeRepository := repository.NewInvestmentTradeRepository(dbConn)
@@ -70,13 +78,8 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	rebalancePriceRepository := repository.NewRebalancePriceRepository(dbConn)
 
 	quoteProvider := data.NewHybridQuoteProvider(alpacaRepository)
-	priceService := data.NewPriceService(dbConn, priceRepository, nil, quoteProvider)
-
-	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") || UseMockAlpaca {
-		alpacaRepository = integration_tests.NewMockAlpacaRepositoryForTests()
-		priceService = integration_tests.NewMockPriceServiceForTests(
-			priceService,
-		)
+	if priceService == nil {
+		priceService = data.NewPriceService(dbConn, priceRepository, nil, quoteProvider)
 	}
 
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
@@ -146,6 +149,7 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	)
 
 	apiHandler := &api.ApiHandler{
+		Port: secrets.Port,
 		BenchmarkHandler: internal.BenchmarkHandler{
 			PriceRepository: priceRepository,
 		},

@@ -2,13 +2,9 @@ package integration_tests
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"factorbacktest/api"
-	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/service"
-	"factorbacktest/internal/util"
-	"factorbacktest/tools/seeds"
 	"fmt"
 	"io"
 	"math"
@@ -16,14 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
 
-func hitEndpoint(route string, method string, payload interface{}, target interface{}) error {
+func hitEndpoint(baseURL, route string, method string, payload interface{}, target interface{}) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -31,7 +25,7 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	body := bytes.NewReader(payloadBytes)
 
 	// Create the POST request
-	req, err := http.NewRequest(method, "http://localhost:3009/"+route, body)
+	req, err := http.NewRequest(method, baseURL+"/"+route, body)
 	if err != nil {
 		return err
 	}
@@ -77,59 +71,22 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	return nil
 }
 
-func cleanupUniverse(db *sql.DB) error {
-	if _, err := table.FactorScore.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.AdjustedPrice.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.AssetUniverseTicker.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.AssetUniverse.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.Ticker.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	return nil
-}
-
-func cleanupStrategies(db *sql.DB) error {
-	if _, err := table.Investment.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.StrategyRun.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	if _, err := table.Strategy.DELETE().WHERE(postgres.Bool(true)).Exec(db); err != nil {
-		return err
-	}
-	return nil
-}
-
 func Test_backtestFlow(t *testing.T) {
-	// setup db
-	db, err := util.NewTestDb()
-	require.NoError(t, err)
-	err = cleanupUniverse(db) // redundant but ensures tables are empty
+	manager, err := NewTestDbManager()
 	require.NoError(t, err)
 
-	tx, err := db.Begin()
-	require.NoError(t, err)
-	defer tx.Rollback()
+	defer manager.Close()
 
-	// seed data using the shared seeds package
-	hammer := seeds.NewHammer(tx)
-	err = hammer.SeedUniverse()
+	server, err := NewTestServer(manager)
+	require.NoError(t, err)
+	defer server.Stop()
+
+	db := manager.DB()
+
+	err = seedUniverse(db)
 	require.NoError(t, err)
 
-	err = hammer.SeedPrices()
-	require.NoError(t, err)
-
-	// need to commit because test is running in another process
-	err = tx.Commit()
+	err = seedPrices(db)
 	require.NoError(t, err)
 
 	userID := uuid.NewString()
@@ -150,7 +107,7 @@ func Test_backtestFlow(t *testing.T) {
 		UserID:               &userID,
 	}
 	response := api.BacktestResponse{}
-	err = hitEndpoint("backtest", http.MethodPost, request, &response)
+	err = hitEndpoint(server.URL, "backtest", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 

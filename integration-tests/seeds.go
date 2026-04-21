@@ -13,8 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// seedPrices seeds price data from sample_prices_2020.csv into the database.
-func seedPrices(tx *sql.Tx) error {
+func seedPrices(db *sql.DB) error {
 	f, err := os.Open("sample_prices_2020.csv")
 	if err != nil {
 		return err
@@ -28,7 +27,10 @@ func seedPrices(tx *sql.Tx) error {
 		Price  decimal.Decimal `csv:"price"`
 	}
 	rows := []Row{}
-	gocsv.UnmarshalFile(f, &rows)
+	err = gocsv.UnmarshalFile(f, &rows)
+	if err != nil {
+		return fmt.Errorf("failed to read csv: %w", err)
+	}
 
 	models := []model.AdjustedPrice{}
 	for _, row := range rows {
@@ -44,12 +46,11 @@ func seedPrices(tx *sql.Tx) error {
 	}
 
 	query := table.AdjustedPrice.INSERT(table.AdjustedPrice.MutableColumns).MODELS(models)
-	_, err = query.Exec(tx)
+	_, err = query.Exec(db)
 	return err
 }
 
-// seedUniverse seeds ticker and asset universe data into the database.
-func seedUniverse(tx *sql.Tx) error {
+func seedUniverse(db *sql.DB) error {
 	modelsToInsert := []model.Ticker{
 		{
 			Symbol: "AAPL",
@@ -70,7 +71,7 @@ func seedUniverse(tx *sql.Tx) error {
 	}
 	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(modelsToInsert).RETURNING(table.Ticker.AllColumns)
 	insertedTickers := []model.Ticker{}
-	err := query.Query(tx, &insertedTickers)
+	err := query.Query(db, &insertedTickers)
 	if err != nil {
 		return fmt.Errorf("failed to insert tickers: %w", err)
 	}
@@ -80,7 +81,7 @@ func seedUniverse(tx *sql.Tx) error {
 	}).RETURNING(table.AssetUniverse.AllColumns)
 
 	universe := model.AssetUniverse{}
-	err = query.Query(tx, &universe)
+	err = query.Query(db, &universe)
 	if err != nil {
 		return fmt.Errorf("failed to insert universe: %w", err)
 	}
@@ -97,6 +98,6 @@ func seedUniverse(tx *sql.Tx) error {
 		INSERT(table.AssetUniverseTicker.MutableColumns).
 		MODELS(tickerModels)
 
-	_, err = query.Exec(tx)
+	_, err = query.Exec(db)
 	return err
 }

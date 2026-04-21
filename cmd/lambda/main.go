@@ -5,6 +5,7 @@ import (
 	"factorbacktest/api"
 	"factorbacktest/cmd"
 	"factorbacktest/internal/logger"
+	"factorbacktest/internal/util"
 	"log"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -27,7 +28,13 @@ func (m lambdaHandler) Handler(ctx context.Context, req events.APIGatewayProxyRe
 }
 
 func main() {
-	apiHandler, err := cmd.InitializeDependencies()
+	secrets, err := util.LoadSecrets()
+	if err != nil {
+		log.Fatal(err)
+	}
+	secrets.Port = 3009
+
+	apiHandler, err := cmd.InitializeDependencies(*secrets, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
