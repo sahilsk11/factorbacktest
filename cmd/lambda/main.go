@@ -32,6 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	secrets.Port = 3009
 
 	apiHandler, err := cmd.InitializeDependencies(*secrets, nil)
 	if err != nil {

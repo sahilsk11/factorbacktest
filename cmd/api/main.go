@@ -16,6 +16,8 @@ func main() {
 		log.Fatalf("failed to load secrets: %v", err)
 	}
 
+	secrets.Port = 3009
+
 	apiHandler, err := cmd.InitializeDependencies(*secrets, nil)
 	if err != nil {
 		log.Fatal(err)
