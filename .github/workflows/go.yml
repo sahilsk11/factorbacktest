@@ -24,7 +24,7 @@ jobs:
         image: postgres:14-alpine
         # Provide the password for postgres
         env:
-          POSTGRES_DB: postgres_test
+          POSTGRES_DB: postgres
           POSTGRES_PASSWORD: postgres
         # Set health checks to wait until postgres has started
         options: >-
@@ -54,9 +54,6 @@ jobs:
 
     - name: Build
       run: go build -v ./...
-
-    - name: Apply Migrations
-      run: python3 tools/migrations.py up postgres_test
 
     - name: Start App
       run: |

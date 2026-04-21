@@ -3,7 +3,6 @@ package util
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -95,16 +94,6 @@ func (t DbSecrets) ToConnectionStr() string {
 		x += " sslmode=disable"
 	}
 	return x
-}
-
-func NewTestDb() (*sql.DB, error) {
-	connStr := "postgresql://postgres:postgres@localhost:5440/postgres_test?sslmode=disable"
-	dbConn, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-
-	return dbConn, nil
 }
 
 func LoadSecrets() (*Secrets, error) {

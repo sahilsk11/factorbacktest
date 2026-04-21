@@ -37,7 +37,6 @@ db-models:
 
 migrate:
 	tools/env/bin/python tools/migrations.py up postgres
-	tools/env/bin/python tools/migrations.py up postgres_test
 
 deploy-fe:
 	cd frontend;npm run build;
