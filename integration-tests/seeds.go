@@ -10,11 +10,8 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 
 	"github.com/gocarina/gocsv"
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
-
-var cashTicker = uuid.New()
 
 func seedPrices(db *sql.DB) error {
 	f, err := os.Open("sample_prices_2020.csv")
@@ -70,15 +67,6 @@ func seedUniverse(db *sql.DB) error {
 	err := query.Query(db, &insertedTickers)
 	if err != nil {
 		return fmt.Errorf("failed to insert tickers: %w", err)
-	}
-
-	_, err = table.Ticker.INSERT(table.Ticker.AllColumns).MODEL(model.Ticker{
-		Symbol:   ":CASH",
-		Name:     "cash",
-		TickerID: cashTicker,
-	}).Exec(db)
-	if err != nil {
-		return err
 	}
 
 	query = table.AssetUniverse.INSERT(table.AssetUniverse.MutableColumns).MODEL(model.AssetUniverse{

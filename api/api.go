@@ -48,6 +48,8 @@ type ApiHandler struct {
 	StrategyService              service.StrategyService
 	StrategySummaryApp           app.StrategySummaryApp
 	JwtDecodeToken               string
+
+	AlpacaRepository repository.AlpacaRepository
 }
 
 func int64Ptr(i int64) *int64 {

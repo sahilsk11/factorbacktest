@@ -1,21 +1,110 @@
 package integration_tests
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
+	"factorbacktest/api"
+	"factorbacktest/cmd"
+	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
+	"factorbacktest/internal/logger"
+	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
 
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
+
+type TestServer struct {
+	URL      string
+	listener net.Listener
+	server   *http.Server
+}
+
+func identifyPort() (int, error) {
+	port := 3002
+	var listener net.Listener
+	var err error
+	for port < 3100 {
+		port += 1
+		listener, err = net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+		if err == nil {
+			listener.Close()
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("could not find valid port")
+}
+
+func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
+	port, err := identifyPort()
+	if err != nil {
+		return nil, err
+	}
+
+	secrets := util.Secrets{
+		Port:             port,
+		DataJockeyApiKey: "",
+		ChatGPTApiKey:    "",
+		Db:               testDb.DBConfig,
+		Alpaca:           util.AlpacaSecrets{},
+		Jwt:              "",
+		SES:              util.SESSecrets{},
+	}
+
+	alpacaRepository := NewMockAlpacaRepositoryForTests()
+	priceRepository := repository.NewAdjustedPriceRepository(testDb.db)
+	priceService := data.NewPriceService(testDb.db, priceRepository, nil, nil)
+	handler, err := cmd.InitializeDependencies(secrets, &api.ApiHandler{
+		AlpacaRepository: alpacaRepository,
+		PriceService: NewMockPriceServiceForTests(
+			priceService,
+		),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize dependencies: %w", err)
+	}
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		handler.Db.Close()
+		return nil, fmt.Errorf("failed to listen on port %d: %w", port, err)
+	}
+
+	lg := logger.New()
+	ctx := context.WithValue(context.Background(), logger.ContextKey, lg)
+	engine := handler.InitializeRouterEngine(ctx)
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf("localhost:%d", port),
+		Handler: engine,
+	}
+
+	go server.Serve(listener)
+
+	return &TestServer{
+		URL:      fmt.Sprintf("http://localhost:%d", port),
+		listener: listener,
+		server:   server,
+	}, nil
+}
+
+func (s *TestServer) Stop() error {
+	if err := s.server.Shutdown(context.Background()); err != nil {
+		s.listener.Close()
+	}
+	return nil
+}
 
 func seedInvestment(db *sql.DB) error {
 	userAccount := model.UserAccount{}
@@ -93,11 +182,17 @@ func seedInvestment(db *sql.DB) error {
 		return fmt.Errorf("failed to insert holding version: %w", err)
 	}
 
+	cashTicker := model.Ticker{}
+	err = table.Ticker.SELECT(table.Ticker.AllColumns).WHERE(table.Ticker.Symbol.EQ(postgres.String(":CASH"))).Query(db, &cashTicker)
+	if err != nil {
+		return fmt.Errorf("failed to get cash ticker: %w", err)
+	}
+
 	holding := model.InvestmentHoldings{}
 	err = table.InvestmentHoldings.
 		INSERT(table.InvestmentHoldings.MutableColumns).
 		MODEL(model.InvestmentHoldings{
-			TickerID:                    cashTicker,
+			TickerID:                    cashTicker.TickerID,
 			Quantity:                    decimal.NewFromInt(100),
 			CreatedAt:                   time.Now(),
 			InvestmentHoldingsVersionID: holdingVersion.InvestmentHoldingsVersionID,
@@ -112,9 +207,18 @@ func seedInvestment(db *sql.DB) error {
 }
 
 func Test_rebalanceFlow(t *testing.T) {
-	db := GetTestDb()
+	manager, err := NewTestDbManager()
+	require.NoError(t, err)
 
-	err := seedUniverse(db)
+	defer manager.Close()
+
+	server, err := NewTestServer(manager)
+	require.NoError(t, err)
+	defer server.Stop()
+
+	db := manager.DB()
+
+	err = seedUniverse(db)
 	require.NoError(t, err)
 
 	err = seedPrices(db)
@@ -126,7 +230,7 @@ func Test_rebalanceFlow(t *testing.T) {
 	startTime := time.Now()
 	request := map[string]string{}
 	response := map[string]string{}
-	err = hitEndpoint("rebalance", http.MethodPost, request, &response)
+	err = hitEndpoint(server.URL, "rebalance", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 

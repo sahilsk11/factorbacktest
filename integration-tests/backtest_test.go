@@ -17,8 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// var testServerURL string
-
 func hitEndpoint(baseURL, route string, method string, payload interface{}, target interface{}) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -81,8 +79,6 @@ func Test_backtestFlow(t *testing.T) {
 
 	server, err := NewTestServer(manager)
 	require.NoError(t, err)
-
-	server.Start()
 	defer server.Stop()
 
 	db := manager.DB()

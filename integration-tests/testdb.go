@@ -3,24 +3,37 @@ package integration_tests
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"os"
-	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
+
+	"factorbacktest/internal/util"
 
 	_ "github.com/lib/pq"
 )
 
-var testDb *sql.DB
-
 type TestDbManager struct {
-	dbName string
-	db    *sql.DB
+	dbName   string
+	db       *sql.DB
+	DBConfig util.DbSecrets
 }
 
 func NewTestDbManager() (*TestDbManager, error) {
 	timestamp := time.Now().Format("20060102")
 	suffix := generateRandomSuffix(4)
 	dbName := fmt.Sprintf("%s-%s", timestamp, suffix)
+
+	dbConfig := util.DbSecrets{
+		Host:      "localhost",
+		User:      "postgres",
+		Port:      "5440",
+		Password:  "postgres",
+		Database:  dbName,
+		EnableSsl: false,
+	}
 
 	adminConnStr := "postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable"
 	adminDb, err := sql.Open("postgres", adminConnStr)
@@ -38,7 +51,7 @@ func NewTestDbManager() (*TestDbManager, error) {
 		return nil, fmt.Errorf("failed to create database %s: %w", dbName, err)
 	}
 
-	testConnStr := fmt.Sprintf("postgresql://postgres:postgres@localhost:5440/%s?sslmode=disable", dbName)
+	testConnStr := dbConfig.ToConnectionStr()
 	testDb, err := sql.Open("postgres", testConnStr)
 	if err != nil {
 		adminDb.Exec(fmt.Sprintf(`DROP DATABASE "%s" WITH (FORCE)`, dbName))
@@ -49,19 +62,16 @@ func NewTestDbManager() (*TestDbManager, error) {
 		return nil, fmt.Errorf("failed to ping test database: %w", err)
 	}
 
-	migrationCmd := exec.Command("python3", "tools/migrations.py", "up", dbName)
-	migrationCmd.Dir = getProjectRoot()
-	migrationCmd.Env = append(os.Environ(), "ALPHA_ENV=test")
-	output, err := migrationCmd.CombinedOutput()
-	if err != nil {
+	if err := runMigrations(testDb); err != nil {
 		testDb.Close()
 		adminDb.Exec(fmt.Sprintf(`DROP DATABASE "%s" WITH (FORCE)`, dbName))
-		return nil, fmt.Errorf("failed to run migrations: %w\noutput: %s", err, string(output))
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return &TestDbManager{
-		dbName: dbName,
-		db:    testDb,
+		dbName:   dbName,
+		db:       testDb,
+		DBConfig: dbConfig,
 	}, nil
 }
 
@@ -93,24 +103,40 @@ func (m *TestDbManager) Close() error {
 	return nil
 }
 
-func SetTestDb(db *sql.DB) {
-	testDb = db
-}
-
-func GetTestDb() *sql.DB {
-	return testDb
-}
-
 func generateRandomSuffix(length int) string {
-	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	seed := int(time.Now().UnixNano())
+	charset := "abcdefghijklmnopqrstuvwxyz0123456789"
 	result := make([]byte, length)
-	charsetLen := len(charset)
-	for i := 0; i < length; i++ {
-		seed = seed*1103515245 + 12345
-		result[i] = charset[(seed/65536)%charsetLen]
+	for i := range result {
+		result[i] = charset[rand.Intn(len(charset))]
 	}
 	return string(result)
+}
+
+func runMigrations(db *sql.DB) error {
+	migrationDir := filepath.Join(getProjectRoot(), "migrations")
+	entries, err := os.ReadDir(migrationDir)
+	if err != nil {
+		return fmt.Errorf("failed to read migrations dir: %w", err)
+	}
+
+	var files []string
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".sql" && strings.HasSuffix(e.Name(), ".up.sql") {
+			files = append(files, e.Name())
+		}
+	}
+	sort.Strings(files)
+
+	for _, file := range files {
+		content, err := os.ReadFile(filepath.Join(migrationDir, file))
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", file, err)
+		}
+		if _, err := db.Exec(string(content)); err != nil {
+			return fmt.Errorf("failed to execute %s: %w", file, err)
+		}
+	}
+	return nil
 }
 
 func getProjectRoot() string {
@@ -118,5 +144,5 @@ func getProjectRoot() string {
 	if err != nil {
 		return "."
 	}
-	return wd
+	return filepath.Dir(wd)
 }

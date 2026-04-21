@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("failed to load secrets: %v", err)
 	}
 
-	apiHandler, err := cmd.InitializeDependencies(*secrets)
+	apiHandler, err := cmd.InitializeDependencies(*secrets, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
