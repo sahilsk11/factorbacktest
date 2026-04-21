@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +22,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
+
+func NewTestDb() (*sql.DB, error) {
+	connStr := "postgresql://postgres:postgres@localhost:5440/postgres_test?sslmode=disable"
+	dbConn, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return dbConn, nil
+}
 
 func Pprint(i interface{}) {
 	bytes, err := json.MarshalIndent(i, "", "    ")
@@ -59,6 +70,7 @@ func UUIDPointer(u uuid.UUID) *uuid.UUID {
 }
 
 type Secrets struct {
+	Port             int           `json:"port"`
 	DataJockeyApiKey string        `json:"dataJockey"`
 	ChatGPTApiKey    string        `json:"gpt"`
 	Db               DbSecrets     `json:"db"`

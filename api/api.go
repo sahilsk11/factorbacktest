@@ -27,6 +27,7 @@ import (
 )
 
 type ApiHandler struct {
+	Port                         int
 	Db                           *sql.DB
 	BacktestHandler              service.BacktestHandler
 	BenchmarkHandler             internal.BenchmarkHandler
@@ -124,9 +125,9 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	return engine
 }
 
-func (m ApiHandler) StartApi(ctx context.Context, port int) error {
+func (m ApiHandler) StartApi(ctx context.Context) error {
 	engine := m.InitializeRouterEngine(ctx)
-	return engine.Run(fmt.Sprintf(":%d", port))
+	return engine.Run(fmt.Sprintf(":%d", m.Port))
 }
 
 func returnErrorJson(err error, c *gin.Context) {

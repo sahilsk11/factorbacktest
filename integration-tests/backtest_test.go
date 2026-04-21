@@ -17,7 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func hitEndpoint(route string, method string, payload interface{}, target interface{}) error {
+// var testServerURL string
+
+func hitEndpoint(baseURL, route string, method string, payload interface{}, target interface{}) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -25,7 +27,7 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 	body := bytes.NewReader(payloadBytes)
 
 	// Create the POST request
-	req, err := http.NewRequest(method, "http://localhost:3009/"+route, body)
+	req, err := http.NewRequest(method, baseURL+"/"+route, body)
 	if err != nil {
 		return err
 	}
@@ -72,9 +74,20 @@ func hitEndpoint(route string, method string, payload interface{}, target interf
 }
 
 func Test_backtestFlow(t *testing.T) {
-	db := GetTestDb()
+	manager, err := NewTestDbManager()
+	require.NoError(t, err)
 
-	err := seedUniverse(db)
+	defer manager.Close()
+
+	server, err := NewTestServer(manager)
+	require.NoError(t, err)
+
+	server.Start()
+	defer server.Stop()
+
+	db := manager.DB()
+
+	err = seedUniverse(db)
 	require.NoError(t, err)
 
 	err = seedPrices(db)
@@ -98,7 +111,7 @@ func Test_backtestFlow(t *testing.T) {
 		UserID:               &userID,
 	}
 	response := api.BacktestResponse{}
-	err = hitEndpoint("backtest", http.MethodPost, request, &response)
+	err = hitEndpoint(server.URL, "backtest", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 

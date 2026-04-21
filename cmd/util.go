@@ -3,7 +3,6 @@ package cmd
 import (
 	"database/sql"
 	"factorbacktest/api"
-	integration_tests "factorbacktest/integration-tests"
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/calculator"
@@ -15,7 +14,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -40,7 +38,12 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 		return nil, err
 	}
 
-	dbConn, err := sql.Open("postgres", secrets.Db.ToConnectionStr())
+	dbConnStr := secrets.Db.ToConnectionStr()
+	if envDbUrl := os.Getenv("DATABASE_URL"); envDbUrl != "" {
+		dbConnStr = envDbUrl
+	}
+
+	dbConn, err := sql.Open("postgres", dbConnStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
@@ -72,12 +75,12 @@ func InitializeDependencies() (*api.ApiHandler, error) {
 	quoteProvider := data.NewHybridQuoteProvider(alpacaRepository)
 	priceService := data.NewPriceService(dbConn, priceRepository, nil, quoteProvider)
 
-	if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") || UseMockAlpaca {
-		alpacaRepository = integration_tests.NewMockAlpacaRepositoryForTests()
-		priceService = integration_tests.NewMockPriceServiceForTests(
-			priceService,
-		)
-	}
+	// if strings.EqualFold(os.Getenv("ALPHA_ENV"), "test") || UseMockAlpaca {
+	// 	alpacaRepository = integration_tests.NewMockAlpacaRepositoryForTests()
+	// 	priceService = integration_tests.NewMockPriceServiceForTests(
+	// 		priceService,
+	// 	)
+	// }
 
 	assetUniverseRepository := repository.NewAssetUniverseRepository(dbConn)
 	factorExpressionService := calculator.NewFactorExpressionService(dbConn, factorMetricsHandler, priceService, factorScoreRepository, priceRepository)
