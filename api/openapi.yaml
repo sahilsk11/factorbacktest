@@ -1,0 +1,950 @@
+openapi: 3.1.0
+info:
+  title: Factor Backtest API
+  version: 1.0.0
+  description: REST API for the Factor Backtest investment platform
+servers:
+  - url: /
+    description: Lambda proxy
+paths:
+  /:
+    get:
+      operationId: root
+      summary: Root endpoint
+      description: Returns a welcome message
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: welcome to alpha
+
+  /backtest:
+    post:
+      operationId: backtest
+      summary: Run a factor backtest
+      description: Execute a backtest using a factor expression over a specified date range and asset universe
+      tags:
+        - Backtest
+      x-handler: backtest
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 300
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestResponse'
+
+  /benchmark:
+    post:
+      operationId: benchmark
+      summary: Get benchmark data
+      description: Retrieve benchmark performance data for a symbol over a date range
+      tags:
+        - Benchmark
+      x-handler: benchmark
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenchmarkRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkResponse'
+
+  /contact:
+    post:
+      operationId: contact
+      summary: Submit a contact message
+      description: Submit a contact form message from a user
+      tags:
+        - Contact
+      x-handler: contact
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactResponse'
+
+  /constructFactorEquation:
+    post:
+      operationId: constructFactorEquation
+      summary: Construct a factor equation using AI
+      description: Generate a factor expression equation based on natural language description using GPT
+      tags:
+        - Factor
+      x-handler: constructFactorEquation
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 60
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConstructFactorEquationRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstructFactorEquationResponse'
+
+  /usageStats:
+    get:
+      operationId: usageStats
+      summary: Get API usage statistics
+      description: Retrieve aggregated API usage statistics
+      tags:
+        - Stats
+      x-handler: usageStats
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                description: "Usage statistics object (schema depends on repository.GetUsageStats return type)"
+
+  /assetUniverses:
+    get:
+      operationId: getAssetUniverses
+      summary: Get available asset universes
+      description: Retrieve list of available asset universes with their display names and asset counts
+      tags:
+        - Universe
+      x-handler: getAssetUniverses
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GetAssetUniversesResponse'
+
+  /backtestBondPortfolio:
+    post:
+      operationId: backtestBondPortfolio
+      summary: Run a bond portfolio backtest
+      description: Execute a backtest on a bond portfolio using duration-based Treasury returns
+      tags:
+        - Backtest
+      x-handler: backtestBondPortfolio
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 120
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestBondPortfolioRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                description: "Bond backtest result (schema depends on service.BondService.BacktestBondPortfolio return type)"
+
+  /updatePrices:
+    post:
+      operationId: updatePrices
+      summary: Update asset prices
+      description: Trigger an update of price data for all tracked assets
+      tags:
+        - Prices
+      x-handler: updatePrices
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 300
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatePricesResponse'
+
+  /addAssetsToUniverse:
+    post:
+      operationId: addAssetsToUniverse
+      summary: Add assets to a universe
+      description: Add new assets to an existing or new asset universe and ingest their price data
+      tags:
+        - Universe
+      x-handler: addAssetsToUniverse
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 300
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAssetsToUniverseRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /bookmarkStrategy:
+    post:
+      operationId: bookmarkStrategy
+      summary: Bookmark or unbookmark a strategy
+      description: Save or remove a strategy from user's bookmarks (requires authentication)
+      tags:
+        - Strategy
+      x-handler: bookmarkStrategy
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkStrategyRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkStrategyResponse'
+
+  /isStrategyBookmarked:
+    post:
+      operationId: isStrategyBookmarked
+      summary: Check if a strategy is bookmarked
+      description: Check whether a strategy with the given parameters is bookmarked by the current user (requires authentication)
+      tags:
+        - Strategy
+      x-handler: isStrategyBookmarked
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkStrategyRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IsStrategyBookmarkedResponse'
+
+  /savedStrategies:
+    get:
+      operationId: getSavedStrategies
+      summary: Get user's saved strategies
+      description: Retrieve all strategies bookmarked by the current user (requires authentication)
+      tags:
+        - Strategy
+      x-handler: getSavedStrategies
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GetSavedStrategiesResponse'
+
+  /investInStrategy:
+    post:
+      operationId: investInStrategy
+      summary: Invest in a strategy
+      description: Create an investment in a published strategy with a specified dollar amount (requires authentication)
+      tags:
+        - Investment
+      x-handler: investInStrategy
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 60
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestInStrategyRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestInStrategyResponse'
+
+  /activeInvestments:
+    get:
+      operationId: getActiveInvestments
+      summary: Get user's active investments
+      description: Retrieve all active investments for the current user (requires authentication)
+      tags:
+        - Investment
+      x-handler: getInvestments
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 60
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GetInvestmentsResponse'
+
+  /publishedStrategies:
+    get:
+      operationId: getPublishedStrategies
+      summary: Get published strategies
+      description: Retrieve all published strategies available for investment
+      tags:
+        - Strategy
+      x-handler: getPublishedStrategies
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 60
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GetPublishedStrategiesResponse'
+
+  /rebalance:
+    post:
+      operationId: rebalance
+      summary: Trigger portfolio rebalancing
+      description: Trigger rebalancing for all active investments (currently a no-op based on implementation)
+      tags:
+        - Investment
+      x-handler: rebalance
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 300
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /updateOrders:
+    post:
+      operationId: updateOrders
+      summary: Update pending orders
+      description: Update status of all pending trade orders
+      tags:
+        - Trading
+      x-handler: updateOrders
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 30
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateOrdersResponse'
+
+  /sendSavedStrategySummaryEmails:
+    post:
+      operationId: sendSavedStrategySummaryEmails
+      summary: Send strategy summary emails
+      description: Send email summaries to users with saved strategies
+      tags:
+        - Email
+      x-handler: sendSavedStrategySummaryEmails
+      x-generate-resolver: false
+      x-aws-integration-type: lambda_proxy
+      x-aws-timeout: 120
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendSavedStrategySummaryEmailsResponse'
+
+components:
+  schemas:
+    # Request schemas
+    BacktestRequest:
+      type: object
+      properties:
+        factorOptions:
+          type: object
+          properties:
+            expression:
+              type: string
+              description: Factor expression equation
+              example: "1/pbRatio(currentDate)"
+            name:
+              type: string
+              description: Factor name
+              example: "undervalued (P/B ratio)"
+          required:
+            - expression
+            - name
+        backtestStart:
+          type: string
+          format: date
+          description: Backtest start date (YYYY-MM-DD)
+          example: "2020-01-01"
+        backtestEnd:
+          type: string
+          format: date
+          description: Backtest end date (YYYY-MM-DD)
+          example: "2024-01-01"
+        samplingIntervalUnit:
+          type: string
+          description: Rebalance interval - daily, weekly, monthly, or yearly
+          example: "monthly"
+        startCash:
+          type: number
+          format: double
+          description: Starting cash amount
+          example: 100000
+        assetUniverse:
+          type: string
+          description: Asset universe code
+          example: "SPY_TOP_80"
+        numSymbols:
+          type: integer
+          description: Number of top symbols to select
+          example: 50
+        userID:
+          type: string
+          nullable: true
+          description: "(optional) User ID"
+      required:
+        - factorOptions
+        - backtestStart
+        - backtestEnd
+        - samplingIntervalUnit
+        - startCash
+
+    BacktestResponse:
+      type: object
+      properties:
+        factorName:
+          type: string
+        strategyID:
+          type: string
+          format: uuid
+        backtestSnapshots:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/BacktestSnapshot'
+        latestHoldings:
+          $ref: '#/components/schemas/LatestHoldings'
+        sharpeRatio:
+          type: number
+          format: double
+          nullable: true
+        annualizedReturn:
+          type: number
+          format: double
+          nullable: true
+        annualizedStandardDeviation:
+          type: number
+          format: double
+          nullable: true
+
+    BacktestSnapshot:
+      type: object
+      properties:
+        valuePercentChange:
+          type: number
+          format: double
+        value:
+          type: number
+          format: double
+        date:
+          type: string
+        assetMetrics:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SnapshotAssetMetrics'
+
+    SnapshotAssetMetrics:
+      type: object
+      properties:
+        assetWeight:
+          type: number
+          format: double
+        factorScore:
+          type: number
+          format: double
+        priceChangeTilNextResampling:
+          type: number
+          format: double
+          nullable: true
+
+    LatestHoldings:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date-time
+        assets:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SnapshotAssetMetrics'
+
+    BenchmarkRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+          description: Ticker symbol
+          example: "SPY"
+        start:
+          type: string
+          format: date
+          description: Start date (YYYY-MM-DD)
+          example: "2020-01-01"
+        end:
+          type: string
+          format: date
+          description: End date (YYYY-MM-DD)
+          example: "2024-01-01"
+        granularity:
+          type: string
+          description: Sampling granularity - daily, weekly, or monthly
+          example: "daily"
+      required:
+        - symbol
+        - start
+        - end
+
+    BenchmarkResponse:
+      type: object
+      description: "Map of date strings to benchmark values"
+      additionalProperties:
+        type: number
+        format: double
+
+    ContactRequest:
+      type: object
+      properties:
+        userID:
+          type: string
+          nullable: true
+          description: "(optional) User ID"
+        replyEmail:
+          type: string
+          nullable: true
+          description: "(optional) Reply email address"
+        content:
+          type: string
+          description: Contact message content (5-2000 characters)
+      required:
+        - content
+
+    ContactResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "ok"
+
+    ConstructFactorEquationRequest:
+      type: object
+      properties:
+        input:
+          type: string
+          description: Natural language description of the factor to construct
+          example: "undervalued stocks based on P/B ratio"
+      required:
+        - input
+
+    ConstructFactorEquationResponse:
+      type: object
+      properties:
+        factorExpression:
+          type: string
+          description: Generated factor expression
+        reason:
+          type: string
+          description: Explanation of how the expression was generated
+        error:
+          type: string
+          description: Error message if generation failed
+        factorName:
+          type: string
+          description: Generated factor name
+
+    BacktestBondPortfolioRequest:
+      type: object
+      properties:
+        backtestStart:
+          type: string
+          description: Backtest start date (YYYY-MM)
+          example: "2020-01"
+        backtestEnd:
+          type: string
+          description: Backtest end date (YYYY-MM)
+          example: "2024-01"
+        durationKey:
+          type: integer
+          description: Duration key (0=1-3mo, 2=12-36mo, 3=36-84mo, 4=120-360mo)
+        startCash:
+          type: number
+          format: double
+          description: Starting cash amount
+          example: 100000
+        userID:
+          type: string
+          nullable: true
+          description: "(optional) User ID"
+      required:
+        - backtestStart
+        - backtestEnd
+        - durationKey
+        - startCash
+
+    AddAssetsToUniverseRequest:
+      type: object
+      properties:
+        universeName:
+          type: string
+          description: Asset universe name
+          example: "CUSTOM_UNIVERSE"
+        assets:
+          type: array
+          items:
+            type: object
+            properties:
+              symbol:
+                type: string
+                example: "AAPL"
+              name:
+                type: string
+                example: "Apple Inc."
+            required:
+              - symbol
+      required:
+        - universeName
+        - assets
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "ok"
+
+    BookmarkStrategyRequest:
+      type: object
+      properties:
+        expression:
+          type: string
+          description: Factor expression
+        name:
+          type: string
+          description: Strategy name
+        rebalanceInterval:
+          type: string
+          description: Rebalance interval
+        numAssets:
+          type: integer
+          description: Number of assets
+        assetUniverse:
+          type: string
+          description: Asset universe code
+        bookmark:
+          type: boolean
+          description: Whether to save (true) or remove (false) the bookmark
+      required:
+        - bookmark
+
+    BookmarkStrategyResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        savedStrategyID:
+          type: string
+          format: uuid
+
+    IsStrategyBookmarkedResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        isBookmarked:
+          type: boolean
+
+    GetSavedStrategiesResponse:
+      type: object
+      properties:
+        strategyID:
+          type: string
+          format: uuid
+        strategyName:
+          type: string
+        rebalanceInterval:
+          type: string
+        bookmarked:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        factorExpression:
+          type: string
+        numAssets:
+          type: integer
+        assetUniverse:
+          type: string
+
+    InvestInStrategyRequest:
+      type: object
+      properties:
+        strategyID:
+          type: string
+          description: Strategy ID to invest in
+          format: uuid
+        amountDollars:
+          type: integer
+          description: Investment amount in dollars
+      required:
+        - strategyID
+        - amountDollars
+
+    InvestInStrategyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+
+    GetInvestmentsResponse:
+      type: object
+      properties:
+        investmentID:
+          type: string
+          format: uuid
+        originalAmountDollars:
+          type: integer
+        startDate:
+          type: string
+        strategy:
+          $ref: '#/components/schemas/InvestmentStrategy'
+        holdings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Holding'
+        percentReturnFraction:
+          type: number
+          format: double
+        currentValue:
+          type: number
+          format: double
+        completedTrades:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilledTrade'
+        paused:
+          type: boolean
+
+    InvestmentStrategy:
+      type: object
+      properties:
+        strategyID:
+          type: string
+          format: uuid
+        strategyName:
+          type: string
+        factorExpression:
+          type: string
+        numAssets:
+          type: integer
+        assetUniverse:
+          type: string
+        rebalanceInterval:
+          type: string
+
+    Holding:
+      type: object
+      properties:
+        symbol:
+          type: string
+        quantity:
+          type: number
+          format: double
+        marketValue:
+          type: number
+          format: double
+
+    FilledTrade:
+      type: object
+      properties:
+        symbol:
+          type: string
+        quantity:
+          type: number
+          format: double
+        fillPrice:
+          type: number
+          format: double
+        filledAt:
+          type: string
+          format: date-time
+
+    GetPublishedStrategiesResponse:
+      type: object
+      properties:
+        strategyID:
+          type: string
+          format: uuid
+        strategyName:
+          type: string
+        rebalanceInterval:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        factorExpression:
+          type: string
+        numAssets:
+          type: integer
+        assetUniverse:
+          type: string
+        sharpeRatio:
+          type: number
+          format: double
+          nullable: true
+        annualizedReturn:
+          type: number
+          format: double
+          nullable: true
+        annualizedStandardDeviation:
+          type: number
+          format: double
+          nullable: true
+        description:
+          type: string
+          nullable: true
+
+    GetAssetUniversesResponse:
+      type: object
+      properties:
+        displayName:
+          type: string
+        code:
+          type: string
+        numAssets:
+          type: integer
+
+    UpdatePricesResponse:
+      type: object
+      properties:
+        numUpdatedAssets:
+          type: integer
+
+    UpdateOrdersResponse:
+      type: object
+      properties:
+        success:
+          type: string
+
+    SendSavedStrategySummaryEmailsResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer

@@ -70,3 +70,9 @@ test:
 
 generate-api:
 	tools/env/bin/python tools/generate_api.py
+
+generate-docs:
+	openapi-generator-cli generate -i api/openapi.yaml -g markdown -o docs/
+
+serve-docs:
+	npx redoc-cli serve api/openapi.yaml --port 3002
