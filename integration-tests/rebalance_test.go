@@ -61,11 +61,6 @@ func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
 		return nil, fmt.Errorf("failed to initialize dependencies: %w", err)
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen on port %d: %w", port, err)
-	}
-
 	lg := logger.New()
 	ctx := context.WithValue(context.Background(), logger.ContextKey, lg)
 	engine := handler.InitializeRouterEngine(ctx)
