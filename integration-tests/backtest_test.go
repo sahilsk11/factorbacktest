@@ -2,9 +2,11 @@ package integration_tests
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"factorbacktest/api"
 	"factorbacktest/internal/service"
+	"factorbacktest/internal/testseed"
 	"fmt"
 	"io"
 	"math"
@@ -83,11 +85,17 @@ func Test_backtestFlow(t *testing.T) {
 
 	db := manager.DB()
 
-	err = seedUniverse(db)
-	require.NoError(t, err)
-
-	err = seedPrices(db)
-	require.NoError(t, err)
+	seed := func(db *sql.DB) {
+		aapl := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "AAPL", Name: "Apple"})
+		goog := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "GOOG", Name: "Google"})
+		meta := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "META", Name: "Meta"})
+		universe := testseed.CreateAssetUniverse(db, testseed.AssetUniverseOpts{Name: "SPY_TOP_80"})
+		for _, id := range []uuid.UUID{aapl.TickerID, goog.TickerID, meta.TickerID} {
+			testseed.CreateAssetUniverseTicker(db, universe.AssetUniverseID, id)
+		}
+		testseed.InsertPrices2020(db)
+	}
+	seed(db)
 
 	userID := uuid.NewString()
 	startTime := time.Now()

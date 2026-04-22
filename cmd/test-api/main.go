@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -18,7 +19,11 @@ import (
 	"factorbacktest/internal/util"
 )
 
+var seedName = flag.String("seed", "", "name of seed to apply at startup")
+
 func main() {
+	flag.Parse()
+
 	portStr := os.Getenv("PORT")
 	if portStr == "" {
 		log.Fatal("PORT env var is required")
@@ -34,6 +39,14 @@ func main() {
 		log.Fatalf("failed to create test database manager: %v", err)
 	}
 	defer testDbManager.Close()
+
+	if *seedName != "" {
+		fn, ok := seeds[*seedName]
+		if !ok {
+			log.Fatalf("unknown seed %q; known: %v", *seedName, sortedSeedNames())
+		}
+		fn(testDbManager.DB())
+	}
 
 	secrets := util.Secrets{
 		Port:             port,
