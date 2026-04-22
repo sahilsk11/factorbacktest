@@ -6,38 +6,39 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"factorbacktest/cmd"
 	"factorbacktest/internal/logger"
+	"factorbacktest/internal/testseed"
 	"factorbacktest/internal/util"
 )
 
 func main() {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+	portStr := os.Getenv("PORT")
+	if portStr == "" {
+		log.Fatal("PORT env var is required")
 	}
-	actualPort := listener.Addr().(*net.TCPAddr).Port
-	log.Printf("Test API server listening on port %d", actualPort)
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port <= 0 {
+		log.Fatalf("invalid PORT %q: %v", portStr, err)
+	}
+	log.Printf("Test API server will listen on port %d", port)
 
-	// Create a unique test database
 	testDbManager, err := createTestDbManager(5440)
 	if err != nil {
 		log.Fatalf("failed to create test database manager: %v", err)
 	}
 	defer testDbManager.Close()
 
-	// Initialize API dependencies with test database
 	secrets := util.Secrets{
-		Port: actualPort,
-		Db:   testDbManager.DBConfig,
-		// Set other required secrets to empty/zero values for test
+		Port:             port,
+		Db:               testDbManager.DBConfig,
 		DataJockeyApiKey: "",
 		ChatGPTApiKey:    "",
 		Alpaca: util.AlpacaSecrets{
@@ -56,26 +57,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize dependencies: %v", err)
 	}
+	apiHandler.Port = port
 
 	lg := logger.New()
 	ctx := context.WithValue(context.Background(), logger.ContextKey, lg)
 
-	// Override the port in the API handler
-	apiHandler.Port = actualPort
-
-	// Start the server in a goroutine
-	go func() {
-		err := apiHandler.StartApi(ctx)
-		if err != nil {
-			log.Fatalf("server error: %v", err)
-		}
-	}()
-
-	// Output the actual port for the caller to use
-	fmt.Printf("%d\n", actualPort)
-
-	// Wait forever (or until interrupted)
-	select {}
+	engine := apiHandler.InitializeRouterEngine(ctx)
+	if os.Getenv("ALPHA_ENV") == "test" {
+		MountAdmin(engine, testDbManager.DB(), testseed.Default)
+	}
+	if err := engine.Run(fmt.Sprintf(":%d", port)); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }
 
 func createTestDbManager(port int) (*TestDbManager, error) {

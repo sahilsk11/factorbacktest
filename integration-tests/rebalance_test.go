@@ -16,9 +16,9 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
+	"factorbacktest/internal/testseed"
 	"factorbacktest/internal/util"
 
-	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/shopspring/decimal"
@@ -86,106 +86,6 @@ func (s *TestServer) Stop() error {
 	return nil
 }
 
-func seedInvestment(db *sql.DB) error {
-	userAccount := model.UserAccount{}
-	err := table.UserAccount.
-		INSERT(table.UserAccount.MutableColumns).
-		MODEL(model.UserAccount{
-			FirstName: util.StringPointer("Test"),
-			LastName:  util.StringPointer("User"),
-			Email:     util.StringPointer("test@gmail.com"),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			Provider:  model.UserAccountProviderType_Manual,
-		}).
-		RETURNING(table.UserAccount.AllColumns).
-		Query(db, &userAccount)
-	if err != nil {
-		return fmt.Errorf("failed to insert user account: %w", err)
-	}
-
-	strategy := model.Strategy{}
-	err = table.Strategy.
-		INSERT(table.Strategy.MutableColumns).
-		MODEL(model.Strategy{
-			StrategyName: "test_strategy",
-			FactorExpression: `pricePercentChange(
-  nDaysAgo(7),
-  currentDate
-)`,
-			RebalanceInterval: "MONTHLY",
-			NumAssets:         3,
-			AssetUniverse:     "SPY_TOP_80",
-			UserAccountID:     &userAccount.UserAccountID,
-			CreatedAt:         time.Now(),
-			ModifiedAt:        time.Now(),
-			Published:         false,
-			Saved:             false,
-			Description:       nil,
-		}).
-		RETURNING(table.Strategy.AllColumns).
-		Query(db, &strategy)
-	if err != nil {
-		return fmt.Errorf("failed to insert strategy: %w", err)
-	}
-
-	investment := model.Investment{}
-	err = table.Investment.
-		INSERT(table.Investment.MutableColumns).
-		MODEL(model.Investment{
-			AmountDollars: 100,
-			StartDate:     time.Now(),
-			StrategyID:    strategy.StrategyID,
-			UserAccountID: userAccount.UserAccountID,
-			CreatedAt:     time.Now(),
-			ModifiedAt:    time.Now(),
-			EndDate:       nil,
-			PausedAt:      nil,
-		}).
-		RETURNING(table.Investment.AllColumns).
-		Query(db, &investment)
-	if err != nil {
-		return fmt.Errorf("failed to insert investment: %w", err)
-	}
-
-	holdingVersion := model.InvestmentHoldingsVersion{}
-	err = table.InvestmentHoldingsVersion.
-		INSERT(table.InvestmentHoldingsVersion.MutableColumns).
-		MODEL(model.InvestmentHoldingsVersion{
-			InvestmentID:    investment.InvestmentID,
-			CreatedAt:       time.Now(),
-			RebalancerRunID: nil,
-		}).
-		RETURNING(table.InvestmentHoldingsVersion.AllColumns).
-		Query(db, &holdingVersion)
-	if err != nil {
-		return fmt.Errorf("failed to insert holding version: %w", err)
-	}
-
-	cashTicker := model.Ticker{}
-	err = table.Ticker.SELECT(table.Ticker.AllColumns).WHERE(table.Ticker.Symbol.EQ(postgres.String(":CASH"))).Query(db, &cashTicker)
-	if err != nil {
-		return fmt.Errorf("failed to get cash ticker: %w", err)
-	}
-
-	holding := model.InvestmentHoldings{}
-	err = table.InvestmentHoldings.
-		INSERT(table.InvestmentHoldings.MutableColumns).
-		MODEL(model.InvestmentHoldings{
-			TickerID:                    cashTicker.TickerID,
-			Quantity:                    decimal.NewFromInt(100),
-			CreatedAt:                   time.Now(),
-			InvestmentHoldingsVersionID: holdingVersion.InvestmentHoldingsVersionID,
-		}).
-		RETURNING(table.InvestmentHoldings.AllColumns).
-		Query(db, &holding)
-	if err != nil {
-		return fmt.Errorf("failed to insert holding: %w", err)
-	}
-
-	return nil
-}
-
 func Test_rebalanceFlow(t *testing.T) {
 	manager, err := NewTestDbManager()
 	require.NoError(t, err)
@@ -198,13 +98,7 @@ func Test_rebalanceFlow(t *testing.T) {
 
 	db := manager.DB()
 
-	err = seedUniverse(db)
-	require.NoError(t, err)
-
-	err = seedPrices(db)
-	require.NoError(t, err)
-
-	err = seedInvestment(db)
+	_, err = testseed.Default.Apply(context.Background(), db, []string{"investment_basic"})
 	require.NoError(t, err)
 
 	startTime := time.Now()

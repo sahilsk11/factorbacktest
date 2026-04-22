@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/seed';
 
 test.describe('Backtest Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -23,7 +23,9 @@ test.describe('Backtest Flow', () => {
     await expect(page.locator('canvas')).toBeVisible({ timeout: 10000 });
   });
 
-  test('run backtest with valid data shows chart', async ({ page }) => {
+  test('run backtest with valid data shows chart', async ({ page, seed }) => {
+    await seed(['prices_2020']);
+
     await page.evaluate(() => {
       const overlay = document.getElementById('webpack-dev-server-client-overlay');
       if (overlay) overlay.remove();

@@ -2,9 +2,11 @@ package integration_tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"factorbacktest/api"
 	"factorbacktest/internal/service"
+	"factorbacktest/internal/testseed"
 	"fmt"
 	"io"
 	"math"
@@ -83,10 +85,7 @@ func Test_backtestFlow(t *testing.T) {
 
 	db := manager.DB()
 
-	err = seedUniverse(db)
-	require.NoError(t, err)
-
-	err = seedPrices(db)
+	_, err = testseed.Default.Apply(context.Background(), db, []string{"prices_2020"})
 	require.NoError(t, err)
 
 	userID := uuid.NewString()
