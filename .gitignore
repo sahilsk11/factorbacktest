@@ -16,3 +16,6 @@ terraform/terraform.tfstate.backup
 
 frontend/playwright-report/
 frontend/test-results
+
+# Compiled test-api binary (from `go build ./cmd/test-api`).
+/test-api
