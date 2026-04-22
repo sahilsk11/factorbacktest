@@ -36,11 +36,6 @@ async function resolvePorts(): Promise<{ bePort: number; fePort: number }> {
 export default (async () => {
   const { bePort, fePort } = await resolvePorts();
 
-  // Shared BE log file - diagnostics fixture reads this on failure.
-  // Uniquified by port so concurrent runs don't clobber.
-  const beLogPath = `/tmp/fb-test-be-${bePort}.log`;
-  process.env.FB_TEST_BE_LOG = beLogPath;
-
   return defineConfig({
     testDir: './e2e',
     timeout: 180_000,
@@ -48,6 +43,7 @@ export default (async () => {
     fullyParallel: true,
     retries: 0,
     reporter: 'html',
+    globalSetup: require.resolve('./e2e/global-setup'),
     use: {
       baseURL: `http://localhost:${fePort}`,
       trace: 'retain-on-failure',
@@ -61,22 +57,6 @@ export default (async () => {
       },
     ],
     webServer: [
-      {
-        // tee to a file so the diagnostics fixture can attach the BE log to
-        // failing tests. Stderr is merged into stdout so logs stay in order.
-        command: `sh -c 'go run ./cmd/test-api 2>&1 | tee ${beLogPath}'`,
-        cwd: '..',
-        env: {
-          ALPHA_ENV: 'test',
-          PORT: String(bePort),
-          // FE is served on a random port; tell the BE to allow that origin
-          // so browser-originated calls from the page aren't blocked by CORS.
-          EXTRA_ALLOWED_ORIGINS: `http://localhost:${fePort}`,
-        },
-        url: `http://localhost:${bePort}/`,
-        timeout: 120_000,
-        reuseExistingServer: false,
-      },
       {
         command: `npm run build && npx serve -s build -l ${fePort}`,
         env: {

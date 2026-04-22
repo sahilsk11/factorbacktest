@@ -1,5 +1,8 @@
 import fs from 'fs';
+import http from 'http';
+import net from 'net';
 import path from 'path';
+import { spawn, ChildProcess } from 'child_process';
 import type { TestInfo } from '@playwright/test';
 import { test as base, expect } from '@playwright/test';
 
@@ -16,8 +19,11 @@ type Diagnostics = {
   failedResponses: FailedResponse[];
   allRequests: string[];
   startTimeMs: number;
-  beLogOffset: number;
 };
+
+export type SeedName = '' | 'investment_basic' | 'prices_only';
+export type BackendFixture = { apiUrl: string; port: number; logPath: string };
+type FixtureOptions = { seedName: SeedName };
 
 const BODY_PREVIEW_CHARS = 2000;
 
@@ -33,34 +39,52 @@ async function writeDiagnostic(
   await testInfo.attach(name, { path: outPath, contentType });
 }
 
-function readBackendLogSlice(startOffset: number): string {
-  const logPath = process.env.FB_TEST_BE_LOG;
-  if (!logPath || !fs.existsSync(logPath)) return '';
-  try {
-    const fd = fs.openSync(logPath, 'r');
-    const stat = fs.fstatSync(fd);
-    const len = Math.max(0, stat.size - startOffset);
-    if (len === 0) {
-      fs.closeSync(fd);
-      return '';
-    }
-    const buf = Buffer.alloc(len);
-    fs.readSync(fd, buf, 0, len, startOffset);
-    fs.closeSync(fd);
-    return buf.toString('utf8');
-  } catch {
-    return '';
-  }
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address();
+      if (addr && typeof addr === 'object') {
+        const { port } = addr;
+        server.close(() => resolve(port));
+      } else {
+        server.close();
+        reject(new Error('Failed to obtain free port'));
+      }
+    });
+  });
 }
 
-function currentBackendLogSize(): number {
-  const logPath = process.env.FB_TEST_BE_LOG;
-  if (!logPath || !fs.existsSync(logPath)) return 0;
-  try {
-    return fs.statSync(logPath).size;
-  } catch {
-    return 0;
+async function waitForHttp(
+  url: string,
+  opts: { timeoutMs: number; intervalMs?: number } = { timeoutMs: 30_000 },
+): Promise<void> {
+  const interval = opts.intervalMs ?? 250;
+  const deadline = Date.now() + opts.timeoutMs;
+  let lastErr: unknown;
+  while (Date.now() < deadline) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const req = http.get(url, (res) => {
+          res.resume();
+          resolve();
+        });
+        req.on('error', reject);
+        req.setTimeout(Math.min(interval * 2, 2_000), () => {
+          req.destroy(new Error('request timeout'));
+        });
+      });
+      return;
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, interval));
+    }
   }
+  throw new Error(
+    `waitForHttp(${url}) timed out after ${opts.timeoutMs}ms: ${String(lastErr)}`,
+  );
 }
 
 function interpretFailure(args: {
@@ -231,16 +255,75 @@ function interpretFailure(args: {
   ].join('\n');
 }
 
-export const test = base.extend<{ diagnostics: Diagnostics }>({
+export const test = base.extend<
+  FixtureOptions & { backend: BackendFixture; diagnostics: Diagnostics }
+>({
+  seedName: ['', { option: true }],
+
+  backend: async ({ seedName, context }, use) => {
+    const builtInPort = Number(process.env.FB_TEST_BE_PORT);
+    const fePort = Number(process.env.FB_TEST_FE_PORT);
+    const binPath = process.env.FB_TEST_API_BIN ?? '/tmp/fb-test-api';
+
+    const port = await getFreePort();
+    const logPath = `/tmp/fb-test-be-${port}.log`;
+    const logFd = fs.openSync(logPath, 'w');
+
+    const args = seedName ? ['-seed', seedName] : [];
+    let child: ChildProcess | null = null;
+    try {
+      child = spawn(binPath, args, {
+        cwd: path.resolve(__dirname, '../..'),
+        env: {
+          ...process.env,
+          PORT: String(port),
+          ALPHA_ENV: 'test',
+          EXTRA_ALLOWED_ORIGINS: `http://localhost:${fePort}`,
+        },
+        stdio: ['ignore', logFd, logFd],
+      });
+
+      await waitForHttp(`http://localhost:${port}/`, { timeoutMs: 30_000 });
+
+      await context.route(
+        `http://localhost:${builtInPort}/**`,
+        async (route) => {
+          const rewritten = route.request().url().replace(
+            `localhost:${builtInPort}`,
+            `localhost:${port}`,
+          );
+          await route.continue({ url: rewritten });
+        },
+      );
+
+      await use({ apiUrl: `http://localhost:${port}`, port, logPath });
+    } finally {
+      if (child) {
+        child.kill('SIGTERM');
+        await new Promise<void>((resolve) => {
+          if (child!.exitCode !== null || child!.signalCode !== null) {
+            resolve();
+            return;
+          }
+          child!.once('exit', () => resolve());
+        });
+      }
+      try {
+        fs.closeSync(logFd);
+      } catch {
+        // fd may already be closed
+      }
+    }
+  },
+
   diagnostics: [
-    async ({ page }, use, testInfo) => {
+    async ({ page, backend }, use, testInfo) => {
       const diag: Diagnostics = {
         console: [],
         pageErrors: [],
         failedResponses: [],
         allRequests: [],
         startTimeMs: Date.now(),
-        beLogOffset: currentBackendLogSize(),
       };
 
       page.on('console', (msg) => {
@@ -283,7 +366,14 @@ export const test = base.extend<{ diagnostics: Diagnostics }>({
 
       await use(diag);
 
-      if (testInfo.status === testInfo.expectedStatus) return;
+      if (testInfo.status === testInfo.expectedStatus) {
+        try {
+          fs.unlinkSync(backend.logPath);
+        } catch {
+          // best-effort cleanup
+        }
+        return;
+      }
 
       // Collect page state before any attachments.
       let pageUrl = '';
@@ -301,7 +391,12 @@ export const test = base.extend<{ diagnostics: Diagnostics }>({
         // best-effort; page may already be closed
       }
 
-      const backendLogSlice = readBackendLogSlice(diag.beLogOffset);
+      let backendLogSlice = '';
+      try {
+        backendLogSlice = fs.readFileSync(backend.logPath, 'utf8');
+      } catch {
+        backendLogSlice = '';
+      }
 
       // SUMMARY.md first so it's the top-of-attachment-list entry.
       await writeDiagnostic(
