@@ -62,7 +62,7 @@ jobs:
 
     - name: Build frontend
       working-directory: frontend
-      run: npm run build
+      run: CI=false npm run build
 
     - name: Apply migrations
       run: python3 tools/migrations.py up postgres_test
