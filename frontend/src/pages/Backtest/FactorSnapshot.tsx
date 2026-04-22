@@ -275,14 +275,19 @@ const AssetAllocationTable = ({ snapshot }: { snapshot: BacktestSnapshot }) => {
         </tr>
       </thead>
       <tbody>
-        {sortedSymbols.map((symbol, i) => <tr key={i}>
+        {sortedSymbols.map((symbol) => {
+        const metrics = snapshot.assetMetrics[symbol]!;
+        return (
+        <tr key={symbol}>
           <td>{symbol}</td>
-          <td>{snapshot.assetMetrics[symbol].factorScore < 1e-2 ? snapshot.assetMetrics[symbol].factorScore.toExponential(2) : snapshot.assetMetrics[symbol].factorScore.toFixed(2)}</td>
-          <td>{(100 * snapshot.assetMetrics[symbol].assetWeight).toFixed(2)}%</td>
-          <td>{snapshot.assetMetrics[symbol].priceChangeTilNextResampling != null
-            ? `${(snapshot.assetMetrics[symbol].priceChangeTilNextResampling * 100).toFixed(2)}%`
+          <td>{metrics.factorScore < 1e-2 ? metrics.factorScore.toExponential(2) : metrics.factorScore.toFixed(2)}</td>
+          <td>{(100 * metrics.assetWeight).toFixed(2)}%</td>
+          <td>{metrics.priceChangeTilNextResampling != null
+            ? `${(metrics.priceChangeTilNextResampling * 100).toFixed(2)}%`
             : '-'}</td>
-        </tr>)}
+        </tr>
+        );
+      })}
       </tbody>
     </table >
   );
