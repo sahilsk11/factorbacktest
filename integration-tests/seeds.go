@@ -64,6 +64,10 @@ func seedUniverse(db *sql.DB) error {
 			Symbol: "META",
 			Name:   "Meta",
 		},
+		{
+			Symbol: ":CASH",
+			Name:   "cash",
+		},
 	}
 	query := table.Ticker.INSERT(table.Ticker.MutableColumns).MODELS(modelsToInsert).RETURNING(table.Ticker.AllColumns)
 	insertedTickers := []model.Ticker{}

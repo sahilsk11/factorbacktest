@@ -1,0 +1,121 @@
+name: Frontend E2E
+
+on:
+  push:
+    branches: [ "**" ]
+    paths:
+      - 'frontend/**'
+      - 'api/**'
+      - 'internal/**'
+      - 'tools/**'
+      - 'cmd/**'
+      - '.github/workflows/frontend-e2e.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'api/**'
+      - 'internal/**'
+      - 'tools/**'
+      - 'cmd/**'
+      - '.github/workflows/frontend-e2e.yml'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_DB: postgres_test
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5440:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 0. Setup Python (for migrations)
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # 1. Install Python deps (psycopg2 for migrations)
+      - name: Install Python dependencies
+        run: pip install -r tools/requirements.txt
+
+      # 2. Wait for postgres to be ready
+      - name: Wait for postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5440 -U postgres > /dev/null 2>&1; then
+              echo "Postgres is ready!"
+              break
+            fi
+            echo "Waiting for postgres... ($i)"
+            sleep 2
+          done
+
+      # 3. Run migrations
+      - name: Run migrations
+        env:
+          ALPHA_ENV: test
+        run: python3 tools/migrations.py up postgres_test
+
+      # 4. Seed database
+      - name: Seed database
+        env:
+          ALPHA_ENV: test
+        run: go run cmd/seed-e2e/main.go
+
+      # 5. Start backend (background)
+      - name: Start backend
+        env:
+          ALPHA_ENV: test
+        run: |
+          go run cmd/api/main.go > backend.log 2>&1 &
+          success=false
+          echo "Waiting for backend..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3009/ > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              success=true
+              break
+            fi
+            echo "Waiting... ($i)"
+            sleep 2
+          done
+          if [ "$success" = "false" ]; then
+            echo "Backend failed to start!"
+            exit 1
+          fi
+
+      # 6. Setup Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # 7. Install + build frontend
+      - name: Install and build frontend
+        working-directory: ./frontend
+        run: npm ci && npm run build
+
+      # 8. Install Playwright browsers
+      - name: Install Playwright
+        working-directory: ./frontend
+        run: npx playwright install chromium --with-deps
+
+      # 9. Run Playwright tests
+      - name: Run E2E tests
+        working-directory: ./frontend
+        env:
+          BACKEND_URL: http://localhost:3009
+        run: npx playwright test
