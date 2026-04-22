@@ -68,8 +68,9 @@ jobs:
 
     - name: Start frontend
       working-directory: frontend
-      run: npm start > frontend.log 2>&1 &
-      echo "Frontend PID: $!"
+      run: |
+        npm start > frontend.log 2>&1 &
+        echo "Frontend PID: $!"
 
     - name: Wait for services
       run: |
