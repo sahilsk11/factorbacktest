@@ -76,14 +76,24 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		c.Set(logger.ContextKey, l)
 	})
 	engine.Use(blockBots)
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"https://factorbacktest.net",
+		"https://www.factorbacktest.net",
+		"https://factor.trade",
+		"https://www.factor.trade",
+	}
+	// Test harness (playwright) builds the FE onto a random port; let it
+	// opt-in via env var rather than opening CORS in prod.
+	if extra := os.Getenv("EXTRA_ALLOWED_ORIGINS"); extra != "" {
+		for _, o := range strings.Split(extra, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				allowedOrigins = append(allowedOrigins, o)
+			}
+		}
+	}
 	engine.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"http://localhost:3000",
-			"https://factorbacktest.net",
-			"https://www.factorbacktest.net",
-			"https://factor.trade",
-			"https://www.factor.trade",
-		},
+		AllowOrigins: allowedOrigins,
 		AllowHeaders: []string{"Authorization", "Content-Type"},
 	}))
 	engine.Use(m.getGoogleAuthMiddleware)
