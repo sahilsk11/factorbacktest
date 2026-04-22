@@ -1,7 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const isCI = process.env.CI === 'true';
-
 export default defineConfig({
   testDir: './e2e',
   timeout: 180000,
@@ -9,9 +7,8 @@ export default defineConfig({
     timeout: 30000,
   },
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: 0,
+  workers: undefined,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:3000',
@@ -24,18 +21,18 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: isCI ? undefined : [
+  webServer: [
     {
-      command: 'ALPHA_ENV=test go run ../cmd/api/main.go',
-      port: 3009,
+      command: 'ALPHA_ENV=test go run ../cmd/test-api/main.go',
+      port: 0,
       timeout: 120000,
-      reuseExistingServer: true,
+      reuseExistingServer: false,
     },
     {
-      command: 'npm start',
-      port: 3000,
+      command: 'REACT_APP_API_PORT=$WEBSERVER_PREVIOUS_PORT npm run build && npx serve -s build -l $WEBSERVER_PORT',
+      port: 0,
       timeout: 120000,
-      reuseExistingServer: !isCI,
+      reuseExistingServer: false,
     },
   ],
 });

@@ -13,3 +13,6 @@ terraform/.terraform/
 # Terraform state (sensitive)
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
+
+frontend/playwright-report/
+frontend/test-results
