@@ -3,55 +3,71 @@ package main
 import (
 	"database/sql"
 	"sort"
+	"time"
 
 	"factorbacktest/internal/testseed"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 )
 
 var seeds = map[string]func(*sql.DB){
-	"investment_basic": seedInvestmentBasic,
-	"prices_only":      seedPricesOnly,
+	"home_strategies": seedHomeStrategies,
 }
 
-func seedInvestmentBasic(db *sql.DB) {
+func seedHomeStrategies(db *sql.DB) {
 	aapl := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "AAPL", Name: "Apple"})
 	goog := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "GOOG", Name: "Google"})
 	meta := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "META", Name: "Meta"})
-	universe := testseed.CreateAssetUniverse(db, testseed.AssetUniverseOpts{Name: "SPY_TOP_80"})
+	testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "SPY", Name: "SPDR S&P 500 ETF"})
+
+	universe := testseed.CreateAssetUniverse(db, testseed.AssetUniverseOpts{
+		Name:        "SPY_TOP_80",
+		DisplayName: "SPY_TOP_80",
+	})
 	for _, id := range []uuid.UUID{aapl.TickerID, goog.TickerID, meta.TickerID} {
 		testseed.CreateAssetUniverseTicker(db, universe.AssetUniverseID, id)
 	}
-	testseed.InsertPrices2020(db)
+
+	// Cover the frontend's default backtest range (today - 3y -> today) with
+	// a ~100-day buffer for the longest nDaysAgo() lookback in the seeded
+	// strategies (90-day momentum).
+	end := time.Now().UTC()
+	start := end.AddDate(-3, 0, -100)
+	testseed.InsertSyntheticPrices(db, testseed.SyntheticPricesOpts{
+		Symbols: []string{"AAPL", "GOOG", "META", "SPY"},
+		Start:   start,
+		End:     end,
+	})
+
 	user := testseed.CreateUserAccount(db, testseed.UserAccountOpts{Email: "test@gmail.com"})
-	strategy := testseed.CreateStrategy(db, testseed.StrategyOpts{
-		Name:              "test_strategy",
+
+	testseed.CreateStrategy(db, testseed.StrategyOpts{
+		Name:              "7_day_momentum_monthly",
 		UserAccountID:     user.UserAccountID,
 		AssetUniverse:     "SPY_TOP_80",
 		NumAssets:         3,
 		RebalanceInterval: "MONTHLY",
 		FactorExpression:  "pricePercentChange(\n  nDaysAgo(7),\n  currentDate\n)",
+		Published:         true,
 	})
-	inv := testseed.CreateInvestment(db, testseed.InvestmentOpts{
-		StrategyID:    strategy.StrategyID,
-		UserAccountID: user.UserAccountID,
-		AmountDollars: 100,
+	testseed.CreateStrategy(db, testseed.StrategyOpts{
+		Name:              "30_day_momentum_monthly",
+		UserAccountID:     user.UserAccountID,
+		AssetUniverse:     "SPY_TOP_80",
+		NumAssets:         3,
+		RebalanceInterval: "MONTHLY",
+		FactorExpression:  "pricePercentChange(\n  nDaysAgo(30),\n  currentDate\n)",
+		Published:         true,
 	})
-	hv := testseed.CreateInvestmentHoldingsVersion(db, inv.InvestmentID)
-	cash := testseed.LookupTickerBySymbol(db, ":CASH")
-	testseed.CreateInvestmentHolding(db, testseed.InvestmentHoldingOpts{
-		VersionID: hv.InvestmentHoldingsVersionID,
-		TickerID:  cash.TickerID,
-		Quantity:  decimal.NewFromInt(100),
+	testseed.CreateStrategy(db, testseed.StrategyOpts{
+		Name:              "90_day_momentum_monthly",
+		UserAccountID:     user.UserAccountID,
+		AssetUniverse:     "SPY_TOP_80",
+		NumAssets:         3,
+		RebalanceInterval: "MONTHLY",
+		FactorExpression:  "pricePercentChange(\n  nDaysAgo(90),\n  currentDate\n)",
+		Published:         true,
 	})
-}
-
-func seedPricesOnly(db *sql.DB) {
-	testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "AAPL", Name: "Apple"})
-	testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "GOOG", Name: "Google"})
-	testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "META", Name: "Meta"})
-	testseed.InsertPrices2020(db)
 }
 
 func sortedSeedNames() []string {
