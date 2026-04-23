@@ -28,8 +28,11 @@ func seedHomeStrategies(db *sql.DB) {
 		testseed.CreateAssetUniverseTicker(db, universe.AssetUniverseID, id)
 	}
 
-	start := time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+	// Cover the frontend's default backtest range (today - 3y -> today) with
+	// a ~100-day buffer for the longest nDaysAgo() lookback in the seeded
+	// strategies (90-day momentum).
 	end := time.Now().UTC()
+	start := end.AddDate(-3, 0, -100)
 	testseed.InsertSyntheticPrices(db, testseed.SyntheticPricesOpts{
 		Symbols: []string{"AAPL", "GOOG", "META", "SPY"},
 		Start:   start,
