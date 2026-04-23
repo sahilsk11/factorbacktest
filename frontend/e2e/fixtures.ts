@@ -21,7 +21,7 @@ type Diagnostics = {
   startTimeMs: number;
 };
 
-export type SeedName = '' | 'investment_basic' | 'prices_only';
+export type SeedName = '' | 'home_strategies';
 export type BackendFixture = { apiUrl: string; port: number; logPath: string };
 type FixtureOptions = { seedName: SeedName };
 

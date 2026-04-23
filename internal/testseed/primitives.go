@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
+	"math"
 	"time"
 
 	"factorbacktest/internal/db/models/postgres/public/model"
@@ -129,6 +130,7 @@ type StrategyOpts struct {
 	RebalanceInterval string
 	NumAssets         int32
 	UserAccountID     uuid.UUID
+	Published         bool
 }
 
 func CreateStrategy(db *sql.DB, opts StrategyOpts) model.Strategy {
@@ -146,6 +148,7 @@ func CreateStrategy(db *sql.DB, opts StrategyOpts) model.Strategy {
 			UserAccountID:     &userID,
 			CreatedAt:         now,
 			ModifiedAt:        now,
+			Published:         opts.Published,
 		}).
 		RETURNING(table.Strategy.AllColumns).
 		Query(db, &out)
@@ -272,5 +275,73 @@ func InsertPrices2020(db *sql.DB) {
 		MODELS(models).
 		Exec(db); err != nil {
 		panic(fmt.Errorf("InsertPrices2020: insert: %w", err))
+	}
+}
+
+type SyntheticPricesOpts struct {
+	Symbols []string
+	Start   time.Time
+	End     time.Time
+}
+
+func InsertSyntheticPrices(db *sql.DB, opts SyntheticPricesOpts) {
+	if opts.Start.IsZero() || opts.End.IsZero() {
+		panic(fmt.Errorf("InsertSyntheticPrices: Start and End must be set"))
+	}
+	if opts.End.Before(opts.Start) {
+		panic(fmt.Errorf("InsertSyntheticPrices: End before Start"))
+	}
+
+	start := time.Date(opts.Start.Year(), opts.Start.Month(), opts.Start.Day(), 0, 0, 0, 0, time.UTC)
+	end := time.Date(opts.End.Year(), opts.End.Month(), opts.End.Day(), 0, 0, 0, 0, time.UTC)
+
+	// Per-symbol deterministic price series: base price + linear drift + sinusoidal oscillation.
+	// Different amplitude/period/phase per symbol so relative momentum rankings vary over time.
+	bases := []float64{100, 150, 200, 300, 400, 500, 600, 700}
+	drifts := []float64{0.03, 0.05, 0.02, 0.04, 0.035, 0.045, 0.025, 0.05}
+	amps := []float64{8, 15, 12, 20, 10, 18, 14, 22}
+	periods := []float64{45, 60, 30, 90, 50, 75, 40, 55}
+	phases := []float64{0, 1.3, 2.7, 0.9, 2.1, 0.4, 1.8, 3.0}
+
+	const chunkSize = 5000
+
+	for sIdx, symbol := range opts.Symbols {
+		base := bases[sIdx%len(bases)]
+		drift := drifts[sIdx%len(drifts)]
+		amp := amps[sIdx%len(amps)]
+		period := periods[sIdx%len(periods)]
+		phase := phases[sIdx%len(phases)]
+
+		batch := make([]model.AdjustedPrice, 0, chunkSize)
+		dayIdx := 0
+		for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+			f := float64(dayIdx)
+			price := base + drift*f + amp*math.Sin(2*math.Pi*f/period+phase)
+			if price < 1 {
+				price = 1
+			}
+			batch = append(batch, model.AdjustedPrice{
+				Date:   d,
+				Symbol: symbol,
+				Price:  decimal.NewFromFloat(price).Round(4),
+			})
+			if len(batch) >= chunkSize {
+				flushAdjustedPrices(db, batch)
+				batch = batch[:0]
+			}
+			dayIdx++
+		}
+		if len(batch) > 0 {
+			flushAdjustedPrices(db, batch)
+		}
+	}
+}
+
+func flushAdjustedPrices(db *sql.DB, models []model.AdjustedPrice) {
+	if _, err := table.AdjustedPrice.
+		INSERT(table.AdjustedPrice.MutableColumns).
+		MODELS(models).
+		Exec(db); err != nil {
+		panic(fmt.Errorf("InsertSyntheticPrices: insert: %w", err))
 	}
 }
