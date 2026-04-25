@@ -63,11 +63,29 @@ gh secret set FLY_API_TOKEN --body '<paste-token>'
 After this, `git push origin master` triggers both `deploy-lambda.yml` and
 `deploy-fly.yml` in parallel.
 
-### 4. Confirm RDS allows the world
+### 4. Confirm RDS reachability
 
-The RDS security group needs `0.0.0.0/0` on the Postgres port (or at minimum
-Fly's egress range). Without this, the machine boots but can't connect to
-Postgres and the healthcheck on `/` will fail.
+Fly machines connect to RDS over the public internet, so the RDS security
+group needs to permit that traffic on the Postgres port. In rough order of
+preference:
+
+1. **Allowlist Fly's egress IPs only** — Fly publishes per-region egress
+   ranges; pin those into the SG. Narrow blast radius, recommended for
+   anything past the initial A/B test.
+2. **WireGuard / Fly private networking** — peer Fly into the AWS VPC and
+   keep RDS private. Most work; strongest posture.
+3. **Bastion or RDS Proxy with IAM auth** — middle ground.
+4. **`0.0.0.0/0` on the Postgres port** — fastest and how this PR was
+   smoke-tested. Acceptable as a *temporary* state for A/B testing because
+   the connection is SSL (`enableSsl=true`) and Postgres still requires the
+   user/password to authenticate, but **must not be the cutover state.** If
+   you choose this, plan to narrow it before sending real traffic.
+
+Confirm reachability before deploying:
+
+```sh
+nc -zv <rds-host> 5432   # from your laptop or any external network
+```
 
 ## Day-to-day commands
 

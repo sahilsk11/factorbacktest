@@ -111,15 +111,17 @@ func (t DbSecrets) ToConnectionStr() string {
 
 func LoadSecrets() (*Secrets, error) {
 	// Opt-in path for environments that inject secrets as env vars (e.g. Fly.io).
-	// When FB_SECRETS_FROM_ENV=1, try env vars first; on failure, fall through to
-	// the existing AWS + file chain so behavior is unchanged for Lambda and local dev.
+	// FB_SECRETS_FROM_ENV=1 is an explicit signal, so a failure here is terminal:
+	// falling through to the AWS / file chain would obscure the real cause (a
+	// missing or typo'd Fly secret) and risks loading the wrong secrets in any
+	// future env that has both this flag and AWS creds present.
 	if os.Getenv("FB_SECRETS_FROM_ENV") == "1" {
 		secrets, envErr := loadSecretsFromEnv()
-		if envErr == nil {
-			logger.New().Infof("loaded secrets from env vars")
-			return secrets, nil
+		if envErr != nil {
+			return nil, fmt.Errorf("FB_SECRETS_FROM_ENV=1 but loading from env failed: %w", envErr)
 		}
-		logger.New().Errorf("FB_SECRETS_FROM_ENV=1 set but loading from env failed; falling back: %s", envErr.Error())
+		logger.New().Infof("loaded secrets from env vars")
+		return secrets, nil
 	}
 
 	// Default behavior: prefer AWS Secrets Manager, fall back to a local secrets file.
