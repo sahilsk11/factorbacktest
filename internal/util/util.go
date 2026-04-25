@@ -229,25 +229,32 @@ func loadSecretsFromAWS() (*Secrets, error) {
 	return &secrets, nil
 }
 
+// loadSecretsFromEnv reads secrets directly from process env vars. The Fly
+// console flattened our nested secrets.json so each JSON leaf field became
+// its own env-var secret with the original camelCase name (e.g. dataJockey,
+// host, apiKey). Linux env vars are case-sensitive, so these lowercase names
+// don't collide with anything Fly or Docker auto-inject (PORT, HOSTNAME, etc.).
 func loadSecretsFromEnv() (*Secrets, error) {
-	required := []string{
-		"FB_DB_HOST",
-		"FB_DB_PORT",
-		"FB_DB_USER",
-		"FB_DB_PASSWORD",
-		"FB_DB_NAME",
-		"FB_JWT",
-		"FB_ALPACA_API_KEY",
-		"FB_ALPACA_API_SECRET",
-		"FB_ALPACA_ENDPOINT",
-		"FB_DATA_JOCKEY_API_KEY",
-		"FB_CHATGPT_API_KEY",
-		"FB_SES_REGION",
-		"FB_SES_FROM_EMAIL",
+	get := func(name string) string { return os.Getenv(name) }
+
+	required := map[string]string{
+		"dataJockey": get("dataJockey"),
+		"gpt":        get("gpt"),
+		"jwt":        get("jwt"),
+		"host":       get("host"),
+		"port":       get("port"),
+		"user":       get("user"),
+		"password":   get("password"),
+		"database":   get("database"),
+		"apiKey":     get("apiKey"),
+		"apiSecret":  get("apiSecret"),
+		"endpoint":   get("endpoint"),
+		"region":     get("region"),
+		"fromEmail":  get("fromEmail"),
 	}
 	var missing []string
-	for _, k := range required {
-		if os.Getenv(k) == "" {
+	for k, v := range required {
+		if v == "" {
 			missing = append(missing, k)
 		}
 	}
@@ -256,34 +263,34 @@ func loadSecretsFromEnv() (*Secrets, error) {
 	}
 
 	enableSsl := true
-	if v := os.Getenv("FB_DB_ENABLE_SSL"); v != "" {
+	if v := get("enableSsl"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid FB_DB_ENABLE_SSL=%q: %w", v, err)
+			return nil, fmt.Errorf("invalid enableSsl=%q: %w", v, err)
 		}
 		enableSsl = parsed
 	}
 
 	return &Secrets{
-		DataJockeyApiKey: os.Getenv("FB_DATA_JOCKEY_API_KEY"),
-		ChatGPTApiKey:    os.Getenv("FB_CHATGPT_API_KEY"),
-		Jwt:              os.Getenv("FB_JWT"),
+		DataJockeyApiKey: required["dataJockey"],
+		ChatGPTApiKey:    required["gpt"],
+		Jwt:              required["jwt"],
 		Db: DbSecrets{
-			Host:      os.Getenv("FB_DB_HOST"),
-			Port:      os.Getenv("FB_DB_PORT"),
-			User:      os.Getenv("FB_DB_USER"),
-			Password:  os.Getenv("FB_DB_PASSWORD"),
-			Database:  os.Getenv("FB_DB_NAME"),
+			Host:      required["host"],
+			Port:      required["port"],
+			User:      required["user"],
+			Password:  required["password"],
+			Database:  required["database"],
 			EnableSsl: enableSsl,
 		},
 		Alpaca: AlpacaSecrets{
-			ApiKey:    os.Getenv("FB_ALPACA_API_KEY"),
-			ApiSecret: os.Getenv("FB_ALPACA_API_SECRET"),
-			Endpoint:  os.Getenv("FB_ALPACA_ENDPOINT"),
+			ApiKey:    required["apiKey"],
+			ApiSecret: required["apiSecret"],
+			Endpoint:  required["endpoint"],
 		},
 		SES: SESSecrets{
-			Region:    os.Getenv("FB_SES_REGION"),
-			FromEmail: os.Getenv("FB_SES_FROM_EMAIL"),
+			Region:    required["region"],
+			FromEmail: required["fromEmail"],
 		},
 	}, nil
 }

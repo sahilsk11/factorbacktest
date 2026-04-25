@@ -83,14 +83,14 @@ flyctl releases revert <version> # rollback to a prior release
 ## Smoke test
 
 1. `curl https://factorbacktest.fly.dev/` — expect a 200 from the root handler
-   in [api/api.go](../api/api.go) line 105.
+  in [api/api.go](../api/api.go) line 105.
 2. In the browser dev tools on `factor.trade`, override the API URL for one
-   tab (e.g. via DevTools "Local overrides" or a small `sessionStorage` shim
+  tab (e.g. via DevTools "Local overrides" or a small `sessionStorage` shim
    in `frontend/src/App.tsx`'s `endpoint` const) and run a backtest.
 3. Run a deliberately heavy backtest (20yr, monthly, SPY_TOP_80) that would
-   504 on Lambda's 29-second API Gateway cliff. Confirm it completes on Fly.
+  504 on Lambda's 29-second API Gateway cliff. Confirm it completes on Fly.
 4. `flyctl logs` — verify no errors, and no "failed to load secrets from
-   AWS" warning (that path should be skipped because `FB_SECRETS_FROM_ENV=1`).
+  AWS" warning (that path should be skipped because `FB_SECRETS_FROM_ENV=1`).
 
 ## Cutover (later, when ready)
 
@@ -98,11 +98,11 @@ When you want to send real traffic to Fly:
 
 1. Add a custom domain: `flyctl certs add api.factor.trade` and update DNS.
 2. Update `endpoint` in [frontend/src/App.tsx](../frontend/src/App.tsx) to
-   point at the new domain.
+  point at the new domain.
 3. Deploy frontend (`make deploy-fe`).
 4. Watch `flyctl logs` and CloudWatch for errors for a day.
 5. Once stable, retire Lambda: stop the GitHub Actions workflow, delete the
-   Lambda + API Gateway via console / `terraform destroy`, drop
+  Lambda + API Gateway via console / `terraform destroy`, drop
    `cmd/lambda/`, `Dockerfile.lambda`, the `aws-lambda-go` deps, and the
    AWS Secrets Manager loader path in `internal/util/util.go`.
 
