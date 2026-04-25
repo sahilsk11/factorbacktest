@@ -12,9 +12,9 @@ primary_region = "iad"
   # (betterAuthSecret, googleClientSecret, resendApiKey, twilioAuthToken,
   # twilioAccountSid) are set via `flyctl secrets set` using the same
   # camelCase names already used for the rest of the app's secrets.
-  APP_BASE_URL          = "https://factorbacktest.fly.dev"
+  APP_BASE_URL          = "https://api.factor.trade"
   AUTH_DB_SCHEMA        = "auth"
-  TRUSTED_ORIGINS       = "https://factorbacktest.fly.dev,https://factor.trade,https://www.factor.trade"
+  TRUSTED_ORIGINS       = "https://factor.trade,https://www.factor.trade,https://api.factor.trade,https://factorbacktest.fly.dev"
   FEATURE_GOOGLE        = "true"
   FEATURE_EMAIL_OTP     = "false"   # parity with Supabase setup; flip on once Resend/SES is wired
   FEATURE_SMS_OTP       = "true"

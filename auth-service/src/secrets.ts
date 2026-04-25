@@ -39,16 +39,31 @@ interface SecretsFile {
   [k: string]: unknown;
 }
 
-const SECRETS_FILENAMES = ["secrets.json", "secrets-test.json"];
+// Mirrors the Go-side `secretsFileCandidates` selector: ALPHA_ENV picks
+// the file. Default order (no env set) prefers prod `secrets.json`, with
+// `secrets-test.json` as a fallback for fresh checkouts.
+const candidatesForEnv = (env: string | undefined): string[] => {
+  switch (env) {
+    case "dev":
+      return ["secrets-dev.json", "secrets.json"];
+    case "test":
+      return ["secrets-test.json"];
+    case "prod":
+      return ["secrets.json"];
+    default:
+      return ["secrets.json", "secrets-test.json"];
+  }
+};
 
 // Walks up from `start` looking for any of the secrets filenames. Same
 // strategy as Go's `secretsFileCandidates`, but rooted from the auth-service
 // folder so it works whether you `cd auth-service && npm run dev` or run
 // the compiled binary out of `/app/auth-service` in the Fly image.
 const findSecretsFile = (start: string): string | null => {
+  const filenames = candidatesForEnv(process.env.ALPHA_ENV);
   let dir = resolve(start);
   for (let i = 0; i < 6; i++) {
-    for (const name of SECRETS_FILENAMES) {
+    for (const name of filenames) {
       const candidate = join(dir, name);
       if (existsSync(candidate)) return candidate;
     }

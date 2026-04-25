@@ -1,11 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient, phoneNumberClient } from "better-auth/client/plugins";
+import { endpoint } from "./config";
 
-// The auth-service is mounted at /api/auth on the same domain (same Fly app),
-// so we don't need to pass an explicit baseURL. The Go API reverse-proxies
-// /api/auth/* to the local Better Auth sidecar.
+// The auth-service is mounted at /api/auth on the same domain as the Go API
+// (same Fly machine). In local dev that means localhost:3009, in prod the
+// Fly hostname. We reuse `endpoint` so this stays in sync with every other
+// API call in the app.
 const authClient = createAuthClient({
+  baseURL: endpoint,
   plugins: [emailOTPClient(), phoneNumberClient()],
 });
 
@@ -61,7 +64,7 @@ const AuthContext = createContext<AuthContextValue>({
 
 const fetchAccessToken = async (): Promise<string | null> => {
   try {
-    const resp = await fetch("/api/auth/token", { credentials: "include" });
+    const resp = await fetch(`${endpoint}/api/auth/token`, { credentials: "include" });
     if (!resp.ok) return null;
     const body = (await resp.json()) as { token?: string };
     return body.token ?? null;
@@ -77,20 +80,26 @@ interface AuthProviderProps {
 const AuthProvider = ({ children }: AuthProviderProps) => {
   const { data, isPending, refetch } = authClient.useSession();
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  // Tracks the "I have a session but I'm still fetching the JWT" window so
+  // page-level guards don't briefly see (loading=false, session=null) on
+  // refresh and pop a login modal at an already-authenticated user.
+  const [tokenLoading, setTokenLoading] = useState<boolean>(false);
 
   const sessionUser = data?.user as AppUser | undefined;
 
-  // Refresh the JWT whenever the session user changes (sign-in, sign-out,
-  // or refetch). The JWT is what we attach to API calls to the Go backend.
   const sessionUserId = sessionUser?.id ?? null;
   useEffect(() => {
     let cancelled = false;
     if (!sessionUserId) {
       setAccessToken(null);
+      setTokenLoading(false);
       return;
     }
+    setTokenLoading(true);
     fetchAccessToken().then((token) => {
-      if (!cancelled) setAccessToken(token);
+      if (cancelled) return;
+      setAccessToken(token);
+      setTokenLoading(false);
     });
     return () => {
       cancelled = true;
@@ -147,7 +156,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       : null;
 
   const value: AuthContextValue = {
-    loading: isPending,
+    loading: isPending || tokenLoading,
     user: sessionUser ?? null,
     session,
     signIn,

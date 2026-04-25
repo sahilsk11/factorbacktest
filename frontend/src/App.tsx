@@ -16,11 +16,7 @@ export interface FactorData {
   data: Record<string, BacktestSnapshot>,
 }
 
-export const endpoint = process.env.REACT_APP_API_PORT
-  ? ("http://localhost:" + process.env.REACT_APP_API_PORT)
-  : ((process.env.NODE_ENV === 'production')
-    ? "https://tgwmxgtk07.execute-api.us-east-1.amazonaws.com/prod"
-    : "http://localhost:3009");
+export { endpoint } from './config';
 
 export interface BenchmarkData {
   symbol: string,
