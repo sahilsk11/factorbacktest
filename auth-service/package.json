@@ -1,0 +1,33 @@
+{
+  "name": "auth-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reusable Better Auth service. Mount under /api/auth and share Postgres in a dedicated `auth` schema.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "migrate": "npx --yes @better-auth/cli@1.6.9 migrate --yes --config ./auth.ts",
+    "generate": "npx --yes @better-auth/cli@1.6.9 generate --yes --config ./auth.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "better-auth": "^1.6.9",
+    "hono": "^4.6.14",
+    "pg": "^8.13.1",
+    "resend": "^4.0.1",
+    "twilio": "^5.4.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

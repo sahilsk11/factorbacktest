@@ -17,6 +17,8 @@ on:
       - 'tools/**'
       - 'gpt/**'
       - 'integration-tests/**'
+      - 'auth-service/**'
+      - 'scripts/**'
 
 concurrency:
   group: deploy-fly-main

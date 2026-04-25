@@ -8,6 +8,21 @@ primary_region = "iad"
   FB_SECRETS_FROM_ENV = "1"
   GIN_MODE = "release"
 
+  # Embedded Better Auth sidecar — non-secret configuration. Real secrets
+  # (betterAuthSecret, googleClientSecret, resendApiKey, twilioAuthToken,
+  # twilioAccountSid) are set via `flyctl secrets set` using the same
+  # camelCase names already used for the rest of the app's secrets.
+  APP_BASE_URL          = "https://api.factor.trade"
+  AUTH_DB_SCHEMA        = "auth"
+  TRUSTED_ORIGINS       = "https://factor.trade,https://www.factor.trade,https://api.factor.trade,https://factorbacktest.fly.dev"
+  FEATURE_GOOGLE        = "true"
+  FEATURE_EMAIL_OTP     = "false"   # parity with Supabase setup; flip on once Resend/SES is wired
+  FEATURE_SMS_OTP       = "true"
+  EMAIL_PROVIDER        = "console" # unused while FEATURE_EMAIL_OTP=false
+  EMAIL_FROM            = "no-reply@factor.trade"
+  SMS_PROVIDER          = "twilio"
+  APP_USER_SYNC_ENABLED = "false"
+
 [http_service]
   internal_port = 3009
   force_https = true

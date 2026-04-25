@@ -3,3 +3,7 @@ frontend
 .github
 postgres-data
 secrets-dev.json
+auth-service/node_modules
+auth-service/dist
+auth-service/.env
+auth-service/.env.local

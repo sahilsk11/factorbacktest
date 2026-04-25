@@ -1,8 +1,5 @@
 import { useState } from "react";
 import { useAuth } from "auth";
-import modalsStyle from "./Modals.module.css";
-import { GoogleLogin } from "@react-oauth/google";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input/input";
@@ -10,255 +7,344 @@ import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input/input";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { SupabaseClient } from "@supabase/supabase-js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { Turnstile } from '@marsidev/react-turnstile'
 
+type PageState = "initial" | "smsConfirmation" | "emailConfirmation";
 
 export default function LoginModal({
   show,
   close,
-  onSuccess
-}: { show: boolean, close: () => void, onSuccess?: () => void }) {
-  // create enum for page
-  type PageState = "initial" | "phoneConfirmation"
-  const { supabase } = useAuth()
-  const [phoneNumber, setPhoneNumber] = useState<any>("");
+  onSuccess,
+}: {
+  show: boolean;
+  close: () => void;
+  onSuccess?: () => void;
+}) {
+  const { signIn } = useAuth();
   const [pageState, setPageState] = useState<PageState>("initial");
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const [captchaToken, setCaptchaToken] = useState("")
 
-  if (!supabase) {
-    return null;
-  }
+  const handleGoogle = async () => {
+    if (loading) return;
+    setError("");
+    setLoading(true);
+    try {
+      await signIn.google();
+      onSuccess?.();
+      close();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSmsRequest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const { data, error } = await supabase.auth.signInWithOtp({
-      phone: phoneNumber,
-      options: {
-        captchaToken,
-      }
-    })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
-      setLoading(false)
-      setPageState("phoneConfirmation")
+    try {
+      await signIn.sendSmsOtp(phoneNumber);
+      setPageState("smsConfirmation");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to send SMS code");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
+
+  const handleEmailRequest = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await signIn.sendEmailOtp(email);
+      setPageState("emailConfirmation");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to send email code");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <Dialog open={show} onOpenChange={(c) => { if (!c) { close() } }}>
+    <Dialog
+      open={show}
+      onOpenChange={(open) => {
+        if (!open) {
+          setPageState("initial");
+          setError("");
+          close();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[425px] grid gap-4 p-10 pt-3">
         <DialogHeader className="text-left">
           <DialogTitle className="mb-0 text-center">Login</DialogTitle>
-          {/* <CardDescription>
-              Use your phone number or Google account.
-            </CardDescription> */}
         </DialogHeader>
 
-        {error ?
+        {error && (
           <Alert className="pb-3 pt-0" variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle className="mt-2 text-lg">Error</AlertTitle>
-            <AlertDescription>
-              {error}
-            </AlertDescription>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
-          : null}
-        {pageState === "initial" ? <InitialLoginDialog
-          supabase={supabase}
-          handleFormSubmit={handleFormSubmit}
-          phoneNumber={phoneNumber}
-          setPhoneNumber={setPhoneNumber}
-          close={close}
-          onSuccess={onSuccess}
-          captchaToken={captchaToken}
-          setCaptchaToken={setCaptchaToken}
-        /> : <PhoneConfirmationDialog
-          supabase={supabase}
-          phoneNumber={phoneNumber}
-          close={close}
-          setError={setError}
-          onSuccess={onSuccess}
-        />}
+        )}
 
-        {loading && <div className="flex justify-center">
-          <div className="animate-caret">
-            <span className="sr-only">Loading...</span>
-            <svg className="h-6 w-6 animate-spin fill-primary-foreground" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        </div>}
+        {pageState === "initial" && (
+          <InitialPanel
+            email={email}
+            setEmail={setEmail}
+            phoneNumber={phoneNumber}
+            setPhoneNumber={setPhoneNumber}
+            onGoogle={handleGoogle}
+            onSmsRequest={handleSmsRequest}
+            onEmailRequest={handleEmailRequest}
+            loading={loading}
+          />
+        )}
+
+        {pageState === "smsConfirmation" && (
+          <SmsConfirmationPanel
+            phoneNumber={phoneNumber}
+            setError={setError}
+            onSuccess={() => {
+              onSuccess?.();
+              close();
+            }}
+          />
+        )}
+
+        {pageState === "emailConfirmation" && (
+          <EmailConfirmationPanel
+            email={email}
+            setError={setError}
+            onSuccess={() => {
+              onSuccess?.();
+              close();
+            }}
+          />
+        )}
+
+        {loading && <Spinner />}
       </DialogContent>
-    </Dialog >
-  )
+    </Dialog>
+  );
 }
 
-function InitialLoginDialog({
-  supabase,
-  handleFormSubmit,
+function Spinner() {
+  return (
+    <div className="flex justify-center">
+      <div className="animate-caret">
+        <span className="sr-only">Loading...</span>
+        <svg className="h-6 w-6 animate-spin fill-primary-foreground" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function InitialPanel({
+  email,
+  setEmail,
   phoneNumber,
   setPhoneNumber,
-  close,
-  onSuccess,
-  captchaToken,
-  setCaptchaToken
+  onGoogle,
+  onSmsRequest,
+  onEmailRequest,
+  loading,
 }: {
-  supabase: SupabaseClient,
-  handleFormSubmit: (e: React.FormEvent<HTMLFormElement>) => void,
-  phoneNumber: any,
-  setPhoneNumber: (phoneNumber: any) => void,
-  close: () => void,
-  onSuccess?: () => void
-  captchaToken: string,
-  setCaptchaToken: React.Dispatch<React.SetStateAction<string>>
+  email: string;
+  setEmail: (v: string) => void;
+  phoneNumber: string;
+  setPhoneNumber: (v: any) => void;
+  onGoogle: () => void;
+  onSmsRequest: (e: React.FormEvent<HTMLFormElement>) => void;
+  onEmailRequest: (e: React.FormEvent<HTMLFormElement>) => void;
+  loading: boolean;
 }) {
-  return (<>
-    <div className="block flex justify-center">
-      <GoogleLogin
-        width={"100%"}
-        onSuccess={credentialResponse => {
-          if (credentialResponse.credential) {
-            supabase.auth.signInWithIdToken({
-              provider: 'google',
-              token: credentialResponse.credential,
-            })
-            onSuccess && onSuccess()
-            close()
-          } else {
-            alert("Failed to login with Google")
-          }
-        }}
-        onError={() => {
-          alert("Failed to login with Google")
-        }}
-      />
-    </div>
+  return (
+    <>
+      <Button onClick={onGoogle} type="button" className="w-full" disabled={loading}>
+        Continue with Google
+      </Button>
 
+      <Divider label="or email" />
+
+      <form onSubmit={onEmailRequest}>
+        <div className="grid gap-3">
+          <div className="grid gap-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <Button disabled={loading || !email.includes("@")} type="submit" className="w-full">
+            Email me a code
+          </Button>
+        </div>
+      </form>
+
+      <Divider label="or phone" />
+
+      <form onSubmit={onSmsRequest}>
+        <div className="grid gap-3">
+          <div className="grid gap-2">
+            <Label>Phone Number</Label>
+            <PhoneInput
+              placeholder="(408) 555-1234"
+              country="US"
+              className={cn(
+                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+              )}
+              required
+              value={phoneNumber}
+              onChange={setPhoneNumber}
+            />
+          </div>
+          <Button
+            disabled={loading || !isValidPhoneNumber(phoneNumber || "", "US")}
+            type="submit"
+            className="w-full"
+          >
+            Text me a code
+          </Button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+function Divider({ label }: { label: string }) {
+  return (
     <div className="relative">
       <div className="absolute inset-0 flex items-center">
         <span className="w-full border-t" />
       </div>
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">
-          Or continue with
-        </span>
+        <span className="bg-background px-2 text-muted-foreground">{label}</span>
       </div>
     </div>
-
-    <form onSubmit={handleFormSubmit}>
-      <div className="grid gap-3">
-        <div className="grid gap-2">
-          <Label>Phone Number</Label>
-          <PhoneInput
-            placeholder="(408) 555-1234"
-            country="US"
-            className={cn(
-              "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-            )}
-            required
-            value={phoneNumber}
-            onChange={setPhoneNumber}
-          />
-        </div>
-        <Button
-          disabled={!isValidPhoneNumber(phoneNumber || "", "US")}
-          type="submit"
-          className="w-full"
-        >Continue</Button>
-        {captchaToken === "" ? <div className="block flex justify-center">
-          <Turnstile
-            options={{
-              theme: 'light',
-            }}
-            className="center"
-            siteKey={process.env.REACT_APP_CLOUDFLARE_SITE_KEY || ""}
-            onSuccess={(token) => {
-              setCaptchaToken(token)
-            }}
-          />
-        </div> : null}
-      </div>
-    </form >
-
-
-  </>)
+  );
 }
 
-function PhoneConfirmationDialog({
-  supabase,
+function SmsConfirmationPanel({
   phoneNumber,
-  close,
   setError,
   onSuccess,
 }: {
-  supabase: SupabaseClient,
-  phoneNumber: string,
-  close: () => void,
-  setError: React.Dispatch<React.SetStateAction<string>>,
-  onSuccess?: () => void
+  phoneNumber: string;
+  setError: React.Dispatch<React.SetStateAction<string>>;
+  onSuccess: () => void;
 }) {
-  const [confirmationCode, setConfirmationCode] = useState<string>("");
+  const { signIn } = useAuth();
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    const {
-      data,
-      error,
-    } = await supabase.auth.verifyOtp({
-      phone: phoneNumber,
-      token: confirmationCode,
-      type: "sms",
-    })
-    if (error) {
-      setError(error.message)
-    } else {
-      onSuccess && onSuccess()
-      close()
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await signIn.verifySmsOtp(phoneNumber, code);
+      onSuccess();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid code");
+    } finally {
+      setSubmitting(false);
     }
-  }
+  };
 
-  return (<>
+  return (
     <form onSubmit={onSubmit}>
       <div className="grid gap-4">
-
         <div className="grid gap-2">
           <Label>SMS Confirmation Code</Label>
           <Input
             autoFocus
-            // placeholder="+1 (408) 555-1234"
-            // international
             required
             type="number"
-            value={confirmationCode}
+            value={code}
             onChange={(e) => {
-              setError("")
-              setConfirmationCode(e.target.value)
+              setError("");
+              setCode(e.target.value);
             }}
           />
         </div>
-        <Button
-          disabled={confirmationCode.toString().length !== 6}
-          type="submit"
-          className="w-full"
-        >Continue</Button>
+        <Button disabled={submitting || code.length !== 6} type="submit" className="w-full">
+          Continue
+        </Button>
       </div>
     </form>
-  </>)
+  );
+}
+
+function EmailConfirmationPanel({
+  email,
+  setError,
+  onSuccess,
+}: {
+  email: string;
+  setError: React.Dispatch<React.SetStateAction<string>>;
+  onSuccess: () => void;
+}) {
+  const { signIn } = useAuth();
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await signIn.verifyEmailOtp(email, code);
+      onSuccess();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid code");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={onSubmit}>
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label>Email Confirmation Code</Label>
+          <Input
+            autoFocus
+            required
+            type="number"
+            value={code}
+            onChange={(e) => {
+              setError("");
+              setCode(e.target.value);
+            }}
+          />
+        </div>
+        <Button disabled={submitting || code.length !== 6} type="submit" className="w-full">
+          Continue
+        </Button>
+      </div>
+    </form>
+  );
 }

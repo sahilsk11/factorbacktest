@@ -133,3 +133,102 @@ When you want to send real traffic to Fly:
 `min_machines_running = 0` means the machine sleeps when idle and wakes on
 the next request (a few-hundred-ms cold start). Expect a few dollars a
 month. Bump to `performance-2x` if backtests feel CPU-bound.
+
+## Embedded Better Auth sidecar
+
+The Fly machine now runs the Go API and a Node Better Auth sidecar in the
+same container ([Dockerfile.fly](../Dockerfile.fly), [scripts/start.sh](../scripts/start.sh)).
+The Go process binds the public port (3009) and reverse-proxies
+`/api/auth/*` to `127.0.0.1:3001`. The sidecar code lives in
+[auth-service/](../auth-service/).
+
+### Additional secrets (5–6 values; everything else is in fly.toml)
+
+Non-secret config (`APP_BASE_URL`, `TRUSTED_ORIGINS`, feature flags,
+`EMAIL_PROVIDER`, etc.) lives in [fly.toml](../fly.toml)'s `[env]` block —
+source-controlled and diffable.  Only the actual sensitive values go through
+`flyctl secrets set`. The names match the camelCase pattern already used by
+the Go side.
+
+```sh
+flyctl secrets set \
+  betterAuthSecret="$(openssl rand -hex 32)" \
+  googleClientId='<google-client-id>' \
+  googleClientSecret='<google-client-secret>' \
+  twilioAccountSid='<twilio-verify-account-sid>' \
+  twilioAuthToken='<twilio-verify-auth-token>' \
+  twilioVerifyServiceSid='<twilio-verify-service-sid>'
+```
+
+SMS OTP runs through **Twilio Verify** (Twilio generates, sends, and
+validates the code; we never store SMS codes). The auth-service
+auto-detects Twilio Verify mode from the presence of
+`twilioVerifyServiceSid` and wires `verifyOTP` accordingly.
+
+Email OTP is **disabled** for the initial cutover (`FEATURE_EMAIL_OTP=false`
+in `fly.toml`) to preserve parity with the previous Supabase setup. To
+enable later: wire an email provider (Resend or SES), set its API key, and
+flip the flag.
+
+DB connection info (`host`, `password`, etc.) is reused from the secrets
+already set for the Go API — the auth-service builds its own connection
+string from them. There is no separate `DATABASE_URL`.
+
+`APP_USER_SYNC_ENABLED` is set to `false` in `fly.toml` because this app
+already has `user_account` as the canonical app user table and
+`getGoogleAuthMiddleware` upserts into it on every authenticated request.
+The generic `public.app_user_profile` bridge table created by the
+auth-service bootstrap is for new projects that don't have an existing
+user table.
+
+### Google OAuth redirect URI
+
+Add **`https://factorbacktest.fly.dev/api/auth/callback/google`** to the
+authorized redirect URIs in the Google Cloud Console (Credentials → OAuth
+2.0 Client ID). For local dev, also add `http://localhost:3009/api/auth/callback/google`.
+
+### Database prerequisite
+
+The auth-service runs `CREATE SCHEMA IF NOT EXISTS auth` and
+`npx @better-auth/cli migrate` on every container start. The database user
+must have permission to create schemas; if you use a least-privilege user,
+grant once:
+
+```sql
+GRANT CREATE ON DATABASE <dbname> TO <db-user>;
+GRANT ALL PRIVILEGES ON SCHEMA auth TO <db-user>;
+ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL ON TABLES TO <db-user>;
+```
+
+### Cutover from Supabase
+
+The Go middleware in [api/api.go](../api/api.go) tries Better Auth JWTs
+first and falls back to Supabase, so deploying this image leaves existing
+Supabase sessions working. Sequence:
+
+1. Set the new secrets above (does not affect the live Supabase path).
+2. Update Google's OAuth redirect URIs.
+3. `flyctl deploy --remote-only` (or push to `master`).
+4. Smoke test all three flows on the deployed URL:
+   - Google: click "Continue with Google", verify a session cookie comes back.
+   - Email: enter address, watch `flyctl logs` for the OTP (Resend provider
+     sends a real email; the console provider would log to stdout).
+   - SMS: enter phone, verify Twilio delivers a code, finish sign-in.
+5. Verify `auth.user`, `auth.session`, etc. are populated and `user_account`
+   gets `Provider='BETTER_AUTH'` rows for new sign-ins.
+6. Once confident, remove Supabase entirely:
+   - `flyctl secrets unset jwt` (the Supabase HS256 secret).
+   - Drop `parseSupabaseJWT` and the Supabase fallback branch from
+     [api/api.go](../api/api.go).
+   - Drop the `Jwt` field from `Secrets` in
+     [internal/util/util.go](../internal/util/util.go) (and the
+     `JwtDecodeToken` plumbing in [cmd/util.go](../cmd/util.go) /
+     [api/api.go](../api/api.go)).
+   - Remove `@supabase/supabase-js` from
+     [frontend/package.json](../frontend/package.json) and any leftover
+     references.
+
+### Cost note
+
+The Node sidecar idles at <50MB RSS and shares the same `shared-cpu-2x` /
+1GB machine. No size bump needed unless traffic patterns change.

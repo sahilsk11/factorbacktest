@@ -12,7 +12,7 @@ import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { useGoogleLogin } from '@react-oauth/google';
 import modalsStyle from "common/Modals.module.css";
-import { Session } from '@supabase/supabase-js';
+import { AppSession as Session } from 'auth';
 import { useAuth } from 'auth';
 import LoginModal from 'common/AuthModals';
 

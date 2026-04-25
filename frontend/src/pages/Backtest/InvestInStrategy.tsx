@@ -12,7 +12,7 @@ import { updateBookmarked, getStrategies } from './Form';
 import { useGoogleLogin } from '@react-oauth/google';
 import modalStyles from "common/Modals.module.css";
 import factorSnapshotStyles from "./FactorSnapshot.module.css";
-import { Session } from '@supabase/supabase-js';
+import { AppSession as Session } from 'auth';
 import { useAuth } from 'auth';
 import LoginModal from 'common/AuthModals';
 
