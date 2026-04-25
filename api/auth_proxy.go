@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -45,7 +46,10 @@ func newBetterAuthProxy() (gin.HandlerFunc, error) {
 	}
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		http.Error(w, "auth service unavailable: "+err.Error(), http.StatusBadGateway)
+		// Log internals server-side; return a generic message so we don't
+		// leak transport-level details (TCP errors, TLS state, etc.).
+		log.Printf("auth proxy upstream error: %v", err)
+		http.Error(w, "auth service unavailable", http.StatusBadGateway)
 	}
 
 	return func(c *gin.Context) {

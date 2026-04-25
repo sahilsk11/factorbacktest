@@ -34,6 +34,7 @@ export default function LoginModal({
   const [error, setError] = useState<string>("");
 
   const handleGoogle = async () => {
+    if (loading) return;
     setError("");
     setLoading(true);
     try {
@@ -108,6 +109,7 @@ export default function LoginModal({
             onGoogle={handleGoogle}
             onSmsRequest={handleSmsRequest}
             onEmailRequest={handleEmailRequest}
+            loading={loading}
           />
         )}
 
@@ -165,6 +167,7 @@ function InitialPanel({
   onGoogle,
   onSmsRequest,
   onEmailRequest,
+  loading,
 }: {
   email: string;
   setEmail: (v: string) => void;
@@ -173,10 +176,11 @@ function InitialPanel({
   onGoogle: () => void;
   onSmsRequest: (e: React.FormEvent<HTMLFormElement>) => void;
   onEmailRequest: (e: React.FormEvent<HTMLFormElement>) => void;
+  loading: boolean;
 }) {
   return (
     <>
-      <Button onClick={onGoogle} type="button" className="w-full">
+      <Button onClick={onGoogle} type="button" className="w-full" disabled={loading}>
         Continue with Google
       </Button>
 
@@ -194,7 +198,7 @@ function InitialPanel({
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <Button disabled={!email.includes("@")} type="submit" className="w-full">
+          <Button disabled={loading || !email.includes("@")} type="submit" className="w-full">
             Email me a code
           </Button>
         </div>
@@ -218,7 +222,7 @@ function InitialPanel({
             />
           </div>
           <Button
-            disabled={!isValidPhoneNumber(phoneNumber || "", "US")}
+            disabled={loading || !isValidPhoneNumber(phoneNumber || "", "US")}
             type="submit"
             className="w-full"
           >
@@ -254,14 +258,19 @@ function SmsConfirmationPanel({
 }) {
   const { signIn } = useAuth();
   const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await signIn.verifySmsOtp(phoneNumber, code);
       onSuccess();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid code");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -281,7 +290,7 @@ function SmsConfirmationPanel({
             }}
           />
         </div>
-        <Button disabled={code.length !== 6} type="submit" className="w-full">
+        <Button disabled={submitting || code.length !== 6} type="submit" className="w-full">
           Continue
         </Button>
       </div>
@@ -300,14 +309,19 @@ function EmailConfirmationPanel({
 }) {
   const { signIn } = useAuth();
   const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await signIn.verifyEmailOtp(email, code);
       onSuccess();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid code");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -327,7 +341,7 @@ function EmailConfirmationPanel({
             }}
           />
         </div>
-        <Button disabled={code.length !== 6} type="submit" className="w-full">
+        <Button disabled={submitting || code.length !== 6} type="submit" className="w-full">
           Continue
         </Button>
       </div>

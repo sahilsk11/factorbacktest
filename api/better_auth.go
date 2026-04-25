@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -12,6 +13,14 @@ import (
 
 	jwtv5 "github.com/golang-jwt/jwt/v5"
 )
+
+// jwksHTTPClient bounds JWKS fetch latency so a slow/hung sidecar can't
+// pin Go request goroutines on cache miss.
+var jwksHTTPClient = &http.Client{Timeout: 10 * time.Second}
+
+// maxJWKSBodyBytes caps the JWKS response we'll read into memory. JWKS
+// payloads are well under 10 KiB in practice; anything larger is suspicious.
+const maxJWKSBodyBytes = 256 * 1024
 
 // BetterAuthJWT mirrors the claims emitted by Better Auth's JWT plugin.
 // The plugin signs with EdDSA / Ed25519 by default, and exposes the public
@@ -62,7 +71,7 @@ func fetchBetterAuthEdDSAKey(jwksURL string, kid string) (ed25519.PublicKey, err
 	}
 	betterAuthJwksMu.RUnlock()
 
-	resp, err := http.Get(jwksURL) // #nosec G107 - JWKS URL is configured by the operator, not an arbitrary token claim.
+	resp, err := jwksHTTPClient.Get(jwksURL) // #nosec G107 - JWKS URL is configured by the operator, not an arbitrary token claim.
 	if err != nil {
 		return nil, fmt.Errorf("fetch JWKS: %w", err)
 	}
@@ -71,8 +80,16 @@ func fetchBetterAuthEdDSAKey(jwksURL string, kid string) (ed25519.PublicKey, err
 		return nil, fmt.Errorf("fetch JWKS: http %d", resp.StatusCode)
 	}
 
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxJWKSBodyBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read JWKS: %w", err)
+	}
+	if len(body) > maxJWKSBodyBytes {
+		return nil, fmt.Errorf("JWKS response too large (>%d bytes)", maxJWKSBodyBytes)
+	}
+
 	var jwks jwkOKPSet
-	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+	if err := json.Unmarshal(body, &jwks); err != nil {
 		return nil, fmt.Errorf("decode JWKS: %w", err)
 	}
 
@@ -82,6 +99,14 @@ func fetchBetterAuthEdDSAKey(jwksURL string, kid string) (ed25519.PublicKey, err
 		}
 		if k.Kty != "OKP" || k.Crv != "Ed25519" {
 			return nil, fmt.Errorf("unsupported JWK key type/curve: kty=%s crv=%s (only OKP/Ed25519 supported)", k.Kty, k.Crv)
+		}
+		// If the issuer publishes `use` or `alg`, demand they match. (Both are
+		// optional per RFC 7517, so empty values are allowed for backward compat.)
+		if k.Use != "" && k.Use != "sig" {
+			return nil, fmt.Errorf("JWK use=%q is not 'sig'", k.Use)
+		}
+		if k.Alg != "" && k.Alg != "EdDSA" {
+			return nil, fmt.Errorf("JWK alg=%q is not 'EdDSA'", k.Alg)
 		}
 		raw, err := base64.RawURLEncoding.DecodeString(k.X)
 		if err != nil {
@@ -102,7 +127,12 @@ func fetchBetterAuthEdDSAKey(jwksURL string, kid string) (ed25519.PublicKey, err
 
 // parseBetterAuthJWT validates `jwtStr` against the JWKS at `jwksURL` and
 // returns the parsed claims. Only EdDSA / Ed25519 is accepted.
-func parseBetterAuthJWT(jwtStr string, jwksURL string) (*BetterAuthJWT, error) {
+//
+// `expectedIssuer`, when non-empty, is compared against the token's `iss`
+// claim. Better Auth signs `iss` with the configured `baseURL`, so this
+// pins tokens to one specific auth instance and protects against token
+// reuse if the JWKS URL is ever misconfigured.
+func parseBetterAuthJWT(jwtStr string, jwksURL string, expectedIssuer string) (*BetterAuthJWT, error) {
 	parser := jwtv5.NewParser(jwtv5.WithValidMethods([]string{jwtv5.SigningMethodEdDSA.Alg()}))
 	token, err := parser.Parse(jwtStr, func(t *jwtv5.Token) (interface{}, error) {
 		kidVal, ok := t.Header["kid"]
@@ -137,6 +167,9 @@ func parseBetterAuthJWT(jwtStr string, jwksURL string) (*BetterAuthJWT, error) {
 	}
 	if strings.TrimSpace(parsed.Subject) == "" {
 		return nil, fmt.Errorf("better-auth jwt missing sub")
+	}
+	if expectedIssuer != "" && parsed.Issuer != expectedIssuer {
+		return nil, fmt.Errorf("better-auth jwt issuer mismatch: got %q, want %q", parsed.Issuer, expectedIssuer)
 	}
 	return &parsed, nil
 }

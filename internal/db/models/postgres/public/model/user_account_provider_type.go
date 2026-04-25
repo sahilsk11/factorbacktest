@@ -4,6 +4,11 @@
 // WARNING: Changes to this file may cause incorrect behavior
 // and will be lost if the code is regenerated
 //
+// HAND-EDITED: BetterAuth was added manually alongside migration 000052.
+// If you re-run `make db-models`, re-add the constant and the Scan case to
+// keep auth code that references UserAccountProviderType_BetterAuth
+// compiling. Same edit applies to ../enum/user_account_provider_type.go.
+//
 
 package model
 

@@ -28,6 +28,17 @@ func betterAuthJwksURL() string {
 	return "http://127.0.0.1:3001/api/auth/jwks"
 }
 
+// betterAuthExpectedIssuer returns the `iss` claim the Go middleware will
+// require on Better Auth JWTs. Better Auth stamps `iss = baseURL`, so we
+// pull it from the same env var the auth-service uses (APP_BASE_URL).
+// Empty disables the check.
+func betterAuthExpectedIssuer() string {
+	if v := os.Getenv("BETTER_AUTH_EXPECTED_ISSUER"); v != "" {
+		return v
+	}
+	return os.Getenv("APP_BASE_URL")
+}
+
 // this is gross sry
 
 func CloseDependencies(handler *api.ApiHandler) {
@@ -184,6 +195,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		StrategySummaryApp:           strategySummaryApp,
 		JwtDecodeToken:               secrets.Jwt,
 		BetterAuthJwksURL:            betterAuthJwksURL(),
+		BetterAuthExpectedIssuer:     betterAuthExpectedIssuer(),
 	}
 
 	return apiHandler, nil

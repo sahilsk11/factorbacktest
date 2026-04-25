@@ -52,6 +52,10 @@ type ApiHandler struct {
 	// verify Better Auth-issued JWTs. In production it points at the local
 	// auth-service sidecar (default `http://127.0.0.1:3001/api/auth/jwks`).
 	BetterAuthJwksURL string
+	// BetterAuthExpectedIssuer is the value the auth-service stamps as `iss`
+	// on every JWT (its `baseURL`). When set, JWTs whose `iss` doesn't match
+	// are rejected. Defense in depth in case the JWKS URL is misconfigured.
+	BetterAuthExpectedIssuer string
 
 	AlpacaRepository repository.AlpacaRepository
 }
@@ -305,7 +309,7 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 	var betterAuthErr error
 	if m.BetterAuthJwksURL != "" {
 		var baJwt *BetterAuthJWT
-		baJwt, betterAuthErr = parseBetterAuthJWT(jwtStr, m.BetterAuthJwksURL)
+		baJwt, betterAuthErr = parseBetterAuthJWT(jwtStr, m.BetterAuthJwksURL, m.BetterAuthExpectedIssuer)
 		if betterAuthErr == nil {
 			userInput = &model.UserAccount{
 				Provider:    model.UserAccountProviderType_BetterAuth,
@@ -360,11 +364,15 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 	}
 
 	if userInput == nil {
-		returnErrorJsonCode(
-			fmt.Errorf("all authentication methods failed: better_auth=%v supabase=%v google=%v",
-				betterAuthErr, supabaseErr, googleAuthErr),
-			c, 403,
-		)
+		// Log per-validator errors server-side for ops debugging; return a
+		// generic 403 to the client so we don't expose token-validation
+		// internals to attackers tuning forged tokens.
+		logger.FromContext(c).With(
+			"better_auth_err", fmt.Sprintf("%v", betterAuthErr),
+			"supabase_err", fmt.Sprintf("%v", supabaseErr),
+			"google_err", fmt.Sprintf("%v", googleAuthErr),
+		).Warn("all auth methods failed")
+		returnErrorJsonCode(fmt.Errorf("invalid or expired credentials"), c, 403)
 		return
 	}
 

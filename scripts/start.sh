@@ -14,7 +14,7 @@ echo "[start.sh] running auth-service bootstrap"
 ( cd /app/auth-service && node dist/scripts/bootstrap.js )
 
 echo "[start.sh] running better-auth migrations"
-( cd /app/auth-service && npx --yes @better-auth/cli@latest migrate --yes --config ./dist/auth.js )
+( cd /app/auth-service && npx --yes @better-auth/cli@1.6.9 migrate --yes --config ./dist/auth.js )
 
 # ---------------------------------------------------------------------------
 # Start the Node auth-service. Binds to 127.0.0.1:3001 (set in env).
@@ -27,9 +27,11 @@ NODE_PID=$!
 # upstream from the first request. Time-bounded so a broken sidecar still
 # fails the container quickly instead of hanging forever.
 echo "[start.sh] waiting for auth-service health"
+HEALTHY=0
 for i in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:3001/api/auth/ok >/dev/null 2>&1; then
     echo "[start.sh] auth-service is up"
+    HEALTHY=1
     break
   fi
   if ! kill -0 "$NODE_PID" 2>/dev/null; then
@@ -38,6 +40,15 @@ for i in $(seq 1 30); do
   fi
   sleep 1
 done
+
+if [ "$HEALTHY" != "1" ]; then
+  # Don't start Go if the sidecar isn't responding — the proxy would
+  # immediately 502 on every /api/auth/* call and Fly's health check
+  # would still pass, masking the failure indefinitely.
+  echo "[start.sh] auth-service did not become healthy in 30s; aborting"
+  kill -TERM "$NODE_PID" 2>/dev/null || true
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Start the Go API in the foreground (so its exit triggers container exit).

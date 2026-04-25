@@ -40,6 +40,10 @@ interface AuthContextValue {
   loading: boolean;
   user: AppUser | null;
   session: AppSession | null;
+  // True iff Better Auth knows about a user but we couldn't fetch the JWT
+  // we need to call protected APIs. Distinct from "logged out" (user==null)
+  // and from "still loading" (loading==true).
+  tokenError: boolean;
   signIn: SignInApi;
   signOut: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
@@ -57,6 +61,7 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   user: null,
   session: null,
+  tokenError: false,
   signIn: defaultSignIn,
   signOut: async () => {},
   refreshToken: async () => null,
@@ -100,6 +105,15 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       if (cancelled) return;
       setAccessToken(token);
       setTokenLoading(false);
+      if (!token) {
+        // User is logged in (server knows them) but we couldn't get a JWT.
+        // Most likely cause: cross-origin cookie blocked by the browser.
+        // Surface in console so a developer notices, and `tokenError`
+        // exposes the state to consumers (so they can show a banner or
+        // force a re-auth instead of looking superficially logged in).
+        // eslint-disable-next-line no-console
+        console.warn("[auth] session present but JWT fetch failed");
+      }
     });
     return () => {
       cancelled = true;
@@ -155,10 +169,13 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       ? { access_token: accessToken, user: sessionUser }
       : null;
 
+  const tokenError = Boolean(sessionUserId) && !tokenLoading && !accessToken;
+
   const value: AuthContextValue = {
     loading: isPending || tokenLoading,
     user: sessionUser ?? null,
     session,
+    tokenError,
     signIn,
     signOut,
     refreshToken,

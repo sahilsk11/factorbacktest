@@ -74,6 +74,22 @@ const findSecretsFile = (start: string): string | null => {
   return null;
 };
 
+// Minimum entropy for the Better Auth signing secret. 32 chars matches what
+// `openssl rand -hex 16` produces (16 bytes); a hex-encoded 32-byte secret
+// is 64 chars. We pick 32 as a conservative floor.
+const MIN_BETTER_AUTH_SECRET_LEN = 32;
+
+const validateBetterAuthSecret = (s: string): string => {
+  if (s.length < MIN_BETTER_AUTH_SECRET_LEN) {
+    throw new Error(
+      `betterAuthSecret is too short (${s.length} chars). ` +
+        `Use at least ${MIN_BETTER_AUTH_SECRET_LEN} characters; ` +
+        `generate with \`openssl rand -hex 32\`.`,
+    );
+  }
+  return s;
+};
+
 const loadFromEnv = (): ResolvedSecrets => {
   const need = (name: string): string => {
     const v = process.env[name];
@@ -96,7 +112,7 @@ const loadFromEnv = (): ResolvedSecrets => {
         : true,
     },
     auth: {
-      betterAuthSecret: need("betterAuthSecret"),
+      betterAuthSecret: validateBetterAuthSecret(need("betterAuthSecret")),
       googleClientId: process.env.googleClientId,
       googleClientSecret: process.env.googleClientSecret,
       resendApiKey: process.env.resendApiKey,
@@ -141,7 +157,9 @@ const loadFromFile = (path: string): ResolvedSecrets => {
       enableSsl: typeof db.enableSsl === "boolean" ? db.enableSsl : true,
     },
     auth: {
-      betterAuthSecret: requireString(auth, "betterAuthSecret", "auth"),
+      betterAuthSecret: validateBetterAuthSecret(
+        requireString(auth, "betterAuthSecret", "auth"),
+      ),
       googleClientId:
         typeof auth.googleClientId === "string" ? auth.googleClientId : undefined,
       googleClientSecret:
@@ -183,6 +201,13 @@ export const loadSecrets = (cwd = process.cwd()): ResolvedSecrets => {
 // Builds a Postgres connection string with `?options=-c search_path=<schema>`
 // applied so Better Auth lands tables in the correct schema.
 export const buildDatabaseUrl = (db: DbSecrets, schema: string): string => {
+  // Defense in depth: even though zod typechecks `schema` as a string, the
+  // value is interpolated directly into the connection string's `options`
+  // parameter, which Postgres parses as a server-side SET command. A weird
+  // value here could surprise the search_path or break the connection.
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+    throw new Error(`unsafe AUTH_DB_SCHEMA: ${schema}`);
+  }
   const u = new URL("postgres://placeholder/placeholder");
   u.username = encodeURIComponent(db.user);
   u.password = encodeURIComponent(db.password);

@@ -60,7 +60,7 @@ func TestParseBetterAuthJWT(t *testing.T) {
 		t.Fatalf("sign: %v", err)
 	}
 
-	parsed, err := parseBetterAuthJWT(signed, srv.URL)
+	parsed, err := parseBetterAuthJWT(signed, srv.URL, "http://localhost:3009")
 	if err != nil {
 		t.Fatalf("parseBetterAuthJWT: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestParseBetterAuthJWT_RejectsHS256(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
-	if _, err := parseBetterAuthJWT(signed, srv.URL); err == nil {
+	if _, err := parseBetterAuthJWT(signed, srv.URL, ""); err == nil {
 		t.Fatal("expected non-EdDSA token to be rejected")
 	}
 }
@@ -122,7 +122,7 @@ func TestParseBetterAuthJWT_Expired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
-	_, err = parseBetterAuthJWT(signed, srv.URL)
+	_, err = parseBetterAuthJWT(signed, srv.URL, "")
 	if err == nil {
 		t.Fatal("expected expired token to error")
 	}
@@ -132,4 +132,34 @@ func TestParseBetterAuthJWT_Expired(t *testing.T) {
 		t.Fatal("unreachable")
 	}
 	_ = fmt.Sprintf("%v", err) // suppress unused import warning if changes
+}
+
+func TestParseBetterAuthJWT_IssuerMismatch(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	const kid = "iss-kid"
+	jwks := jwkOKPSet{Keys: []jwkOKPKey{{
+		Kty: "OKP", Crv: "Ed25519", Alg: "EdDSA", Kid: kid,
+		X: base64.RawURLEncoding.EncodeToString(pub),
+	}}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(jwks)
+	}))
+	defer srv.Close()
+
+	tok := jwtv5.NewWithClaims(jwtv5.SigningMethodEdDSA, jwtv5.MapClaims{
+		"sub": "user-123",
+		"exp": time.Now().Add(time.Hour).Unix(),
+		"iss": "https://attacker.example.com",
+	})
+	tok.Header["kid"] = kid
+	signed, err := tok.SignedString(priv)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+	if _, err := parseBetterAuthJWT(signed, srv.URL, "https://api.factor.trade"); err == nil {
+		t.Fatal("expected issuer-mismatch token to be rejected")
+	}
 }

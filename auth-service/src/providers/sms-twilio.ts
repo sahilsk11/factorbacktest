@@ -23,8 +23,24 @@ export const twilioSmsService = (opts: TwilioSmsOptions): SmsService => {
         await service.verifications.create({ to, channel: "sms" });
       },
       async verify({ to, code }) {
-        const result = await service.verificationChecks.create({ to, code });
-        return result.status === "approved";
+        // Twilio throws on transport/auth/rate errors. Treat any error
+        // here as "could not verify" so Better Auth returns a clean 4xx
+        // INVALID_OTP instead of leaking a 5xx + stack to the client.
+        // We still log so ops can distinguish "wrong code" from "Twilio
+        // is broken / rate-limited" in production logs.
+        try {
+          const result = await service.verificationChecks.create({ to, code });
+          return result.status === "approved";
+        } catch (err) {
+          const status =
+            (err as { status?: number; code?: number }).status ??
+            (err as { code?: number }).code;
+          console.error(
+            `[sms-twilio] verificationChecks.create failed (status=${status}):`,
+            err,
+          );
+          return false;
+        }
       },
     };
   }
