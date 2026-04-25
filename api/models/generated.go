@@ -10,3 +10,33 @@ type UpdateOrdersResponse struct {
 type SendSavedStrategySummaryEmailsResponse struct {
 	Message string `json:"message"`
 }
+
+type BacktestAsyncRequest struct {
+	Factorexpression string `json:"factor_expression"`
+	Factorname string `json:"factor_name"`
+	Backteststart string `json:"backtest_start"`
+	Backtestend string `json:"backtest_end"`
+	Samplingintervalunit string `json:"sampling_interval_unit"`
+	Startcash string `json:"start_cash"`
+	Assetuniverse string `json:"asset_universe"`
+	Numsymbols int `json:"num_symbols"`
+	Userid *string `json:"user_id"`
+}
+
+type BacktestAsyncResponse struct {
+	Backtestjobid string `json:"backtest_job_id"`
+	Strategyid string `json:"strategy_id"`
+}
+
+type BacktestStatusRequest struct {
+	Backtestjobid string `json:"backtest_job_id"`
+}
+
+type BacktestStatusResponse struct {
+	Backtestjobid string `json:"backtest_job_id"`
+	Status string `json:"status"`
+	Currentstage string `json:"current_stage"`
+	Progresspct int `json:"progress_pct"`
+	Errormessage *string `json:"error_message"`
+	Result *string `json:"result"`
+}

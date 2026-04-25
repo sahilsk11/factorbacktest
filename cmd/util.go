@@ -76,6 +76,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 	investmentRebalanceRepository := repository.NewInvestmentRebalanceRepository(dbConn)
 	excessVolumeRepository := repository.NewExcessTradeVolumeRepository(dbConn)
 	rebalancePriceRepository := repository.NewRebalancePriceRepository(dbConn)
+	backtestJobRepository := repository.NewBacktestJobRepository(dbConn)
 
 	quoteProvider := data.NewHybridQuoteProvider(alpacaRepository)
 	if priceService == nil {
@@ -171,6 +172,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		TradingService:               tradingService,
 		StrategyService:              strategyService,
 		StrategySummaryApp:           strategySummaryApp,
+		BacktestJobRepository:        backtestJobRepository,
 		JwtDecodeToken:               secrets.Jwt,
 	}
 
