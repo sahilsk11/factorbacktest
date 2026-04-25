@@ -1,0 +1,37 @@
+name: Deploy Fly
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - 'internal/**'
+      - 'pkg/**'
+      - 'api/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - 'Dockerfile.fly'
+      - 'fly.toml'
+      - 'migrations/**'
+      - 'tools/**'
+      - 'gpt/**'
+      - 'integration-tests/**'
+
+concurrency:
+  group: deploy-fly-main
+  cancel-in-progress: false
+
+jobs:
+  deploy-fly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

@@ -60,6 +60,9 @@ deploy-lambda:
 update-lambda-config:
 	aws lambda update-function-configuration --region us-east-1 --function-name fbTestArm --environment "Variables={commit_hash=$(shell git rev-parse --short HEAD),GIN_MODE=release}" --output text
 
+deploy-fly:
+	flyctl deploy --remote-only
+
 deploy:
 	make deploy-lambda;
 	make deploy-fe;

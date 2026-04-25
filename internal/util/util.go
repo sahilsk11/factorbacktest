@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -109,6 +110,18 @@ func (t DbSecrets) ToConnectionStr() string {
 }
 
 func LoadSecrets() (*Secrets, error) {
+	// Opt-in path for environments that inject secrets as env vars (e.g. Fly.io).
+	// When FB_SECRETS_FROM_ENV=1, try env vars first; on failure, fall through to
+	// the existing AWS + file chain so behavior is unchanged for Lambda and local dev.
+	if os.Getenv("FB_SECRETS_FROM_ENV") == "1" {
+		secrets, envErr := loadSecretsFromEnv()
+		if envErr == nil {
+			logger.New().Infof("loaded secrets from env vars")
+			return secrets, nil
+		}
+		logger.New().Errorf("FB_SECRETS_FROM_ENV=1 set but loading from env failed; falling back: %s", envErr.Error())
+	}
+
 	// Default behavior: prefer AWS Secrets Manager, fall back to a local secrets file.
 	secrets, awsErr := loadSecretsFromAWS()
 	if awsErr == nil {
@@ -214,6 +227,65 @@ func loadSecretsFromAWS() (*Secrets, error) {
 	logger.New().Infof("loaded secrets from Secrets Manager")
 
 	return &secrets, nil
+}
+
+func loadSecretsFromEnv() (*Secrets, error) {
+	required := []string{
+		"FB_DB_HOST",
+		"FB_DB_PORT",
+		"FB_DB_USER",
+		"FB_DB_PASSWORD",
+		"FB_DB_NAME",
+		"FB_JWT",
+		"FB_ALPACA_API_KEY",
+		"FB_ALPACA_API_SECRET",
+		"FB_ALPACA_ENDPOINT",
+		"FB_DATA_JOCKEY_API_KEY",
+		"FB_CHATGPT_API_KEY",
+		"FB_SES_REGION",
+		"FB_SES_FROM_EMAIL",
+	}
+	var missing []string
+	for _, k := range required {
+		if os.Getenv(k) == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing required env vars: %v", missing)
+	}
+
+	enableSsl := true
+	if v := os.Getenv("FB_DB_ENABLE_SSL"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid FB_DB_ENABLE_SSL=%q: %w", v, err)
+		}
+		enableSsl = parsed
+	}
+
+	return &Secrets{
+		DataJockeyApiKey: os.Getenv("FB_DATA_JOCKEY_API_KEY"),
+		ChatGPTApiKey:    os.Getenv("FB_CHATGPT_API_KEY"),
+		Jwt:              os.Getenv("FB_JWT"),
+		Db: DbSecrets{
+			Host:      os.Getenv("FB_DB_HOST"),
+			Port:      os.Getenv("FB_DB_PORT"),
+			User:      os.Getenv("FB_DB_USER"),
+			Password:  os.Getenv("FB_DB_PASSWORD"),
+			Database:  os.Getenv("FB_DB_NAME"),
+			EnableSsl: enableSsl,
+		},
+		Alpaca: AlpacaSecrets{
+			ApiKey:    os.Getenv("FB_ALPACA_API_KEY"),
+			ApiSecret: os.Getenv("FB_ALPACA_API_SECRET"),
+			Endpoint:  os.Getenv("FB_ALPACA_ENDPOINT"),
+		},
+		SES: SESSecrets{
+			Region:    os.Getenv("FB_SES_REGION"),
+			FromEmail: os.Getenv("FB_SES_FROM_EMAIL"),
+		},
+	}, nil
 }
 
 func HashFactorExpression(in string) string {

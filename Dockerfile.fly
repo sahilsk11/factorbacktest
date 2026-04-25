@@ -1,0 +1,20 @@
+# Fly.io image for the factorbacktest API.
+# Same as Dockerfile, but does not bake a secrets.json into the image -
+# secrets are injected at runtime via `fly secrets set` (FB_SECRETS_FROM_ENV=1).
+
+FROM golang:1.25
+
+WORKDIR /app
+
+COPY . .
+
+RUN go get -d -v ./...
+
+ARG commit_hash
+ENV commit_hash=$commit_hash
+
+RUN GOARCH=amd64 GOOS=linux go build -o ./bin/ ./cmd/api
+
+EXPOSE 3009
+
+CMD ["/app/bin/api"]
