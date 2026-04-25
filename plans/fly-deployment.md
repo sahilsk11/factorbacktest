@@ -24,29 +24,32 @@ flyctl apps create factorbacktest --org personal
 ### 2. Set the 13 runtime secrets
 
 Fly machines load `Secrets` via env vars when `FB_SECRETS_FROM_ENV=1` is set
-(it is, in `fly.toml`). Set the values once with `fly secrets set`. They're
-encrypted at rest and only decrypted into the machine's environment.
+(it is, in `fly.toml`). The loader reads the original camelCase JSON leaf
+names from `secrets.json` directly, so the secret names match the keys you
+already know. Linux env vars are case-sensitive, so these lowercase names
+don't collide with any vars Fly or Docker auto-inject.
 
 ```sh
 flyctl secrets set \
-  FB_DB_HOST='<rds-host>' \
-  FB_DB_PORT='5432' \
-  FB_DB_USER='<user>' \
-  FB_DB_PASSWORD='<password>' \
-  FB_DB_NAME='<dbname>' \
-  FB_DB_ENABLE_SSL='true' \
-  FB_JWT='<jwt-secret>' \
-  FB_ALPACA_API_KEY='<key>' \
-  FB_ALPACA_API_SECRET='<secret>' \
-  FB_ALPACA_ENDPOINT='https://api.alpaca.markets' \
-  FB_DATA_JOCKEY_API_KEY='<key>' \
-  FB_CHATGPT_API_KEY='<key>' \
-  FB_SES_REGION='us-east-1' \
-  FB_SES_FROM_EMAIL='noreply@factor.trade'
+  host='<rds-host>' \
+  port='5432' \
+  user='<db-user>' \
+  password='<db-password>' \
+  database='<dbname>' \
+  enableSsl='true' \
+  jwt='<jwt-secret>' \
+  apiKey='<alpaca-key>' \
+  apiSecret='<alpaca-secret>' \
+  endpoint='https://api.alpaca.markets' \
+  dataJockey='<data-jockey-key>' \
+  gpt='<chatgpt-key>' \
+  region='us-east-1' \
+  fromEmail='noreply@factor.trade'
 ```
 
-You can pull the current values from AWS Secrets Manager (`prod/factor`) to
-seed these. `FB_DB_ENABLE_SSL` is optional and defaults to `true` if unset.
+Easiest source: `secrets.json` locally (or AWS Secrets Manager `prod/factor`).
+The Fly console "import from JSON" UI also works and produces the same flat
+secret names. `enableSsl` is optional and defaults to `true` if unset.
 
 ### 3. Wire up CI
 
