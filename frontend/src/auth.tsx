@@ -1,75 +1,163 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { createClient, Session, SupabaseClient, User } from '@supabase/supabase-js';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createAuthClient } from "better-auth/react";
+import { emailOTPClient, phoneNumberClient } from "better-auth/client/plugins";
 
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || "";
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || "";
+// The auth-service is mounted at /api/auth on the same domain (same Fly app),
+// so we don't need to pass an explicit baseURL. The Go API reverse-proxies
+// /api/auth/* to the local Better Auth sidecar.
+const authClient = createAuthClient({
+  plugins: [emailOTPClient(), phoneNumberClient()],
+});
 
-const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
+// Shape kept compatible with existing call sites (`session.access_token`,
+// `session.user.id`, etc.) so the wider app didn't have to change. The
+// access token is fetched on demand from Better Auth's JWT plugin endpoint.
+export interface AppUser {
+  id: string;
+  email?: string | null;
+  phoneNumber?: string | null;
+  name?: string | null;
+  image?: string | null;
+}
+
+export interface AppSession {
+  access_token: string;
+  user: AppUser;
+}
+
+interface SignInApi {
+  google: () => Promise<void>;
+  sendEmailOtp: (email: string) => Promise<void>;
+  verifyEmailOtp: (email: string, otp: string) => Promise<void>;
+  sendSmsOtp: (phoneNumber: string) => Promise<void>;
+  verifySmsOtp: (phoneNumber: string, code: string) => Promise<void>;
+}
+
+interface AuthContextValue {
+  loading: boolean;
+  user: AppUser | null;
+  session: AppSession | null;
+  signIn: SignInApi;
+  signOut: () => Promise<void>;
+  refreshToken: () => Promise<string | null>;
+}
+
+const defaultSignIn: SignInApi = {
+  google: async () => {},
+  sendEmailOtp: async () => {},
+  verifyEmailOtp: async () => {},
+  sendSmsOtp: async () => {},
+  verifySmsOtp: async () => {},
+};
+
+const AuthContext = createContext<AuthContextValue>({
+  loading: true,
+  user: null,
+  session: null,
+  signIn: defaultSignIn,
+  signOut: async () => {},
+  refreshToken: async () => null,
+});
+
+const fetchAccessToken = async (): Promise<string | null> => {
+  try {
+    const resp = await fetch("/api/auth/token", { credentials: "include" });
+    if (!resp.ok) return null;
+    const body = (await resp.json()) as { token?: string };
+    return body.token ?? null;
+  } catch {
+    return null;
+  }
+};
 
 interface AuthProviderProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
-type AuthContextType = {
-  loading: boolean,
-  session: Session | null,
-  user: User | null
-  supabase: SupabaseClient | null
-}
+const AuthProvider = ({ children }: AuthProviderProps) => {
+  const { data, isPending, refetch } = authClient.useSession();
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
-const AuthContext = createContext<AuthContextType>({
-  loading: true,
-  session: null,
-  user: null,
-  supabase: null,
-})
+  const sessionUser = data?.user as AppUser | undefined;
 
-const AuthProvider = (props: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-
+  // Refresh the JWT whenever the session user changes (sign-in, sign-out,
+  // or refetch). The JWT is what we attach to API calls to the Go backend.
+  const sessionUserId = sessionUser?.id ?? null;
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user || null)
-      setLoading(false)
-    })
-
-    const setData = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      if (error) {
-        throw error
-      }
-
-      setSession(session)
-      setUser(session?.user || null)
-      setLoading(false)
+    let cancelled = false;
+    if (!sessionUserId) {
+      setAccessToken(null);
+      return;
     }
-
-    setData()
-
+    fetchAccessToken().then((token) => {
+      if (!cancelled) setAccessToken(token);
+    });
     return () => {
-      listener?.subscription.unsubscribe()
-    }
-  }, [])
+      cancelled = true;
+    };
+  }, [sessionUserId]);
 
-  const value = {
-    loading,
+  const refreshToken = useCallback(async () => {
+    const token = await fetchAccessToken();
+    setAccessToken(token);
+    return token;
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await authClient.signOut();
+    await refetch();
+  }, [refetch]);
+
+  const signIn: SignInApi = useMemo(
+    () => ({
+      google: async () => {
+        await authClient.signIn.social({
+          provider: "google",
+          callbackURL: window.location.href,
+        });
+      },
+      sendEmailOtp: async (email) => {
+        const { error } = await authClient.emailOtp.sendVerificationOtp({
+          email,
+          type: "sign-in",
+        });
+        if (error) throw new Error(error.message ?? "failed to send email OTP");
+      },
+      verifyEmailOtp: async (email, otp) => {
+        const { error } = await authClient.signIn.emailOtp({ email, otp });
+        if (error) throw new Error(error.message ?? "invalid email OTP");
+        await refetch();
+      },
+      sendSmsOtp: async (phoneNumber) => {
+        const { error } = await authClient.phoneNumber.sendOtp({ phoneNumber });
+        if (error) throw new Error(error.message ?? "failed to send SMS OTP");
+      },
+      verifySmsOtp: async (phoneNumber, code) => {
+        const { error } = await authClient.phoneNumber.verify({ phoneNumber, code });
+        if (error) throw new Error(error.message ?? "invalid SMS OTP");
+        await refetch();
+      },
+    }),
+    [refetch],
+  );
+
+  const session: AppSession | null =
+    sessionUser && accessToken
+      ? { access_token: accessToken, user: sessionUser }
+      : null;
+
+  const value: AuthContextValue = {
+    loading: isPending,
+    user: sessionUser ?? null,
     session,
-    user,
-    supabase,
-  }
+    signIn,
+    signOut,
+    refreshToken,
+  };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {props.children}
-    </AuthContext.Provider>
-  )
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
-export const useAuth = () => {
-  return useContext(AuthContext)
-}
+export const useAuth = () => useContext(AuthContext);
 
-export default AuthProvider
+export default AuthProvider;

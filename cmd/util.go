@@ -13,9 +13,20 @@ import (
 	"factorbacktest/internal/util"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/lib/pq"
 )
+
+// betterAuthJwksURL returns the URL the API uses to fetch the Better Auth
+// JWKS. Defaults to the local sidecar that runs alongside the Go binary in
+// the production Fly image.
+func betterAuthJwksURL() string {
+	if v := os.Getenv("BETTER_AUTH_JWKS_URL"); v != "" {
+		return v
+	}
+	return "http://127.0.0.1:3001/api/auth/jwks"
+}
 
 // this is gross sry
 
@@ -172,6 +183,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		StrategyService:              strategyService,
 		StrategySummaryApp:           strategySummaryApp,
 		JwtDecodeToken:               secrets.Jwt,
+		BetterAuthJwksURL:            betterAuthJwksURL(),
 	}
 
 	return apiHandler, nil

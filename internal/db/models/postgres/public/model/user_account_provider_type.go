@@ -12,9 +12,10 @@ import "errors"
 type UserAccountProviderType string
 
 const (
-	UserAccountProviderType_Supabase UserAccountProviderType = "SUPABASE"
-	UserAccountProviderType_Google   UserAccountProviderType = "GOOGLE"
-	UserAccountProviderType_Manual   UserAccountProviderType = "MANUAL"
+	UserAccountProviderType_Supabase   UserAccountProviderType = "SUPABASE"
+	UserAccountProviderType_Google     UserAccountProviderType = "GOOGLE"
+	UserAccountProviderType_Manual     UserAccountProviderType = "MANUAL"
+	UserAccountProviderType_BetterAuth UserAccountProviderType = "BETTER_AUTH"
 )
 
 func (e *UserAccountProviderType) Scan(value interface{}) error {
@@ -35,6 +36,8 @@ func (e *UserAccountProviderType) Scan(value interface{}) error {
 		*e = UserAccountProviderType_Google
 	case "MANUAL":
 		*e = UserAccountProviderType_Manual
+	case "BETTER_AUTH":
+		*e = UserAccountProviderType_BetterAuth
 	default:
 		return errors.New("jet: Invalid scan value '" + enumValue + "' for UserAccountProviderType enum")
 	}

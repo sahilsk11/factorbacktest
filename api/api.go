@@ -48,6 +48,10 @@ type ApiHandler struct {
 	StrategyService              service.StrategyService
 	StrategySummaryApp           app.StrategySummaryApp
 	JwtDecodeToken               string
+	// BetterAuthJwksURL is the URL the Go API hits to fetch the JWKS used to
+	// verify Better Auth-issued JWTs. In production it points at the local
+	// auth-service sidecar (default `http://127.0.0.1:3001/api/auth/jwks`).
+	BetterAuthJwksURL string
 
 	AlpacaRepository repository.AlpacaRepository
 }
@@ -94,8 +98,25 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	}
 	engine.Use(cors.New(cors.Config{
 		AllowOrigins: allowedOrigins,
-		AllowHeaders: []string{"Authorization", "Content-Type"},
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowHeaders: []string{"Authorization", "Content-Type", "Cookie"},
+		// Better Auth issues HttpOnly session cookies. The browser will only
+		// attach them on cross-origin requests when AllowCredentials is true
+		// AND the origin is not a wildcard (which we already enforce).
+		AllowCredentials: true,
+		ExposeHeaders:    []string{"Set-Cookie"},
 	}))
+	// Reverse-proxy /api/auth/* to the local Better Auth sidecar BEFORE the
+	// JWT middleware. The auth-service handles its own request validation
+	// (CSRF, OTPs, OAuth callbacks) and we don't want our JWT middleware
+	// rejecting unauthenticated calls like sign-in or token refresh.
+	authProxy, err := newBetterAuthProxy()
+	if err != nil {
+		lg.Errorf("failed to build better-auth proxy: %v", err)
+	} else {
+		engine.Any("/api/auth/*proxyPath", authProxy)
+	}
+
 	engine.Use(m.getGoogleAuthMiddleware)
 	engine.Use(m.logRequestMiddlware)
 	engine.Use(func(ctx *gin.Context) {
@@ -275,34 +296,75 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 
 	var userInput *model.UserAccount
 
-	parsedJwt, supabaseErr := parseSupabaseJWT(jwtStr, m.JwtDecodeToken)
-	userDetails, googleAuthErr := googleauth.GetUserDetails(jwtStr)
-
-	if supabaseErr == nil {
-		userInput = &model.UserAccount{
-			PhoneNumber: parsedJwt.PhoneNumber,
-			Provider:    model.UserAccountProviderType_Supabase,
-			ProviderID:  &parsedJwt.Subject,
-		}
-		if parsedJwt.Email != nil && *parsedJwt.Email != "" {
-			userInput.Email = parsedJwt.Email
-		}
-		if parsedJwt.Name != "" {
-			splits := strings.Split(parsedJwt.Name, " ")
-			userInput.FirstName = &splits[0]
-			if len(splits) > 1 {
-				userInput.LastName = util.StringPointer(strings.Join(splits[1:], " "))
+	// Resolution order during the Supabase -> Better Auth cutover:
+	//   1. Better Auth JWT (EdDSA via JWKS) - the new default
+	//   2. Supabase JWT (HS256 / ES256 via JWKS) - kept until existing sessions expire
+	//   3. Google ID token - used by older direct integrations
+	// Once Supabase is fully decommissioned, branches 2 and the related
+	// SupabaseJWT code in api/auth.go can be removed.
+	var betterAuthErr error
+	if m.BetterAuthJwksURL != "" {
+		var baJwt *BetterAuthJWT
+		baJwt, betterAuthErr = parseBetterAuthJWT(jwtStr, m.BetterAuthJwksURL)
+		if betterAuthErr == nil {
+			userInput = &model.UserAccount{
+				Provider:    model.UserAccountProviderType_BetterAuth,
+				ProviderID:  &baJwt.Subject,
+				PhoneNumber: baJwt.PhoneNumber,
+			}
+			if baJwt.Email != nil && *baJwt.Email != "" {
+				userInput.Email = baJwt.Email
+			}
+			if baJwt.Name != "" {
+				splits := strings.Split(baJwt.Name, " ")
+				userInput.FirstName = &splits[0]
+				if len(splits) > 1 {
+					userInput.LastName = util.StringPointer(strings.Join(splits[1:], " "))
+				}
 			}
 		}
-	} else if googleAuthErr == nil {
-		userInput = &model.UserAccount{
-			Email:     &userDetails.Email,
-			FirstName: &userDetails.FirstName,
-			LastName:  &userDetails.LastName,
-			Provider:  model.UserAccountProviderType_Google,
+	}
+
+	var supabaseErr error
+	var googleAuthErr error
+	if userInput == nil {
+		var parsedJwt *SupabaseJWT
+		parsedJwt, supabaseErr = parseSupabaseJWT(jwtStr, m.JwtDecodeToken)
+		userDetails, gErr := googleauth.GetUserDetails(jwtStr)
+		googleAuthErr = gErr
+
+		if supabaseErr == nil {
+			userInput = &model.UserAccount{
+				PhoneNumber: parsedJwt.PhoneNumber,
+				Provider:    model.UserAccountProviderType_Supabase,
+				ProviderID:  &parsedJwt.Subject,
+			}
+			if parsedJwt.Email != nil && *parsedJwt.Email != "" {
+				userInput.Email = parsedJwt.Email
+			}
+			if parsedJwt.Name != "" {
+				splits := strings.Split(parsedJwt.Name, " ")
+				userInput.FirstName = &splits[0]
+				if len(splits) > 1 {
+					userInput.LastName = util.StringPointer(strings.Join(splits[1:], " "))
+				}
+			}
+		} else if googleAuthErr == nil {
+			userInput = &model.UserAccount{
+				Email:     &userDetails.Email,
+				FirstName: &userDetails.FirstName,
+				LastName:  &userDetails.LastName,
+				Provider:  model.UserAccountProviderType_Google,
+			}
 		}
-	} else {
-		returnErrorJsonCode(fmt.Errorf("both authentication methods failed: %w | :%w", supabaseErr, googleAuthErr), c, 403)
+	}
+
+	if userInput == nil {
+		returnErrorJsonCode(
+			fmt.Errorf("all authentication methods failed: better_auth=%v supabase=%v google=%v",
+				betterAuthErr, supabaseErr, googleAuthErr),
+			c, 403,
+		)
 		return
 	}
 

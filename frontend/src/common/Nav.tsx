@@ -1,5 +1,5 @@
 import { GoogleAuthUser } from "../models";
-import { googleLogout, useGoogleLogin } from '@react-oauth/google';
+import { googleLogout } from '@react-oauth/google';
 import Navbar from 'react-bootstrap/Navbar';
 import Container from 'react-bootstrap/Container';
 import BootstrapNav from 'react-bootstrap/Nav';
@@ -21,7 +21,7 @@ export function Nav({ showLinks, setUser, loggedIn }: {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
-  const { supabase, session } = useAuth();
+  const { signOut, session } = useAuth();
 
   const navigate = useNavigate()
 
@@ -40,7 +40,7 @@ export function Nav({ showLinks, setUser, loggedIn }: {
       <NavDropdown.Item onClick={() => {
         googleLogout();
         setUser(null);
-        supabase?.auth.signOut()
+        signOut();
         document.cookie = "googleAuthAccessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure";
       }} className={styles.nav_link}>
         Logout
