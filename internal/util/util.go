@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -109,6 +110,20 @@ func (t DbSecrets) ToConnectionStr() string {
 }
 
 func LoadSecrets() (*Secrets, error) {
+	// Opt-in path for environments that inject secrets as env vars (e.g. Fly.io).
+	// FB_SECRETS_FROM_ENV=1 is an explicit signal, so a failure here is terminal:
+	// falling through to the AWS / file chain would obscure the real cause (a
+	// missing or typo'd Fly secret) and risks loading the wrong secrets in any
+	// future env that has both this flag and AWS creds present.
+	if os.Getenv("FB_SECRETS_FROM_ENV") == "1" {
+		secrets, envErr := loadSecretsFromEnv()
+		if envErr != nil {
+			return nil, fmt.Errorf("FB_SECRETS_FROM_ENV=1 but loading from env failed: %w", envErr)
+		}
+		logger.New().Infof("loaded secrets from env vars")
+		return secrets, nil
+	}
+
 	// Default behavior: prefer AWS Secrets Manager, fall back to a local secrets file.
 	secrets, awsErr := loadSecretsFromAWS()
 	if awsErr == nil {
@@ -214,6 +229,72 @@ func loadSecretsFromAWS() (*Secrets, error) {
 	logger.New().Infof("loaded secrets from Secrets Manager")
 
 	return &secrets, nil
+}
+
+// loadSecretsFromEnv reads secrets directly from process env vars. The Fly
+// console flattened our nested secrets.json so each JSON leaf field became
+// its own env-var secret with the original camelCase name (e.g. dataJockey,
+// host, apiKey). Linux env vars are case-sensitive, so these lowercase names
+// don't collide with anything Fly or Docker auto-inject (PORT, HOSTNAME, etc.).
+func loadSecretsFromEnv() (*Secrets, error) {
+	get := func(name string) string { return os.Getenv(name) }
+
+	required := map[string]string{
+		"dataJockey": get("dataJockey"),
+		"gpt":        get("gpt"),
+		"jwt":        get("jwt"),
+		"host":       get("host"),
+		"port":       get("port"),
+		"user":       get("user"),
+		"password":   get("password"),
+		"database":   get("database"),
+		"apiKey":     get("apiKey"),
+		"apiSecret":  get("apiSecret"),
+		"endpoint":   get("endpoint"),
+		"region":     get("region"),
+		"fromEmail":  get("fromEmail"),
+	}
+	var missing []string
+	for k, v := range required {
+		if v == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing required env vars: %v", missing)
+	}
+
+	enableSsl := true
+	if v := get("enableSsl"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid enableSsl=%q: %w", v, err)
+		}
+		enableSsl = parsed
+	}
+
+	return &Secrets{
+		DataJockeyApiKey: required["dataJockey"],
+		ChatGPTApiKey:    required["gpt"],
+		Jwt:              required["jwt"],
+		Db: DbSecrets{
+			Host:      required["host"],
+			Port:      required["port"],
+			User:      required["user"],
+			Password:  required["password"],
+			Database:  required["database"],
+			EnableSsl: enableSsl,
+		},
+		Alpaca: AlpacaSecrets{
+			ApiKey:    required["apiKey"],
+			ApiSecret: required["apiSecret"],
+			Endpoint:  required["endpoint"],
+		},
+		SES: SESSecrets{
+			Region:    required["region"],
+			FromEmail: required["fromEmail"],
+		},
+	}, nil
 }
 
 func HashFactorExpression(in string) string {
