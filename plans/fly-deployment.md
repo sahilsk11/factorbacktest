@@ -142,40 +142,34 @@ The Go process binds the public port (3009) and reverse-proxies
 `/api/auth/*` to `127.0.0.1:3001`. The sidecar code lives in
 [auth-service/](../auth-service/).
 
-### Additional secrets
+### Additional secrets (5–6 values; everything else is in fly.toml)
 
-Run alongside the existing 13 secrets above. All names are case-sensitive.
-Use a dedicated secret per env so the auth sidecar config validation stops
-the deploy if anything is missing.
+Non-secret config (`APP_BASE_URL`, `TRUSTED_ORIGINS`, feature flags,
+`EMAIL_PROVIDER`, etc.) lives in [fly.toml](../fly.toml)'s `[env]` block —
+source-controlled and diffable.  Only the actual sensitive values go through
+`flyctl secrets set`. The names match the camelCase pattern already used by
+the Go side.
 
 ```sh
 flyctl secrets set \
-  APP_BASE_URL='https://factorbacktest.fly.dev' \
-  BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
-  DATABASE_URL='postgres://<db-user>:<db-password>@<rds-host>:5432/<dbname>?sslmode=require' \
-  AUTH_DB_SCHEMA='auth' \
-  TRUSTED_ORIGINS='https://factorbacktest.fly.dev,https://factor.trade,https://www.factor.trade' \
-  FEATURE_GOOGLE='true' \
-  FEATURE_EMAIL_OTP='true' \
-  FEATURE_SMS_OTP='true' \
-  GOOGLE_CLIENT_ID='<google-client-id>' \
-  GOOGLE_CLIENT_SECRET='<google-client-secret>' \
-  EMAIL_PROVIDER='resend' \
-  EMAIL_FROM='Factor.trade <noreply@factor.trade>' \
-  RESEND_API_KEY='<resend-api-key>' \
-  SMS_PROVIDER='twilio' \
-  SMS_FROM='+15551234567' \
-  TWILIO_ACCOUNT_SID='<twilio-sid>' \
-  TWILIO_AUTH_TOKEN='<twilio-auth-token>' \
-  TWILIO_MESSAGING_SERVICE_SID='<optional-msg-service-sid>' \
-  APP_USER_SYNC_ENABLED='false'
+  betterAuthSecret="$(openssl rand -hex 32)" \
+  googleClientId='<google-client-id>' \
+  googleClientSecret='<google-client-secret>' \
+  resendApiKey='<resend-api-key>' \
+  twilioAccountSid='<twilio-sid>' \
+  twilioAuthToken='<twilio-auth-token>'
 ```
 
-`APP_USER_SYNC_ENABLED=false` is intentional for *this* app: we already have
-`user_account` as the canonical app user table and `getGoogleAuthMiddleware`
-upserts into it on every authenticated request. The generic
-`public.app_user_profile` bridge table created by the auth-service bootstrap
-is for new projects that don't have an existing user table.
+DB connection info (`host`, `password`, etc.) is reused from the secrets
+already set for the Go API — the auth-service builds its own connection
+string from them. There is no separate `DATABASE_URL`.
+
+`APP_USER_SYNC_ENABLED` is set to `false` in `fly.toml` because this app
+already has `user_account` as the canonical app user table and
+`getGoogleAuthMiddleware` upserts into it on every authenticated request.
+The generic `public.app_user_profile` bridge table created by the
+auth-service bootstrap is for new projects that don't have an existing
+user table.
 
 ### Google OAuth redirect URI
 
@@ -212,13 +206,17 @@ Supabase sessions working. Sequence:
    - SMS: enter phone, verify Twilio delivers a code, finish sign-in.
 5. Verify `auth.user`, `auth.session`, etc. are populated and `user_account`
    gets `Provider='BETTER_AUTH'` rows for new sign-ins.
-6. Once confident, remove the Supabase secrets and code:
-   ```sh
-   flyctl secrets unset jwt   # the Supabase HS256 secret
-   ```
-   Then drop `parseSupabaseJWT` and the Supabase fallback from
-   [api/api.go](../api/api.go) and remove `@supabase/supabase-js` from
-   [frontend/package.json](../frontend/package.json).
+6. Once confident, remove Supabase entirely:
+   - `flyctl secrets unset jwt` (the Supabase HS256 secret).
+   - Drop `parseSupabaseJWT` and the Supabase fallback branch from
+     [api/api.go](../api/api.go).
+   - Drop the `Jwt` field from `Secrets` in
+     [internal/util/util.go](../internal/util/util.go) (and the
+     `JwtDecodeToken` plumbing in [cmd/util.go](../cmd/util.go) /
+     [api/api.go](../api/api.go)).
+   - Remove `@supabase/supabase-js` from
+     [frontend/package.json](../frontend/package.json) and any leftover
+     references.
 
 ### Cost note
 
