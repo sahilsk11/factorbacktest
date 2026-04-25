@@ -16,10 +16,10 @@ primary_region = "iad"
   AUTH_DB_SCHEMA        = "auth"
   TRUSTED_ORIGINS       = "https://factorbacktest.fly.dev,https://factor.trade,https://www.factor.trade"
   FEATURE_GOOGLE        = "true"
-  FEATURE_EMAIL_OTP     = "true"
+  FEATURE_EMAIL_OTP     = "false"   # parity with Supabase setup; flip on once Resend/SES is wired
   FEATURE_SMS_OTP       = "true"
-  EMAIL_PROVIDER        = "resend"
-  EMAIL_FROM            = "Factor.trade <noreply@factor.trade>"
+  EMAIL_PROVIDER        = "console" # unused while FEATURE_EMAIL_OTP=false
+  EMAIL_FROM            = "no-reply@factor.trade"
   SMS_PROVIDER          = "twilio"
   APP_USER_SYNC_ENABLED = "false"
 

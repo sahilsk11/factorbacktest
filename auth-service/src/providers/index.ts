@@ -1,9 +1,9 @@
 import type { AuthConfig } from "../config.js";
 import { consoleEmailSender } from "./email-console.js";
 import { resendEmailSender } from "./email-resend.js";
-import { consoleSmsSender } from "./sms-console.js";
-import { twilioSmsSender } from "./sms-twilio.js";
-import type { EmailSender, SmsSender } from "./types.js";
+import { consoleSmsService } from "./sms-console.js";
+import { twilioSmsService } from "./sms-twilio.js";
+import type { EmailSender, SmsService } from "./types.js";
 
 export const buildEmailSender = (config: AuthConfig): EmailSender => {
   switch (config.email.provider) {
@@ -18,20 +18,21 @@ export const buildEmailSender = (config: AuthConfig): EmailSender => {
   }
 };
 
-export const buildSmsSender = (config: AuthConfig): SmsSender => {
+export const buildSmsService = (config: AuthConfig): SmsService => {
   switch (config.sms.provider) {
     case "twilio":
       if (!config.sms.twilio) {
         throw new Error("twilio provider selected but credentials missing");
       }
-      return twilioSmsSender({
+      return twilioSmsService({
         accountSid: config.sms.twilio.accountSid,
         authToken: config.sms.twilio.authToken,
-        from: config.sms.from,
+        from: config.sms.from || undefined,
         messagingServiceSid: config.sms.twilio.messagingServiceSid,
+        verifyServiceSid: config.sms.twilio.verifyServiceSid,
       });
     case "console":
     default:
-      return consoleSmsSender();
+      return consoleSmsService();
   }
 };

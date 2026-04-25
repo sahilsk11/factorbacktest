@@ -1,10 +1,8 @@
 import { emailOTP, jwt, phoneNumber } from "better-auth/plugins";
 import type { AuthConfig } from "./config.js";
-import { buildEmailSender, buildSmsSender } from "./providers/index.js";
+import { buildEmailSender, buildSmsService } from "./providers/index.js";
 
 // Better Auth plugins are heterogeneous; betterAuth() accepts the union.
-// Using a permissive array type keeps the TS inference cheap and stable
-// across plugin version bumps.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AuthPlugin = any;
 
@@ -33,15 +31,27 @@ export const buildPlugins = (config: AuthConfig): AuthPlugin[] => {
   }
 
   if (config.features.smsOtp) {
-    const sms = buildSmsSender(config);
+    const sms = buildSmsService(config);
+    // Twilio Verify mode: Twilio generates and validates the OTP. We
+    // delegate verification to Twilio via Better Auth's `verifyOTP` hook
+    // so we never store SMS codes ourselves.
+    const twilioVerifyMode = sms.verify !== undefined;
     plugins.push(
       phoneNumber({
         otpLength: 6,
         expiresIn: 300,
         allowedAttempts: 3,
         async sendOTP({ phoneNumber: to, code }) {
-          await sms.send({ to, body: `Your code is: ${code}` });
+          await sms.send({ to, code });
         },
+        ...(twilioVerifyMode
+          ? {
+              verifyOTP: async ({ phoneNumber: to, code }) => {
+                if (!sms.verify) return false;
+                return sms.verify({ to, code });
+              },
+            }
+          : {}),
         signUpOnVerification: {
           getTempEmail: (phone) => `${phone.replace(/[^0-9]/g, "")}@phone.local`,
           getTempName: (phone) => phone,

@@ -1,7 +1,10 @@
-import type { SmsSender } from "./types.js";
+import type { SmsService } from "./types.js";
 
-export const consoleSmsSender = (): SmsSender => ({
-  async send({ to, body }) {
-    console.log(`[sms-console] to=${to} body=${JSON.stringify(body)}`);
+// Dev-only SMS service: prints OTPs to stdout instead of sending real SMS.
+// Better Auth still generates and verifies the codes itself, so no `verify`
+// hook is needed.
+export const consoleSmsService = (): SmsService => ({
+  async send({ to, code }) {
+    console.log(`[sms-console] to=${to} code=${code}`);
   },
 });

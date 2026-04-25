@@ -20,6 +20,10 @@ export interface AuthSecrets {
   resendApiKey?: string;
   twilioAccountSid?: string;
   twilioAuthToken?: string;
+  // The Twilio Verify Service SID. Required when running SMS OTP through
+  // Twilio Verify (the recommended mode — Twilio handles code generation,
+  // delivery, retry, and fraud protection; we never see or store the code).
+  twilioVerifyServiceSid?: string;
 }
 
 export interface ResolvedSecrets {
@@ -83,6 +87,7 @@ const loadFromEnv = (): ResolvedSecrets => {
       resendApiKey: process.env.resendApiKey,
       twilioAccountSid: process.env.twilioAccountSid,
       twilioAuthToken: process.env.twilioAuthToken,
+      twilioVerifyServiceSid: process.env.twilioVerifyServiceSid,
     },
   };
 };
@@ -137,6 +142,10 @@ const loadFromFile = (path: string): ResolvedSecrets => {
       twilioAuthToken:
         typeof auth.twilioAuthToken === "string"
           ? auth.twilioAuthToken
+          : undefined,
+      twilioVerifyServiceSid:
+        typeof auth.twilioVerifyServiceSid === "string"
+          ? auth.twilioVerifyServiceSid
           : undefined,
     },
   };

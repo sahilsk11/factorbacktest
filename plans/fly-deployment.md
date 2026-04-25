@@ -155,10 +155,20 @@ flyctl secrets set \
   betterAuthSecret="$(openssl rand -hex 32)" \
   googleClientId='<google-client-id>' \
   googleClientSecret='<google-client-secret>' \
-  resendApiKey='<resend-api-key>' \
-  twilioAccountSid='<twilio-sid>' \
-  twilioAuthToken='<twilio-auth-token>'
+  twilioAccountSid='<twilio-verify-account-sid>' \
+  twilioAuthToken='<twilio-verify-auth-token>' \
+  twilioVerifyServiceSid='<twilio-verify-service-sid>'
 ```
+
+SMS OTP runs through **Twilio Verify** (Twilio generates, sends, and
+validates the code; we never store SMS codes). The auth-service
+auto-detects Twilio Verify mode from the presence of
+`twilioVerifyServiceSid` and wires `verifyOTP` accordingly.
+
+Email OTP is **disabled** for the initial cutover (`FEATURE_EMAIL_OTP=false`
+in `fly.toml`) to preserve parity with the previous Supabase setup. To
+enable later: wire an email provider (Resend or SES), set its API key, and
+flip the flag.
 
 DB connection info (`host`, `password`, etc.) is reused from the secrets
 already set for the Go API — the auth-service builds its own connection

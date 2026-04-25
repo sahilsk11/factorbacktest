@@ -62,6 +62,7 @@ export interface AuthConfig {
       accountSid: string;
       authToken: string;
       messagingServiceSid?: string;
+      verifyServiceSid?: string;
     };
   };
   appUserSync: {
@@ -140,6 +141,7 @@ export const loadConfig = (): AuthConfig => {
               accountSid: secrets.auth.twilioAccountSid,
               authToken: secrets.auth.twilioAuthToken,
               messagingServiceSid: env.TWILIO_MESSAGING_SERVICE_SID,
+              verifyServiceSid: secrets.auth.twilioVerifyServiceSid,
             }
           : undefined,
     },
