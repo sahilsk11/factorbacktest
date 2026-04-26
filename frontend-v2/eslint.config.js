@@ -100,6 +100,25 @@ export default defineConfig([
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       eqeqeq: ['error', 'always'],
       'prefer-const': 'error',
+
+      // Centralize HTTP at src/lib/api.ts (apiClient). Every call to
+      // global `fetch` outside that file would silently bypass our
+      // credentials/JSON/error-shape handling. The override below
+      // re-allows `fetch` inside src/lib/api.ts itself.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='fetch']",
+          message: 'Use the apiClient from @/lib/api instead of calling fetch directly.',
+        },
+      ],
+    },
+  },
+  {
+    // The lone exception: src/lib/api.ts *is* the wrapper around fetch.
+    files: ['src/lib/api.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 ]);
