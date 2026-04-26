@@ -33,6 +33,7 @@ migration:
 
 db-models:
 	jet -dsn=postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable -path=./internal/db/models
+	jet -dsn=postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable -schema=app_auth -path=./internal/db/models
 	tools/env/bin/python tools/db_model_helper.py
 
 migrate:

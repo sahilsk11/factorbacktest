@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
+	"factorbacktest/internal/auth"
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/logger"
@@ -57,6 +58,14 @@ type ApiHandler struct {
 	// are rejected. Defense in depth in case the JWKS URL is misconfigured.
 	BetterAuthExpectedIssuer string
 
+	// AuthService is the new custom Go auth package. When non-nil, its
+	// routes are mounted at /auth/* and its session-cookie middleware
+	// runs BEFORE the legacy JWT middleware (so cookie auth wins when
+	// both are present). When nil (e.g. during local dev without the
+	// secrets configured), /auth/* is unmounted and the API behaves as
+	// before. Plumbing it through `nil` is the supported "off" state.
+	AuthService *auth.Service
+
 	AlpacaRepository repository.AlpacaRepository
 }
 
@@ -84,22 +93,10 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		c.Set(logger.ContextKey, l)
 	})
 	engine.Use(blockBots)
-	allowedOrigins := []string{
-		"http://localhost:3000",
-		"https://factorbacktest.net",
-		"https://www.factorbacktest.net",
-		"https://factor.trade",
-		"https://www.factor.trade",
-	}
-	// Test harness (playwright) builds the FE onto a random port; let it
-	// opt-in via env var rather than opening CORS in prod.
-	if extra := os.Getenv("EXTRA_ALLOWED_ORIGINS"); extra != "" {
-		for _, o := range strings.Split(extra, ",") {
-			if o = strings.TrimSpace(o); o != "" {
-				allowedOrigins = append(allowedOrigins, o)
-			}
-		}
-	}
+	// CORS and the auth package's `requireOrigin` middleware MUST use the
+	// same allowlist or one will accept what the other rejects. Built in
+	// auth.AppOrigins so both call sites share the source of truth.
+	allowedOrigins := auth.AppOrigins()
 	engine.Use(cors.New(cors.Config{
 		AllowOrigins: allowedOrigins,
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
@@ -119,6 +116,25 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		lg.Errorf("failed to build better-auth proxy: %v", err)
 	} else {
 		engine.Any("/api/auth/*proxyPath", authProxy)
+	}
+
+	// New custom Go auth: install the cookie middleware FIRST, then mount
+	// /auth/* routes. Gin doesn't apply middleware retroactively to routes
+	// registered before Use(); the middleware would otherwise miss the
+	// /auth/session handler that reads userAccountID from context.
+	// Order matters:
+	//   1. CORS (above) so preflight works for /auth/*
+	//   2. /api/auth/* proxy (above) so Better Auth keeps working
+	//      (proxy routes were registered before this point so the cookie
+	//      middleware doesn't apply to them — correct, Better Auth handles
+	//      its own auth)
+	//   3. AuthService.Middleware() (here) sets userAccountID from cookie
+	//   4. /auth/* routes (here) — get the cookie middleware
+	//   5. m.getGoogleAuthMiddleware (below) — applies to all subsequent
+	//      routes; skips JWT resolution when cookie middleware already set
+	if m.AuthService != nil {
+		engine.Use(m.AuthService.Middleware())
+		m.AuthService.RegisterRoutes(engine)
 	}
 
 	engine.Use(m.getGoogleAuthMiddleware)
@@ -287,6 +303,17 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 }
 
 func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
+	// Cookie-based auth (the new internal/auth package) runs as an earlier
+	// middleware and may have already set userAccountID. When that's the
+	// case we skip JWT/Bearer resolution entirely — cookie wins. This also
+	// avoids accidentally swapping the identity if the FE sends both a
+	// cookie and a stale Bearer token during the cutover from Better Auth.
+	if v, exists := c.Get("userAccountID"); exists {
+		if s, ok := v.(string); ok && s != "" {
+			c.Next()
+			return
+		}
+	}
 	jwtStr := c.GetHeader("Authorization")
 	if jwtStr == "" {
 		c.Next()

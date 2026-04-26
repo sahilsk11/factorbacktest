@@ -4,24 +4,23 @@
 // WARNING: Changes to this file may cause incorrect behavior
 // and will be lost if the code is regenerated
 //
-// HAND-EDITED: BetterAuth was added manually alongside migration 000052.
-// If you re-run `make db-models`, re-add the BetterAuth field + enum value
-// to keep auth code that references model.UserAccountProviderType_BetterAuth
-// compiling. Same edit applies to ../model/user_account_provider_type.go.
-//
 
 package enum
 
 import "github.com/go-jet/jet/v2/postgres"
 
 var UserAccountProviderType = &struct {
-	Supabase   postgres.StringExpression
-	Google     postgres.StringExpression
-	Manual     postgres.StringExpression
-	BetterAuth postgres.StringExpression
+	Supabase    postgres.StringExpression
+	Google      postgres.StringExpression
+	Manual      postgres.StringExpression
+	BetterAuth  postgres.StringExpression
+	LocalGoogle postgres.StringExpression
+	LocalSms    postgres.StringExpression
 }{
-	Supabase:   postgres.NewEnumValue("SUPABASE"),
-	Google:     postgres.NewEnumValue("GOOGLE"),
-	Manual:     postgres.NewEnumValue("MANUAL"),
-	BetterAuth: postgres.NewEnumValue("BETTER_AUTH"),
+	Supabase:    postgres.NewEnumValue("SUPABASE"),
+	Google:      postgres.NewEnumValue("GOOGLE"),
+	Manual:      postgres.NewEnumValue("MANUAL"),
+	BetterAuth:  postgres.NewEnumValue("BETTER_AUTH"),
+	LocalGoogle: postgres.NewEnumValue("LOCAL_GOOGLE"),
+	LocalSms:    postgres.NewEnumValue("LOCAL_SMS"),
 }

@@ -15,6 +15,13 @@ import (
 
 type UserAccountRepository interface {
 	GetOrCreate(input *model.UserAccount) (*model.UserAccount, error)
+	// GetOrCreateByProviderIdentity is the identity-correct lookup for
+	// federated providers: it finds (or creates) a user keyed by the
+	// (provider, provider_id) tuple, NOT by email. This is required for
+	// OIDC providers like Google, where the stable identifier is the `sub`
+	// claim and email can change. Implemented as INSERT ... ON CONFLICT
+	// DO UPDATE so concurrent first-logins don't race-create duplicates.
+	GetOrCreateByProviderIdentity(input *model.UserAccount) (*model.UserAccount, error)
 	ListUsersWithEmail() ([]model.UserAccount, error)
 	GetMany(userAccountIDs []uuid.UUID) ([]model.UserAccount, error)
 	GetByID(userAccountID uuid.UUID) (*model.UserAccount, error)
@@ -38,6 +45,40 @@ func (h userAccountRepositoryHandler) GetByID(userAccountID uuid.UUID) (*model.U
 	err := query.Query(h.DB, &out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user account: %w", err)
+	}
+	return &out, nil
+}
+
+// GetOrCreateByProviderIdentity upserts on the unique (provider, provider_id)
+// constraint from migration 000050. COALESCE lets the new identity claim
+// overwrite existing email / name / phone when it has them, while keeping
+// previous values when the new claim is nil (e.g. Google with minimal scope).
+func (h userAccountRepositoryHandler) GetOrCreateByProviderIdentity(input *model.UserAccount) (*model.UserAccount, error) {
+	if input.ProviderID == nil || *input.ProviderID == "" {
+		return nil, fmt.Errorf("GetOrCreateByProviderIdentity: ProviderID is required")
+	}
+	if input.Provider == "" {
+		return nil, fmt.Errorf("GetOrCreateByProviderIdentity: Provider is required")
+	}
+	input.CreatedAt = time.Now().UTC()
+	input.UpdatedAt = input.CreatedAt
+
+	t := table.UserAccount
+	query := t.INSERT(t.MutableColumns).
+		MODEL(input).
+		ON_CONFLICT(t.Provider, t.ProviderID).
+		DO_UPDATE(postgres.SET(
+			t.Email.SET(postgres.StringExp(postgres.COALESCE(t.EXCLUDED.Email, t.Email))),
+			t.FirstName.SET(postgres.StringExp(postgres.COALESCE(t.EXCLUDED.FirstName, t.FirstName))),
+			t.LastName.SET(postgres.StringExp(postgres.COALESCE(t.EXCLUDED.LastName, t.LastName))),
+			t.PhoneNumber.SET(postgres.StringExp(postgres.COALESCE(t.EXCLUDED.PhoneNumber, t.PhoneNumber))),
+			t.UpdatedAt.SET(t.EXCLUDED.UpdatedAt),
+		)).
+		RETURNING(t.AllColumns)
+
+	out := model.UserAccount{}
+	if err := query.Query(h.DB, &out); err != nil {
+		return nil, fmt.Errorf("upsert user_account by (provider, provider_id): %w", err)
 	}
 	return &out, nil
 }

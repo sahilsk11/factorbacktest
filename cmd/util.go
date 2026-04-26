@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"database/sql"
 	"factorbacktest/api"
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
+	"factorbacktest/internal/auth"
 	"factorbacktest/internal/calculator"
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/repository"
@@ -170,6 +172,14 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		priceRepository,
 	)
 
+	// Auth is opt-in: NewFromSecrets returns an error when required secrets
+	// aren't set, and we treat that as "auth disabled" rather than a fatal
+	// boot error so local-dev binaries without auth secrets still work.
+	authService, err := auth.NewFromSecrets(context.Background(), secrets, dbConn)
+	if err != nil {
+		log.Printf("[auth] not enabled: %v", err)
+	}
+
 	apiHandler := &api.ApiHandler{
 		Port: secrets.Port,
 		BenchmarkHandler: internal.BenchmarkHandler{
@@ -196,6 +206,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		JwtDecodeToken:               secrets.Jwt,
 		BetterAuthJwksURL:            betterAuthJwksURL(),
 		BetterAuthExpectedIssuer:     betterAuthExpectedIssuer(),
+		AuthService:                  authService,
 	}
 
 	return apiHandler, nil
