@@ -21,7 +21,7 @@ CREATE TABLE app_auth.user_session (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at      TIMESTAMPTZ NOT NULL,
     last_seen_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    ip              INET,
+    ip              TEXT,
     user_agent      TEXT
 );
 

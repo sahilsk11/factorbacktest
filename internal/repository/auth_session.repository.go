@@ -4,16 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	authmodel "factorbacktest/internal/db/models/postgres/app_auth/model"
+	authtable "factorbacktest/internal/db/models/postgres/app_auth/table"
 	"fmt"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 )
 
-// AuthSession is the storage shape for one row in app_auth.user_session.
-// The auth package (internal/auth) is the only intended caller of this
-// repository; if you find yourself reaching for it from a handler,
-// reach for `auth.CurrentUser(c)` instead.
+// AuthSession is the storage shape of a row in app_auth.user_session.
+// The auth package (internal/auth) is the only intended caller; if you
+// need it from a handler, reach for `auth.CurrentUser(c)` instead.
 type AuthSession struct {
 	ID            string
 	UserAccountID uuid.UUID
@@ -25,29 +28,23 @@ type AuthSession struct {
 }
 
 // AuthSessionRepository persists session rows for the custom Go auth flow.
-//
-// Read paths return ErrSessionNotFound (NOT a generic "no rows" error) when
-// the session id doesn't match anything. Callers can treat that as "fall
-// through to unauthenticated" cleanly.
+// Get returns ErrSessionNotFound (not a generic "no rows") so callers can
+// fall through to unauthenticated cleanly.
 type AuthSessionRepository interface {
 	Create(ctx context.Context, s AuthSession) error
 	// Get returns the session if it exists AND has not yet expired (per
-	// expires_at, the sliding clock). Absolute lifetime cap (created_at +
-	// max age) is enforced in the auth package, not here, so this layer
-	// stays purely about persistence.
+	// expires_at, the sliding clock). The absolute lifetime cap is
+	// enforced in the auth package, not here.
 	Get(ctx context.Context, id string) (*AuthSession, error)
-	// Touch bumps expires_at and last_seen_at for a session. Used by the
-	// auth middleware on every authenticated request to slide the
-	// expiration window.
+	// Touch bumps expires_at + last_seen_at; called by the middleware on
+	// every authenticated request to slide the expiration window.
 	Touch(ctx context.Context, id string, newExpiresAt time.Time) error
 	Delete(ctx context.Context, id string) error
 	// DeleteExpired removes rows where expires_at <= before. Returns the
-	// number of rows deleted. Intended for a daily cleanup goroutine.
+	// count for callers running it as a periodic cleanup job.
 	DeleteExpired(ctx context.Context, before time.Time) (int64, error)
 }
 
-// ErrSessionNotFound is returned by Get when no row matches the id.
-// Callers should treat it as "no session" rather than wrap it.
 var ErrSessionNotFound = errors.New("auth session not found")
 
 type authSessionRepositoryHandler struct {
@@ -59,65 +56,72 @@ func NewAuthSessionRepository(db *sql.DB) AuthSessionRepository {
 }
 
 func (h authSessionRepositoryHandler) Create(ctx context.Context, s AuthSession) error {
-	const q = `
-INSERT INTO app_auth.user_session
-    (id, user_account_id, created_at, expires_at, last_seen_at, ip, user_agent)
-VALUES
-    ($1, $2, $3, $4, $3, NULLIF($5, '')::inet, NULLIF($6, ''))
-`
-	if _, err := h.DB.ExecContext(ctx, q, s.ID, s.UserAccountID, s.CreatedAt.UTC(), s.ExpiresAt.UTC(), s.IP, s.UserAgent); err != nil {
+	row := authmodel.UserSession{
+		ID:            s.ID,
+		UserAccountID: s.UserAccountID,
+		CreatedAt:     s.CreatedAt.UTC(),
+		ExpiresAt:     s.ExpiresAt.UTC(),
+		LastSeenAt:    s.LastSeenAt.UTC(),
+		IP:            nilIfEmpty(s.IP),
+		UserAgent:     nilIfEmpty(s.UserAgent),
+	}
+	t := authtable.UserSession
+	stmt := t.INSERT(t.ID, t.UserAccountID, t.CreatedAt, t.ExpiresAt, t.LastSeenAt, t.IP, t.UserAgent).MODEL(row)
+	if _, err := stmt.ExecContext(ctx, h.DB); err != nil {
 		return fmt.Errorf("insert auth session: %w", err)
 	}
 	return nil
 }
 
 func (h authSessionRepositoryHandler) Get(ctx context.Context, id string) (*AuthSession, error) {
-	const q = `
-SELECT id, user_account_id, created_at, expires_at, last_seen_at,
-       COALESCE(host(ip), ''), COALESCE(user_agent, '')
-FROM app_auth.user_session
-WHERE id = $1 AND expires_at > NOW()
-`
-	out := AuthSession{}
-	err := h.DB.QueryRowContext(ctx, q, id).Scan(
-		&out.ID,
-		&out.UserAccountID,
-		&out.CreatedAt,
-		&out.ExpiresAt,
-		&out.LastSeenAt,
-		&out.IP,
-		&out.UserAgent,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
+	t := authtable.UserSession
+	stmt := t.SELECT(t.AllColumns).WHERE(
+		t.ID.EQ(postgres.String(id)).
+			AND(t.ExpiresAt.GT(postgres.NOW())),
+	).LIMIT(1)
+	out := authmodel.UserSession{}
+	err := stmt.QueryContext(ctx, h.DB, &out)
+	if errors.Is(err, qrm.ErrNoRows) {
 		return nil, ErrSessionNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("select auth session: %w", err)
 	}
-	return &out, nil
+	return &AuthSession{
+		ID:            out.ID,
+		UserAccountID: out.UserAccountID,
+		CreatedAt:     out.CreatedAt,
+		ExpiresAt:     out.ExpiresAt,
+		LastSeenAt:    out.LastSeenAt,
+		IP:            stringOrEmpty(out.IP),
+		UserAgent:     stringOrEmpty(out.UserAgent),
+	}, nil
 }
 
 func (h authSessionRepositoryHandler) Touch(ctx context.Context, id string, newExpiresAt time.Time) error {
-	const q = `
-UPDATE app_auth.user_session
-SET expires_at = $2, last_seen_at = NOW()
-WHERE id = $1
-`
-	if _, err := h.DB.ExecContext(ctx, q, id, newExpiresAt.UTC()); err != nil {
+	t := authtable.UserSession
+	stmt := t.UPDATE(t.ExpiresAt, t.LastSeenAt).
+		SET(postgres.TimestampzT(newExpiresAt.UTC()), postgres.NOW()).
+		WHERE(t.ID.EQ(postgres.String(id)))
+	if _, err := stmt.ExecContext(ctx, h.DB); err != nil {
 		return fmt.Errorf("touch auth session: %w", err)
 	}
 	return nil
 }
 
 func (h authSessionRepositoryHandler) Delete(ctx context.Context, id string) error {
-	if _, err := h.DB.ExecContext(ctx, `DELETE FROM app_auth.user_session WHERE id = $1`, id); err != nil {
+	t := authtable.UserSession
+	stmt := t.DELETE().WHERE(t.ID.EQ(postgres.String(id)))
+	if _, err := stmt.ExecContext(ctx, h.DB); err != nil {
 		return fmt.Errorf("delete auth session: %w", err)
 	}
 	return nil
 }
 
 func (h authSessionRepositoryHandler) DeleteExpired(ctx context.Context, before time.Time) (int64, error) {
-	res, err := h.DB.ExecContext(ctx, `DELETE FROM app_auth.user_session WHERE expires_at <= $1`, before.UTC())
+	t := authtable.UserSession
+	stmt := t.DELETE().WHERE(t.ExpiresAt.LT_EQ(postgres.TimestampzT(before.UTC())))
+	res, err := stmt.ExecContext(ctx, h.DB)
 	if err != nil {
 		return 0, fmt.Errorf("delete expired auth sessions: %w", err)
 	}
@@ -126,4 +130,18 @@ func (h authSessionRepositoryHandler) DeleteExpired(ctx context.Context, before 
 		return 0, fmt.Errorf("rows affected: %w", err)
 	}
 	return n, nil
+}
+
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func stringOrEmpty(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

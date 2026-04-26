@@ -13,9 +13,9 @@ import (
 //
 // IMPORTANT: this limiter is per-process. Across multiple Fly machines an
 // attacker can multiply their effective allowance by the number of
-// instances. README documents this gap; compensating controls are Twilio
-// Verify's own per-phone limits + fraud detection + cost monitoring.
-// Replace with a shared backend (Postgres, Redis) if abuse materializes.
+// instances. README documents this gap; compensating control is Twilio
+// Verify's own per-phone limit + fraud detection. Replace with a shared
+// backend (Postgres, Redis) if abuse materializes.
 type rateLimiter struct {
 	mu      sync.Mutex
 	byPhone map[string]*entry
@@ -27,12 +27,10 @@ type entry struct {
 	lastSeen time.Time
 }
 
-// Limits derived from the threat model: SMS is the primary cost-and-abuse
-// vector. 3 attempts per phone per 10 minutes is enough for a real user
-// with a typo'd code; 10 per IP per 10 minutes is enough for two devices
-// on the same NAT.
+// 3 attempts per phone per 10 minutes is enough for a real user with a
+// typo'd code; 10 per IP per 10 minutes covers two devices on one NAT.
 const (
-	phoneRefillEvery = 10 * time.Minute / 3 // ~3.33 minutes per token
+	phoneRefillEvery = 10 * time.Minute / 3
 	phoneBurst       = 3
 	ipRefillEvery    = 10 * time.Minute / 10
 	ipBurst          = 10
@@ -54,9 +52,9 @@ func (rl *rateLimiter) allowPhone(phone string) bool {
 
 func (rl *rateLimiter) allowIP(ip string) bool {
 	if ip == "" {
-		// No IP? Fail open here — we still have the per-phone bucket
-		// catching abuse, and refusing requests with no resolvable IP
-		// would break legitimate clients behind weird proxies.
+		// No IP? Fail open. Per-phone bucket still catches abuse, and
+		// refusing requests with no resolvable IP would break legit
+		// clients behind weird proxies.
 		return true
 	}
 	return rl.allow(rl.byIP, ip, rate.Every(ipRefillEvery), ipBurst)
@@ -74,9 +72,6 @@ func (rl *rateLimiter) allow(m map[string]*entry, key string, every rate.Limit, 
 	return e.lim.Allow()
 }
 
-// sweepLoop periodically removes idle buckets so memory doesn't grow
-// unbounded under attack. Held under the same mutex as allow(), so
-// serialization is fine for our request volume.
 func (rl *rateLimiter) sweepLoop() {
 	t := time.NewTicker(bucketIdleTTL)
 	defer t.Stop()

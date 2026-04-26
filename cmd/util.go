@@ -3,24 +3,20 @@ package cmd
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"factorbacktest/api"
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
 	"factorbacktest/internal/auth"
 	"factorbacktest/internal/calculator"
 	"factorbacktest/internal/data"
-	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
+
 	"factorbacktest/internal/util"
 	"fmt"
 	"log"
 	"os"
-	"strings"
-	"time"
 
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
@@ -176,12 +172,11 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		priceRepository,
 	)
 
-	authService, err := buildAuthService(context.Background(), secrets, userAccountRepository, dbConn)
+	// Auth is opt-in: NewFromSecrets returns an error when required secrets
+	// aren't set, and we treat that as "auth disabled" rather than a fatal
+	// boot error so local-dev binaries without auth secrets still work.
+	authService, err := auth.NewFromSecrets(context.Background(), secrets, dbConn)
 	if err != nil {
-		// Don't fail boot on auth misconfig in dev — the API can still
-		// serve unauthenticated routes. In prod where secrets are wired,
-		// we log the error so it's visible. If this becomes routine we
-		// should promote it to a hard failure.
 		log.Printf("[auth] not enabled: %v", err)
 	}
 
@@ -215,176 +210,4 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 	}
 
 	return apiHandler, nil
-}
-
-// buildAuthService constructs the custom Go auth.Service from secrets.
-// Returns (nil, err) when any required field is missing — the API treats
-// that as "auth disabled" rather than a fatal error so local-dev runs
-// without auth secrets continue to work.
-func buildAuthService(
-	ctx context.Context,
-	secrets util.Secrets,
-	users repository.UserAccountRepository,
-	dbConn *sql.DB,
-) (*auth.Service, error) {
-	if secrets.Auth.SessionSecret == "" {
-		return nil, fmt.Errorf("auth.sessionSecret is empty")
-	}
-	secretBytes, err := hex.DecodeString(secrets.Auth.SessionSecret)
-	if err != nil || len(secretBytes) < 32 {
-		return nil, fmt.Errorf("auth.sessionSecret must be 32+ hex-encoded random bytes (try `openssl rand -hex 32`): %w", err)
-	}
-
-	frontend := os.Getenv("FACTOR_AUTH_FRONTEND_BASE_URL")
-	if frontend == "" {
-		frontend = "http://localhost:3000"
-	}
-	publicBase := os.Getenv("APP_BASE_URL")
-	if publicBase == "" {
-		publicBase = "http://localhost:3009"
-	}
-
-	allowed := []string{
-		"http://localhost:3000",
-		"https://factorbacktest.net",
-		"https://www.factorbacktest.net",
-		"https://factor.trade",
-		"https://www.factor.trade",
-		publicBase,
-	}
-	if extra := os.Getenv("EXTRA_ALLOWED_ORIGINS"); extra != "" {
-		// Same behavior as api/api.go's CORS allowlist; let test harnesses
-		// add their own origin without baking it into the binary.
-		for _, o := range splitCSV(extra) {
-			allowed = append(allowed, o)
-		}
-	}
-
-	cfg := auth.Config{
-		PublicBaseURL:   publicBase,
-		FrontendBaseURL: frontend,
-		AllowedOrigins:  allowed,
-		SessionSecret:   secretBytes,
-		Google: auth.GoogleConfig{
-			ClientID:     secrets.Auth.GoogleClientID,
-			ClientSecret: secrets.Auth.GoogleClientSecret,
-		},
-		Twilio: auth.TwilioConfig{
-			AccountSID:       secrets.Auth.TwilioAccountSID,
-			AuthToken:        secrets.Auth.TwilioAuthToken,
-			VerifyServiceSID: secrets.Auth.TwilioVerifyServiceSID,
-		},
-	}
-
-	users2 := userStoreAdapter{repo: users}
-	sessions := sessionStoreAdapter{repo: repository.NewAuthSessionRepository(dbConn)}
-
-	bootCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	svc, err := auth.New(bootCtx, cfg, users2, sessions)
-	if err != nil {
-		return nil, err
-	}
-	return svc, nil
-}
-
-func splitCSV(s string) []string {
-	out := []string{}
-	for _, p := range strings.Split(s, ",") {
-		if t := strings.TrimSpace(p); t != "" {
-			out = append(out, t)
-		}
-	}
-	return out
-}
-
-// userStoreAdapter implements auth.UserStore over the existing
-// UserAccountRepository. Lives in cmd/ rather than internal/auth so the
-// auth package stays free of repository imports (cleaner for tests).
-type userStoreAdapter struct {
-	repo repository.UserAccountRepository
-}
-
-func (a userStoreAdapter) GetOrCreateByGoogle(_ context.Context, googleSub, email, firstName, lastName string) (uuid.UUID, error) {
-	in := &model.UserAccount{
-		Provider:   model.UserAccountProviderType_LocalGoogle,
-		ProviderID: util.StringPointer(googleSub),
-	}
-	if email != "" {
-		in.Email = util.StringPointer(email)
-	}
-	if firstName != "" {
-		in.FirstName = util.StringPointer(firstName)
-	}
-	if lastName != "" {
-		in.LastName = util.StringPointer(lastName)
-	}
-	row, err := a.repo.GetOrCreateByProviderIdentity(in)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	return row.UserAccountID, nil
-}
-
-func (a userStoreAdapter) GetOrCreateByPhone(_ context.Context, phoneNumber string) (uuid.UUID, error) {
-	in := &model.UserAccount{
-		Provider:    model.UserAccountProviderType_LocalSms,
-		ProviderID:  util.StringPointer(phoneNumber),
-		PhoneNumber: util.StringPointer(phoneNumber),
-	}
-	row, err := a.repo.GetOrCreateByProviderIdentity(in)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	return row.UserAccountID, nil
-}
-
-// sessionStoreAdapter bridges the repository's AuthSession type to the
-// auth package's SessionRow. The two are structurally identical; we
-// re-declare to keep the auth package independent of repository.
-type sessionStoreAdapter struct {
-	repo repository.AuthSessionRepository
-}
-
-func (a sessionStoreAdapter) Create(ctx context.Context, s auth.SessionRow) error {
-	return a.repo.Create(ctx, repository.AuthSession{
-		ID:            s.ID,
-		UserAccountID: s.UserAccountID,
-		CreatedAt:     s.CreatedAt,
-		ExpiresAt:     s.ExpiresAt,
-		LastSeenAt:    s.LastSeenAt,
-		IP:            s.IP,
-		UserAgent:     s.UserAgent,
-	})
-}
-
-func (a sessionStoreAdapter) Get(ctx context.Context, id string) (*auth.SessionRow, error) {
-	row, err := a.repo.Get(ctx, id)
-	if err != nil {
-		if err == repository.ErrSessionNotFound {
-			return nil, auth.ErrSessionNotFound
-		}
-		return nil, err
-	}
-	return &auth.SessionRow{
-		ID:            row.ID,
-		UserAccountID: row.UserAccountID,
-		CreatedAt:     row.CreatedAt,
-		ExpiresAt:     row.ExpiresAt,
-		LastSeenAt:    row.LastSeenAt,
-		IP:            row.IP,
-		UserAgent:     row.UserAgent,
-	}, nil
-}
-
-func (a sessionStoreAdapter) Touch(ctx context.Context, id string, newExpiresAt time.Time) error {
-	return a.repo.Touch(ctx, id, newExpiresAt)
-}
-
-func (a sessionStoreAdapter) Delete(ctx context.Context, id string) error {
-	return a.repo.Delete(ctx, id)
-}
-
-func (a sessionStoreAdapter) DeleteExpired(ctx context.Context, before time.Time) (int64, error) {
-	return a.repo.DeleteExpired(ctx, before)
 }

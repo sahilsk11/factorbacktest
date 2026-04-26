@@ -104,7 +104,7 @@ These are real risks, but they live outside `internal/auth/`. Documenting them h
 
 ### Daily session cleanup
 
-Wired in `cmd/api/main.go`: `apiHandler.AuthService.RunSessionCleanup(ctx, 24*time.Hour)`. Best-effort; transient failures are logged and retried on the next tick. If `app_auth.user_session` ever grows pathologically, that's where to look.
+`AuthSessionRepository.DeleteExpired(ctx, time.Now())` removes rows where `expires_at <= now`. Run it from your scheduled-job/cron infrastructure (NOT from a goroutine in this process — separation of concerns). If `app_auth.user_session` ever grows pathologically, that's where to look.
 
 ## Defaults that bake in security
 

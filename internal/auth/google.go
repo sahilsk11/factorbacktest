@@ -16,20 +16,19 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// State cookie format: base64url("<state>.<nonce>.<verifier>.<expires_unix>") + "." + hex(HMAC).
-//
-// Why everything in one cookie? It keeps the state-CSRF defense self-contained.
-// On callback we don't have to look anything up server-side; we read this
-// cookie, verify HMAC, parse parts, and confirm `state` matches the query
-// param + verify nonce in the ID token + use verifier for PKCE. After
-// successful verification we delete the cookie (one-time use).
-//
-// Why HMAC the cookie at all if it's already opaque? Because without it,
-// an attacker who controls a sibling subdomain (or any future XSS that
-// can write cookies via `document.cookie`) could forge a state cookie
-// matching a state param they also forged. HMAC ensures the cookie was
-// produced by us.
+// State cookie path: scope it to the OAuth flow so it's never sent on
+// non-OAuth requests. TTL is short (10 min) and the cookie is one-time
+// use — cleared at the start of the callback regardless of outcome.
+const (
+	stateCookieName = "__Host-factor_oauth_state"
+	stateCookiePath = "/auth/google"
+	stateCookieTTL  = 10 * time.Minute
+)
 
+// oauthState is what we stuff into the HMAC-signed state cookie. Holding
+// state + nonce + PKCE verifier in the cookie keeps the CSRF defense
+// self-contained: on callback we only need to verify the cookie's HMAC
+// and parse, no server-side lookup required.
 type oauthState struct {
 	State    string
 	Nonce    string
@@ -46,11 +45,10 @@ func newOAuthState(now time.Time) (oauthState, error) {
 	if err != nil {
 		return oauthState{}, err
 	}
-	verifier := oauth2.GenerateVerifier()
 	return oauthState{
 		State:    state,
 		Nonce:    nonce,
-		Verifier: verifier,
+		Verifier: oauth2.GenerateVerifier(),
 		Expires:  now.Add(stateCookieTTL).Unix(),
 	}, nil
 }
@@ -100,76 +98,56 @@ func decodeOAuthState(raw string, secret []byte, now time.Time) (oauthState, err
 	}, nil
 }
 
-// handleGoogleStart begins the OAuth flow: generate state+nonce+PKCE,
-// store them in an HMAC-signed short-lived state cookie, redirect to
-// Google's authorize URL.
 func (s *Service) handleGoogleStart(c *gin.Context) {
 	st, err := newOAuthState(s.now())
 	if err != nil {
-		logf("oauth start: %v", err)
+		s.log.Errorw("oauth start", "err", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
-
-	encoded := st.encode(s.cfg.SessionSecret)
-
-	cookie := &http.Cookie{
+	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     stateCookieName,
-		Value:    encoded,
-		Path:     "/auth/google",
+		Value:    st.encode(s.cfg.SessionSecret),
+		Path:     stateCookiePath,
 		MaxAge:   int(stateCookieTTL.Seconds()),
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-	}
-	http.SetCookie(c.Writer, cookie)
-
-	authURL := s.oauth2cfg.AuthCodeURL(
+	})
+	c.Redirect(http.StatusFound, s.oauth2cfg.AuthCodeURL(
 		st.State,
 		oauth2.AccessTypeOnline,
 		oauth2.SetAuthURLParam("nonce", st.Nonce),
 		oauth2.S256ChallengeOption(st.Verifier),
-	)
-	c.Redirect(http.StatusFound, authURL)
+	))
 }
 
-// handleGoogleCallback validates state + nonce, exchanges the code, verifies
-// the ID token, finds-or-creates the user, creates the session, and
-// redirects to FrontendBaseURL.
-//
-// Resolution order matters here. We FIRST clear the state cookie so any
-// future re-presentation of the same state is rejected (one-time use),
-// then validate. If we cleared only on success, an attacker's first
-// request would consume the user's pending state.
+// handleGoogleCallback — clear state cookie FIRST so a re-presentation
+// (CSRF, stale tab, attacker beating the user to the callback) can't
+// reuse a still-valid state. Validation runs on the cookie value we just
+// captured; the cookie itself is gone after this call returns.
 func (s *Service) handleGoogleCallback(c *gin.Context) {
 	clearStateCookie(c)
 
 	cookie, err := c.Request.Cookie(stateCookieName)
 	if err != nil || cookie == nil {
-		// Most common cause: user opened /auth/google/callback?... without
-		// going through /auth/google/start first (e.g. an attacker's CSRF
-		// attempt, or a stale tab). Refuse, don't issue a session.
-		logf("callback without state cookie")
+		s.log.Warn("callback without state cookie")
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	st, err := decodeOAuthState(cookie.Value, s.cfg.SessionSecret, s.now())
 	if err != nil {
-		logf("callback bad state: %v", err)
+		s.log.Warnw("callback bad state", "err", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-
-	queryState := c.Query("state")
-	if subtle.ConstantTimeCompare([]byte(queryState), []byte(st.State)) != 1 {
-		logf("callback state mismatch")
+	if subtle.ConstantTimeCompare([]byte(c.Query("state")), []byte(st.State)) != 1 {
+		s.log.Warn("callback state mismatch")
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-
 	code := c.Query("code")
 	if code == "" {
-		logf("callback missing code")
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -177,25 +155,23 @@ func (s *Service) handleGoogleCallback(c *gin.Context) {
 	ctx := c.Request.Context()
 	tok, err := s.oauth2cfg.Exchange(ctx, code, oauth2.VerifierOption(st.Verifier))
 	if err != nil {
-		logf("oauth exchange: %v", err)
+		s.log.Warnw("oauth exchange", "err", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-
 	rawIDToken, ok := tok.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
-		logf("oauth response missing id_token")
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	idToken, err := s.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
-		logf("id token verify: %v", err)
+		s.log.Warnw("id token verify", "err", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	if idToken.Nonce != st.Nonce {
-		logf("nonce mismatch")
+		s.log.Warn("nonce mismatch")
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -204,61 +180,49 @@ func (s *Service) handleGoogleCallback(c *gin.Context) {
 		Subject       string `json:"sub"`
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
-		Name          string `json:"name"`
 		GivenName     string `json:"given_name"`
 		FamilyName    string `json:"family_name"`
 	}
-	if err := idToken.Claims(&claims); err != nil {
-		logf("id token claims: %v", err)
+	if err := idToken.Claims(&claims); err != nil || claims.Subject == "" {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if claims.Subject == "" {
-		logf("id token missing sub")
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	// Email is the only profile field where we have a meaningful trust
-	// decision: only accept it if Google says it's verified. An unverified
-	// email might be controlled by someone else.
+	// Only trust email if Google says it's verified — an unverified email
+	// might be controlled by someone else.
 	email := ""
 	if claims.EmailVerified {
 		email = claims.Email
 	}
-	first := claims.GivenName
-	last := claims.FamilyName
 
-	userID, err := s.users.GetOrCreateByGoogle(ctx, claims.Subject, email, first, last)
+	userID, err := s.upsertGoogleUser(ctx, claims.Subject, email, claims.GivenName, claims.FamilyName)
 	if err != nil {
-		logf("get/create user: %v", err)
+		s.log.Errorw("get/create user", "err", err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	if err := s.loginUser(ctx, c, userID); err != nil {
+		s.log.Errorw("login", "err", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	if _, err := s.loginUser(ctx, c, userID); err != nil {
-		logf("login: %v", err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	// Always redirect to the configured frontend base URL. Never accept a
-	// `redirect_uri` / `next` / `return_to` from query params: doing so
-	// would create an open-redirect surface where an attacker tricks the
-	// user into authenticating then bouncing them somewhere else.
+	// Always redirect to the configured frontend base URL. We never accept
+	// a redirect target from query params: doing so would create an
+	// open-redirect surface where an attacker tricks the user into
+	// authenticating then bouncing them somewhere malicious.
 	c.Redirect(http.StatusFound, s.cfg.FrontendBaseURL)
 }
 
 func clearStateCookie(c *gin.Context) {
-	cookie := &http.Cookie{
+	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     stateCookieName,
 		Value:    "",
-		Path:     "/auth/google",
+		Path:     stateCookiePath,
 		MaxAge:   -1,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-	}
-	http.SetCookie(c.Writer, cookie)
+	})
 }
 
 func randB64URL(nBytes int) (string, error) {
