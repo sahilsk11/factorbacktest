@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -157,32 +156,20 @@ func NewFromSecrets(ctx context.Context, secrets util.Secrets, db *sql.DB) (*Ser
 		return nil, fmt.Errorf("auth.sessionSecret is empty")
 	}
 	secretBytes, err := hex.DecodeString(secrets.Auth.SessionSecret)
-	if err != nil || len(secretBytes) < minSessionSecretBytes {
-		return nil, fmt.Errorf("auth.sessionSecret must be %d+ hex-encoded random bytes (try `openssl rand -hex 32`): %w", minSessionSecretBytes, err)
+	if err != nil {
+		return nil, fmt.Errorf("auth.sessionSecret must be hex-encoded (try `openssl rand -hex 32`): %w", err)
+	}
+	if len(secretBytes) < minSessionSecretBytes {
+		return nil, fmt.Errorf("auth.sessionSecret too short: got %d bytes, need at least %d", len(secretBytes), minSessionSecretBytes)
 	}
 
 	publicBase := envOr("APP_BASE_URL", "http://localhost:3009")
 	frontend := envOr("FACTOR_AUTH_FRONTEND_BASE_URL", "http://localhost:3000")
-	allowed := []string{
-		"http://localhost:3000",
-		"https://factorbacktest.net",
-		"https://www.factorbacktest.net",
-		"https://factor.trade",
-		"https://www.factor.trade",
-		publicBase,
-	}
-	if extra := os.Getenv("EXTRA_ALLOWED_ORIGINS"); extra != "" {
-		for _, o := range strings.Split(extra, ",") {
-			if t := strings.TrimSpace(o); t != "" {
-				allowed = append(allowed, t)
-			}
-		}
-	}
 
 	cfg := Config{
 		PublicBaseURL:   publicBase,
 		FrontendBaseURL: frontend,
-		AllowedOrigins:  allowed,
+		AllowedOrigins:  AppOrigins(),
 		SessionSecret:   secretBytes,
 		Google: GoogleConfig{
 			ClientID:     secrets.Auth.GoogleClientID,

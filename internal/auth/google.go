@@ -19,8 +19,13 @@ import (
 // State cookie path: scope it to the OAuth flow so it's never sent on
 // non-OAuth requests. TTL is short (10 min) and the cookie is one-time
 // use — cleared at the start of the callback regardless of outcome.
+//
+// Uses the `__Secure-` prefix (browser enforces Secure attribute) rather
+// than `__Host-`. `__Host-` would require Path=/, which conflicts with
+// scoping the cookie to /auth/google. We get the Secure-prefix
+// hardening without giving up path scoping.
 const (
-	stateCookieName = "__Host-factor_oauth_state"
+	stateCookieName = "__Secure-factor_oauth_state"
 	stateCookiePath = "/auth/google"
 	stateCookieTTL  = 10 * time.Minute
 )

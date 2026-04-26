@@ -73,7 +73,13 @@ func (s *Service) resolveSession(ctx context.Context, c *gin.Context) (uuid.UUID
 	}
 	now := s.now().UTC()
 	if now.Sub(row.CreatedAt) >= s.cfg.SessionAbsoluteMaxAge {
-		_ = s.sessions.Delete(ctx, id)
+		// If Delete fails, the cookie holder could still authenticate
+		// against the row until its sliding expires_at trips. Log so
+		// it's observable; cookie is cleared regardless so the browser
+		// re-auths.
+		if err := s.sessions.Delete(ctx, id); err != nil {
+			s.log.Errorw("absolute-max-age delete failed", "err", err)
+		}
 		s.clearSessionCookie(c)
 		return uuid.Nil, false
 	}

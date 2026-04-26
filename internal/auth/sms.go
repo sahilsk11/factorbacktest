@@ -18,6 +18,15 @@ import (
 // to be visible (no silent reformatting).
 var e164Regex = regexp.MustCompile(`^\+[1-9][0-9]{1,14}$`)
 
+// phoneSuffix returns the last 4 digits of an E.164 phone for logs,
+// minimizing PII while keeping enough signal to triage abuse patterns.
+func phoneSuffix(phone string) string {
+	if len(phone) <= 4 {
+		return "****"
+	}
+	return "****" + phone[len(phone)-4:]
+}
+
 // twilioVerifyEndpoint is var (not const) so tests can point it at httptest.
 var twilioVerifyEndpoint = "https://verify.twilio.com/v2"
 
@@ -129,7 +138,9 @@ func (s *Service) handleSmsSend(c *gin.Context) {
 		return
 	}
 	if !s.smsLimit.allowPhone(phone) || !s.smsLimit.allowIP(ip) {
-		s.log.Infow("sms send: rate limited", "phone", phone, "ip", ip)
+		// Log only the last 4 digits — enough to triage abuse
+		// patterns from logs without storing full PII.
+		s.log.Infow("sms send: rate limited", "phone_suffix", phoneSuffix(phone), "ip", ip)
 		c.Status(http.StatusNoContent)
 		return
 	}

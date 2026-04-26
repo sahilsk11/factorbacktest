@@ -18,11 +18,10 @@ import (
 // policy or relaxed by user settings; Origin is the modern, reliable
 // header for cross-origin distinction.
 func (s *Service) requireOrigin() gin.HandlerFunc {
-	allowed := make(map[string]struct{}, len(s.cfg.AllowedOrigins)+1)
+	allowed := make(map[string]struct{}, len(s.cfg.AllowedOrigins))
 	for _, o := range s.cfg.AllowedOrigins {
 		allowed[o] = struct{}{}
 	}
-	allowed[s.cfg.PublicBaseURL] = struct{}{}
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		if origin == "" {
