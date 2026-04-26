@@ -87,8 +87,22 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return parsed as T;
 }
 
+async function requestStream(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+  return fetch(apiUrl(path), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+}
+
 export const apiClient = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+  postStream: requestStream,
   del: <T>(path: string) => request<T>('DELETE', path),
 };
