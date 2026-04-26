@@ -1,10 +1,8 @@
 import { Link } from 'react-router';
 
-import { Button } from '@/components/ui/button';
+import { AuthControl } from '@/components/auth/AuthControl';
 
-// Minimal top nav. Logo on the left, placeholder Sign in on the right.
-// Auth state, sign-in modal, and user menu land with the first
-// protected page (see plans/frontend-v2-north-star.md §4).
+// Minimal top nav. Logo on the left, auth control on the right.
 export function Navbar(): React.ReactNode {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur">
@@ -15,15 +13,7 @@ export function Navbar(): React.ReactNode {
         >
           factorbacktest
         </Link>
-        <Button
-          variant="outline"
-          size="sm"
-          // Placeholder — auth wires up in a later PR.
-          disabled
-          aria-label="Sign in (coming soon)"
-        >
-          Sign in
-        </Button>
+        <AuthControl />
       </div>
     </header>
   );

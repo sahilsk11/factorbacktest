@@ -25,8 +25,24 @@ class ApiErrorImpl extends Error implements ApiError {
   }
 }
 
+export function isApiError(error: unknown): error is ApiError {
+  return (
+    error instanceof Error &&
+    error.name === 'ApiError' &&
+    'status' in error &&
+    typeof error.status === 'number'
+  );
+}
+
+export function apiUrl(path: string): string {
+  if (!path.startsWith('/')) {
+    throw new Error(`api path must start with "/": ${path}`);
+  }
+  return `${apiBaseUrl}${path}`;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const url = `${apiBaseUrl}${path}`;
+  const url = apiUrl(path);
   const init: RequestInit = {
     method,
     // Cookie session is canonical (see internal/auth). Bearer fallback
