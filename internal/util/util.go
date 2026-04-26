@@ -78,6 +78,28 @@ type Secrets struct {
 	Alpaca           AlpacaSecrets `json:"alpaca"`
 	Jwt              string        `json:"jwt"`
 	SES              SESSecrets    `json:"ses"`
+	Auth             AuthSecrets   `json:"auth"`
+}
+
+// AuthSecrets backs the custom Go auth package in internal/auth. All values
+// are required when the API process is configured to mount /auth/* routes
+// (i.e. has both a Google client and a Twilio Verify service to call).
+type AuthSecrets struct {
+	// SessionSecret is the HMAC-SHA256 key used to sign session cookies.
+	// Generate with `openssl rand -hex 32`. Rotating it logs every user
+	// out (existing cookies fail HMAC verification).
+	SessionSecret string `json:"sessionSecret"`
+	// GoogleClientID / GoogleClientSecret come from Google Cloud Console.
+	// The same values are already used by Better Auth; we read them under
+	// the auth.* namespace here so the Go-side config is self-contained.
+	GoogleClientID     string `json:"googleClientId"`
+	GoogleClientSecret string `json:"googleClientSecret"`
+	// TwilioAccountSID / TwilioAuthToken authenticate REST calls to Twilio.
+	// TwilioVerifyServiceSID identifies the Verify service that owns the
+	// SMS template, fraud-protection settings, and rate limits.
+	TwilioAccountSID       string `json:"twilioAccountSid"`
+	TwilioAuthToken        string `json:"twilioAuthToken"`
+	TwilioVerifyServiceSID string `json:"twilioVerifyServiceSid"`
 }
 
 type AlpacaSecrets struct {
@@ -273,6 +295,19 @@ func loadSecretsFromEnv() (*Secrets, error) {
 		enableSsl = parsed
 	}
 
+	// Auth secrets are optional in env-loading: the Go API can boot without
+	// them (e.g. local dev that doesn't exercise /auth/*). The auth package
+	// itself fails fast at New() if it's wired up with empty values, so a
+	// misconfigured prod deploy still surfaces loudly.
+	auth := AuthSecrets{
+		SessionSecret:          get("sessionSecret"),
+		GoogleClientID:         get("googleClientId"),
+		GoogleClientSecret:     get("googleClientSecret"),
+		TwilioAccountSID:       get("twilioAccountSid"),
+		TwilioAuthToken:        get("twilioAuthToken"),
+		TwilioVerifyServiceSID: get("twilioVerifyServiceSid"),
+	}
+
 	return &Secrets{
 		DataJockeyApiKey: required["dataJockey"],
 		ChatGPTApiKey:    required["gpt"],
@@ -294,6 +329,7 @@ func loadSecretsFromEnv() (*Secrets, error) {
 			Region:    required["region"],
 			FromEmail: required["fromEmail"],
 		},
+		Auth: auth,
 	}, nil
 }
 

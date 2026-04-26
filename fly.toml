@@ -13,6 +13,11 @@ primary_region = "iad"
   # twilioAccountSid) are set via `flyctl secrets set` using the same
   # camelCase names already used for the rest of the app's secrets.
   APP_BASE_URL          = "https://api.factor.trade"
+  # Where the custom Go auth's Google OAuth callback redirects on success.
+  # Must match the FE origin (where users come from). The auth package never
+  # accepts a redirect target from query params; this env var is the only
+  # way to change it.
+  FACTOR_AUTH_FRONTEND_BASE_URL = "https://factor.trade"
   AUTH_DB_SCHEMA        = "auth"
   TRUSTED_ORIGINS       = "https://factor.trade,https://www.factor.trade,https://api.factor.trade,https://factorbacktest.fly.dev"
   FEATURE_GOOGLE        = "true"

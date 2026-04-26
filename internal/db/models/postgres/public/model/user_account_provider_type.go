@@ -5,9 +5,12 @@
 // and will be lost if the code is regenerated
 //
 // HAND-EDITED: BetterAuth was added manually alongside migration 000052.
-// If you re-run `make db-models`, re-add the constant and the Scan case to
-// keep auth code that references UserAccountProviderType_BetterAuth
-// compiling. Same edit applies to ../enum/user_account_provider_type.go.
+// LocalGoogle and LocalSms were added manually alongside migration 000053
+// for the custom Go auth package (internal/auth). If you re-run
+// `make db-models`, re-add all three constants + Scan cases to keep auth
+// code that references UserAccountProviderType_BetterAuth /
+// _LocalGoogle / _LocalSms compiling. Same edit applies to
+// ../enum/user_account_provider_type.go.
 //
 
 package model
@@ -17,10 +20,12 @@ import "errors"
 type UserAccountProviderType string
 
 const (
-	UserAccountProviderType_Supabase   UserAccountProviderType = "SUPABASE"
-	UserAccountProviderType_Google     UserAccountProviderType = "GOOGLE"
-	UserAccountProviderType_Manual     UserAccountProviderType = "MANUAL"
-	UserAccountProviderType_BetterAuth UserAccountProviderType = "BETTER_AUTH"
+	UserAccountProviderType_Supabase    UserAccountProviderType = "SUPABASE"
+	UserAccountProviderType_Google      UserAccountProviderType = "GOOGLE"
+	UserAccountProviderType_Manual      UserAccountProviderType = "MANUAL"
+	UserAccountProviderType_BetterAuth  UserAccountProviderType = "BETTER_AUTH"
+	UserAccountProviderType_LocalGoogle UserAccountProviderType = "LOCAL_GOOGLE"
+	UserAccountProviderType_LocalSms    UserAccountProviderType = "LOCAL_SMS"
 )
 
 func (e *UserAccountProviderType) Scan(value interface{}) error {
@@ -43,6 +48,10 @@ func (e *UserAccountProviderType) Scan(value interface{}) error {
 		*e = UserAccountProviderType_Manual
 	case "BETTER_AUTH":
 		*e = UserAccountProviderType_BetterAuth
+	case "LOCAL_GOOGLE":
+		*e = UserAccountProviderType_LocalGoogle
+	case "LOCAL_SMS":
+		*e = UserAccountProviderType_LocalSms
 	default:
 		return errors.New("jet: Invalid scan value '" + enumValue + "' for UserAccountProviderType enum")
 	}

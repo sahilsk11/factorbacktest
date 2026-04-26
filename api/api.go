@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"factorbacktest/internal"
 	"factorbacktest/internal/app"
+	"factorbacktest/internal/auth"
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/logger"
@@ -56,6 +57,14 @@ type ApiHandler struct {
 	// on every JWT (its `baseURL`). When set, JWTs whose `iss` doesn't match
 	// are rejected. Defense in depth in case the JWKS URL is misconfigured.
 	BetterAuthExpectedIssuer string
+
+	// AuthService is the new custom Go auth package. When non-nil, its
+	// routes are mounted at /auth/* and its session-cookie middleware
+	// runs BEFORE the legacy JWT middleware (so cookie auth wins when
+	// both are present). When nil (e.g. during local dev without the
+	// secrets configured), /auth/* is unmounted and the API behaves as
+	// before. Plumbing it through `nil` is the supported "off" state.
+	AuthService *auth.Service
 
 	AlpacaRepository repository.AlpacaRepository
 }
@@ -119,6 +128,19 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		lg.Errorf("failed to build better-auth proxy: %v", err)
 	} else {
 		engine.Any("/api/auth/*proxyPath", authProxy)
+	}
+
+	// New custom Go auth: mount /auth/* routes and install the
+	// session-cookie middleware. Order matters:
+	//   1. CORS (above) so preflight works for /auth/*
+	//   2. /api/auth/* proxy (above) so Better Auth keeps working
+	//   3. /auth/* routes (here) so they're not gated by anything below
+	//   4. AuthService.Middleware() (here) sets userAccountID from cookie
+	//   5. m.getGoogleAuthMiddleware (below) reads the existing key and
+	//      now skips JWT resolution when the cookie middleware already set it
+	if m.AuthService != nil {
+		m.AuthService.RegisterRoutes(engine)
+		engine.Use(m.AuthService.Middleware())
 	}
 
 	engine.Use(m.getGoogleAuthMiddleware)
@@ -287,6 +309,17 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 }
 
 func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
+	// Cookie-based auth (the new internal/auth package) runs as an earlier
+	// middleware and may have already set userAccountID. When that's the
+	// case we skip JWT/Bearer resolution entirely — cookie wins. This also
+	// avoids accidentally swapping the identity if the FE sends both a
+	// cookie and a stale Bearer token during the cutover from Better Auth.
+	if v, exists := c.Get("userAccountID"); exists {
+		if s, ok := v.(string); ok && s != "" {
+			c.Next()
+			return
+		}
+	}
 	jwtStr := c.GetHeader("Authorization")
 	if jwtStr == "" {
 		c.Next()
