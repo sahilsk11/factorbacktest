@@ -129,33 +129,43 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	priceMap := map[string]map[string]decimal.Decimal{}
 
 	endSimulateStep := progress.Step(ctx, "simulate", "Running portfolio simulation")
-	_, endSpan = profile.StartNewSpan("daily calcs")
 	for _, t := range tradingDays {
-		// should work on weekends too
+		iterSpan, endIter := profile.StartNewSpan(fmt.Sprintf("daily iter %s", t.Format("2006-01-02")))
+		iterProfile, endIterProfile := iterSpan.NewSubProfile()
 
-		// kinda pre-optimizing, but we use current price
-		// of assets so much that it kinda makes sense to
-		// just get everything and let everyone figure it out
-		// this is also premature optimization
+		priceSpan, endPriceSpan := domain.NewSpan("get prices")
+		iterProfile.AddSpan(priceSpan)
+
+		totalValSpan, endTotalVal := domain.NewSpan("calculate total value")
+		iterProfile.AddSpan(totalValSpan)
+
+		computeSpan, endCompute := domain.NewSpan("compute target portfolio")
+		iterProfile.AddSpan(computeSpan)
+
 		pm, err := h.PriceRepository.GetManyOnDay(universeSymbols, t)
+		endPriceSpan()
 		if err != nil {
+			endIterProfile()
+			endIter()
 			return nil, fmt.Errorf("failed to get prices on day %v: %w", t, err)
 		}
 		priceMap[t.Format(time.DateOnly)] = pm
 
 		currentPortfolioValue, err := currentPortfolio.TotalValue(pm)
+		endTotalVal()
 		if err != nil {
+			endIterProfile()
+			endIter()
 			return nil, fmt.Errorf("failed to calculate portfolio value on %v: %w", t, err)
 		}
 
 		valuesFromDay, ok := factorScoresByDay[t]
 		if !ok {
+			endIterProfile()
+			endIter()
 			return nil, fmt.Errorf("failed to retrieve factor score data from %s", t.Format(time.DateOnly))
 		}
-		// scoringErrors := valuesFromDay.errors
-		// backtestErrors = append(backtestErrors, scoringErrors...)
 
-		// TODO - find a better place for this function to live
 		computeTargetPortfolioResponse, err := calculator.ComputeTargetPortfolio(calculator.ComputeTargetPortfolioInput{
 			Date:             t,
 			TargetNumTickers: in.NumTickers,
@@ -163,13 +173,12 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			PortfolioValue:   currentPortfolioValue,
 			PriceMap:         pm,
 		})
+		endCompute()
 		if err != nil {
-			// TODO figure out what to do here. should
-			// include something in the response that says
-			// we couldn't rebalance here
 			backtestErrors = append(backtestErrors, err)
+			endIterProfile()
+			endIter()
 			continue
-			// return nil, fmt.Errorf("failed to compute target portfolio in backtest on %s: %w", t.Format(time.DateOnly), err)
 		}
 
 		out = append(out, BacktestResult{
@@ -180,8 +189,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			FactorScores: computeTargetPortfolioResponse.FactorScores,
 		})
 		currentPortfolio = computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
+		endIterProfile()
+		endIter()
 	}
-	endSpan()
 	endSimulateStep()
 
 	if float64(len(backtestErrors))/float64(len(tradingDays)) >= errThreshold {
