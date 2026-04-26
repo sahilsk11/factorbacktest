@@ -16,9 +16,6 @@ const port = Number(process.env.PORT ?? 3000);
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // Vite 8 reads `paths` from tsconfig.app.json natively — no plugin
-  // needed. Both tsc and the bundler resolve `@/*` from the same
-  // source.
   resolve: { tsconfigPaths: true },
   server: { port, strictPort: true, host: true },
   preview: { port, strictPort: true, host: true },
