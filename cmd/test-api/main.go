@@ -28,6 +28,13 @@ func main() {
 	if portStr == "" {
 		log.Fatal("PORT env var is required")
 	}
+	// Force the noop email transport. test-api boots without real
+	// Resend/SES credentials, and without this override
+	// buildEmailRepository would default to Resend and fail with
+	// "apiKey is required". E2E tests don't exercise email anyway.
+	if err := os.Setenv("EMAIL_PROVIDER", "noop"); err != nil {
+		log.Fatalf("failed to set EMAIL_PROVIDER: %v", err)
+	}
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port <= 0 {
 		log.Fatalf("invalid PORT %q: %v", portStr, err)

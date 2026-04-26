@@ -16,6 +16,7 @@ var UserAccountProviderType = &struct {
 	BetterAuth  postgres.StringExpression
 	LocalGoogle postgres.StringExpression
 	LocalSms    postgres.StringExpression
+	LocalEmail  postgres.StringExpression
 }{
 	Supabase:    postgres.NewEnumValue("SUPABASE"),
 	Google:      postgres.NewEnumValue("GOOGLE"),
@@ -23,4 +24,5 @@ var UserAccountProviderType = &struct {
 	BetterAuth:  postgres.NewEnumValue("BETTER_AUTH"),
 	LocalGoogle: postgres.NewEnumValue("LOCAL_GOOGLE"),
 	LocalSms:    postgres.NewEnumValue("LOCAL_SMS"),
+	LocalEmail:  postgres.NewEnumValue("LOCAL_EMAIL"),
 }

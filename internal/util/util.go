@@ -65,14 +65,14 @@ func UUIDPointer(u uuid.UUID) *uuid.UUID {
 }
 
 type Secrets struct {
-	Port             int            `json:"port"`
-	DataJockeyApiKey string         `json:"dataJockey"`
-	ChatGPTApiKey    string         `json:"gpt"`
-	Db               DbSecrets      `json:"db"`
-	Alpaca           AlpacaSecrets  `json:"alpaca"`
-	SES              SESSecrets     `json:"ses"`
-	Resend           ResendSecrets  `json:"resend"`
-	Auth             AuthSecrets    `json:"auth"`
+	Port             int           `json:"port"`
+	DataJockeyApiKey string        `json:"dataJockey"`
+	ChatGPTApiKey    string        `json:"gpt"`
+	Db               DbSecrets     `json:"db"`
+	Alpaca           AlpacaSecrets `json:"alpaca"`
+	SES              SESSecrets    `json:"ses"`
+	Resend           ResendSecrets `json:"resend"`
+	Auth             AuthSecrets   `json:"auth"`
 }
 
 // AuthSecrets backs the custom Go auth package in internal/auth. All values

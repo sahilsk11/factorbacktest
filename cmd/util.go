@@ -236,7 +236,12 @@ func buildEmailRepository(secrets util.Secrets) (repository.EmailRepository, err
 			secrets.Resend.FromEmail,
 			secrets.Resend.FromName,
 		)
+	case "noop":
+		// Test/dev escape hatch: cmd/test-api sets EMAIL_PROVIDER=noop
+		// so the binary can boot without real email credentials.
+		// Never selected in prod paths.
+		return repository.NewNoopEmailRepository(), nil
 	default:
-		return nil, fmt.Errorf("unknown EMAIL_PROVIDER=%q (expected resend or ses)", provider)
+		return nil, fmt.Errorf("unknown EMAIL_PROVIDER=%q (expected resend, ses, or noop)", provider)
 	}
 }

@@ -71,7 +71,7 @@ type Service struct {
 	oauth2cfg   *oauth2.Config
 	twilio      *twilioClient
 	smsLimit    *rateLimiter
-	emailSender repository.EmailRepository  // nil ⇒ email OTP disabled
+	emailSender repository.EmailRepository    // nil ⇒ email OTP disabled
 	emailOTPs   repository.EmailOTPRepository // nil ⇒ email OTP disabled
 	emailLimit  *rateLimiter
 	now         func() time.Time
