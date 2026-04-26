@@ -146,13 +146,20 @@ func LoadSecrets() (*Secrets, error) {
 		return secrets, nil
 	}
 
-	// Default behavior: prefer AWS Secrets Manager, fall back to a local secrets file.
-	secrets, awsErr := loadSecretsFromAWS()
-	if awsErr == nil {
-		return secrets, nil
+	// Default behavior: prefer AWS Secrets Manager, fall back to a local
+	// secrets file. Skip the AWS path entirely in dev/test — the SDK's
+	// SSO refresh would otherwise pop up a browser tab on every restart
+	// and the call adds ~10s of timeout when no AWS creds are present.
+	var awsErr error
+	env := os.Getenv("ALPHA_ENV")
+	if env != "dev" && env != "test" {
+		var secrets *Secrets
+		secrets, awsErr = loadSecretsFromAWS()
+		if awsErr == nil {
+			return secrets, nil
+		}
+		logger.New().Errorf("failed to load secrets from AWS; falling back to local file: %s", awsErr.Error())
 	}
-
-	logger.New().Errorf("failed to load secrets from AWS; falling back to local file: %s", awsErr.Error())
 
 	var fileErr error
 	for _, path := range secretsFileCandidates() {
@@ -166,7 +173,10 @@ func LoadSecrets() (*Secrets, error) {
 	if fileErr == nil {
 		fileErr = errors.New("no secrets file candidates configured")
 	}
-	return nil, fmt.Errorf("failed to load secrets from AWS (%v) and from local files (%v)", awsErr, fileErr)
+	if awsErr != nil {
+		return nil, fmt.Errorf("failed to load secrets from AWS (%v) and from local files (%v)", awsErr, fileErr)
+	}
+	return nil, fmt.Errorf("failed to load secrets from local files: %v", fileErr)
 }
 
 func secretsFileCandidates() []string {
