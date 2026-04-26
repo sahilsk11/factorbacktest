@@ -15,7 +15,7 @@ CREATE SCHEMA IF NOT EXISTS app_auth;
 --   * created_at + 90 days is an absolute cap enforced in the auth package
 --     (never bumped). Keeps a hijacked cookie from being valid forever.
 CREATE TABLE app_auth.user_session (
-    id              TEXT PRIMARY KEY,
+    user_session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_account_id UUID NOT NULL
         REFERENCES public.user_account(user_account_id) ON DELETE CASCADE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),

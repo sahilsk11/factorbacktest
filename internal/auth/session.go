@@ -17,13 +17,10 @@ import (
 // Twilio proves who the user is, the caller resolves them to a uuid and
 // hands it here; we issue a fresh session and set the cookie.
 func (s *Service) loginUser(ctx context.Context, c *gin.Context, userID uuid.UUID) error {
-	id, err := newSessionID()
-	if err != nil {
-		return err
-	}
+	id := newSessionID()
 	now := s.now().UTC()
 	row := &authmodel.UserSession{
-		ID:            id,
+		UserSessionID: id,
 		UserAccountID: userID,
 		CreatedAt:     now,
 		ExpiresAt:     now.Add(s.cfg.SessionTTL),

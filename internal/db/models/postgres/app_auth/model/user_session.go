@@ -13,7 +13,7 @@ import (
 )
 
 type UserSession struct {
-	ID            string `sql:"primary_key"`
+	UserSessionID uuid.UUID `sql:"primary_key"`
 	UserAccountID uuid.UUID
 	CreatedAt     time.Time
 	ExpiresAt     time.Time
