@@ -19,7 +19,7 @@ type UserAccount struct {
 	Email         *string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	PhoneNumber   *string
 	Provider      UserAccountProviderType
 	ProviderID    *string
-	PhoneNumber   *string
 }

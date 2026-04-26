@@ -16,7 +16,7 @@ var LatestExcessTradeVolume = newLatestExcessTradeVolumeTable("public", "latest_
 type latestExcessTradeVolumeTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	ExcessTradeVolumeID postgres.ColumnString
 	TickerID            postgres.ColumnString
 	Symbol              postgres.ColumnString
@@ -42,6 +42,16 @@ func (a LatestExcessTradeVolumeTable) AS(alias string) *LatestExcessTradeVolumeT
 // Schema creates new LatestExcessTradeVolumeTable with assigned schema name
 func (a LatestExcessTradeVolumeTable) FromSchema(schemaName string) *LatestExcessTradeVolumeTable {
 	return newLatestExcessTradeVolumeTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new LatestExcessTradeVolumeTable with assigned table prefix
+func (a LatestExcessTradeVolumeTable) WithPrefix(prefix string) *LatestExcessTradeVolumeTable {
+	return newLatestExcessTradeVolumeTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new LatestExcessTradeVolumeTable with assigned table suffix
+func (a LatestExcessTradeVolumeTable) WithSuffix(suffix string) *LatestExcessTradeVolumeTable {
+	return newLatestExcessTradeVolumeTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newLatestExcessTradeVolumeTable(schemaName, tableName, alias string) *LatestExcessTradeVolumeTable {

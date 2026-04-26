@@ -16,7 +16,7 @@ var InterestRate = newInterestRateTable("public", "interest_rate", "")
 type interestRateTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InterestRateID postgres.ColumnString
 	Date           postgres.ColumnDate
 	DurationMonths postgres.ColumnInteger
@@ -40,6 +40,16 @@ func (a InterestRateTable) AS(alias string) *InterestRateTable {
 // Schema creates new InterestRateTable with assigned schema name
 func (a InterestRateTable) FromSchema(schemaName string) *InterestRateTable {
 	return newInterestRateTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new InterestRateTable with assigned table prefix
+func (a InterestRateTable) WithPrefix(prefix string) *InterestRateTable {
+	return newInterestRateTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new InterestRateTable with assigned table suffix
+func (a InterestRateTable) WithSuffix(suffix string) *InterestRateTable {
+	return newInterestRateTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newInterestRateTable(schemaName, tableName, alias string) *InterestRateTable {

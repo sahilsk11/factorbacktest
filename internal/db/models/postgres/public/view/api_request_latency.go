@@ -16,7 +16,7 @@ var APIRequestLatency = newAPIRequestLatencyTable("public", "api_request_latency
 type aPIRequestLatencyTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	RequestID         postgres.ColumnString
 	Route             postgres.ColumnString
 	StartTs           postgres.ColumnTimestampz
@@ -42,6 +42,16 @@ func (a APIRequestLatencyTable) AS(alias string) *APIRequestLatencyTable {
 // Schema creates new APIRequestLatencyTable with assigned schema name
 func (a APIRequestLatencyTable) FromSchema(schemaName string) *APIRequestLatencyTable {
 	return newAPIRequestLatencyTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new APIRequestLatencyTable with assigned table prefix
+func (a APIRequestLatencyTable) WithPrefix(prefix string) *APIRequestLatencyTable {
+	return newAPIRequestLatencyTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new APIRequestLatencyTable with assigned table suffix
+func (a APIRequestLatencyTable) WithSuffix(suffix string) *APIRequestLatencyTable {
+	return newAPIRequestLatencyTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newAPIRequestLatencyTable(schemaName, tableName, alias string) *APIRequestLatencyTable {

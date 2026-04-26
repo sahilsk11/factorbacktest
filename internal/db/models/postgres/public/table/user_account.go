@@ -16,16 +16,16 @@ var UserAccount = newUserAccountTable("public", "user_account", "")
 type userAccountTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	UserAccountID postgres.ColumnString
 	FirstName     postgres.ColumnString
 	LastName      postgres.ColumnString
 	Email         postgres.ColumnString
 	CreatedAt     postgres.ColumnTimestampz
 	UpdatedAt     postgres.ColumnTimestampz
+	PhoneNumber   postgres.ColumnString
 	Provider      postgres.ColumnString
 	ProviderID    postgres.ColumnString
-	PhoneNumber   postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -47,6 +47,16 @@ func (a UserAccountTable) FromSchema(schemaName string) *UserAccountTable {
 	return newUserAccountTable(schemaName, a.TableName(), a.Alias())
 }
 
+// WithPrefix creates new UserAccountTable with assigned table prefix
+func (a UserAccountTable) WithPrefix(prefix string) *UserAccountTable {
+	return newUserAccountTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new UserAccountTable with assigned table suffix
+func (a UserAccountTable) WithSuffix(suffix string) *UserAccountTable {
+	return newUserAccountTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
+}
+
 func newUserAccountTable(schemaName, tableName, alias string) *UserAccountTable {
 	return &UserAccountTable{
 		userAccountTable: newUserAccountTableImpl(schemaName, tableName, alias),
@@ -62,11 +72,11 @@ func newUserAccountTableImpl(schemaName, tableName, alias string) userAccountTab
 		EmailColumn         = postgres.StringColumn("email")
 		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn     = postgres.TimestampzColumn("updated_at")
+		PhoneNumberColumn   = postgres.StringColumn("phone_number")
 		ProviderColumn      = postgres.StringColumn("provider")
 		ProviderIDColumn    = postgres.StringColumn("provider_id")
-		PhoneNumberColumn   = postgres.StringColumn("phone_number")
-		allColumns          = postgres.ColumnList{UserAccountIDColumn, FirstNameColumn, LastNameColumn, EmailColumn, CreatedAtColumn, UpdatedAtColumn, ProviderColumn, ProviderIDColumn, PhoneNumberColumn}
-		mutableColumns      = postgres.ColumnList{FirstNameColumn, LastNameColumn, EmailColumn, CreatedAtColumn, UpdatedAtColumn, ProviderColumn, ProviderIDColumn, PhoneNumberColumn}
+		allColumns          = postgres.ColumnList{UserAccountIDColumn, FirstNameColumn, LastNameColumn, EmailColumn, CreatedAtColumn, UpdatedAtColumn, PhoneNumberColumn, ProviderColumn, ProviderIDColumn}
+		mutableColumns      = postgres.ColumnList{FirstNameColumn, LastNameColumn, EmailColumn, CreatedAtColumn, UpdatedAtColumn, PhoneNumberColumn, ProviderColumn, ProviderIDColumn}
 	)
 
 	return userAccountTable{
@@ -79,9 +89,9 @@ func newUserAccountTableImpl(schemaName, tableName, alias string) userAccountTab
 		Email:         EmailColumn,
 		CreatedAt:     CreatedAtColumn,
 		UpdatedAt:     UpdatedAtColumn,
+		PhoneNumber:   PhoneNumberColumn,
 		Provider:      ProviderColumn,
 		ProviderID:    ProviderIDColumn,
-		PhoneNumber:   PhoneNumberColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

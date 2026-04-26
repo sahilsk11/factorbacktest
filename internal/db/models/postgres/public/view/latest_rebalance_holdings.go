@@ -16,7 +16,7 @@ var LatestRebalanceHoldings = newLatestRebalanceHoldingsTable("public", "latest_
 type latestRebalanceHoldingsTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InvestmentHoldingsID        postgres.ColumnString
 	InvestmentID                postgres.ColumnString
 	Symbol                      postgres.ColumnString
@@ -46,6 +46,16 @@ func (a LatestRebalanceHoldingsTable) AS(alias string) *LatestRebalanceHoldingsT
 // Schema creates new LatestRebalanceHoldingsTable with assigned schema name
 func (a LatestRebalanceHoldingsTable) FromSchema(schemaName string) *LatestRebalanceHoldingsTable {
 	return newLatestRebalanceHoldingsTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new LatestRebalanceHoldingsTable with assigned table prefix
+func (a LatestRebalanceHoldingsTable) WithPrefix(prefix string) *LatestRebalanceHoldingsTable {
+	return newLatestRebalanceHoldingsTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new LatestRebalanceHoldingsTable with assigned table suffix
+func (a LatestRebalanceHoldingsTable) WithSuffix(suffix string) *LatestRebalanceHoldingsTable {
+	return newLatestRebalanceHoldingsTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newLatestRebalanceHoldingsTable(schemaName, tableName, alias string) *LatestRebalanceHoldingsTable {

@@ -16,7 +16,7 @@ var StrategyRun = newStrategyRunTable("public", "strategy_run", "")
 type strategyRunTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	StrategyRunID    postgres.ColumnString
 	StrategyID       postgres.ColumnString
 	StartDate        postgres.ColumnDate
@@ -44,6 +44,16 @@ func (a StrategyRunTable) AS(alias string) *StrategyRunTable {
 // Schema creates new StrategyRunTable with assigned schema name
 func (a StrategyRunTable) FromSchema(schemaName string) *StrategyRunTable {
 	return newStrategyRunTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new StrategyRunTable with assigned table prefix
+func (a StrategyRunTable) WithPrefix(prefix string) *StrategyRunTable {
+	return newStrategyRunTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new StrategyRunTable with assigned table suffix
+func (a StrategyRunTable) WithSuffix(suffix string) *StrategyRunTable {
+	return newStrategyRunTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newStrategyRunTable(schemaName, tableName, alias string) *StrategyRunTable {

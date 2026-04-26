@@ -16,7 +16,7 @@ var RebalancePrice = newRebalancePriceTable("public", "rebalance_price", "")
 type rebalancePriceTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	RebalancePriceID postgres.ColumnString
 	TickerID         postgres.ColumnString
 	Price            postgres.ColumnFloat
@@ -41,6 +41,16 @@ func (a RebalancePriceTable) AS(alias string) *RebalancePriceTable {
 // Schema creates new RebalancePriceTable with assigned schema name
 func (a RebalancePriceTable) FromSchema(schemaName string) *RebalancePriceTable {
 	return newRebalancePriceTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new RebalancePriceTable with assigned table prefix
+func (a RebalancePriceTable) WithPrefix(prefix string) *RebalancePriceTable {
+	return newRebalancePriceTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new RebalancePriceTable with assigned table suffix
+func (a RebalancePriceTable) WithSuffix(suffix string) *RebalancePriceTable {
+	return newRebalancePriceTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newRebalancePriceTable(schemaName, tableName, alias string) *RebalancePriceTable {

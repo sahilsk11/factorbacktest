@@ -16,7 +16,7 @@ var AssetUniverseTicker = newAssetUniverseTickerTable("public", "asset_universe_
 type assetUniverseTickerTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	AssetUniverseTicker postgres.ColumnString
 	TickerID            postgres.ColumnString
 	AssetUniverseID     postgres.ColumnString
@@ -39,6 +39,16 @@ func (a AssetUniverseTickerTable) AS(alias string) *AssetUniverseTickerTable {
 // Schema creates new AssetUniverseTickerTable with assigned schema name
 func (a AssetUniverseTickerTable) FromSchema(schemaName string) *AssetUniverseTickerTable {
 	return newAssetUniverseTickerTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new AssetUniverseTickerTable with assigned table prefix
+func (a AssetUniverseTickerTable) WithPrefix(prefix string) *AssetUniverseTickerTable {
+	return newAssetUniverseTickerTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new AssetUniverseTickerTable with assigned table suffix
+func (a AssetUniverseTickerTable) WithSuffix(suffix string) *AssetUniverseTickerTable {
+	return newAssetUniverseTickerTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newAssetUniverseTickerTable(schemaName, tableName, alias string) *AssetUniverseTickerTable {

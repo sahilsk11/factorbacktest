@@ -16,7 +16,7 @@ var SchemaVersion = newSchemaVersionTable("public", "schema_version", "")
 type schemaVersionTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	Version postgres.ColumnInteger
 
 	AllColumns     postgres.ColumnList
@@ -37,6 +37,16 @@ func (a SchemaVersionTable) AS(alias string) *SchemaVersionTable {
 // Schema creates new SchemaVersionTable with assigned schema name
 func (a SchemaVersionTable) FromSchema(schemaName string) *SchemaVersionTable {
 	return newSchemaVersionTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new SchemaVersionTable with assigned table prefix
+func (a SchemaVersionTable) WithPrefix(prefix string) *SchemaVersionTable {
+	return newSchemaVersionTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new SchemaVersionTable with assigned table suffix
+func (a SchemaVersionTable) WithSuffix(suffix string) *SchemaVersionTable {
+	return newSchemaVersionTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newSchemaVersionTable(schemaName, tableName, alias string) *SchemaVersionTable {

@@ -16,7 +16,7 @@ var FactorScore = newFactorScoreTable("public", "factor_score", "")
 type factorScoreTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	FactorScoreID        postgres.ColumnString
 	TickerID             postgres.ColumnString
 	FactorExpressionHash postgres.ColumnString
@@ -44,6 +44,16 @@ func (a FactorScoreTable) AS(alias string) *FactorScoreTable {
 // Schema creates new FactorScoreTable with assigned schema name
 func (a FactorScoreTable) FromSchema(schemaName string) *FactorScoreTable {
 	return newFactorScoreTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new FactorScoreTable with assigned table prefix
+func (a FactorScoreTable) WithPrefix(prefix string) *FactorScoreTable {
+	return newFactorScoreTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new FactorScoreTable with assigned table suffix
+func (a FactorScoreTable) WithSuffix(suffix string) *FactorScoreTable {
+	return newFactorScoreTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newFactorScoreTable(schemaName, tableName, alias string) *FactorScoreTable {

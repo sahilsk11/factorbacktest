@@ -16,13 +16,13 @@ var ExcessTradeVolume = newExcessTradeVolumeTable("public", "excess_trade_volume
 type excessTradeVolumeTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	ExcessTradeVolumeID postgres.ColumnString
 	TickerID            postgres.ColumnString
 	Quantity            postgres.ColumnFloat
+	TradeOrderID        postgres.ColumnString
 	CreatedAt           postgres.ColumnTimestampz
 	RebalancerRunID     postgres.ColumnString
-	TradeOrderID        postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -44,6 +44,16 @@ func (a ExcessTradeVolumeTable) FromSchema(schemaName string) *ExcessTradeVolume
 	return newExcessTradeVolumeTable(schemaName, a.TableName(), a.Alias())
 }
 
+// WithPrefix creates new ExcessTradeVolumeTable with assigned table prefix
+func (a ExcessTradeVolumeTable) WithPrefix(prefix string) *ExcessTradeVolumeTable {
+	return newExcessTradeVolumeTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new ExcessTradeVolumeTable with assigned table suffix
+func (a ExcessTradeVolumeTable) WithSuffix(suffix string) *ExcessTradeVolumeTable {
+	return newExcessTradeVolumeTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
+}
+
 func newExcessTradeVolumeTable(schemaName, tableName, alias string) *ExcessTradeVolumeTable {
 	return &ExcessTradeVolumeTable{
 		excessTradeVolumeTable: newExcessTradeVolumeTableImpl(schemaName, tableName, alias),
@@ -56,11 +66,11 @@ func newExcessTradeVolumeTableImpl(schemaName, tableName, alias string) excessTr
 		ExcessTradeVolumeIDColumn = postgres.StringColumn("excess_trade_volume_id")
 		TickerIDColumn            = postgres.StringColumn("ticker_id")
 		QuantityColumn            = postgres.FloatColumn("quantity")
+		TradeOrderIDColumn        = postgres.StringColumn("trade_order_id")
 		CreatedAtColumn           = postgres.TimestampzColumn("created_at")
 		RebalancerRunIDColumn     = postgres.StringColumn("rebalancer_run_id")
-		TradeOrderIDColumn        = postgres.StringColumn("trade_order_id")
-		allColumns                = postgres.ColumnList{ExcessTradeVolumeIDColumn, TickerIDColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn, TradeOrderIDColumn}
-		mutableColumns            = postgres.ColumnList{TickerIDColumn, QuantityColumn, CreatedAtColumn, RebalancerRunIDColumn, TradeOrderIDColumn}
+		allColumns                = postgres.ColumnList{ExcessTradeVolumeIDColumn, TickerIDColumn, QuantityColumn, TradeOrderIDColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		mutableColumns            = postgres.ColumnList{TickerIDColumn, QuantityColumn, TradeOrderIDColumn, CreatedAtColumn, RebalancerRunIDColumn}
 	)
 
 	return excessTradeVolumeTable{
@@ -70,9 +80,9 @@ func newExcessTradeVolumeTableImpl(schemaName, tableName, alias string) excessTr
 		ExcessTradeVolumeID: ExcessTradeVolumeIDColumn,
 		TickerID:            TickerIDColumn,
 		Quantity:            QuantityColumn,
+		TradeOrderID:        TradeOrderIDColumn,
 		CreatedAt:           CreatedAtColumn,
 		RebalancerRunID:     RebalancerRunIDColumn,
-		TradeOrderID:        TradeOrderIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

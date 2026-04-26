@@ -16,7 +16,7 @@ var AssetUniverse = newAssetUniverseTable("public", "asset_universe", "")
 type assetUniverseTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	AssetUniverseID   postgres.ColumnString
 	AssetUniverseName postgres.ColumnString
 	DisplayName       postgres.ColumnString
@@ -39,6 +39,16 @@ func (a AssetUniverseTable) AS(alias string) *AssetUniverseTable {
 // Schema creates new AssetUniverseTable with assigned schema name
 func (a AssetUniverseTable) FromSchema(schemaName string) *AssetUniverseTable {
 	return newAssetUniverseTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new AssetUniverseTable with assigned table prefix
+func (a AssetUniverseTable) WithPrefix(prefix string) *AssetUniverseTable {
+	return newAssetUniverseTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new AssetUniverseTable with assigned table suffix
+func (a AssetUniverseTable) WithSuffix(suffix string) *AssetUniverseTable {
+	return newAssetUniverseTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newAssetUniverseTable(schemaName, tableName, alias string) *AssetUniverseTable {

@@ -16,7 +16,7 @@ var EmailPreference = newEmailPreferenceTable("public", "email_preference", "")
 type emailPreferenceTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	EmailPreferenceID postgres.ColumnString
 	UserAccountID     postgres.ColumnString
 	EmailType         postgres.ColumnString
@@ -42,6 +42,16 @@ func (a EmailPreferenceTable) AS(alias string) *EmailPreferenceTable {
 // Schema creates new EmailPreferenceTable with assigned schema name
 func (a EmailPreferenceTable) FromSchema(schemaName string) *EmailPreferenceTable {
 	return newEmailPreferenceTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new EmailPreferenceTable with assigned table prefix
+func (a EmailPreferenceTable) WithPrefix(prefix string) *EmailPreferenceTable {
+	return newEmailPreferenceTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new EmailPreferenceTable with assigned table suffix
+func (a EmailPreferenceTable) WithSuffix(suffix string) *EmailPreferenceTable {
+	return newEmailPreferenceTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newEmailPreferenceTable(schemaName, tableName, alias string) *EmailPreferenceTable {

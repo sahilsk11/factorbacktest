@@ -16,7 +16,7 @@ var ContactMessage = newContactMessageTable("public", "contact_message", "")
 type contactMessageTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	MessageID      postgres.ColumnString
 	UserID         postgres.ColumnString
 	ReplyEmail     postgres.ColumnString
@@ -41,6 +41,16 @@ func (a ContactMessageTable) AS(alias string) *ContactMessageTable {
 // Schema creates new ContactMessageTable with assigned schema name
 func (a ContactMessageTable) FromSchema(schemaName string) *ContactMessageTable {
 	return newContactMessageTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new ContactMessageTable with assigned table prefix
+func (a ContactMessageTable) WithPrefix(prefix string) *ContactMessageTable {
+	return newContactMessageTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new ContactMessageTable with assigned table suffix
+func (a ContactMessageTable) WithSuffix(suffix string) *ContactMessageTable {
+	return newContactMessageTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newContactMessageTable(schemaName, tableName, alias string) *ContactMessageTable {

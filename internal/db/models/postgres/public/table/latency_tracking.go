@@ -16,7 +16,7 @@ var LatencyTracking = newLatencyTrackingTable("public", "latency_tracking", "")
 type latencyTrackingTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	LatencyTrackingID postgres.ColumnString
 	ProcessingTimes   postgres.ColumnString
 	TotalProcessingMs postgres.ColumnInteger
@@ -40,6 +40,16 @@ func (a LatencyTrackingTable) AS(alias string) *LatencyTrackingTable {
 // Schema creates new LatencyTrackingTable with assigned schema name
 func (a LatencyTrackingTable) FromSchema(schemaName string) *LatencyTrackingTable {
 	return newLatencyTrackingTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new LatencyTrackingTable with assigned table prefix
+func (a LatencyTrackingTable) WithPrefix(prefix string) *LatencyTrackingTable {
+	return newLatencyTrackingTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new LatencyTrackingTable with assigned table suffix
+func (a LatencyTrackingTable) WithSuffix(suffix string) *LatencyTrackingTable {
+	return newLatencyTrackingTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newLatencyTrackingTable(schemaName, tableName, alias string) *LatencyTrackingTable {

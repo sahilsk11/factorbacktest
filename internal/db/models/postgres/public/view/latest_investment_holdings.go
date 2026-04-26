@@ -16,7 +16,7 @@ var LatestInvestmentHoldings = newLatestInvestmentHoldingsTable("public", "lates
 type latestInvestmentHoldingsTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InvestmentHoldingsID        postgres.ColumnString
 	InvestmentID                postgres.ColumnString
 	TickerID                    postgres.ColumnString
@@ -43,6 +43,16 @@ func (a LatestInvestmentHoldingsTable) AS(alias string) *LatestInvestmentHolding
 // Schema creates new LatestInvestmentHoldingsTable with assigned schema name
 func (a LatestInvestmentHoldingsTable) FromSchema(schemaName string) *LatestInvestmentHoldingsTable {
 	return newLatestInvestmentHoldingsTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new LatestInvestmentHoldingsTable with assigned table prefix
+func (a LatestInvestmentHoldingsTable) WithPrefix(prefix string) *LatestInvestmentHoldingsTable {
+	return newLatestInvestmentHoldingsTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new LatestInvestmentHoldingsTable with assigned table suffix
+func (a LatestInvestmentHoldingsTable) WithSuffix(suffix string) *LatestInvestmentHoldingsTable {
+	return newLatestInvestmentHoldingsTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newLatestInvestmentHoldingsTable(schemaName, tableName, alias string) *LatestInvestmentHoldingsTable {

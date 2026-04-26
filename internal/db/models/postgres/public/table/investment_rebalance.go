@@ -16,7 +16,7 @@ var InvestmentRebalance = newInvestmentRebalanceTable("public", "investment_reba
 type investmentRebalanceTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InvestmentRebalanceID     postgres.ColumnString
 	RebalancerRunID           postgres.ColumnString
 	InvestmentID              postgres.ColumnString
@@ -45,6 +45,16 @@ func (a InvestmentRebalanceTable) AS(alias string) *InvestmentRebalanceTable {
 // Schema creates new InvestmentRebalanceTable with assigned schema name
 func (a InvestmentRebalanceTable) FromSchema(schemaName string) *InvestmentRebalanceTable {
 	return newInvestmentRebalanceTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new InvestmentRebalanceTable with assigned table prefix
+func (a InvestmentRebalanceTable) WithPrefix(prefix string) *InvestmentRebalanceTable {
+	return newInvestmentRebalanceTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new InvestmentRebalanceTable with assigned table suffix
+func (a InvestmentRebalanceTable) WithSuffix(suffix string) *InvestmentRebalanceTable {
+	return newInvestmentRebalanceTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newInvestmentRebalanceTable(schemaName, tableName, alias string) *InvestmentRebalanceTable {

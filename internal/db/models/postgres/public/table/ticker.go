@@ -16,7 +16,7 @@ var Ticker = newTickerTable("public", "ticker", "")
 type tickerTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	Symbol   postgres.ColumnString
 	Name     postgres.ColumnString
 	TickerID postgres.ColumnString
@@ -39,6 +39,16 @@ func (a TickerTable) AS(alias string) *TickerTable {
 // Schema creates new TickerTable with assigned schema name
 func (a TickerTable) FromSchema(schemaName string) *TickerTable {
 	return newTickerTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new TickerTable with assigned table prefix
+func (a TickerTable) WithPrefix(prefix string) *TickerTable {
+	return newTickerTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new TickerTable with assigned table suffix
+func (a TickerTable) WithSuffix(suffix string) *TickerTable {
+	return newTickerTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newTickerTable(schemaName, tableName, alias string) *TickerTable {

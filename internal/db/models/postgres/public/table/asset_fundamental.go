@@ -16,7 +16,7 @@ var AssetFundamental = newAssetFundamentalTable("public", "asset_fundamental", "
 type assetFundamentalTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	AfID                                postgres.ColumnString
 	Symbol                              postgres.ColumnString
 	StartDate                           postgres.ColumnDate
@@ -81,6 +81,16 @@ func (a AssetFundamentalTable) AS(alias string) *AssetFundamentalTable {
 // Schema creates new AssetFundamentalTable with assigned schema name
 func (a AssetFundamentalTable) FromSchema(schemaName string) *AssetFundamentalTable {
 	return newAssetFundamentalTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new AssetFundamentalTable with assigned table prefix
+func (a AssetFundamentalTable) WithPrefix(prefix string) *AssetFundamentalTable {
+	return newAssetFundamentalTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new AssetFundamentalTable with assigned table suffix
+func (a AssetFundamentalTable) WithSuffix(suffix string) *AssetFundamentalTable {
+	return newAssetFundamentalTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newAssetFundamentalTable(schemaName, tableName, alias string) *AssetFundamentalTable {

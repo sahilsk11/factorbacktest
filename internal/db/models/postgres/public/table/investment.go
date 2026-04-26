@@ -16,7 +16,7 @@ var Investment = newInvestmentTable("public", "investment", "")
 type investmentTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InvestmentID  postgres.ColumnString
 	AmountDollars postgres.ColumnInteger
 	StartDate     postgres.ColumnDate
@@ -45,6 +45,16 @@ func (a InvestmentTable) AS(alias string) *InvestmentTable {
 // Schema creates new InvestmentTable with assigned schema name
 func (a InvestmentTable) FromSchema(schemaName string) *InvestmentTable {
 	return newInvestmentTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new InvestmentTable with assigned table prefix
+func (a InvestmentTable) WithPrefix(prefix string) *InvestmentTable {
+	return newInvestmentTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new InvestmentTable with assigned table suffix
+func (a InvestmentTable) WithSuffix(suffix string) *InvestmentTable {
+	return newInvestmentTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newInvestmentTable(schemaName, tableName, alias string) *InvestmentTable {
