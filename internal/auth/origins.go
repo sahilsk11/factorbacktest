@@ -12,7 +12,7 @@ import (
 //
 // Sources, in order:
 //   - the static prod / dev FE origins (factor.trade, factorbacktest.net,
-//     localhost:3000)
+//     localhost:3000, 127.0.0.1:3000)
 //   - any value in $EXTRA_ALLOWED_ORIGINS (CSV) — e.g. for Playwright
 //     harnesses that pick a random port
 //
@@ -22,6 +22,7 @@ import (
 func AppOrigins() []string {
 	out := []string{
 		"http://localhost:3000",
+		"http://127.0.0.1:3000",
 		"https://factorbacktest.net",
 		"https://www.factorbacktest.net",
 		"https://factor.trade",
