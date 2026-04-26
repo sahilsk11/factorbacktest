@@ -23,13 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
   });
 
   const refreshSession = useCallback(async () => {
-    const session = await queryClient.fetchQuery({
+    return queryClient.fetchQuery({
       queryKey: authSessionQueryKey,
       queryFn: getSession,
       staleTime: 0,
     });
-    queryClient.setQueryData(authSessionQueryKey, session);
-    return session;
   }, [queryClient]);
 
   const signIn = useMemo<SignInApi>(
@@ -68,10 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
   );
 
   const signOut = useCallback(async () => {
-    await apiClient.post<undefined>('/auth/sign-out');
-    queryClient.removeQueries({ predicate: isNonAuthQuery });
-    queryClient.setQueryData<SessionResponse>(authSessionQueryKey, { user: null });
-    await refreshSession();
+    let signOutError: unknown;
+
+    try {
+      await apiClient.post<undefined>('/auth/sign-out');
+    } catch (err: unknown) {
+      signOutError = err;
+    } finally {
+      queryClient.removeQueries({ predicate: isNonAuthQuery });
+      queryClient.setQueryData<SessionResponse>(authSessionQueryKey, { user: null });
+
+      try {
+        await refreshSession();
+      } catch (err: unknown) {
+        signOutError ??= err;
+      }
+    }
+
+    if (signOutError) throw signOutError;
   }, [queryClient, refreshSession]);
 
   const user = sessionQuery.data?.user ?? null;

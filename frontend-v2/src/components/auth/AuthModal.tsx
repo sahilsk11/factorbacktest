@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
-import { useEffect, useState, type FormEventHandler } from 'react';
+import { useEffect, useRef, useState, type FormEventHandler } from 'react';
 import { createPortal } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
@@ -48,9 +48,17 @@ export function AuthModal({
   const [pending, setPending] = useState<PendingChallenge | null>(null);
   const [loading, setLoading] = useState<LoadingAction>(null);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -59,6 +67,8 @@ export function AuthModal({
     window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
     };
   }, [onClose, open]);
 
@@ -155,9 +165,11 @@ export function AuthModal({
     >
       <div className="flex min-h-full items-center justify-center px-4 py-10">
         <section
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="auth-modal-title"
+          tabIndex={-1}
           className="relative w-full max-w-[460px] overflow-hidden rounded-lg border border-border-strong bg-card text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.62)]"
         >
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent" />

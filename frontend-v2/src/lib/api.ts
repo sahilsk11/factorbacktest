@@ -38,7 +38,8 @@ export function apiUrl(path: string): string {
   if (!path.startsWith('/')) {
     throw new Error(`api path must start with "/": ${path}`);
   }
-  return `${apiBaseUrl}${path}`;
+  const base = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+  return `${base}${path}`;
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {

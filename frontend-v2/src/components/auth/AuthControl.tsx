@@ -1,5 +1,5 @@
 import { ChevronDown, LoaderCircle, LogOut, ShieldCheck, UserRound } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { AuthModal } from './AuthModal';
 import { Button } from '@/components/ui/button';
@@ -12,17 +12,33 @@ export function AuthControl(): React.ReactNode {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const signOutRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
+
+    const trigger = triggerRef.current;
+    signOutRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMenuOpen(false);
     };
 
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
+
     window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointerdown', onPointerDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('pointerdown', onPointerDown);
+      trigger?.focus();
     };
   }, [menuOpen]);
 
@@ -64,6 +80,7 @@ export function AuthControl(): React.ReactNode {
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         className={cn(
           'flex h-9 items-center gap-2 rounded-md border border-border bg-elevated/50 px-2.5 text-sm font-medium',
@@ -87,6 +104,7 @@ export function AuthControl(): React.ReactNode {
 
       {menuOpen && (
         <div
+          ref={menuRef}
           className="absolute top-11 right-0 z-50 w-64 rounded-lg border border-border-strong bg-card p-2 shadow-2xl shadow-black/35"
           role="menu"
         >
@@ -102,6 +120,7 @@ export function AuthControl(): React.ReactNode {
           )}
 
           <button
+            ref={signOutRef}
             type="button"
             className="mt-2 flex h-10 w-full items-center justify-between rounded-md px-3 text-sm text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
             disabled={signingOut}
