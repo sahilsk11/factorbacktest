@@ -1,7 +1,7 @@
 import { useState } from "react";
 import modalsStyle from "./Modals.module.css";
 import formStyles from "pages/Backtest/Form.module.css";
-import { ContactRequest, GoogleAuthUser } from "../models";
+import { ContactRequest } from "../models";
 import { endpoint } from "../App";
 import { useAuth } from "auth";
 

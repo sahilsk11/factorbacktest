@@ -1,5 +1,5 @@
 import { FactorData } from "../../App";
-import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, InvestInStrategyRequest, LatestHoldings } from "../../models";
+import { BacktestInputs, BacktestSnapshot, GetSavedStrategiesResponse, GoogleAuthUser, LatestHoldings } from "../../models";
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -15,9 +15,7 @@ import { Tooltip as ReactTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css'
 import { Col, Container, Nav, Row } from "react-bootstrap";
 import { Dispatch, SetStateAction, useState } from "react";
-import formStyles from "./Form.module.css";
 import { parseDateString } from "../../util";
-import { useGoogleLogin } from "@react-oauth/google";
 
 export default function Inspector({
   fdIndex,
