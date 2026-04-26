@@ -59,6 +59,22 @@ func (mr *MockFactorExpressionServiceMockRecorder) CalculateFactorScores(ctx, tr
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateFactorScores", reflect.TypeOf((*MockFactorExpressionService)(nil).CalculateFactorScores), ctx, tradingDays, tickers, factorExpression)
 }
 
+// CalculateFactorScoresWithCache mocks base method.
+func (m *MockFactorExpressionService) CalculateFactorScoresWithCache(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*calculator.ScoresResultsOnDay, *data.PriceCache, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CalculateFactorScoresWithCache", ctx, tradingDays, tickers, factorExpression)
+	ret0, _ := ret[0].(map[time.Time]*calculator.ScoresResultsOnDay)
+	ret1, _ := ret[1].(*data.PriceCache)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CalculateFactorScoresWithCache indicates an expected call of CalculateFactorScoresWithCache.
+func (mr *MockFactorExpressionServiceMockRecorder) CalculateFactorScoresWithCache(ctx, tradingDays, tickers, factorExpression any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateFactorScoresWithCache", reflect.TypeOf((*MockFactorExpressionService)(nil).CalculateFactorScoresWithCache), ctx, tradingDays, tickers, factorExpression)
+}
+
 // CalculateLatestFactorScores mocks base method.
 func (m *MockFactorExpressionService) CalculateLatestFactorScores(ctx context.Context, tickers []model.Ticker, factorExpression string) (*calculator.ScoresResultsOnDay, error) {
 	m.ctrl.T.Helper()

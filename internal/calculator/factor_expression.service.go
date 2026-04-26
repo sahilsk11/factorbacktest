@@ -20,6 +20,19 @@ import (
 	"github.com/maja42/goval"
 )
 
+// sharedEvaluator is reused across all evaluateFactorExpression calls.
+//
+// goval v1.3.1 doesn't expose a separate Parse step — Evaluator.Evaluate calls
+// internal.Evaluate which builds a fresh lexer/parser per call, so the
+// expression text is re-parsed every time regardless of what we do at this
+// layer. The library's docs explicitly state Evaluator is stateless and safe
+// for concurrent use, so the only useful thing we can do without adding a
+// dependency or forking is stop allocating one Evaluator per (ticker, date)
+// in the 4000-iteration fanout. The struct is currently zero-sized, so the
+// allocation is cheap, but reusing makes intent explicit and future-proofs
+// us if the upstream lib ever caches AST internals on the Evaluator.
+var sharedEvaluator = goval.NewEvaluator()
+
 type ScoresResultsOnDay struct {
 	SymbolScores map[string]*float64
 	Errors       []error
@@ -29,6 +42,7 @@ type ScoresResultsOnDay struct {
 
 type FactorExpressionService interface {
 	CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error)
+	CalculateFactorScoresWithCache(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, *data.PriceCache, error)
 	CalculateLatestFactorScores(ctx context.Context, tickers []model.Ticker, factorExpression string) (*ScoresResultsOnDay, error)
 }
 
@@ -75,6 +89,14 @@ type workResult struct {
 // using the list of workInputs, it spawns workers to calculate what the score for a particular asset would be on that day
 // despite using workers, this is still the slowest part of the flow
 func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, error) {
+	out, _, err := h.CalculateFactorScoresWithCache(ctx, tradingDays, tickers, factorExpression)
+	return out, err
+}
+
+// CalculateFactorScoresWithCache is identical to CalculateFactorScores but also
+// returns the *data.PriceCache it built. The cache is reused by the backtest
+// simulate loop to avoid a per-day db round-trip for prices.
+func (h factorExpressionServiceHandler) CalculateFactorScoresWithCache(ctx context.Context, tradingDays []time.Time, tickers []model.Ticker, factorExpression string) (map[time.Time]*ScoresResultsOnDay, *data.PriceCache, error) {
 	log := logger.FromContext(ctx)
 	profile, endProfile := domain.GetProfile(ctx)
 	defer endProfile()
@@ -92,7 +114,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	}
 
 	if len(inputs) == 0 {
-		return nil, fmt.Errorf("cannot calculate factor scores with 0 inputs")
+		return nil, nil, fmt.Errorf("cannot calculate factor scores with 0 inputs")
 	}
 	// logger.Debug("computing %d scores\n", len(inputs))
 
@@ -104,7 +126,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	_, endSpan := profile.StartNewSpan("get precomputed scores")
 	precomputedScores, err := h.getPrecomputedScores(&inputs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	numFound := 0
 	numErrors := 0
@@ -132,7 +154,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	span, endSpan := profile.StartNewSpan("load price cache")
 	cache, err := h.loadPriceCache(domain.NewCtxWithSubProfile(ctx, span), inputs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	endSpan()
 
@@ -215,7 +237,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 		}
 	}
 	if numErrors > 0 && numErrors >= int(len(results)/2) {
-		return nil, fmt.Errorf("failed to evaluate expression: over 50%% of score calculations failed. last err: %w", lastErr)
+		return nil, nil, fmt.Errorf("failed to evaluate expression: over 50%% of score calculations failed. last err: %w", lastErr)
 	}
 
 	_, endSpan = profile.StartNewSpan("adding factor scores to db")
@@ -249,12 +271,12 @@ func (h factorExpressionServiceHandler) CalculateFactorScores(ctx context.Contex
 	// if false {
 	err = h.FactorScoreRepository.AddMany(addManyInput)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	endSpan()
 	// }
 
-	return out, nil
+	return out, cache, nil
 }
 
 // loadPriceCache "dry-runs" the factor expression to determine which dates are needed
@@ -545,14 +567,13 @@ func evaluateFactorExpression(
 	factorMetricsHandler factorMetricCalculations,
 	date time.Time, // expressions are evaluated on the given date
 ) (*expressionResult, error) {
-	eval := goval.NewEvaluator()
 	variables := map[string]interface{}{
 		"currentDate": date.Format(time.DateOnly),
 	}
 
 	debug := formulaDebugger{}
 	functions := constructFunctionMap(ctx, db, pr, symbol, factorMetricsHandler, debug, date)
-	result, err := eval.Evaluate(expression, variables, functions)
+	result, err := sharedEvaluator.Evaluate(expression, variables, functions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate factor expression: %w", err)
 	}
