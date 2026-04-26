@@ -30,9 +30,11 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # Keep one machine warm so users don't eat the cold-start hit (Go API +
-  # Postgres TLS handshake) on the first request after a quiet period.
-  min_machines_running = 1
+  # Scale to zero between bursts. Traffic is ~entirely cron-driven, so the
+  # first request after idle eats the cold-start (container start + Go init
+  # + initial Postgres TLS handshake), and that's an acceptable tradeoff
+  # for not paying for a warm machine 24/7.
+  min_machines_running = 0
 
   [[http_service.checks]]
     method = "get"
