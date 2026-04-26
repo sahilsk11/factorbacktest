@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // SSEWriter encodes Events as Server-Sent Event frames and flushes after
@@ -73,7 +74,7 @@ type SSEReporter struct {
 func NewSSEReporter(w *SSEWriter) *SSEReporter { return &SSEReporter{w: w} }
 
 func (r *SSEReporter) Step(id, label string) func() {
-	start := nowMs()
+	start := time.Now()
 	_ = r.w.Send(Event{
 		Type:  "step_started",
 		Step:  id,
@@ -85,7 +86,7 @@ func (r *SSEReporter) Step(id, label string) func() {
 			_ = r.w.Send(Event{
 				Type:       "step_completed",
 				Step:       id,
-				DurationMs: nowMs() - start,
+				DurationMs: time.Since(start).Milliseconds(),
 			})
 		})
 	}

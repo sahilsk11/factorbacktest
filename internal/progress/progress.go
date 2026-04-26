@@ -5,10 +5,7 @@
 // /backtest/stream SSE endpoint.
 package progress
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 // Event is the wire-level shape we serialize to clients (currently as JSON
 // inside SSE `data:` frames). It intentionally covers progress events,
@@ -89,7 +86,3 @@ func FromContext(ctx context.Context) Reporter {
 func Step(ctx context.Context, id, label string) func() {
 	return FromContext(ctx).Step(id, label)
 }
-
-// nowMs is overridable in tests; we use it instead of time.Since so
-// implementations can share clock injection if we want it later.
-var nowMs = func() int64 { return time.Now().UnixMilli() }
