@@ -1,14 +1,21 @@
 # Latency investigation runbook
 
 This doc is the playbook for diagnosing where time goes inside a `/backtest`
-request on the live Fly deployment. It exists so an agent (or a human) can
-land here, follow the steps, and produce a defensible "the bottleneck is
-span X at p95 = Y ms" report — without re-deriving the methodology each
-time.
+request on the live Fly deployment. It exists so an investigator can land
+here, follow the steps, and produce a defensible "the bottleneck is span X
+at p95 = Y ms" report — without re-deriving the methodology each time.
 
 The goal of this exercise is **always observability first, optimization
 second**. End every investigation with a hypothesis and a span name. Do not
 end one with a 30-line code change unless explicitly asked.
+
+**Access model.** This runbook assumes read-only Postgres access (the
+`secrets.json` creds work, but treat the DB as immutable) and the ability
+to call the public APIs. No `INSERT`/`UPDATE`/`DELETE` against any
+production table, no schema changes, no `pg_stat_statements_reset()`,
+nothing that mutates shared state. If you find yourself wanting to mutate
+the DB to make an investigation easier, stop and write up the request
+instead — that's a separate concern handled by a different process.
 
 ## What you have to work with
 
@@ -174,11 +181,6 @@ request reads back the rows the first request wrote.
 - **All cold.** Generate a fresh perturbation per request. This is what
   to do when measuring the actual recompute path (e.g. before/after a
   PR that touches `factor_expression.service.go`).
-
-Note: cold runs leak rows into `factor_score`. A few hundred rows per
-investigation is fine; do not run thousands of cold benchmarks in tight
-loops without an occasional `DELETE FROM factor_score WHERE
-factor_expression_hash NOT IN (...)` cleanup.
 
 ## Step 1: Stamp a nonce
 
@@ -351,20 +353,17 @@ Do not write code in the report. Do not propose multiple changes. The
   This "cold machine" is a separate concept from "cold cache" above; an
   investigation can have a cold machine *and* a warm cache, etc.
 - **The expression hash, not the request, decides cache temperature.**
-  Two agents running with the same expression at the same time will
-  share warmth — the second to fire reads back what the first wrote.
-  Coordinate your runs.
+  Two investigators running with the same expression at the same time
+  will share warmth — the second to fire reads back what the first
+  wrote. Coordinate your runs.
 - **Don't fan out concurrent requests.** Each backtest fans out 10
   goroutines into the DB pool (`internal/repository/factor_score.repository.go`).
   Two concurrent requests fight for the 25-conn pool and your numbers
   become un-interpretable. Run sequentially.
 - **`latency_tracking` is best-effort.** The `Add()` call is wrapped in a
   swallow-and-log. If a row is missing, check `flyctl logs | grep
-  latency_insert_failed`. Don't assume "no row" means "no request" — verify
-  via `api_request` first.
-- **`pg_stat_statements_reset()` is global.** Useful for "what queries did
-  this one request fire" experiments, but it nukes counts for every active
-  session. Only run it when you're the only investigator.
+  latency_insert_failed` (if you have flyctl access). Don't assume "no
+  row" means "no request" — verify via `api_request` first.
 - **`api_request.version` is the deploy SHA, not the source SHA.** They
   match for prod deploys but can drift if you `flyctl deploy` from a dirty
   tree. Always confirm `version` matches `git rev-parse --short HEAD` of
@@ -415,19 +414,4 @@ WHERE start_ts > now() - interval '1 hour'
   AND route = '/backtest' AND elapsed_ms IS NOT NULL
 GROUP BY backend, span_path
 ORDER BY span_path, backend;
-
--- 5) Cleanup: drop factor_score rows from cold-run perturbations. Targets
--- only hashes whose backing user_strategy row was created during this
--- investigation window. The `strategy` table stores raw expression text
--- (not the hash), so we narrow via user_strategy.factor_expression_hash
--- — which is written on every /backtest call by saveUserStrategy() — and
--- only sweep rows we know we created (by start_ts of the request).
-DELETE FROM factor_score
-WHERE factor_expression_hash IN (
-  SELECT DISTINCT us.factor_expression_hash
-  FROM user_strategy us
-  JOIN api_request ar ON us.request_id = ar.request_id
-  WHERE ar.start_ts > now() - interval '2 hours'
-    AND ar.request_body LIKE '%bench-%'  -- nonce prefix from this runbook
-);
 ```
