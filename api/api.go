@@ -189,8 +189,18 @@ type responseBodyWriter struct {
 	body *bytes.Buffer
 }
 
+// Write tees normal responses into r.body so logRequestMiddlware can persist
+// them to api_request.response_body. We deliberately skip the tee for SSE
+// streams (text/event-stream): otherwise every emitted frame — including the
+// terminal `result` event that embeds the full BacktestResponse — would be
+// held in memory for the lifetime of the request and stored verbatim in the
+// audit row. The status code, latency, and per-step timings are still
+// recorded via api_request and the latency_tracking profile, so we lose
+// nothing analytically.
 func (r responseBodyWriter) Write(b []byte) (int, error) {
-	r.body.Write(b)
+	if !strings.HasPrefix(r.ResponseWriter.Header().Get("Content-Type"), "text/event-stream") {
+		r.body.Write(b)
+	}
 	return r.ResponseWriter.Write(b)
 }
 
