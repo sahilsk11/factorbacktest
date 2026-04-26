@@ -123,6 +123,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	})
 
 	engine.POST("/backtest", m.backtest)
+	engine.POST("/backtest/stream", m.backtestStream)
 	engine.POST("/benchmark", m.benchmark)
 	engine.POST("/contact", m.contact)
 	engine.POST("/constructFactorEquation", m.constructFactorEquation)

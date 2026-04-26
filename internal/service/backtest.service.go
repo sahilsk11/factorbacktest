@@ -7,6 +7,7 @@ import (
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/progress"
 	"factorbacktest/internal/repository"
 	"fmt"
 	"time"
@@ -74,6 +75,12 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	profile, endProfile := domain.GetProfile(ctx) // used for profiling API performance
 	defer endProfile()
 
+	// Each major phase emits both a profiling span (kept for the existing
+	// latency-tracking pipeline) and a progress event (consumed by the SSE
+	// /backtest/stream endpoint). The progress reporter is a no-op when
+	// none has been installed on the context, so the synchronous endpoint
+	// behaves exactly as before.
+	endSetupStep := progress.Step(ctx, "setup", "Loading asset universe & trading days")
 	_, endSpan := profile.StartNewSpan("setting up backtest")
 	tickers, err := h.AssetUniverseRepository.GetAssets(in.AssetUniverse)
 	if err != nil {
@@ -98,13 +105,16 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	}
 
 	endSpan()
+	endSetupStep()
 
+	endFactorScoresStep := progress.Step(ctx, "factor_scores", "Calculating factor scores")
 	span, endSpan := profile.StartNewSpan("calculating factor scores")
 	factorScoresByDay, err := h.FactorExpressionService.CalculateFactorScores(domain.NewCtxWithSubProfile(ctx, span), tradingDays, tickers, in.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
 	endSpan()
+	endFactorScoresStep()
 
 	startValue := decimal.NewFromFloat(in.StartingCash)
 
@@ -118,6 +128,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 
 	priceMap := map[string]map[string]decimal.Decimal{}
 
+	endSimulateStep := progress.Step(ctx, "simulate", "Running portfolio simulation")
 	_, endSpan = profile.StartNewSpan("daily calcs")
 	for _, t := range tradingDays {
 		// should work on weekends too
@@ -171,6 +182,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		currentPortfolio = computeTargetPortfolioResponse.TargetPortfolio.DeepCopy()
 	}
 	endSpan()
+	endSimulateStep()
 
 	if float64(len(backtestErrors))/float64(len(tradingDays)) >= errThreshold {
 		numErrors := 3
@@ -183,17 +195,21 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 	// todo - snapshots and latest holdings
 	// need to be moved out
 
+	endSnapshotsStep := progress.Step(ctx, "snapshots", "Generating snapshots")
 	_, endSpan = profile.StartNewSpan("creating snapshots")
 	snapshots, err := toSnapshots(out, priceMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute snapshots: %w", err)
 	}
 	endSpan()
+	endSnapshotsStep()
 
+	endLatestHoldingsStep := progress.Step(ctx, "latest_holdings", "Resolving latest holdings")
 	latestHoldings, err := getLatestHoldings(ctx, h, universeSymbols, tickers, in)
 	if err != nil {
 		return nil, err
 	}
+	endLatestHoldingsStep()
 
 	return &BacktestResponse{
 		Results:        out,
