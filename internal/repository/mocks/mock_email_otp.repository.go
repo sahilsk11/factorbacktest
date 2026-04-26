@@ -11,7 +11,7 @@ package mock_repository
 
 import (
 	context "context"
-	repository "factorbacktest/internal/repository"
+	model "factorbacktest/internal/db/models/postgres/app_auth/model"
 	reflect "reflect"
 	time "time"
 
@@ -44,10 +44,10 @@ func (m *MockEmailOTPRepository) EXPECT() *MockEmailOTPRepositoryMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockEmailOTPRepository) Create(ctx context.Context, in *repository.EmailOTP) (*repository.EmailOTP, error) {
+func (m *MockEmailOTPRepository) Create(ctx context.Context, in *model.EmailOtp) (*model.EmailOtp, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, in)
-	ret0, _ := ret[0].(*repository.EmailOTP)
+	ret0, _ := ret[0].(*model.EmailOtp)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -73,10 +73,10 @@ func (mr *MockEmailOTPRepositoryMockRecorder) DecrementAttempts(ctx, id any) *go
 }
 
 // LatestUnconsumedByEmail mocks base method.
-func (m *MockEmailOTPRepository) LatestUnconsumedByEmail(ctx context.Context, email string, now time.Time) (*repository.EmailOTP, error) {
+func (m *MockEmailOTPRepository) LatestUnconsumedByEmail(ctx context.Context, email string, now time.Time) (*model.EmailOtp, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestUnconsumedByEmail", ctx, email, now)
-	ret0, _ := ret[0].(*repository.EmailOTP)
+	ret0, _ := ret[0].(*model.EmailOtp)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

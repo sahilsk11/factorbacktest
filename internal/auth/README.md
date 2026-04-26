@@ -20,6 +20,8 @@ It is deliberately NOT a general-purpose auth framework. It does Google + SMS, p
 | `/auth/google/callback` | GET | Verify state cookie, exchange code, verify ID token, find/create user, set session cookie, 302 to FE. |
 | `/auth/sms/send` | POST | Trigger Twilio Verify OTP. Always 204; never reveals whether the phone is registered. |
 | `/auth/sms/verify` | POST | Validate OTP via Twilio. On approval, find/create user, set session cookie. |
+| `/auth/email/send` | POST | Generate a 6-digit OTP, bcrypt-hash and persist it, deliver via Resend. Always 204. Mounted only when `EmailSender` and `EmailOTPRepository` are wired. |
+| `/auth/email/verify` | POST | Validate OTP against the latest unconsumed row for the email. On approval, find/create user, set session cookie. |
 | `/auth/sign-out` | POST | Delete session row, clear cookie. |
 | `/auth/session` | GET | Return `{user: {...}}` or `{user: null}` for FE bootstrap. |
 
@@ -31,7 +33,8 @@ The package's only contract with the rest of the API is `auth.CurrentUser(c) (uu
 |---|---|---|
 | OAuth code+PKCE flow | `golang.org/x/oauth2` | Google's own library; handles state, code exchange, token refresh, PKCE challenge. |
 | OIDC ID-token verification | `github.com/coreos/go-oidc/v3` | Used by Kubernetes, Tailscale, Red Hat. Verifies signature, audience, issuer, expiry, nbf with clock skew. |
-| OTP generation/storage/validation | Twilio Verify (REST) | Twilio handles the OTP lifecycle and fraud protection. We never see the code. |
+| OTP generation/storage/validation (SMS) | Twilio Verify (REST) | Twilio handles the OTP lifecycle and fraud protection. We never see the code. |
+| OTP generation/storage/validation (email) | `crypto/rand` + `golang.org/x/crypto/bcrypt` + `app_auth.email_otp` | Twilio Verify's email channel hard-requires a paid SendGrid plan, so for email we own the OTP state machine and pay only for transport (Resend). 6 random digits, bcrypt-hashed at rest, single-use, attempts capped, see the threat-model table below. |
 | Random session IDs / state / nonce | `crypto/rand` | Standard library, OS-backed CSPRNG. |
 | HMAC + constant-time compare | `crypto/hmac`, `crypto/subtle` | Standard library. |
 | Per-bucket rate limiting | `golang.org/x/time/rate` | Standard extended library, used everywhere. |
@@ -66,6 +69,12 @@ Each row pairs a defense with the test that proves it. Tests are not in this PR 
 | User enumeration via `/auth/sms/send` | Always returns 204. Validation, rate-limiting, and Twilio failures all collapse to the same response. Twilio rate-limits also collapse to 204 inside `sendVerification`. | `TestSmsSend_NoEnumerationLeak` |
 | User enumeration via `/auth/sms/verify` | "Wrong code" / "no pending verification" / "expired" all return 401. Twilio outage returns 503 (deliberately distinguishable — "service is down" is operational signal, not enumeration data; doesn't help an attacker probing accounts). | `TestSmsVerify_FailureModes` |
 | Twilio bill drained by attacker | Per-phone limiter (3 / 10min) AND per-IP limiter (10 / 10min). Both must pass; we never reveal which one tripped. Compensating control: Twilio Verify's own per-phone limits + fraud-detection settings. | `TestSmsSend_RateLimited_PerIP`, `TestSmsSend_RateLimited_PerPhone` |
+| Email OTP read from DB by an attacker with read-only DB access | Codes are bcrypt-hashed (cost 10) before persistence; the `code_hash` column never holds the plaintext. Even a full table dump doesn't trivially yield active codes. | `TestEmailOtp_CodeHashedAtRest` (todo) |
+| Email OTP brute-forced via `/verify` | Three layered limits: (1) `attempts_left` starts at 5 per row, GREATEST'd at 0 in SQL — handler short-circuits with 401 once exhausted before bcrypt.Compare runs; (2) per-email + per-IP rate limiter on `/verify` matches the same buckets as `/send` (3/email/10min, 10/IP/10min) so an attacker can't fire 5 guesses in milliseconds; (3) `/send` is also rate-limited, capping fresh-OTP creation at 3/email/10min. Combined upper bound on a single-email brute force per 10-min window is 3 OTPs × 5 attempts = 15 guesses against a 10⁶ space. | `TestEmailVerify_AttemptsExhausted_Rejected`, `TestEmailVerify_RateLimited` (todo) |
+| Email OTP replay after success | `MarkConsumed` flips `consumed_at` non-null on success; `LatestUnconsumedByEmail` filters those out. The UPDATE includes `consumed_at IS NULL` in the WHERE so a double-consume is a no-op at the SQL layer even under handler reentrance. | `TestEmailVerify_DoubleConsume_NoOp` (todo) |
+| Email enumeration via `/auth/email/send` | Always 204. Same uniform-response shape as SMS: validation, rate-limiting, transport errors, all collapse to 204. | `TestEmailSend_NoEnumerationLeak` (todo) |
+| Email enumeration via `/auth/email/verify` | All "wrong" paths (no pending OTP, expired, mismatch, attempts exhausted) return 401. Only own-infra failures surface as 503 (DB lookup error). | `TestEmailVerify_FailureModes` (todo) |
+| Email-OTP transport bill drained by attacker | Same per-email + per-IP send caps as SMS, plus Resend's own per-account daily caps and free-tier ceiling (3000/mo) provide an outer ceiling. | Code review |
 | Cookie + Bearer ambiguity for legacy clients | `getGoogleAuthMiddleware` (Google ID-token Bearer fallback) skips its work when `userAccountID` is already set on the context. Cookie wins; same user_account_id flows through regardless. | `TestMiddleware_CookieWinsOverBearer` |
 | Logging leaks sessions/OTPs/cookies | `logf` wraps `log.Printf` and is the only logger. Errors deliberately summarize ("ok"/"fail", "rate limited") rather than echo input. Twilio creds are passed via `SetBasicAuth` (never formatted into strings). | Code review |
 
