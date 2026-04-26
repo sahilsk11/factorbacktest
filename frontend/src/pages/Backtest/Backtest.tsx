@@ -76,6 +76,7 @@ export default function FactorBacktestMain({ userID, user, setUser }: {
   async function getStrategy(id: string): Promise<GetPublishedStrategiesResponse | null> {
     try {
       const response = await fetch(endpoint + "/publishedStrategies", {
+        credentials: "include",
         headers: {
           "Authorization": session ? "Bearer " + session.access_token : ""
         }

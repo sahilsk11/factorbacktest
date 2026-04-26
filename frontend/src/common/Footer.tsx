@@ -14,6 +14,7 @@ export default function StatsFooter({ userID, user }: { userID: string, user: Go
   async function getStats() {
     try {
       const response = await fetch(endpoint + "/usageStats?id=" + userID, {
+        credentials: "include",
         headers: {
           "Authorization": session ? "Bearer " + session.access_token : ""
         }

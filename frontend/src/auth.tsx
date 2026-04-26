@@ -1,20 +1,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { createAuthClient } from "better-auth/react";
-import { emailOTPClient, phoneNumberClient } from "better-auth/client/plugins";
 import { endpoint } from "./config";
 
-// The auth-service is mounted at /api/auth on the same domain as the Go API
-// (same Fly machine). In local dev that means localhost:3009, in prod the
-// Fly hostname. We reuse `endpoint` so this stays in sync with every other
-// API call in the app.
-const authClient = createAuthClient({
-  baseURL: endpoint,
-  plugins: [emailOTPClient(), phoneNumberClient()],
-});
+// Talks directly to the new Go auth package's /auth/* endpoints. No SDK,
+// no JWT, no token refresh logic — the browser holds an HttpOnly session
+// cookie that auto-attaches on cross-origin fetches that opt in via
+// `credentials: "include"`.
+//
+// `AppSession.access_token` is kept on the type for backward-compat with
+// existing call sites that send `Authorization: Bearer ${access_token}`.
+// The header is now ignored by the backend (cookie middleware sets
+// userAccountID first; the legacy JWT path is short-circuited). We leave
+// the field as an empty string rather than removing it so we don't have
+// to refactor every fetch in the codebase in this PR.
 
-// Shape kept compatible with existing call sites (`session.access_token`,
-// `session.user.id`, etc.) so the wider app didn't have to change. The
-// access token is fetched on demand from Better Auth's JWT plugin endpoint.
 export interface AppUser {
   id: string;
   email?: string | null;
@@ -30,6 +28,9 @@ export interface AppSession {
 
 interface SignInApi {
   google: () => Promise<void>;
+  // Email OTP is not implemented in the new backend (Better Auth's email
+  // flow was disabled by feature flag too). Stubs preserved so call sites
+  // compile; calling them throws.
   sendEmailOtp: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, otp: string) => Promise<void>;
   sendSmsOtp: (phoneNumber: string) => Promise<void>;
@@ -40,9 +41,9 @@ interface AuthContextValue {
   loading: boolean;
   user: AppUser | null;
   session: AppSession | null;
-  // True iff Better Auth knows about a user but we couldn't fetch the JWT
-  // we need to call protected APIs. Distinct from "logged out" (user==null)
-  // and from "still loading" (loading==true).
+  // Always false now. Kept on the type so consumers that branch on it
+  // still compile; the JWT-fetch failure mode it represented can't
+  // happen with cookie-only auth.
   tokenError: boolean;
   signIn: SignInApi;
   signOut: () => Promise<void>;
@@ -51,8 +52,12 @@ interface AuthContextValue {
 
 const defaultSignIn: SignInApi = {
   google: async () => {},
-  sendEmailOtp: async () => {},
-  verifyEmailOtp: async () => {},
+  sendEmailOtp: async () => {
+    throw new Error("email OTP is not enabled");
+  },
+  verifyEmailOtp: async () => {
+    throw new Error("email OTP is not enabled");
+  },
   sendSmsOtp: async () => {},
   verifySmsOtp: async () => {},
 };
@@ -67,118 +72,95 @@ const AuthContext = createContext<AuthContextValue>({
   refreshToken: async () => null,
 });
 
-const fetchAccessToken = async (): Promise<string | null> => {
-  try {
-    const resp = await fetch(`${endpoint}/api/auth/token`, { credentials: "include" });
-    if (!resp.ok) return null;
-    const body = (await resp.json()) as { token?: string };
-    return body.token ?? null;
-  } catch {
-    return null;
-  }
-};
+const COMMON: RequestInit = { credentials: "include" };
 
 interface AuthProviderProps {
   children: React.ReactNode;
 }
 
 const AuthProvider = ({ children }: AuthProviderProps) => {
-  const { data, isPending, refetch } = authClient.useSession();
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  // Tracks the "I have a session but I'm still fetching the JWT" window so
-  // page-level guards don't briefly see (loading=false, session=null) on
-  // refresh and pop a login modal at an already-authenticated user.
-  const [tokenLoading, setTokenLoading] = useState<boolean>(false);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const sessionUser = data?.user as AppUser | undefined;
-
-  const sessionUserId = sessionUser?.id ?? null;
-  useEffect(() => {
-    let cancelled = false;
-    if (!sessionUserId) {
-      setAccessToken(null);
-      setTokenLoading(false);
-      return;
-    }
-    setTokenLoading(true);
-    fetchAccessToken().then((token) => {
-      if (cancelled) return;
-      setAccessToken(token);
-      setTokenLoading(false);
-      if (!token) {
-        // User is logged in (server knows them) but we couldn't get a JWT.
-        // Most likely cause: cross-origin cookie blocked by the browser.
-        // Surface in console so a developer notices, and `tokenError`
-        // exposes the state to consumers (so they can show a banner or
-        // force a re-auth instead of looking superficially logged in).
-        // eslint-disable-next-line no-console
-        console.warn("[auth] session present but JWT fetch failed");
+  const refresh = useCallback(async () => {
+    try {
+      const r = await fetch(`${endpoint}/auth/session`, COMMON);
+      if (!r.ok) {
+        setUser(null);
+        return;
       }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionUserId]);
-
-  const refreshToken = useCallback(async () => {
-    const token = await fetchAccessToken();
-    setAccessToken(token);
-    return token;
+      const body = (await r.json()) as { user: AppUser | null };
+      setUser(body.user);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
   const signOut = useCallback(async () => {
-    await authClient.signOut();
-    await refetch();
-  }, [refetch]);
+    await fetch(`${endpoint}/auth/sign-out`, {
+      ...COMMON,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    await refresh();
+  }, [refresh]);
 
   const signIn: SignInApi = useMemo(
     () => ({
       google: async () => {
-        await authClient.signIn.social({
-          provider: "google",
-          callbackURL: window.location.href,
-        });
+        // Top-level redirect (not a fetch) so the browser follows Google's
+        // OAuth flow naturally and lands the session cookie when it returns.
+        window.location.assign(`${endpoint}/auth/google/start`);
       },
-      sendEmailOtp: async (email) => {
-        const { error } = await authClient.emailOtp.sendVerificationOtp({
-          email,
-          type: "sign-in",
-        });
-        if (error) throw new Error(error.message ?? "failed to send email OTP");
+      sendEmailOtp: async () => {
+        throw new Error("email OTP is not enabled");
       },
-      verifyEmailOtp: async (email, otp) => {
-        const { error } = await authClient.signIn.emailOtp({ email, otp });
-        if (error) throw new Error(error.message ?? "invalid email OTP");
-        await refetch();
+      verifyEmailOtp: async () => {
+        throw new Error("email OTP is not enabled");
       },
       sendSmsOtp: async (phoneNumber) => {
-        const { error } = await authClient.phoneNumber.sendOtp({ phoneNumber });
-        if (error) throw new Error(error.message ?? "failed to send SMS OTP");
+        const r = await fetch(`${endpoint}/auth/sms/send`, {
+          ...COMMON,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber }),
+        });
+        // /auth/sms/send always 204 — uniform response, no enumeration leak.
+        // Origin allowlist mismatch (403) is the only meaningful failure.
+        if (r.status === 403) throw new Error("origin not allowed");
+        if (!r.ok && r.status !== 204) throw new Error("failed to send SMS OTP");
       },
       verifySmsOtp: async (phoneNumber, code) => {
-        const { error } = await authClient.phoneNumber.verify({ phoneNumber, code });
-        if (error) throw new Error(error.message ?? "invalid SMS OTP");
-        await refetch();
+        const r = await fetch(`${endpoint}/auth/sms/verify`, {
+          ...COMMON,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber, code }),
+        });
+        if (r.status === 401) throw new Error("invalid SMS OTP");
+        if (!r.ok && r.status !== 204) throw new Error("failed to verify SMS OTP");
+        await refresh();
       },
     }),
-    [refetch],
+    [refresh],
   );
 
-  const session: AppSession | null =
-    sessionUser && accessToken
-      ? { access_token: accessToken, user: sessionUser }
-      : null;
-
-  const tokenError = Boolean(sessionUserId) && !tokenLoading && !accessToken;
+  const session: AppSession | null = user ? { access_token: "", user } : null;
 
   const value: AuthContextValue = {
-    loading: isPending || tokenLoading,
-    user: sessionUser ?? null,
+    loading,
+    user,
     session,
-    tokenError,
+    tokenError: false,
     signIn,
     signOut,
-    refreshToken,
+    refreshToken: async () => "",
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
