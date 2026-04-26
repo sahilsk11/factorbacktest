@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	authmodel "factorbacktest/internal/db/models/postgres/app_auth/model"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/util"
@@ -21,20 +22,27 @@ func (s *Service) loginUser(ctx context.Context, c *gin.Context, userID uuid.UUI
 		return err
 	}
 	now := s.now().UTC()
-	row := repository.AuthSession{
+	row := &authmodel.UserSession{
 		ID:            id,
 		UserAccountID: userID,
 		CreatedAt:     now,
 		ExpiresAt:     now.Add(s.cfg.SessionTTL),
 		LastSeenAt:    now,
-		IP:            c.ClientIP(),
-		UserAgent:     truncate(c.GetHeader("User-Agent"), 512),
+		IP:            stringPtrOrNil(c.ClientIP()),
+		UserAgent:     stringPtrOrNil(truncate(c.GetHeader("User-Agent"), 512)),
 	}
 	if err := s.sessions.Create(ctx, row); err != nil {
 		return fmt.Errorf("create session: %w", err)
 	}
 	s.setSessionCookie(c, s.signCookieValue(id), s.cfg.SessionTTL)
 	return nil
+}
+
+func stringPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // resolveSession is what the auth middleware calls on every request:
