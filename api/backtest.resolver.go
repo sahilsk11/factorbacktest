@@ -300,8 +300,17 @@ func (h ApiHandler) runBacktest(c *gin.Context, requestBody BacktestRequest) (*B
 	// Latency tracking — best effort. Failing this should not fail the
 	// backtest; the original synchronous handler treated this as fatal,
 	// but that's overzealous: the user already got their result.
+	//
+	// The "event" key is intentional: it's the grep handle for spotting
+	// this regression in flyctl logs (`grep latency_insert_failed`). We
+	// silently dropped these for ~2 years before noticing; never again.
 	if err := h.LatencencyTrackingRepository.Add(*profile, requestId); err != nil {
-		log.Errorf("failed to record latency profile: %s", err.Error())
+		log.Errorw(
+			"latency_insert_failed",
+			"event", "latency_insert_failed",
+			"err", err.Error(),
+			"hasRequestID", requestId != nil,
+		)
 	}
 
 	return responseJson, nil

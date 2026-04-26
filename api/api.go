@@ -271,6 +271,13 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 	} else {
 		lg = lg.With("requestID", req.RequestID.String())
 		ctx.Set(logger.ContextKey, lg)
+		// Downstream resolvers (e.g. backtest.runBacktest) read the
+		// request UUID via ctx.Get("requestID") to attach foreign-key
+		// references on rows they write (latency_tracking, etc.). Until
+		// this line was added the key was never set, every dependent
+		// insert silently went in with request_id=NULL, and we lost the
+		// ability to join span data back to api_request.
+		ctx.Set("requestID", req.RequestID.String())
 	}
 
 	ctx.Next()
