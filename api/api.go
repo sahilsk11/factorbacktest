@@ -155,8 +155,34 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 }
 
 func (m ApiHandler) StartApi(ctx context.Context) error {
+	go m.runFactorScoreCleanup(ctx)
 	engine := m.InitializeRouterEngine(ctx)
 	return engine.Run(fmt.Sprintf(":%d", m.Port))
+}
+
+// runFactorScoreCleanup deletes factor_score rows older than 2 weeks every 24
+// hours. factor_score is a computed cache; old entries are never needed and
+// can always be recomputed on demand.
+func (m ApiHandler) runFactorScoreCleanup(ctx context.Context) {
+	log := logger.FromContext(ctx)
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			result, err := m.Db.ExecContext(ctx, `DELETE FROM factor_score WHERE created_at < now() - INTERVAL '2 weeks'`)
+			if err != nil {
+				log.Errorf("factor_score cleanup: %v", err)
+				continue
+			}
+			n, _ := result.RowsAffected()
+			if n > 0 {
+				log.Infof("factor_score cleanup: deleted %d expired rows", n)
+			}
+		}
+	}
 }
 
 func returnErrorJson(err error, c *gin.Context) {
