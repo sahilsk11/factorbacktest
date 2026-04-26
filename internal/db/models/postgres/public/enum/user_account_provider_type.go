@@ -4,14 +4,6 @@
 // WARNING: Changes to this file may cause incorrect behavior
 // and will be lost if the code is regenerated
 //
-// HAND-EDITED: BetterAuth was added manually alongside migration 000052.
-// LocalGoogle and LocalSms were added manually alongside migration 000053
-// for the custom Go auth package (internal/auth). If you re-run
-// `make db-models`, re-add all three fields + enum values to keep auth
-// code referencing model.UserAccountProviderType_BetterAuth /
-// _LocalGoogle / _LocalSms compiling. Same edit applies to
-// ../model/user_account_provider_type.go.
-//
 
 package enum
 
