@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certifi
 
 COPY --from=go-build /out/api /app/api
 COPY --from=go-build /out/migrate /app/migrate
+COPY --from=go-build /src/templates /app/templates
 
 ARG commit_hash
 ENV commit_hash=$commit_hash

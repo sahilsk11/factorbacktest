@@ -15,6 +15,22 @@ direction.
 - Framer Motion for entrance animations
 - ESLint (flat config) + Prettier
 
+## Auth + API pattern
+
+`src/lib/auth.tsx` owns session bootstrap, Google redirect, email OTP, SMS OTP,
+and sign-out. It is mounted once in `main.tsx` inside `QueryClientProvider`, so
+any component can call `useAuth()` to render signed-in vs signed-out UI.
+
+Logged-in API calls still go through `apiClient`:
+
+```ts
+const data = await apiClient.get<MyResponse>('/someProtectedRoute');
+```
+
+Do not pass bearer tokens or call `fetch` directly. The Go auth package issues an
+HttpOnly cookie, and `apiClient` always sends `credentials: 'include'`, so future
+protected v2 workflows keep the same shape as public calls.
+
 ## Configuration
 
 Two env knobs control runtime behavior. Both are respected by `vite dev`,
