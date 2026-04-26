@@ -7,9 +7,9 @@
 
 Two completely different auth mechanisms fire simultaneously:
 - `useGoogleLogin` from `@react-oauth/google` sets a `GoogleAuthUser.accessToken` cookie
-- `useAuth()` from `auth.tsx` returns a Supabase `Session` with its own separate access token
+- `useAuth()` from `auth.tsx` (the custom Go auth + HttpOnly session cookie) exposes a stub `AppSession.access_token` (always empty)
 
-API calls in the same component use different tokens depending on which auth hook was used. Token expiry on either path causes silent failures or unhandled errors.
+API calls in the same component branch on whichever hook fired first. With cookie auth the Bearer header is now ignored server-side, but the inconsistent client logic still causes silent failures when the cookie isn't yet hydrated.
 
 ---
 

@@ -1,12 +1,12 @@
 # `internal/auth` — custom Go authentication
 
-A self-contained Go package that handles Google OAuth (OIDC) and Twilio Verify SMS sign-in, issues HMAC-signed session cookies, and exposes a Gin middleware that resolves the cookie to a `userAccountID`. Replaces the embedded Better Auth Node sidecar for the new flow; coexists with it during cutover.
+A self-contained Go package that handles Google OAuth (OIDC) and Twilio Verify SMS sign-in, issues HMAC-signed session cookies, and exposes a Gin middleware that resolves the cookie to a `userAccountID`. This is the only authentication path the API exposes.
 
 ## Why this exists
 
-The Better Auth sidecar was operationally painful (separate Node process, bash supervisor, npm-registry boot dependency, $7/mo always-warm machine). For a Google-OAuth + SMS-OTP feature set, those costs aren't justified. This package replaces it with a Go-native implementation that:
+The previous setup was an embedded Better Auth Node sidecar — operationally painful (separate Node process, bash supervisor, npm-registry boot dependency, $7/mo always-warm machine). For a Google-OAuth + SMS-OTP feature set, those costs weren't justified. This package replaced it with a Go-native implementation that:
 
-- Lives in the same binary as the API (no sidecar, no `start.sh`)
+- Lives in the same binary as the API (no sidecar)
 - Delegates every security-critical primitive to a vetted library (see "What we delegate" below)
 - Is small enough for a single human to read end-to-end in 30 minutes
 
@@ -66,7 +66,7 @@ Each row pairs a defense with the test that proves it. Tests are not in this PR 
 | User enumeration via `/auth/sms/send` | Always returns 204. Validation, rate-limiting, and Twilio failures all collapse to the same response. Twilio rate-limits also collapse to 204 inside `sendVerification`. | `TestSmsSend_NoEnumerationLeak` |
 | User enumeration via `/auth/sms/verify` | "Wrong code" / "no pending verification" / "expired" all return 401. Twilio outage returns 503 (deliberately distinguishable — "service is down" is operational signal, not enumeration data; doesn't help an attacker probing accounts). | `TestSmsVerify_FailureModes` |
 | Twilio bill drained by attacker | Per-phone limiter (3 / 10min) AND per-IP limiter (10 / 10min). Both must pass; we never reveal which one tripped. Compensating control: Twilio Verify's own per-phone limits + fraud-detection settings. | `TestSmsSend_RateLimited_PerIP`, `TestSmsSend_RateLimited_PerPhone` |
-| Cookie + Bearer ambiguity during cutover | `getGoogleAuthMiddleware` (legacy) skips its work when `userAccountID` is already set on the context. Cookie wins; same user_account_id flows through regardless. | `TestMiddleware_CookieWinsOverBearer` |
+| Cookie + Bearer ambiguity for legacy clients | `getGoogleAuthMiddleware` (Google ID-token Bearer fallback) skips its work when `userAccountID` is already set on the context. Cookie wins; same user_account_id flows through regardless. | `TestMiddleware_CookieWinsOverBearer` |
 | Logging leaks sessions/OTPs/cookies | `logf` wraps `log.Printf` and is the only logger. Errors deliberately summarize ("ok"/"fail", "rate limited") rather than echo input. Twilio creds are passed via `SetBasicAuth` (never formatted into strings). | Code review |
 
 ## Defense layers we DO NOT own
@@ -118,14 +118,12 @@ These are set in `Config` and matter:
 - State cookie TTL: 10 min. Long enough for slow connections, short enough to bound exposure.
 - SMS rate limits: 3/phone/10min, 10/IP/10min. Both must pass.
 
-## Future work (not in this PR)
+## Future work
 
 1. Tests for every row in the threat-model table. Spec is the table; implementation is mechanical.
 2. `gosec` static analysis in CI (catches a different bug class than tests).
 3. HSTS header at CloudFront and Fly.
-4. FE swap: replace `frontend/src/auth.tsx`'s `better-auth/react` calls with direct fetches against `/auth/*`.
-5. Delete `auth-service/`, `scripts/start.sh`, `api/auth_proxy.go`, the Better Auth `auth` schema, and the Node stage of `Dockerfile.fly` once the FE has cut over and prod traffic on `/api/auth/*` has been zero for a few days.
-6. Postgres-backed rate limiter if the in-memory gap becomes exploitable in practice.
-7. Key-id (kid) on session cookie HMAC for seamless secret rotation without forced logout.
+4. Postgres-backed rate limiter if the in-memory gap becomes exploitable in practice.
+5. Key-id (kid) on session cookie HMAC for seamless secret rotation without forced logout.
 
 Each of these is independently shippable. Don't try to bundle.

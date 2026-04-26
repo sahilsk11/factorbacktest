@@ -13,7 +13,6 @@ import (
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
-	"factorbacktest/internal/util"
 	googleauth "factorbacktest/pkg/google-auth"
 	"fmt"
 	"io"
@@ -48,22 +47,11 @@ type ApiHandler struct {
 	TradingService               service.TradeService
 	StrategyService              service.StrategyService
 	StrategySummaryApp           app.StrategySummaryApp
-	JwtDecodeToken               string
-	// BetterAuthJwksURL is the URL the Go API hits to fetch the JWKS used to
-	// verify Better Auth-issued JWTs. In production it points at the local
-	// auth-service sidecar (default `http://127.0.0.1:3001/api/auth/jwks`).
-	BetterAuthJwksURL string
-	// BetterAuthExpectedIssuer is the value the auth-service stamps as `iss`
-	// on every JWT (its `baseURL`). When set, JWTs whose `iss` doesn't match
-	// are rejected. Defense in depth in case the JWKS URL is misconfigured.
-	BetterAuthExpectedIssuer string
 
-	// AuthService is the new custom Go auth package. When non-nil, its
-	// routes are mounted at /auth/* and its session-cookie middleware
-	// runs BEFORE the legacy JWT middleware (so cookie auth wins when
-	// both are present). When nil (e.g. during local dev without the
-	// secrets configured), /auth/* is unmounted and the API behaves as
-	// before. Plumbing it through `nil` is the supported "off" state.
+	// AuthService is the custom Go auth package that owns /auth/* and the
+	// session-cookie middleware. When nil (e.g. local dev without the
+	// secrets configured), /auth/* is unmounted; the API still serves
+	// unauthenticated routes but every authenticated route 401s.
 	AuthService *auth.Service
 
 	AlpacaRepository repository.AlpacaRepository
@@ -101,37 +89,24 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		AllowOrigins: allowedOrigins,
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders: []string{"Authorization", "Content-Type", "Cookie"},
-		// Better Auth issues HttpOnly session cookies. The browser will only
+		// internal/auth issues HttpOnly session cookies. The browser will only
 		// attach them on cross-origin requests when AllowCredentials is true
 		// AND the origin is not a wildcard (which we already enforce).
 		AllowCredentials: true,
 		ExposeHeaders:    []string{"Set-Cookie"},
 	}))
-	// Reverse-proxy /api/auth/* to the local Better Auth sidecar BEFORE the
-	// JWT middleware. The auth-service handles its own request validation
-	// (CSRF, OTPs, OAuth callbacks) and we don't want our JWT middleware
-	// rejecting unauthenticated calls like sign-in or token refresh.
-	authProxy, err := newBetterAuthProxy()
-	if err != nil {
-		lg.Errorf("failed to build better-auth proxy: %v", err)
-	} else {
-		engine.Any("/api/auth/*proxyPath", authProxy)
-	}
 
-	// New custom Go auth: install the cookie middleware FIRST, then mount
+	// Custom Go auth: install the cookie middleware FIRST, then mount
 	// /auth/* routes. Gin doesn't apply middleware retroactively to routes
 	// registered before Use(); the middleware would otherwise miss the
 	// /auth/session handler that reads userAccountID from context.
 	// Order matters:
 	//   1. CORS (above) so preflight works for /auth/*
-	//   2. /api/auth/* proxy (above) so Better Auth keeps working
-	//      (proxy routes were registered before this point so the cookie
-	//      middleware doesn't apply to them — correct, Better Auth handles
-	//      its own auth)
-	//   3. AuthService.Middleware() (here) sets userAccountID from cookie
-	//   4. /auth/* routes (here) — get the cookie middleware
-	//   5. m.getGoogleAuthMiddleware (below) — applies to all subsequent
-	//      routes; skips JWT resolution when cookie middleware already set
+	//   2. AuthService.Middleware() (here) sets userAccountID from cookie
+	//   3. /auth/* routes (here) — get the cookie middleware
+	//   4. m.getGoogleAuthMiddleware (below) — Google ID-token fallback
+	//      for any older direct integrations still sending Bearer tokens;
+	//      skips itself when the cookie middleware already set userAccountID
 	if m.AuthService != nil {
 		engine.Use(m.AuthService.Middleware())
 		m.AuthService.RegisterRoutes(engine)
@@ -303,11 +278,11 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 }
 
 func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
-	// Cookie-based auth (the new internal/auth package) runs as an earlier
+	// Cookie-based auth (the internal/auth package) runs as an earlier
 	// middleware and may have already set userAccountID. When that's the
-	// case we skip JWT/Bearer resolution entirely — cookie wins. This also
-	// avoids accidentally swapping the identity if the FE sends both a
-	// cookie and a stale Bearer token during the cutover from Better Auth.
+	// case we skip Bearer resolution entirely — cookie wins. This also
+	// avoids accidentally swapping the identity if a client sends both a
+	// cookie and a stale Bearer token.
 	if v, exists := c.Get("userAccountID"); exists {
 		if s, ok := v.(string); ok && s != "" {
 			c.Next()
@@ -325,82 +300,22 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 	}
 	jwtStr = jwtStr[len("Bearer "):]
 
-	var userInput *model.UserAccount
-
-	// Resolution order during the Supabase -> Better Auth cutover:
-	//   1. Better Auth JWT (EdDSA via JWKS) - the new default
-	//   2. Supabase JWT (HS256 / ES256 via JWKS) - kept until existing sessions expire
-	//   3. Google ID token - used by older direct integrations
-	// Once Supabase is fully decommissioned, branches 2 and the related
-	// SupabaseJWT code in api/auth.go can be removed.
-	var betterAuthErr error
-	if m.BetterAuthJwksURL != "" {
-		var baJwt *BetterAuthJWT
-		baJwt, betterAuthErr = parseBetterAuthJWT(jwtStr, m.BetterAuthJwksURL, m.BetterAuthExpectedIssuer)
-		if betterAuthErr == nil {
-			userInput = &model.UserAccount{
-				Provider:    model.UserAccountProviderType_BetterAuth,
-				ProviderID:  &baJwt.Subject,
-				PhoneNumber: baJwt.PhoneNumber,
-			}
-			if baJwt.Email != nil && *baJwt.Email != "" {
-				userInput.Email = baJwt.Email
-			}
-			if baJwt.Name != "" {
-				splits := strings.Split(baJwt.Name, " ")
-				userInput.FirstName = &splits[0]
-				if len(splits) > 1 {
-					userInput.LastName = util.StringPointer(strings.Join(splits[1:], " "))
-				}
-			}
-		}
-	}
-
-	var supabaseErr error
-	var googleAuthErr error
-	if userInput == nil {
-		var parsedJwt *SupabaseJWT
-		parsedJwt, supabaseErr = parseSupabaseJWT(jwtStr, m.JwtDecodeToken)
-		userDetails, gErr := googleauth.GetUserDetails(jwtStr)
-		googleAuthErr = gErr
-
-		if supabaseErr == nil {
-			userInput = &model.UserAccount{
-				PhoneNumber: parsedJwt.PhoneNumber,
-				Provider:    model.UserAccountProviderType_Supabase,
-				ProviderID:  &parsedJwt.Subject,
-			}
-			if parsedJwt.Email != nil && *parsedJwt.Email != "" {
-				userInput.Email = parsedJwt.Email
-			}
-			if parsedJwt.Name != "" {
-				splits := strings.Split(parsedJwt.Name, " ")
-				userInput.FirstName = &splits[0]
-				if len(splits) > 1 {
-					userInput.LastName = util.StringPointer(strings.Join(splits[1:], " "))
-				}
-			}
-		} else if googleAuthErr == nil {
-			userInput = &model.UserAccount{
-				Email:     &userDetails.Email,
-				FirstName: &userDetails.FirstName,
-				LastName:  &userDetails.LastName,
-				Provider:  model.UserAccountProviderType_Google,
-			}
-		}
-	}
-
-	if userInput == nil {
-		// Log per-validator errors server-side for ops debugging; return a
-		// generic 403 to the client so we don't expose token-validation
-		// internals to attackers tuning forged tokens.
+	// Google ID-token fallback for older direct integrations that still
+	// send Bearer tokens. The FE has cut over to cookies; this branch
+	// exists only so external callers don't break.
+	userDetails, googleAuthErr := googleauth.GetUserDetails(jwtStr)
+	if googleAuthErr != nil {
 		logger.FromContext(c).With(
-			"better_auth_err", fmt.Sprintf("%v", betterAuthErr),
-			"supabase_err", fmt.Sprintf("%v", supabaseErr),
 			"google_err", fmt.Sprintf("%v", googleAuthErr),
-		).Warn("all auth methods failed")
+		).Warn("bearer token rejected")
 		returnErrorJsonCode(fmt.Errorf("invalid or expired credentials"), c, 403)
 		return
+	}
+	userInput := &model.UserAccount{
+		Email:     &userDetails.Email,
+		FirstName: &userDetails.FirstName,
+		LastName:  &userDetails.LastName,
+		Provider:  model.UserAccountProviderType_Google,
 	}
 
 	user, err := m.UserAccountRepository.GetOrCreate(userInput)

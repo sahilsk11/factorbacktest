@@ -1,14 +1,10 @@
--- Idempotent bootstrap for the Better Auth schema.
--- Safe to run on every container start.
---
--- Better Auth then creates/updates its own tables inside this schema via
--- `npx better-auth migrate` (Kysely adapter, search_path-aware).
+-- Reverse of 000054_drop_better_auth.up.sql. Recreates only the structures
+-- the Go side ever cared about (the public bridge table). The `auth` schema
+-- itself is recreated empty; its tables were CLI-owned and would be rebuilt
+-- by `npx better-auth migrate` if the sidecar were ever resurrected.
 
 CREATE SCHEMA IF NOT EXISTS auth;
 
--- Cross-schema bridge: app-owned profile keyed by Better Auth user id.
--- Lives in `public` so the Go API and existing app code can join against it
--- without ever touching `auth.user` directly.
 CREATE TABLE IF NOT EXISTS public.app_user_profile (
     auth_user_id  TEXT PRIMARY KEY,
     email         TEXT,

@@ -61,10 +61,6 @@ export default (async () => {
         command: `npm run build && npx serve -s build -l ${fePort}`,
         env: {
           REACT_APP_API_PORT: String(bePort),
-          // Stubs so client libraries that require non-empty values at boot
-          // (e.g. supabase createClient) don't crash the app before mount.
-          REACT_APP_SUPABASE_URL: 'http://localhost.test',
-          REACT_APP_SUPABASE_ANON_KEY: 'test-anon-key',
           CI: 'false',
           TSC_COMPILE_ON_ERROR: 'true',
           ESLINT_NO_DEV_ERRORS: 'true',

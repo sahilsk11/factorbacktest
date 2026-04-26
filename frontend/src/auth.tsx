@@ -28,9 +28,8 @@ export interface AppSession {
 
 interface SignInApi {
   google: () => Promise<void>;
-  // Email OTP is not implemented in the new backend (Better Auth's email
-  // flow was disabled by feature flag too). Stubs preserved so call sites
-  // compile; calling them throws.
+  // Email OTP is not implemented in the backend. Stubs preserved so call
+  // sites compile; calling them throws.
   sendEmailOtp: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, otp: string) => Promise<void>;
   sendSmsOtp: (phoneNumber: string) => Promise<void>;
