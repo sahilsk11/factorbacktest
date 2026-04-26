@@ -48,6 +48,7 @@ export function FactorExpressionInput({
     try {
       const response = await fetch(endpoint + "/constructFactorEquation", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "Authorization": session ? "Bearer " + session.access_token : ""

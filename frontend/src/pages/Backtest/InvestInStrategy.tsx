@@ -223,6 +223,7 @@ function InvestModal({
     try {
       const response = await fetch(endpoint + "/investInStrategy", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Authorization": session ? "Bearer " + session.access_token : ""
         },

@@ -48,6 +48,7 @@ export function Home({
   async function getPublishedStrategies(): Promise<GetPublishedStrategiesResponse[]> {
     try {
       const response = await fetch(endpoint + "/publishedStrategies", {
+        credentials: "include",
         headers: {
           "Authorization": session ? "Bearer " + session.access_token : ""
         }

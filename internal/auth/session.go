@@ -89,9 +89,22 @@ func (s *Service) resolveSession(ctx context.Context, c *gin.Context) (uuid.UUID
 	return row.UserAccountID, true
 }
 
-// upsertGoogleUser is the only path Google sign-in takes to materialize a
-// user_account row. Identity is keyed on (LOCAL_GOOGLE, sub) — not email —
-// so email changes / recycling don't cause account collisions.
+// upsertGoogleUser materializes a user_account row from a Google-verified
+// identity. We use GetOrCreate (which keys lookup on email when present)
+// rather than GetOrCreateByProviderIdentity for the same reason
+// upsertPhoneUser uses GetOrCreate: the user_account.email column has its
+// own unique constraint that fires before our (provider, provider_id)
+// ON CONFLICT can update, when an existing row from a different provider
+// already holds that email.
+//
+// Email is set on the row only when Google's id_token has
+// email_verified=true; the OIDC verifier in google.go has already
+// enforced that. So `email` here is a Google-attested identity and
+// linking on it is the correct behavior — the user signing in with
+// Google can prove control of that mailbox.
+//
+// If email is empty (rare; would require a Google account with no email
+// scope granted), we fall back to provider+provider_id keyed insertion.
 func (s *Service) upsertGoogleUser(_ context.Context, sub, email, firstName, lastName string) (uuid.UUID, error) {
 	in := &model.UserAccount{
 		Provider:   model.UserAccountProviderType_LocalGoogle,
@@ -106,7 +119,15 @@ func (s *Service) upsertGoogleUser(_ context.Context, sub, email, firstName, las
 	if lastName != "" {
 		in.LastName = util.StringPointer(lastName)
 	}
-	row, err := s.users.GetOrCreateByProviderIdentity(in)
+	if email == "" {
+		// No email; only safe identity is the (provider, provider_id) tuple.
+		row, err := s.users.GetOrCreateByProviderIdentity(in)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		return row.UserAccountID, nil
+	}
+	row, err := s.users.GetOrCreate(in)
 	if err != nil {
 		return uuid.Nil, err
 	}

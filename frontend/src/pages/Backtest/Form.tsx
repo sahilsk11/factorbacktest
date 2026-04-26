@@ -29,6 +29,7 @@ async function getIsBookmarked(session: Session, props: FormViewProps): Promise<
   try {
     const response = await fetch(endpoint + "/isStrategyBookmarked", {
       method: "POST",
+      credentials: "include",
       headers: {
         "Authorization": session ? "Bearer " + session.access_token : ""
       },
@@ -52,6 +53,7 @@ async function getIsBookmarked(session: Session, props: FormViewProps): Promise<
 export async function getStrategies(session: Session, setSavedStrategies: Dispatch<React.SetStateAction<GetSavedStrategiesResponse[]>>) {
   try {
     const response = await fetch(endpoint + "/savedStrategies", {
+      credentials: "include",
       headers: {
         "Authorization": session ? "Bearer " + session.access_token : ""
       }
@@ -150,6 +152,7 @@ export default function FactorForm({
   const getUniverses = async () => {
     try {
       const response = await fetch(endpoint + "/assetUniverses", {
+        credentials: "include",
         headers: {
           "Authorization": session ? "Bearer " + session.access_token : ""
         }
@@ -235,6 +238,7 @@ export default function FactorForm({
     try {
       const response = await fetch(endpoint + "/backtest", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "Authorization": session ? "Bearer " + session.access_token : ""
@@ -801,6 +805,7 @@ export const updateBookmarked = async (
   try {
     const response = await fetch(endpoint + "/bookmarkStrategy", {
       method: "POST",
+      credentials: "include",
       headers: {
         "Authorization": session ? "Bearer " + session.access_token : ""
       },

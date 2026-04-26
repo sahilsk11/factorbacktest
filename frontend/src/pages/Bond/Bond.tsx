@@ -120,6 +120,7 @@ function BondBuilderForm(
     try {
       const response = await fetch(endpoint + "/backtestBondPortfolio", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "Authorization": session ? "Bearer " + session.access_token : ""

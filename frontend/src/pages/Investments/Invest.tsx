@@ -40,6 +40,7 @@ export default function Invest({
   async function getInvestments() {
     try {
       const response = await fetch(endpoint + "/activeInvestments", {
+        credentials: "include",
         headers: {
           "Authorization": session ? "Bearer " + session.access_token : ""
         }
