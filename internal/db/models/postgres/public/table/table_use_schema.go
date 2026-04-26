@@ -12,7 +12,6 @@ package table
 func UseSchema(schema string) {
 	AdjustedPrice = AdjustedPrice.FromSchema(schema)
 	APIRequest = APIRequest.FromSchema(schema)
-	AppUserProfile = AppUserProfile.FromSchema(schema)
 	AssetFundamental = AssetFundamental.FromSchema(schema)
 	AssetUniverse = AssetUniverse.FromSchema(schema)
 	AssetUniverseTicker = AssetUniverseTicker.FromSchema(schema)
