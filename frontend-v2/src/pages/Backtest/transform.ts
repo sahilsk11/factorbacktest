@@ -48,11 +48,10 @@ export function snapshotsToStrategyPoints(result: BacktestResponse): ChartPoint[
   return dates.map((d) => {
     const snap = map[d];
     if (!snap) {
-      return { date: d, pctReturn: 0, value: startValue };
+      return { date: d, pctReturn: 0 };
     }
     return {
       date: d,
-      value: snap.value,
       pctReturn: snap.value / startValue - 1,
     };
   });
@@ -64,7 +63,7 @@ export function snapshotsToStrategyPoints(result: BacktestResponse): ChartPoint[
 export function snapshotToHoldings(
   result: BacktestResponse,
   date: string,
-): { holdings: HoldingRow[]; value: number; pctChange: number } | null {
+): { holdings: HoldingRow[]; pctChange: number } | null {
   const map = asSnapshotMap(result.backtestSnapshots);
   if (!map) return null;
   const snap = map[date];
@@ -89,7 +88,6 @@ export function snapshotToHoldings(
   // valuePercentChange is also in percentage points on the wire.
   return {
     holdings,
-    value: snap.value,
     pctChange: (snap.valuePercentChange ?? 0) / 100,
   };
 }

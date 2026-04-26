@@ -9,10 +9,6 @@ export interface ChartPoint {
   // (0.12 = +12%). Plotting returns instead of dollar values lets
   // strategy + SPY share a y-axis with no normalization weirdness.
   pctReturn: number;
-  // Original strategy value (in starting-cash units) — preserved for
-  // the day inspector / tooltip headline. Undefined for benchmark
-  // points since SPY only carries % data.
-  value?: number;
 }
 
 export interface ChartSeries {
