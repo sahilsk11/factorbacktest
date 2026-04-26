@@ -68,7 +68,7 @@ deploy-fe:
 	aws cloudfront create-invalidation --distribution-id E28M2984LB2P97 --paths "/*" --output text
 
 deploy-fly:
-	flyctl deploy --remote-only
+	flyctl deploy --remote-only --build-arg commit_hash=$(shell git rev-parse --short HEAD)
 
 deploy:
 	make deploy-fly;

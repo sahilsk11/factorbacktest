@@ -31,7 +31,16 @@ jobs:
       - name: Set up flyctl
         uses: superfly/flyctl-actions/setup-flyctl@v1.4
 
+      - name: Compute commit hash
+        id: commit
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # commit_hash is read at runtime by logRequestMiddlware (api/api.go) and
+      # written to api_request.version. Without --build-arg the env var is
+      # empty inside the container and we lose deploy attribution on every
+      # request — making it impossible to correlate a slow request with a
+      # specific deploy.
       - name: Deploy to Fly
-        run: flyctl deploy --remote-only
+        run: flyctl deploy --remote-only --build-arg commit_hash=${{ steps.commit.outputs.sha_short }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
