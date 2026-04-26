@@ -45,6 +45,10 @@ func (h factorScoreRepositoryHandler) AddMany(in []*model.FactorScore) error {
 		}
 
 		batch := in[start:end]
+		// factor_score is a pure cache keyed on (hash, date, ticker_id), so on
+		// conflict there's nothing meaningful to update. DO NOTHING avoids the
+		// MVCC churn and index update from the previous DO UPDATE updated_at
+		// no-op write.
 		query := table.FactorScore.INSERT(table.FactorScore.MutableColumns).
 			MODELS(batch).
 			ON_CONFLICT(
@@ -52,11 +56,7 @@ func (h factorScoreRepositoryHandler) AddMany(in []*model.FactorScore) error {
 				table.FactorScore.Date,
 				table.FactorScore.TickerID,
 			).
-			DO_UPDATE(
-				postgres.SET(
-					table.FactorScore.UpdatedAt.SET(table.FactorScore.EXCLUDED.UpdatedAt),
-				),
-			)
+			DO_NOTHING()
 		_, err := query.Exec(h.Db)
 		if err != nil {
 			return fmt.Errorf("failed to create factor scores in db: %w", err)

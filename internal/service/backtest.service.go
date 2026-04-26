@@ -109,7 +109,7 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 
 	endFactorScoresStep := progress.Step(ctx, "factor_scores", "Calculating factor scores")
 	span, endSpan := profile.StartNewSpan("calculating factor scores")
-	factorScoresByDay, err := h.FactorExpressionService.CalculateFactorScores(domain.NewCtxWithSubProfile(ctx, span), tradingDays, tickers, in.FactorExpression)
+	factorScoresByDay, priceCache, err := h.FactorExpressionService.CalculateFactorScoresWithCache(domain.NewCtxWithSubProfile(ctx, span), tradingDays, tickers, in.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
 	}
@@ -142,7 +142,10 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		computeSpan, endCompute := domain.NewSpan("compute target portfolio")
 		iterProfile.AddSpan(computeSpan)
 
-		pm, err := h.PriceRepository.GetManyOnDay(universeSymbols, t)
+		// Reuse the price cache built upstream by CalculateFactorScoresWithCache
+		// instead of hitting the db once per rebalance day. Falls back to the
+		// repository for any symbol the cache doesn't have.
+		pm, err := priceCache.GetManyOnDay(ctx, universeSymbols, t)
 		endPriceSpan()
 		if err != nil {
 			endIterProfile()

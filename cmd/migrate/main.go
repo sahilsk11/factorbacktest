@@ -121,7 +121,11 @@ func pendingUpMigrations(current int) ([]migration, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out []migration
+
+	// Collect every .up.sql file so we can validate version uniqueness across
+	// the entire set before applying anything. Checking only pending migrations
+	// would silently miss duplicates that are both already applied.
+	var all []migration
 	for _, e := range entries {
 		name := e.Name()
 		if !strings.HasSuffix(name, ".up.sql") {
@@ -132,15 +136,30 @@ func pendingUpMigrations(current int) ([]migration, error) {
 		if err != nil {
 			return nil, fmt.Errorf("bad migration name %q: %w", name, err)
 		}
-		if v <= current {
+		all = append(all, migration{version: v, filename: name})
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].version < all[j].version })
+
+	for i := 1; i < len(all); i++ {
+		if all[i].version == all[i-1].version {
+			return nil, fmt.Errorf(
+				"duplicate migration version %d: %s and %s — rename one before deploying",
+				all[i].version, all[i-1].filename, all[i].filename,
+			)
+		}
+	}
+
+	var out []migration
+	for _, m := range all {
+		if m.version <= current {
 			continue
 		}
-		body, err := fs.ReadFile(migrations.FS, name)
+		body, err := fs.ReadFile(migrations.FS, m.filename)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, migration{version: v, filename: name, sql: string(body)})
+		m.sql = string(body)
+		out = append(out, m)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].version < out[j].version })
 	return out, nil
 }

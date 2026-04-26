@@ -187,6 +187,44 @@ func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[
 	}, nil
 }
 
+// GetManyOnDay returns prices for the given symbols on the given date, mirroring
+// AdjustedPriceRepository.GetManyOnDay's signature so callers in the backtest
+// hot path can avoid an extra db round-trip per rebalance day. For symbols
+// that aren't present in the cache, it falls back to the underlying repository
+// in a single batched query and warns so we can confirm fallback is rare.
+func (pr *PriceCache) GetManyOnDay(ctx context.Context, symbols []string, date time.Time) (map[string]decimal.Decimal, error) {
+	out := map[string]decimal.Decimal{}
+	missing := []string{}
+	dateKey := date.Format(time.DateOnly)
+
+	for _, s := range symbols {
+		if symbolPrices, ok := pr.prices[s]; ok {
+			if price, ok := symbolPrices[dateKey]; ok {
+				out[s] = decimal.NewFromFloat(price)
+				continue
+			}
+		}
+		missing = append(missing, s)
+	}
+
+	if len(missing) > 0 {
+		log := logger.FromContext(ctx)
+		log.Warnf("PriceCache.GetManyOnDay fallback to repository for %d/%d symbols on %s", len(missing), len(symbols), dateKey)
+		if pr.adjPriceRepository == nil {
+			return nil, fmt.Errorf("price cache miss for %d symbols on %s and no fallback repository configured", len(missing), dateKey)
+		}
+		fallback, err := pr.adjPriceRepository.GetManyOnDay(missing, date)
+		if err != nil {
+			return nil, fmt.Errorf("failed cache-fallback GetManyOnDay: %w", err)
+		}
+		for k, v := range fallback {
+			out[k] = v
+		}
+	}
+
+	return out, nil
+}
+
 func (pr *PriceCache) GetStdev(ctx context.Context, symbol string, start, end time.Time) (float64, error) {
 	if result, ok := pr.stdevs.get(symbol, start, end); ok {
 		return result, nil
