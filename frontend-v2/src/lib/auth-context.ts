@@ -17,9 +17,9 @@ export type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 export interface SignInApi {
   google: () => Promise<void>;
   sendEmailCode: (email: string) => Promise<void>;
-  verifyEmailCode: (email: string, code: string) => Promise<void>;
+  verifyEmailCode: (email: string, code: string) => Promise<AppUser | null>;
   sendSmsCode: (phoneNumber: string) => Promise<void>;
-  verifySmsCode: (phoneNumber: string, code: string) => Promise<void>;
+  verifySmsCode: (phoneNumber: string, code: string) => Promise<AppUser | null>;
 }
 
 export interface AuthContextValue {
@@ -28,7 +28,7 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   signIn: SignInApi;
   signOut: () => Promise<void>;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<SessionResponse>;
 }
 
 export const authSessionQueryKey = ['auth', 'session'] as const;

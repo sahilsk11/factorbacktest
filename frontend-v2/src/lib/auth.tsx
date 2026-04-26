@@ -11,17 +11,25 @@ import {
   type SignInApi,
 } from '@/lib/auth-context';
 
+const getSession = () => apiClient.get<SessionResponse>('/auth/session');
+
 export function AuthProvider({ children }: { children: ReactNode }): React.ReactNode {
   const queryClient = useQueryClient();
   const sessionQuery = useQuery({
     queryKey: authSessionQueryKey,
-    queryFn: () => apiClient.get<SessionResponse>('/auth/session'),
+    queryFn: getSession,
     retry: false,
     staleTime: 30_000,
   });
 
   const refreshSession = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: authSessionQueryKey });
+    const session = await queryClient.fetchQuery({
+      queryKey: authSessionQueryKey,
+      queryFn: getSession,
+      staleTime: 0,
+    });
+    queryClient.setQueryData(authSessionQueryKey, session);
+    return session;
   }, [queryClient]);
 
   const signIn = useMemo<SignInApi>(
@@ -38,8 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
           email: email.trim().toLowerCase(),
           code: code.trim(),
         });
-        await refreshSession();
+        const session = await refreshSession();
         await queryClient.invalidateQueries({ predicate: isNonAuthQuery });
+        return session.user;
       },
       sendSmsCode: (phoneNumber) =>
         apiClient.post<undefined>('/auth/sms/send', {
@@ -50,8 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
           phoneNumber: phoneNumber.trim(),
           code: code.trim(),
         });
-        await refreshSession();
+        const session = await refreshSession();
         await queryClient.invalidateQueries({ predicate: isNonAuthQuery });
+        return session.user;
       },
     }),
     [queryClient, refreshSession],

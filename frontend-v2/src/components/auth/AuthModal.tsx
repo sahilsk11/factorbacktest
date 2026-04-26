@@ -115,11 +115,18 @@ export function AuthModal({
     setLoading('verify');
 
     try {
-      if (pending.method === 'email') {
-        await signIn.verifyEmailCode(pending.target, code);
-      } else {
-        await signIn.verifySmsCode(pending.target, code);
+      const user =
+        pending.method === 'email'
+          ? await signIn.verifyEmailCode(pending.target, code)
+          : await signIn.verifySmsCode(pending.target, code);
+
+      if (!user) {
+        setError(
+          'Code verified, but this browser could not attach the session cookie. This can happen when localhost uses the production API; use factor.trade or a local API for a persistent session.',
+        );
+        return;
       }
+
       onClose();
     } catch (err: unknown) {
       setError(authErrorMessage(err, 'That code did not match'));
