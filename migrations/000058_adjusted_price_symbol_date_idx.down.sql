@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS adjusted_price_symbol_date_idx;

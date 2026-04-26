@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS adjusted_price_symbol_date_idx ON adjusted_price (symbol, date);
