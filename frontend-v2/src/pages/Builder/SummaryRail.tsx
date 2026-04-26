@@ -43,21 +43,17 @@ export function SummaryRail({
         <p className="text-xs font-medium tracking-wide text-subtle-foreground uppercase">
           Your run
         </p>
-        <h3 className="mt-1 text-base font-semibold text-foreground">{state.factorName || 'Untitled strategy'}</h3>
+        <h3 className="mt-1 text-base font-semibold text-foreground">
+          {state.factorName || 'Untitled strategy'}
+        </h3>
       </header>
 
       <p className="text-sm text-muted-foreground">
-        Hold the top{' '}
-        <span className="font-mono text-foreground">{state.numAssets}</span> names from{' '}
-        <span className="font-mono text-foreground">{state.assetUniverse || '—'}</span>, scored
-        by{' '}
+        Hold the top <span className="font-mono text-foreground">{state.numAssets}</span> names from{' '}
+        <span className="font-mono text-foreground">{state.assetUniverse || '—'}</span>, scored by{' '}
         <span className="font-mono text-foreground">{shortExpression(state.factorExpression)}</span>
-        , rebalancing{' '}
-        <span className="font-mono text-foreground">{state.rebalanceInterval}</span> over{' '}
-        <span className="font-mono text-foreground">
-          {(days / 365).toFixed(1)} years
-        </span>
-        .
+        , rebalancing <span className="font-mono text-foreground">{state.rebalanceInterval}</span>{' '}
+        over <span className="font-mono text-foreground">{(days / 365).toFixed(1)} years</span>.
       </p>
 
       <dl className="grid grid-cols-2 gap-3 border-t border-border pt-4">
@@ -84,11 +80,7 @@ export function SummaryRail({
         Run backtest
       </Button>
 
-      {!canRun && (
-        <p className="text-xs text-muted-foreground">
-          Fill out the steps above to run.
-        </p>
-      )}
+      {!canRun && <p className="text-xs text-muted-foreground">Fill out the steps above to run.</p>}
     </aside>
   );
 }

@@ -15,10 +15,16 @@ const PRESETS: Preset[] = [
   { label: '3y', days: 365 * 3 },
 ];
 
+function localISODate(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 function daysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return d.toISOString().split('T')[0];
+  return localISODate(d);
 }
 
 export function DateRangeSection({
@@ -32,7 +38,7 @@ export function DateRangeSection({
   end: string;
   setEnd: (v: string) => void;
 }): React.ReactNode {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localISODate(new Date());
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();
   const days = Math.max(0, (endMs - startMs) / (1000 * 60 * 60 * 24));
@@ -91,9 +97,7 @@ export function DateRangeSection({
         />
         <span className="pt-5 text-sm text-muted-foreground">to</span>
         <DateInput label="End" value={end} onChange={setEnd} min={start} max={today} />
-        <p className="pt-5 font-mono text-sm text-muted-foreground">
-          {formatDuration(days)}
-        </p>
+        <p className="pt-5 font-mono text-sm text-muted-foreground">{formatDuration(days)}</p>
       </div>
     </Section>
   );

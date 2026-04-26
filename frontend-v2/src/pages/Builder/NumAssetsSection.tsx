@@ -52,9 +52,8 @@ export function NumAssetsSection({
           <span className="font-mono text-foreground">
             {((safeValue / universeSize) * 100).toFixed(0)}%
           </span>{' '}
-          of the{' '}
-          <span className="font-mono text-foreground">{formatNumber(universeSize)}</span>-asset
-          universe by score.
+          of the <span className="font-mono text-foreground">{formatNumber(universeSize)}</span>
+          -asset universe by score.
         </p>
       )}
     </Section>

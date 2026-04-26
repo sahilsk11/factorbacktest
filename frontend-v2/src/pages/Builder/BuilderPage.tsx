@@ -32,11 +32,11 @@ export function BuilderPage(): React.ReactNode {
     queryFn: () => apiClient.get<AssetUniverse[]>('/assetUniverses'),
   });
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localISODate(new Date());
   const ninetyDaysAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 90);
-    return d.toISOString().split('T')[0];
+    return localISODate(d);
   })();
 
   const defaultPreset = FACTOR_PRESETS[0];
@@ -53,14 +53,15 @@ export function BuilderPage(): React.ReactNode {
   const [numAssets, setNumAssets] = useState(10);
 
   const assetUniverse = pickedUniverse ?? universes?.[0]?.code ?? '';
-  const universeSize =
-    universes?.find((u) => u.code === assetUniverse)?.numAssets ?? 0;
+  const universeSize = universes?.find((u) => u.code === assetUniverse)?.numAssets ?? 0;
 
   const canRun =
     factorExpression.trim().length > 0 &&
     factorName.trim().length > 0 &&
     assetUniverse.length > 0 &&
     numAssets >= 3 &&
+    backtestStart.length > 0 &&
+    backtestEnd.length > 0 &&
     backtestStart < backtestEnd;
 
   return (
@@ -94,11 +95,7 @@ export function BuilderPage(): React.ReactNode {
             setEnd={setBacktestEnd}
           />
           <RebalanceSection value={rebalanceInterval} setValue={setRebalanceInterval} />
-          <NumAssetsSection
-            value={numAssets}
-            setValue={setNumAssets}
-            universeSize={universeSize}
-          />
+          <NumAssetsSection value={numAssets} setValue={setNumAssets} universeSize={universeSize} />
         </div>
 
         <SummaryRail
@@ -117,4 +114,12 @@ export function BuilderPage(): React.ReactNode {
       </div>
     </div>
   );
+}
+
+// toISOString() returns UTC, which can be a day ahead for users west
+// of UTC in the evening. Build the date string from local components.
+function localISODate(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
