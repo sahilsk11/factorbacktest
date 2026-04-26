@@ -14,6 +14,8 @@ import modalsStyle from "common/Modals.module.css";
 import { AppSession as Session } from 'auth';
 import { useAuth } from 'auth';
 import LoginModal from 'common/AuthModals';
+import { BacktestLoadingOverlay } from 'common/BacktestLoading/BacktestLoadingOverlay';
+import { useBacktestStream } from 'common/BacktestLoading/useBacktestStream';
 
 async function getIsBookmarked(session: Session, props: FormViewProps): Promise<any> {
   const bookmarkRequest: BookmarkStrategyRequest = {
@@ -138,8 +140,18 @@ export default function FactorForm({
   const [cash, setCash] = useState(10_000);
   const [names, setNames] = useState<string[]>([...takenNames]);
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [assetUniverses, setAssetUniverses] = useState<GetAssetUniversesResponse[]>([]);
+
+  // Streaming backtest progress. The hook drives the fullscreen overlay
+  // (steps + status) and resolves with the final result. We derive the
+  // legacy `loading` flag from it so existing button-disable logic and the
+  // VerboseFormView's post-submit navigate keep working without changes.
+  // `finishing` is the brief post-success hold during which the overlay is
+  // still up — we keep the button disabled across it to prevent a
+  // double-submit landing during the celebratory beat.
+  const backtestStream = useBacktestStream();
+  const loading =
+    backtestStream.status === "streaming" || backtestStream.status === "finishing";
 
   const { session } = useAuth()
 
@@ -170,7 +182,9 @@ export default function FactorForm({
         console.error("Error submitting data:", response.status);
       }
     } catch (error) {
-      setLoading(false)
+      // The legacy code also flipped the backtest loading flag here, but
+      // this is the universe-fetch error path — unrelated to backtest
+      // loading. Just surface the inline error.
       setErr((error as Error).message)
       console.error("Error:", error);
     }
@@ -218,7 +232,6 @@ export default function FactorForm({
       e.preventDefault();
     }
     setErr(null);
-    setLoading(true);
 
     const data: BacktestRequest = {
       factorOptions: {
@@ -234,68 +247,57 @@ export default function FactorForm({
       assetUniverse,
     };
 
-    // this needs to be broken off at some point
+    // useBacktestStream owns the fetch + SSE parsing + per-step UI state.
+    // We catch its rejection here so the overlay can show the error inline
+    // (via its own status) while we *also* surface a brief inline message
+    // for the legacy form path; the overlay supersedes it visually anyway.
+    let result: BacktestResponse;
     try {
-      const response = await fetch(endpoint + "/backtest", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": session ? "Bearer " + session.access_token : ""
-        },
-        body: JSON.stringify(data)
-      });
-      setLoading(false);
-      if (response.ok) {
-        const result: BacktestResponse = await response.json()
-        if (Object.keys(result.backtestSnapshots).length === 0) {
-          setErr("No backtest results were calculated");
-          return;
-        }
-        jumpToAnchorOnSmallScreen("backtest-chart")
-
-        let newName = data.factorOptions.name;
-        let found = false;
-        let nextNum = 1;
-        names.forEach(n => {
-          if (n.includes(factorName)) {
-            found = true;
-            const match = n.match(/\((\d+)\)/);
-            if (match) {
-              const number = parseInt(match[1], 10);
-              nextNum = Math.max(number + 1, nextNum)
-            }
-          }
-        })
-        if (found) {
-          newName += " (" + nextNum.toString() + ")"
-        }
-
-        setNames([...names, newName])
-        const fd: FactorData = {
-          name: newName,
-          data: result.backtestSnapshots,
-          expression: data.factorOptions.expression
-        } as FactorData;
-
-        appendFactorData(fd)
-        setLatestHoldings(result.latestHoldings);
-        setMetrics({
-          annualizedReturn: result.annualizedReturn,
-          sharpeRatio: result.sharpeRatio,
-          annualizedStandardDeviation: result.annualizedStandardDeviation,
-        })
-        setLastStrategyID(result.strategyID);
-      } else {
-        const j = await response.json()
-        setErr(j.error)
-        console.error("Error submitting data:", response.status);
-      }
+      result = await backtestStream.run(data, session ? session.access_token : null);
     } catch (error) {
-      setLoading(false)
-      setErr((error as Error).message)
+      setErr((error as Error).message);
       console.error("Error:", error);
+      return;
     }
+
+    if (Object.keys(result.backtestSnapshots).length === 0) {
+      setErr("No backtest results were calculated");
+      return;
+    }
+    jumpToAnchorOnSmallScreen("backtest-chart")
+
+    let newName = data.factorOptions.name;
+    let found = false;
+    let nextNum = 1;
+    names.forEach(n => {
+      if (n.includes(factorName)) {
+        found = true;
+        const match = n.match(/\((\d+)\)/);
+        if (match) {
+          const number = parseInt(match[1], 10);
+          nextNum = Math.max(number + 1, nextNum)
+        }
+      }
+    })
+    if (found) {
+      newName += " (" + nextNum.toString() + ")"
+    }
+
+    setNames([...names, newName])
+    const fd: FactorData = {
+      name: newName,
+      data: result.backtestSnapshots,
+      expression: data.factorOptions.expression
+    } as FactorData;
+
+    appendFactorData(fd)
+    setLatestHoldings(result.latestHoldings);
+    setMetrics({
+      annualizedReturn: result.annualizedReturn,
+      sharpeRatio: result.sharpeRatio,
+      annualizedStandardDeviation: result.annualizedStandardDeviation,
+    })
+    setLastStrategyID(result.strategyID);
   };
 
   let rebalanceDuration = 1;
@@ -411,7 +413,19 @@ export default function FactorForm({
 
 
 
-  return fullscreenView ? <VerboseFormView props={props} /> : <ClassicFormView props={props} />
+  // The overlay is a portal-rendered sibling — its placement here is
+  // arbitrary (it ends up on document.body either way). Co-locating it
+  // with the form keeps the streaming state owner and consumer in one place.
+  return <>
+    {fullscreenView ? <VerboseFormView props={props} /> : <ClassicFormView props={props} />}
+    <BacktestLoadingOverlay
+      status={backtestStream.status}
+      steps={backtestStream.steps}
+      error={backtestStream.error}
+      totalMs={backtestStream.totalMs}
+      onClose={backtestStream.reset}
+    />
+  </>
 }
 
 export interface FormViewProps {

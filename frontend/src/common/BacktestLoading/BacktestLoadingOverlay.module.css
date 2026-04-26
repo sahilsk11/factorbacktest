@@ -1,0 +1,211 @@
+/* Full-viewport scrim. We render via portal into document.body so this is
+   always on top of the rest of the SPA, regardless of the source page.
+   Fully opaque on purpose — translucent (0.96) lets the chart re-render
+   bleed through during the finishing hold, which made the overlay feel
+   like it was already dismissed even though it wasn't. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background-color: #ffffff;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* fade in so the scrim doesn't snap. .14s feels live, not laggy. */
+  animation: scrim_fade 0.14s ease-out;
+}
+
+@keyframes scrim_fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border: 1px solid #e6e8eb;
+  border-radius: 12px;
+  padding: 28px 32px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  font-family: inherit;
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.subtitle {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: #64748b;
+  /* Reserve the subtitle slot height so transitioning streaming → finishing
+     (where we drop the subtitle in favor of a bottom summary) doesn't make
+     the card jump up by 13px. */
+  min-height: 1.2em;
+}
+
+/* Completion line at the bottom of the card during the finishing hold.
+   Hairline divider above so it visually separates from the step list
+   without looking like an alert. Tabular-nums to keep the duration
+   readable at a glance. */
+.completion_summary {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #e6e8eb;
+  font-size: 13px;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #475569;
+  /* New rows fade in so the list growing doesn't pop. */
+  animation: step_in 0.18s ease-out;
+}
+
+.label {
+  flex: 1 1 auto;
+}
+
+.duration {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+@keyframes step_in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step.completed {
+  color: #0f172a;
+}
+
+.step.error {
+  color: #b91c1c;
+}
+
+/* Status indicator container — fixed size so labels align across rows. */
+.indicator {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pulsing dot for the in-progress step. The dot is a green circle that
+   eases between full and ~30% opacity. We also subtly scale so it reads as
+   "active" not "broken". */
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: dot_pulse 1.05s ease-in-out infinite;
+}
+
+@keyframes dot_pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(0.78); }
+}
+
+/* Static green dot for completed states (we draw a checkmark on top via
+   the SVG; the dot is the background ring). */
+.check_circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Brief pop when a step transitions from in_progress -> completed. */
+  animation: check_pop 0.18s ease-out;
+}
+
+@keyframes check_pop {
+  from { transform: scale(0.7); }
+  to   { transform: scale(1); }
+}
+
+.check_glyph {
+  stroke: #ffffff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.error_circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error_glyph {
+  stroke: #ffffff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.error_message {
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.45;
+  border: 1px solid #fee2e2;
+  word-break: break-word;
+}
+
+.actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.close_btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.close_btn:hover {
+  background: #f1f5f9;
+}
