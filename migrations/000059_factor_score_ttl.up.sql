@@ -1,21 +1,22 @@
--- Schedule a nightly pg_cron job to delete factor_score rows older than 2
--- weeks. factor_score is a computed cache; scores that haven't been needed
--- in two weeks are unlikely to be needed again and can always be recomputed.
+-- pg_cron was already installed on prod by migration 000058_factor_score_ttl
+-- (which ran as a duplicate 000058 before the naming conflict was caught).
+-- This migration just ensures the cron job is scheduled on environments where
+-- pg_cron is installed, and is a no-op everywhere else (e.g. CI).
 --
--- Guarded by a pg_available_extensions check so the migration is a no-op in
--- environments where pg_cron isn't installed (e.g. the CI test database).
--- On prod (RDS) pg_cron is available and the job is created normally.
+-- CREATE EXTENSION is intentionally absent: pg_cron requires
+-- shared_preload_libraries to be configured at the server level before the
+-- library can be loaded. Extension installation is an infrastructure concern,
+-- not a migration concern.
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_cron') THEN
-        CREATE EXTENSION IF NOT EXISTS pg_cron;
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
         PERFORM cron.schedule(
             'expire-factor-scores',
             '0 3 * * *',
             $job$DELETE FROM factor_score WHERE created_at < now() - INTERVAL '2 weeks'$job$
         );
     ELSE
-        RAISE NOTICE 'pg_cron not available in this environment — skipping expire-factor-scores schedule';
+        RAISE NOTICE 'pg_cron not installed — skipping expire-factor-scores schedule';
     END IF;
 END;
 $$;
