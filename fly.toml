@@ -28,7 +28,10 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  # Keep one machine warm so users don't eat the ~30s cold-start hit (Node
+  # auth-service + Go API + Postgres TLS handshake) on the first request
+  # after a quiet period.
+  min_machines_running = 1
 
   [[http_service.checks]]
     method = "get"

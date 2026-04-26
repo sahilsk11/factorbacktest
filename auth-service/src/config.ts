@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildDatabaseUrl, loadSecrets } from "./secrets.js";
+import { buildDatabaseUrl, buildPoolSslOption, loadSecrets } from "./secrets.js";
 
 // Non-secret configuration. All values default to something sensible for
 // local dev so a fresh checkout with a populated `secrets.json` "just works".
@@ -40,6 +40,7 @@ export interface AuthConfig {
   database: {
     url: string;
     schema: string;
+    ssl: { rejectUnauthorized: false } | false;
   };
   features: {
     google: boolean;
@@ -122,6 +123,7 @@ export const loadConfig = (): AuthConfig => {
     database: {
       url: buildDatabaseUrl(secrets.db, env.AUTH_DB_SCHEMA),
       schema: env.AUTH_DB_SCHEMA,
+      ssl: buildPoolSslOption(secrets.db),
     },
     features,
     google,

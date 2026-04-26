@@ -33,7 +33,10 @@ const main = async () => {
   }
   const sql = BOOTSTRAP_SQL.replace("__SCHEMA__", schema);
 
-  const client = new Client({ connectionString: adminUrl.toString() });
+  const client = new Client({
+    connectionString: adminUrl.toString(),
+    ssl: config.database.ssl,
+  });
   await client.connect();
   try {
     await client.query(sql);

@@ -200,6 +200,14 @@ export const loadSecrets = (cwd = process.cwd()): ResolvedSecrets => {
 
 // Builds a Postgres connection string with `?options=-c search_path=<schema>`
 // applied so Better Auth lands tables in the correct schema.
+//
+// SSL policy is set on the pg `Client` / `Pool` constructor via
+// `buildPoolSslOption` (which overrides anything parsed from the URL), so
+// the only `sslmode` we encode here is `disable` for envs that opt out of
+// TLS entirely (i.e. local dev against Docker Postgres). Encoding
+// `sslmode=require` in the URL would also work in prod but produces a
+// migration warning from pg-connection-string@2.12+, so we keep the policy
+// in one place — the Pool config — instead.
 export const buildDatabaseUrl = (db: DbSecrets, schema: string): string => {
   // Defense in depth: even though zod typechecks `schema` as a string, the
   // value is interpolated directly into the connection string's `options`
@@ -214,11 +222,25 @@ export const buildDatabaseUrl = (db: DbSecrets, schema: string): string => {
   u.hostname = db.host;
   u.port = db.port;
   u.pathname = `/${db.database}`;
-  if (db.enableSsl !== false) {
-    u.searchParams.set("sslmode", "require");
-  } else {
+  if (db.enableSsl === false) {
     u.searchParams.set("sslmode", "disable");
   }
   u.searchParams.set("options", `-c search_path=${schema}`);
   return u.toString();
+};
+
+// Returns the `ssl` option to pass to pg `Client` / `Pool`.
+//
+// - `enableSsl !== false` (prod default): use TLS but do NOT verify the
+//   certificate chain. This matches the Go side, which connects with
+//   libpq's `sslmode=prefer` semantics (encrypt, don't verify). Strict
+//   verification would fail with `CERT_HAS_EXPIRED` whenever the upstream
+//   Postgres provider's chain doesn't validate against Node's bundled CAs,
+//   which has happened in prod.
+// - `enableSsl === false` (local Docker Postgres): no TLS at all.
+export const buildPoolSslOption = (
+  db: DbSecrets,
+): { rejectUnauthorized: false } | false => {
+  if (db.enableSsl === false) return false;
+  return { rejectUnauthorized: false };
 };

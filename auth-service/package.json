@@ -12,8 +12,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "bootstrap": "tsx scripts/bootstrap.ts",
-    "migrate": "npx --yes @better-auth/cli@1.6.9 migrate --yes --config ./auth.ts",
-    "generate": "npx --yes @better-auth/cli@1.6.9 generate --yes --config ./auth.ts"
+    "migrate": "npx --yes @better-auth/cli@latest migrate --yes --config ./auth.ts",
+    "generate": "npx --yes @better-auth/cli@latest generate --yes --config ./auth.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

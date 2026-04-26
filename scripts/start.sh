@@ -13,8 +13,14 @@ cd /app
 echo "[start.sh] running auth-service bootstrap"
 ( cd /app/auth-service && node dist/scripts/bootstrap.js )
 
-echo "[start.sh] running better-auth migrations"
-( cd /app/auth-service && npx --yes @better-auth/cli@1.6.9 migrate --yes --config ./dist/auth.js )
+# Better Auth migrations are deliberately NOT run at container boot. The CLI
+# is shipped as a separate `@better-auth/cli` package whose version line
+# doesn't track the runtime library, and `npx --yes @better-auth/cli@latest`
+# pulls ~150 packages from npm on every cold start (~2.5 min). The auth
+# schema itself is created by the bootstrap step above (idempotent), and any
+# additive migrations should be run from a developer machine via
+# `npm run migrate` in `auth-service/` before the corresponding deploy.
+echo "[start.sh] skipping runtime better-auth migrate (run \`npm run migrate\` locally before deploys that change auth schema)"
 
 # ---------------------------------------------------------------------------
 # Start the Node auth-service. Binds to 127.0.0.1:3001 (set in env).
