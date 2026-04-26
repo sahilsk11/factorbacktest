@@ -19,6 +19,7 @@ import (
 type rateLimiter struct {
 	mu      sync.Mutex
 	byPhone map[string]*entry
+	byEmail map[string]*entry
 	byIP    map[string]*entry
 }
 
@@ -40,6 +41,7 @@ const (
 func newRateLimiter() *rateLimiter {
 	rl := &rateLimiter{
 		byPhone: map[string]*entry{},
+		byEmail: map[string]*entry{},
 		byIP:    map[string]*entry{},
 	}
 	go rl.sweepLoop()
@@ -48,6 +50,13 @@ func newRateLimiter() *rateLimiter {
 
 func (rl *rateLimiter) allowPhone(phone string) bool {
 	return rl.allow(rl.byPhone, phone, rate.Every(phoneRefillEvery), phoneBurst)
+}
+
+// allowEmail uses the same per-key budget as allowPhone (3 / 10 min).
+// Same shape: legitimate user with a typo gets retries, automated abuse
+// of one address hits the wall fast.
+func (rl *rateLimiter) allowEmail(email string) bool {
+	return rl.allow(rl.byEmail, email, rate.Every(phoneRefillEvery), phoneBurst)
 }
 
 func (rl *rateLimiter) allowIP(ip string) bool {
@@ -87,6 +96,11 @@ func (rl *rateLimiter) sweep() {
 	for k, e := range rl.byPhone {
 		if e.lastSeen.Before(cutoff) {
 			delete(rl.byPhone, k)
+		}
+	}
+	for k, e := range rl.byEmail {
+		if e.lastSeen.Before(cutoff) {
+			delete(rl.byEmail, k)
 		}
 	}
 	for k, e := range rl.byIP {

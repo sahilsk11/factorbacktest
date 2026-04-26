@@ -18,6 +18,7 @@ const (
 	UserAccountProviderType_BetterAuth  UserAccountProviderType = "BETTER_AUTH"
 	UserAccountProviderType_LocalGoogle UserAccountProviderType = "LOCAL_GOOGLE"
 	UserAccountProviderType_LocalSms    UserAccountProviderType = "LOCAL_SMS"
+	UserAccountProviderType_LocalEmail  UserAccountProviderType = "LOCAL_EMAIL"
 )
 
 func (e *UserAccountProviderType) Scan(value interface{}) error {
@@ -44,6 +45,8 @@ func (e *UserAccountProviderType) Scan(value interface{}) error {
 		*e = UserAccountProviderType_LocalGoogle
 	case "LOCAL_SMS":
 		*e = UserAccountProviderType_LocalSms
+	case "LOCAL_EMAIL":
+		*e = UserAccountProviderType_LocalEmail
 	default:
 		return errors.New("jet: Invalid scan value '" + enumValue + "' for UserAccountProviderType enum")
 	}

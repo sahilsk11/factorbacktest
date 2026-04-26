@@ -25,10 +25,13 @@ type emailRepositoryHandler struct {
 	fromEmail string
 }
 
-// NewEmailRepository creates a new email repository using AWS SES.
+// NewSESEmailRepository creates a new email repository using AWS SES.
 // region should be the AWS region (e.g., "us-east-1")
 // fromEmail should be the verified sender email (e.g., "noreply@factor.trade")
-func NewEmailRepository(region, fromEmail string) (EmailRepository, error) {
+//
+// Retained behind the EMAIL_PROVIDER=ses fallback flag for one release
+// after the Resend migration; remove once we're confident in Resend.
+func NewSESEmailRepository(region, fromEmail string) (EmailRepository, error) {
 	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)

@@ -154,10 +154,23 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		backtestHandler,
 	)
 
-	// Initialize email repository and service
-	emailRepository, err := repository.NewEmailRepository(secrets.SES.Region, secrets.SES.FromEmail)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create email repository: %w", err)
+	// Email transport is optional. When secrets.Resend.APIKey is empty
+	// (e.g. cmd/test-api booting without real credentials) we leave the
+	// repo nil; downstream consumers (EmailService, auth.Service) all
+	// nil-check and return loud errors rather than silently no-op'ing.
+	// The SES implementation in internal/repository/ses_email.repository.go
+	// is intentionally retained but unwired; it can be revived if Resend
+	// ever proves unsuitable.
+	var emailRepository repository.EmailRepository
+	if secrets.Resend.APIKey != "" {
+		emailRepository, err = repository.NewResendEmailRepository(
+			secrets.Resend.APIKey,
+			secrets.Resend.FromEmail,
+			secrets.Resend.FromName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create resend email repository: %w", err)
+		}
 	}
 	emailService := service.NewEmailService(emailRepository)
 
@@ -177,7 +190,9 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 	// Auth is opt-in: NewFromSecrets returns an error when required secrets
 	// aren't set, and we treat that as "auth disabled" rather than a fatal
 	// boot error so local-dev binaries without auth secrets still work.
-	authService, err := auth.NewFromSecrets(context.Background(), secrets, dbConn)
+	// emailRepository is passed in so the auth package can deliver email
+	// OTPs through whichever provider cmd/util.go selected above.
+	authService, err := auth.NewFromSecrets(context.Background(), secrets, dbConn, emailRepository)
 	if err != nil {
 		log.Printf("[auth] not enabled: %v", err)
 	}

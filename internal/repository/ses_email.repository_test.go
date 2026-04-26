@@ -36,7 +36,7 @@ func initializeEmailHandler() (EmailRepository, error) {
 		return nil, fmt.Errorf("SES fromEmail not found in secrets")
 	}
 
-	repo, err := NewEmailRepository(s.SES.Region, s.SES.FromEmail)
+	repo, err := NewSESEmailRepository(s.SES.Region, s.SES.FromEmail)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create email repository: %w", err)
 	}

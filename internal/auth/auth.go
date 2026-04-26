@@ -40,7 +40,12 @@ type Config struct {
 	SessionAbsoluteMaxAge time.Duration // hard cap from creation; default 90 days
 	Google                GoogleConfig
 	Twilio                TwilioConfig
-	Now                   func() time.Time // overridable for tests
+	// EmailSender is the transport used by the email-OTP flow to deliver
+	// codes. Optional: when nil, /auth/email/* is not registered and the
+	// email-OTP rate limiter is never instantiated. Wired from
+	// cmd/util.go using whichever provider EMAIL_PROVIDER selected.
+	EmailSender repository.EmailRepository
+	Now         func() time.Time // overridable for tests
 }
 
 type GoogleConfig struct {
@@ -59,15 +64,18 @@ type TwilioConfig struct {
 // Service is the public surface. Construct once at boot, then call
 // RegisterRoutes and engine.Use(Middleware()).
 type Service struct {
-	cfg       Config
-	users     repository.UserAccountRepository
-	sessions  repository.AuthSessionRepository
-	verifier  *oidc.IDTokenVerifier
-	oauth2cfg *oauth2.Config
-	twilio    *twilioClient
-	smsLimit  *rateLimiter
-	now       func() time.Time
-	log       *zap.SugaredLogger
+	cfg         Config
+	users       repository.UserAccountRepository
+	sessions    repository.AuthSessionRepository
+	verifier    *oidc.IDTokenVerifier
+	oauth2cfg   *oauth2.Config
+	twilio      *twilioClient
+	smsLimit    *rateLimiter
+	emailSender repository.EmailRepository    // nil ⇒ email OTP disabled
+	emailOTPs   repository.EmailOTPRepository // nil ⇒ email OTP disabled
+	emailLimit  *rateLimiter
+	now         func() time.Time
+	log         *zap.SugaredLogger
 }
 
 // ErrSessionNotFound is re-exported so callers can sentinel-check without
@@ -83,7 +91,13 @@ const (
 // New constructs a Service. Validates eagerly so misconfiguration fails at
 // boot rather than on the first auth request. The ctx is used to fetch
 // Google's OIDC discovery document; pass a context with a sensible timeout.
-func New(ctx context.Context, cfg Config, users repository.UserAccountRepository, sessions repository.AuthSessionRepository) (*Service, error) {
+//
+// emailOTPs is the persistence layer for email-OTP codes. It is paired
+// with cfg.EmailSender — when both are non-nil, /auth/email/{send,verify}
+// route registration becomes active. When either is nil, email-OTP is
+// silently disabled (mirrors how Google/SMS already gracefully no-op on
+// missing config in tests + dev).
+func New(ctx context.Context, cfg Config, users repository.UserAccountRepository, sessions repository.AuthSessionRepository, emailOTPs repository.EmailOTPRepository) (*Service, error) {
 	if users == nil {
 		return nil, errors.New("auth.New: users repository is required")
 	}
@@ -126,7 +140,7 @@ func New(ctx context.Context, cfg Config, users repository.UserAccountRepository
 		return nil, fmt.Errorf("auth.New: discover Google OIDC provider: %w", err)
 	}
 
-	return &Service{
+	svc := &Service{
 		cfg:      cfg,
 		users:    users,
 		sessions: sessions,
@@ -142,7 +156,18 @@ func New(ctx context.Context, cfg Config, users repository.UserAccountRepository
 		smsLimit: newRateLimiter(),
 		now:      cfg.Now,
 		log:      logger.New().With("component", "auth"),
-	}, nil
+	}
+	// Email-OTP wiring is gated on BOTH a sender and a persistence
+	// repo being supplied — either alone would be a misconfiguration
+	// (no point hashing codes you can't deliver, or sending codes you
+	// can't validate). When wiring is incomplete we leave the fields
+	// nil and RegisterRoutes will skip /auth/email/*.
+	if cfg.EmailSender != nil && emailOTPs != nil {
+		svc.emailSender = cfg.EmailSender
+		svc.emailOTPs = emailOTPs
+		svc.emailLimit = newRateLimiter()
+	}
+	return svc, nil
 }
 
 // NewFromSecrets is the production wiring: reads util.Secrets + the
@@ -151,7 +176,12 @@ func New(ctx context.Context, cfg Config, users repository.UserAccountRepository
 // Service. Returns (nil, err) when any required field is missing — the
 // caller should treat that as "auth disabled" so a local-dev binary
 // without auth secrets still boots.
-func NewFromSecrets(ctx context.Context, secrets util.Secrets, db *sql.DB) (*Service, error) {
+//
+// emailSender is the transport selected by cmd/util.go (Resend by default,
+// SES under EMAIL_PROVIDER=ses). When non-nil the email-OTP flow becomes
+// available; when nil the rest of auth still works and /auth/email/*
+// silently isn't registered.
+func NewFromSecrets(ctx context.Context, secrets util.Secrets, db *sql.DB, emailSender repository.EmailRepository) (*Service, error) {
 	if secrets.Auth.SessionSecret == "" {
 		return nil, fmt.Errorf("auth.sessionSecret is empty")
 	}
@@ -180,6 +210,7 @@ func NewFromSecrets(ctx context.Context, secrets util.Secrets, db *sql.DB) (*Ser
 			AuthToken:        secrets.Auth.TwilioAuthToken,
 			VerifyServiceSID: secrets.Auth.TwilioVerifyServiceSID,
 		},
+		EmailSender: emailSender,
 	}
 
 	bootCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -187,6 +218,7 @@ func NewFromSecrets(ctx context.Context, secrets util.Secrets, db *sql.DB) (*Ser
 	return New(bootCtx, cfg,
 		repository.NewUserAccountRepository(db),
 		repository.NewAuthSessionRepository(db),
+		repository.NewEmailOTPRepository(db),
 	)
 }
 
@@ -199,6 +231,10 @@ func (s *Service) RegisterRoutes(r gin.IRouter) {
 	g.GET("/google/callback", s.handleGoogleCallback)
 	g.POST("/sms/send", s.requireOrigin(), s.handleSmsSend)
 	g.POST("/sms/verify", s.requireOrigin(), s.handleSmsVerify)
+	if s.emailSender != nil && s.emailOTPs != nil {
+		g.POST("/email/send", s.requireOrigin(), s.handleEmailSend)
+		g.POST("/email/verify", s.requireOrigin(), s.handleEmailVerify)
+	}
 	g.POST("/sign-out", s.requireOrigin(), s.handleSignOut)
 	g.GET("/session", s.handleGetSession)
 }

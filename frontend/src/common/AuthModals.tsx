@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
-type PageState = "initial" | "smsConfirmation";
+type PageState = "initial" | "smsConfirmation" | "emailConfirmation";
 
 export default function LoginModal({
   show,
@@ -29,6 +29,7 @@ export default function LoginModal({
   const { signIn } = useAuth();
   const [pageState, setPageState] = useState<PageState>("initial");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -61,6 +62,20 @@ export default function LoginModal({
     }
   };
 
+  const handleEmailRequest = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await signIn.sendEmailOtp(email);
+      setPageState("emailConfirmation");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to send email code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog
       open={show}
@@ -68,6 +83,7 @@ export default function LoginModal({
         if (!open) {
           setPageState("initial");
           setError("");
+          setEmail("");
           close();
         }
       }}
@@ -89,8 +105,11 @@ export default function LoginModal({
           <InitialPanel
             phoneNumber={phoneNumber}
             setPhoneNumber={setPhoneNumber}
+            email={email}
+            setEmail={setEmail}
             onGoogle={handleGoogle}
             onSmsRequest={handleSmsRequest}
+            onEmailRequest={handleEmailRequest}
             loading={loading}
           />
         )}
@@ -98,6 +117,17 @@ export default function LoginModal({
         {pageState === "smsConfirmation" && (
           <SmsConfirmationPanel
             phoneNumber={phoneNumber}
+            setError={setError}
+            onSuccess={() => {
+              onSuccess?.();
+              close();
+            }}
+          />
+        )}
+
+        {pageState === "emailConfirmation" && (
+          <EmailConfirmationPanel
+            email={email}
             setError={setError}
             onSuccess={() => {
               onSuccess?.();
@@ -133,14 +163,20 @@ function Spinner() {
 function InitialPanel({
   phoneNumber,
   setPhoneNumber,
+  email,
+  setEmail,
   onGoogle,
   onSmsRequest,
+  onEmailRequest,
   loading,
 }: {
   phoneNumber: string;
   setPhoneNumber: (v: any) => void;
+  email: string;
+  setEmail: (v: string) => void;
   onGoogle: () => void;
   onSmsRequest: (e: React.FormEvent<HTMLFormElement>) => void;
+  onEmailRequest: (e: React.FormEvent<HTMLFormElement>) => void;
   loading: boolean;
 }) {
   return (
@@ -175,8 +211,37 @@ function InitialPanel({
           </Button>
         </div>
       </form>
+
+      <Divider label="or email" />
+
+      <form onSubmit={onEmailRequest}>
+        <div className="grid gap-3">
+          <div className="grid gap-2">
+            <Label>Email</Label>
+            <Input
+              placeholder="you@example.com"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <Button
+            disabled={loading || !isValidEmail(email)}
+            type="submit"
+            className="w-full"
+          >
+            Email me a code
+          </Button>
+        </div>
+      </form>
     </>
   );
+}
+
+function isValidEmail(v: string): boolean {
+  // Lightweight client-side check; backend remains source of truth.
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 }
 
 function Divider({ label }: { label: string }) {
@@ -224,6 +289,57 @@ function SmsConfirmationPanel({
       <div className="grid gap-4">
         <div className="grid gap-2">
           <Label>SMS Confirmation Code</Label>
+          <Input
+            autoFocus
+            required
+            type="number"
+            value={code}
+            onChange={(e) => {
+              setError("");
+              setCode(e.target.value);
+            }}
+          />
+        </div>
+        <Button disabled={submitting || code.length !== 6} type="submit" className="w-full">
+          Continue
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EmailConfirmationPanel({
+  email,
+  setError,
+  onSuccess,
+}: {
+  email: string;
+  setError: React.Dispatch<React.SetStateAction<string>>;
+  onSuccess: () => void;
+}) {
+  const { signIn } = useAuth();
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await signIn.verifyEmailOtp(email, code);
+      onSuccess();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid code");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={onSubmit}>
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label>Email Confirmation Code</Label>
           <Input
             autoFocus
             required

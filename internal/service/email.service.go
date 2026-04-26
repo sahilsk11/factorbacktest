@@ -78,6 +78,14 @@ func (h *emailServiceHandler) SendStrategySummaryEmail(
 	user *model.UserAccount,
 	strategyResults []domain.StrategySummaryResult,
 ) error {
+	// EmailRepository is intentionally optional at construction time
+	// (cmd/test-api boots without email credentials, and we'd rather
+	// surface a loud error here than silently drop sends). Note:
+	// GenerateStrategySummaryEmail still works without a repository,
+	// so template/preview tests don't need to bypass this guard.
+	if h.EmailRepository == nil {
+		return fmt.Errorf("email transport not configured; set Resend secrets to enable")
+	}
 	if user.Email == nil || *user.Email == "" {
 		return fmt.Errorf("user has no email address")
 	}
