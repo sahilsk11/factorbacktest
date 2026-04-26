@@ -27,7 +27,11 @@ export function BacktestLoadingOverlay({
   const isError = status === 'error';
   const isFinishing = status === 'finishing';
 
-  const title = isError ? 'Backtest failed' : isFinishing ? 'Backtest complete' : 'Running backtest';
+  const title = isError
+    ? 'Backtest failed'
+    : isFinishing
+      ? 'Backtest complete'
+      : 'Running backtest';
   const subtitle = isError
     ? "We couldn't finish the run. Adjust your inputs and try again."
     : isFinishing
@@ -39,9 +43,7 @@ export function BacktestLoadingOverlay({
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xl">
         <h3 className="text-base font-semibold text-foreground">{title}</h3>
         {/* Reserve the subtitle slot so the card doesn't jump when we drop it during finishing. */}
-        <p className="mt-1 min-h-[1.25rem] text-sm text-muted-foreground">
-          {subtitle ?? ' '}
-        </p>
+        <p className="mt-1 min-h-[1.25rem] text-sm text-muted-foreground">{subtitle ?? ' '}</p>
 
         <ul className="mt-4 flex flex-col gap-2">
           {steps.map((step) => (
@@ -120,8 +122,24 @@ function StepIndicator({ status }: { status: Step['status'] }): React.ReactNode 
   return (
     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-destructive/10 text-destructive">
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-        <line x1="3" y1="3" x2="9" y2="9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="9" y1="3" x2="3" y2="9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <line
+          x1="3"
+          y1="3"
+          x2="9"
+          y2="9"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <line
+          x1="9"
+          y1="3"
+          x2="3"
+          y2="9"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
       </svg>
     </span>
   );

@@ -84,9 +84,8 @@ export function BacktestPage(): React.ReactNode {
       if (strategyId) {
         // Fetch the published strategy then kick off the backtest.
         const startParam = searchParams.get('start');
-        const start = startParam && !isNaN(new Date(startParam).getTime())
-          ? startParam
-          : threeYearsAgo();
+        const start =
+          startParam && !isNaN(new Date(startParam).getTime()) ? startParam : threeYearsAgo();
 
         apiClient
           .get<PublishedStrategy[]>('/publishedStrategies')
