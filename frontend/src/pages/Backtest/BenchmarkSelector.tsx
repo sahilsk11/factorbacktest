@@ -42,9 +42,12 @@ export default function BenchmarkManager({
             endpoint + '/benchmark',
             {
               method: "POST",
+              credentials: "include",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": session ? "Bearer " + session.access_token : ""
+                ...(session && session.access_token
+                  ? { "Authorization": "Bearer " + session.access_token }
+                  : {}),
               },
               body: JSON.stringify({
                 userID,
