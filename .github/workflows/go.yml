@@ -56,7 +56,15 @@ jobs:
       run: go build -v ./...
 
     - name: Apply Migrations
-      run: python3 tools/migrations.py up postgres_test
+      run: |
+        python3 tools/migrations.py up postgres_test
+        python3 tools/migrations.py up postgres
+
+    - name: Install go-jet CLI
+      run: go install github.com/go-jet/jet/v2/cmd/jet@v2.10.1
+
+    - name: Verify generated DB models
+      run: make db-models-check PYTHON=python3
 
     - name: Start App
       run: |

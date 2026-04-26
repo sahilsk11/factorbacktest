@@ -31,13 +31,31 @@ mocks:
 migration:
 	migrate create -ext sql -dir migrations/ -seq $(name)
 
+PYTHON ?= tools/env/bin/python
+
 db-models:
 	jet -dsn=postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable -path=./internal/db/models
 	jet -dsn=postgresql://postgres:postgres@localhost:5440/postgres?sslmode=disable -schema=app_auth -path=./internal/db/models
-	tools/env/bin/python tools/db_model_helper.py
+	$(PYTHON) tools/db_model_helper.py
+
+# Regenerates DB models against the live database and fails if the result
+# differs from what's checked in. Used by CI to catch hand-edits to generated
+# files or migrations that weren't accompanied by a model regeneration.
+db-models-check: db-models
+	@if ! git diff --quiet -- internal/db/models || \
+	    [ -n "$$(git ls-files --others --exclude-standard -- internal/db/models)" ]; then \
+		echo ""; \
+		echo "ERROR: generated DB models are out of date."; \
+		echo "Run 'make db-models' locally and commit the result."; \
+		echo ""; \
+		git status --short -- internal/db/models; \
+		echo ""; \
+		git --no-pager diff -- internal/db/models; \
+		exit 1; \
+	fi
 
 migrate:
-	tools/env/bin/python tools/migrations.py up postgres
+	$(PYTHON) tools/migrations.py up postgres
 
 deploy-fe:
 	cd frontend;npm run build;
