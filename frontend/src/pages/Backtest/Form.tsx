@@ -10,7 +10,6 @@ import { Col, Container, Row } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
-import { useGoogleLogin } from '@react-oauth/google';
 import modalsStyle from "common/Modals.module.css";
 import { AppSession as Session } from 'auth';
 import { useAuth } from 'auth';

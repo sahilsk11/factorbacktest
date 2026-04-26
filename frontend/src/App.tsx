@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {  BacktestSnapshot, GoogleAuthUser } from "./models";
 import { v4 as uuidv4 } from 'uuid';
-import { ContactModal, HelpModal } from './common/Modals';
 import StatsFooter from './common/Footer';
 import { Nav } from './common/Nav';
 import styles from './App.module.css'

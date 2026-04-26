@@ -6,7 +6,7 @@ import { formatDate, minMaxDates } from "../../util";
 import BacktestChart from "./BacktestChart";
 import BenchmarkManager from "./BenchmarkSelector";
 import Inspector from "./FactorSnapshot";
-import FactorForm, { getStrategies } from "./Form";
+import FactorForm from "./Form";
 import styles from 'App.module.css'
 import { InvestInStrategy } from "./InvestInStrategy";
 import { Col, Container, Row, Table } from "react-bootstrap";

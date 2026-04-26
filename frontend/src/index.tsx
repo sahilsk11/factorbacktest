@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
-import App, { getCookie } from './App';
+import App from './App';
 import { BondBuilder } from './pages/Bond/Bond';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleAuthUser } from './models';

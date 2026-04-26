@@ -54,7 +54,13 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "plugins": [
+      "unused-imports"
+    ],
+    "rules": {
+      "unused-imports/no-unused-imports": "warn"
+    }
   },
   "browserslist": {
     "production": [
@@ -70,6 +76,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
     "react-router-dom": "^6.22.3",
     "serve": "^14.2.6",
     "tailwindcss": "^3.4.9",

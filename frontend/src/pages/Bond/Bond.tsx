@@ -1,13 +1,6 @@
 import {
   Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
   LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Colors,
   ChartOptions,
   ChartData,
   ChartDataset,
@@ -24,7 +17,6 @@ import bondStyle from "./Bond.module.css"
 import { Bar, Line } from 'react-chartjs-2';
 import { endpoint, getCookie, getOrCreateUserID } from '../../App';
 import { Nav } from 'common/Nav';
-import { ContactModal, HelpModal } from 'common/Modals';
 import { Error } from '../Backtest/Form';
 import { GoogleAuthUser } from '../../models';
 import { useAuth } from 'auth';
@@ -532,7 +524,7 @@ function InterestRateChart({ interestRates }: {
 
   return <>
     <h4 className={bondStyle.chart_title}>Interest Rates</h4>
-    <p className={bondStyle.chart_description}>Our simplified bond market assumes US T-bills are the only securities available. Interest rates sourced from <a style={{ color: "black" }} href="https://www.ustreasuryyieldcurve.com/" target='_blank'>here</a>.</p>
+    <p className={bondStyle.chart_description}>Our simplified bond market assumes US T-bills are the only securities available. Interest rates sourced from <a style={{ color: "black" }} href="https://www.ustreasuryyieldcurve.com/" target='_blank' rel="noreferrer">here</a>.</p>
     <div className={bondStyle.backtest_chart_wrapper}>
 
       <Line

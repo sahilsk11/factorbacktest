@@ -1,10 +1,9 @@
-import StatsFooter from "common/Footer";
 import { Nav } from "common/Nav";
 import { GetPublishedStrategiesResponse, GoogleAuthUser } from "models";
 import { useEffect, useState } from "react";
 import appStyles from "../../App.module.css";
 import homeStyles from "./Home.module.css";
-import { Card, Container, ListGroup, Row, Table } from "react-bootstrap";
+import { Card, Container, Row, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { endpoint } from "App";
 import { Bar } from "react-chartjs-2";
