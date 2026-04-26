@@ -117,15 +117,21 @@ func (s *Service) upsertGoogleUser(_ context.Context, sub, email, firstName, las
 }
 
 // upsertPhoneUser materializes a user_account row from a Twilio-verified
-// phone number. Provider is LOCAL_SMS; provider_id is the phone (so the
-// existing unique constraint catches duplicates).
+// phone number. Phone IS the identity for SMS auth: Twilio Verify proves
+// control of the number, so any existing row with that phone (regardless
+// of which provider created it) is the user. We use the existing
+// repository.GetOrCreate (which keys lookup on phone_number when email
+// isn't set) instead of GetOrCreateByProviderIdentity, because the
+// unique-by-phone semantics matter more here than the unique-by-(provider,
+// provider_id) tuple — and the latter would collide with the existing
+// phone_number unique constraint.
 func (s *Service) upsertPhoneUser(_ context.Context, phone string) (uuid.UUID, error) {
 	in := &model.UserAccount{
 		Provider:    model.UserAccountProviderType_LocalSms,
 		ProviderID:  util.StringPointer(phone),
 		PhoneNumber: util.StringPointer(phone),
 	}
-	row, err := s.users.GetOrCreateByProviderIdentity(in)
+	row, err := s.users.GetOrCreate(in)
 	if err != nil {
 		return uuid.Nil, err
 	}

@@ -118,17 +118,23 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		engine.Any("/api/auth/*proxyPath", authProxy)
 	}
 
-	// New custom Go auth: mount /auth/* routes and install the
-	// session-cookie middleware. Order matters:
+	// New custom Go auth: install the cookie middleware FIRST, then mount
+	// /auth/* routes. Gin doesn't apply middleware retroactively to routes
+	// registered before Use(); the middleware would otherwise miss the
+	// /auth/session handler that reads userAccountID from context.
+	// Order matters:
 	//   1. CORS (above) so preflight works for /auth/*
 	//   2. /api/auth/* proxy (above) so Better Auth keeps working
-	//   3. /auth/* routes (here) so they're not gated by anything below
-	//   4. AuthService.Middleware() (here) sets userAccountID from cookie
-	//   5. m.getGoogleAuthMiddleware (below) reads the existing key and
-	//      now skips JWT resolution when the cookie middleware already set it
+	//      (proxy routes were registered before this point so the cookie
+	//      middleware doesn't apply to them — correct, Better Auth handles
+	//      its own auth)
+	//   3. AuthService.Middleware() (here) sets userAccountID from cookie
+	//   4. /auth/* routes (here) — get the cookie middleware
+	//   5. m.getGoogleAuthMiddleware (below) — applies to all subsequent
+	//      routes; skips JWT resolution when cookie middleware already set
 	if m.AuthService != nil {
-		m.AuthService.RegisterRoutes(engine)
 		engine.Use(m.AuthService.Middleware())
+		m.AuthService.RegisterRoutes(engine)
 	}
 
 	engine.Use(m.getGoogleAuthMiddleware)
