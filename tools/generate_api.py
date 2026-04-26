@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 API Code Generator
-Generates Go code and Terraform from api/endpoints.yaml
+Generates Go code from api/endpoints.yaml
 """
 
 try:
@@ -19,7 +19,6 @@ from typing import Dict, List, Any, Optional
 
 PROJECT_ROOT = Path(__file__).parent.parent
 API_DIR = PROJECT_ROOT / "api"
-TERRAFORM_DIR = PROJECT_ROOT / "terraform"
 ENDPOINTS_YAML = API_DIR / "endpoints.yaml"
 
 
@@ -310,215 +309,6 @@ def generate_resolver_files(endpoints: List[Dict[str, Any]]) -> None:
         print(f"Generated {resolver_path}")
 
 
-def generate_terraform(endpoints: List[Dict[str, Any]]) -> None:
-    """Generate Terraform configuration for API Gateway"""
-    TERRAFORM_DIR.mkdir(exist_ok=True)
-    
-    terraform_content = '''# Auto-generated API Gateway Terraform configuration
-# Run: terraform init && terraform plan && terraform apply
-#
-# IMPORTANT: Update api_gateway_rest_api_id with your existing API Gateway ID
-# You can find it in AWS Console or run: aws apigateway get-rest-apis --query 'items[?name==`YOUR_API_NAME`].id' --output text
-
-terraform {
-  required_version = ">= 1.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-variable "api_gateway_rest_api_id" {
-  description = "API Gateway REST API ID (find in AWS Console)"
-  type        = string
-  # TODO: Replace with your actual API Gateway ID
-  # You can also set via: terraform apply -var="api_gateway_rest_api_id=YOUR_ID"
-}
-
-variable "lambda_function_name" {
-  description = "Lambda function name"
-  type        = string
-  default     = "fbTestArm"
-}
-
-variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-1"
-}
-
-variable "stage_name" {
-  description = "API Gateway stage name"
-  type        = string
-  default     = "prod"
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
-data "aws_caller_identity" "current" {}
-
-data "aws_lambda_function" "api" {
-  function_name = var.lambda_function_name
-}
-
-# Get root resource ID (path "/")
-data "aws_api_gateway_resource" "root" {
-  rest_api_id = var.api_gateway_rest_api_id
-  path        = "/"
-}
-
-locals {
-  # Root resource ID from data source
-  root_resource_id = data.aws_api_gateway_resource.root.id
-  
-  # Execution ARN format: arn:aws:execute-api:region:account-id:api-id/*/*
-  execution_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.api_gateway_rest_api_id}/*/*"
-}
-
-'''
-    
-    # Track generated resources so deployments can be forced to redeploy when
-    # routes change (API Gateway deployments are immutable snapshots).
-    integration_resources = []
-    endpoint_resource_names: List[str] = []
-    
-    # Generate resources for each endpoint
-    for endpoint in endpoints:
-        path = endpoint['path']
-        method = endpoint['method'].upper()
-        
-        # Convert path to Terraform-safe resource name
-        # e.g., /sendSavedStrategySummaryEmails -> send_saved_strategy_summary_emails
-        resource_name = to_snake_case(path.lstrip('/').replace('/', '_'))
-        
-        # For simple paths (single segment), create resource directly
-        # For nested paths, would need to create parent resources (not handling for now)
-        path_parts = [p for p in path.split('/') if p]
-        
-        if len(path_parts) == 1:
-            # Simple path - create resource under root
-            terraform_content += f'''
-# Endpoint: {path} ({method})
-resource "aws_api_gateway_resource" "{resource_name}" {{
-  rest_api_id = var.api_gateway_rest_api_id
-  parent_id   = local.root_resource_id
-  path_part   = "{path_parts[0]}"
-}}
-
-resource "aws_api_gateway_method" "{resource_name}" {{
-  rest_api_id   = var.api_gateway_rest_api_id
-  resource_id   = aws_api_gateway_resource.{resource_name}.id
-  http_method   = "{method}"
-  authorization = "NONE"
-}}
-
-resource "aws_api_gateway_integration" "{resource_name}" {{
-  rest_api_id = var.api_gateway_rest_api_id
-  resource_id = aws_api_gateway_resource.{resource_name}.id
-  http_method = aws_api_gateway_method.{resource_name}.http_method
-
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = data.aws_lambda_function.api.invoke_arn
-}}
-
-'''
-            integration_resources.append(f'aws_api_gateway_integration.{resource_name}')
-            endpoint_resource_names.append(resource_name)
-        else:
-            print(f"Warning: Nested paths not yet supported: {path}")
-    
-    # Generate deployment
-    terraform_content += '''
-# Deployment - creates a new deployment each time
-# Note: Terraform will create a new deployment on every apply
-# You may want to use aws_api_gateway_stage instead for better control
-resource "aws_api_gateway_deployment" "main" {
-  rest_api_id = var.api_gateway_rest_api_id
-
-  depends_on = [
-'''
-    
-    for integration in integration_resources:
-        terraform_content += f'    {integration},\n'
-    
-    terraform_content += '''  ]
-
-  # Force a new deployment when the API surface changes.
-  # Without this, Terraform can add resources/methods/integrations without
-  # creating a new deployment, leaving the stage pointing at an older snapshot.
-  triggers = {
-    redeployment = sha1(jsonencode([
-'''
-
-    for resource_name in endpoint_resource_names:
-        terraform_content += (
-            f'      aws_api_gateway_resource.{resource_name}.id,\n'
-            f'      aws_api_gateway_method.{resource_name}.id,\n'
-            f'      aws_api_gateway_integration.{resource_name}.id,\n'
-        )
-
-    terraform_content += '''    ]))
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Stage (preferred over aws_api_gateway_deployment.stage_name in newer providers)
-resource "aws_api_gateway_stage" "main" {
-  rest_api_id   = var.api_gateway_rest_api_id
-  deployment_id = aws_api_gateway_deployment.main.id
-  stage_name    = var.stage_name
-}
-
-# Lambda permission to allow API Gateway to invoke
-resource "aws_lambda_permission" "api_gateway" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = data.aws_lambda_function.api.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = local.execution_arn
-}
-
-# Output the API Gateway URL
-output "api_gateway_url" {
-  value = "https://${var.api_gateway_rest_api_id}.execute-api.${var.aws_region}.amazonaws.com/${var.stage_name}"
-}
-'''
-    
-    terraform_file = TERRAFORM_DIR / "api_gateway.tf"
-    with open(terraform_file, 'w') as f:
-        f.write(terraform_content)
-    
-    # Also create a variables.tf.example
-    variables_example = '''# Copy this to terraform.tfvars and fill in your values
-api_gateway_rest_api_id = "your-api-gateway-id-here"
-lambda_function_name    = "fbTestArm"
-aws_region              = "us-east-1"
-'''
-    
-    variables_file = TERRAFORM_DIR / "terraform.tfvars.example"
-    with open(variables_file, 'w') as f:
-        f.write(variables_example)
-    
-    print(f"Generated {terraform_file}")
-    print(f"Generated {variables_file}")
-    print("\n  Note: Terraform files generated only. No changes applied to AWS.")
-    print("  Next steps to deploy:")
-    print("  1. Find your API Gateway ID:")
-    print("     aws apigateway get-rest-apis --query 'items[*].[name,id]' --output table")
-    print("  2. Copy terraform.tfvars.example to terraform.tfvars and fill in values")
-    print("  3. Run: terraform -chdir=terraform init")
-    print("  4. Run: terraform -chdir=terraform plan")
-    print("  5. Run: terraform -chdir=terraform apply")
-
-
 def main():
     """Main entry point"""
     if not ENDPOINTS_YAML.exists():
@@ -543,17 +333,12 @@ def main():
     
     # Update api.go
     update_api_go(endpoints)
-    
-    # Generate Terraform
-    generate_terraform(endpoints)
-    
+
     print("\nDone! Generated files only - no changes applied.")
     print("\nNext steps:")
     print("1. Review generated resolver files")
     print("2. Implement handler logic in resolver files")
-    print("3. Review terraform/api_gateway.tf and update with your API Gateway ID")
-    print("4. To deploy: terraform -chdir=terraform init && terraform -chdir=terraform plan && terraform -chdir=terraform apply")
-    
+
     return 0
 
 

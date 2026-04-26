@@ -12,12 +12,9 @@ require (
 
 require (
 	github.com/alpacahq/alpaca-trade-api-go/v3 v3.5.0
-	github.com/aws/aws-lambda-go v1.46.0
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.41.5
 	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.59.1
-	github.com/awslabs/aws-lambda-go-api-proxy v0.16.1
 	github.com/ayush6624/go-chatgpt v0.3.0
 	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/gin-contrib/cors v1.4.0

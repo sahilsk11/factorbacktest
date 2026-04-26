@@ -1,10 +1,8 @@
 package util
 
 import (
-	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,10 +13,6 @@ import (
 	"regexp"
 	"strconv"
 	"time"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -131,31 +125,15 @@ func (t DbSecrets) ToConnectionStr() string {
 func LoadSecrets() (*Secrets, error) {
 	// Opt-in path for environments that inject secrets as env vars (e.g. Fly.io).
 	// FB_SECRETS_FROM_ENV=1 is an explicit signal, so a failure here is terminal:
-	// falling through to the AWS / file chain would obscure the real cause (a
-	// missing or typo'd Fly secret) and risks loading the wrong secrets in any
-	// future env that has both this flag and AWS creds present.
+	// falling through to the file chain would obscure the real cause (a
+	// missing or typo'd Fly secret).
 	if os.Getenv("FB_SECRETS_FROM_ENV") == "1" {
-		secrets, envErr := loadSecretsFromEnv()
-		if envErr != nil {
-			return nil, fmt.Errorf("FB_SECRETS_FROM_ENV=1 but loading from env failed: %w", envErr)
+		secrets, err := loadSecretsFromEnv()
+		if err != nil {
+			return nil, fmt.Errorf("FB_SECRETS_FROM_ENV=1 but loading from env failed: %w", err)
 		}
 		logger.New().Infof("loaded secrets from env vars")
 		return secrets, nil
-	}
-
-	// Default behavior: prefer AWS Secrets Manager, fall back to a local
-	// secrets file. Skip the AWS path entirely in dev/test — the SDK's
-	// SSO refresh would otherwise pop up a browser tab on every restart
-	// and the call adds ~10s of timeout when no AWS creds are present.
-	var awsErr error
-	env := os.Getenv("ALPHA_ENV")
-	if env != "dev" && env != "test" {
-		var secrets *Secrets
-		secrets, awsErr = loadSecretsFromAWS()
-		if awsErr == nil {
-			return secrets, nil
-		}
-		logger.New().Errorf("failed to load secrets from AWS; falling back to local file: %s", awsErr.Error())
 	}
 
 	var fileErr error
@@ -169,9 +147,6 @@ func LoadSecrets() (*Secrets, error) {
 
 	if fileErr == nil {
 		fileErr = errors.New("no secrets file candidates configured")
-	}
-	if awsErr != nil {
-		return nil, fmt.Errorf("failed to load secrets from AWS (%v) and from local files (%v)", awsErr, fileErr)
 	}
 	return nil, fmt.Errorf("failed to load secrets from local files: %v", fileErr)
 }
@@ -203,59 +178,6 @@ func loadSecretsFromFile(path string) (*Secrets, error) {
 	if err := json.Unmarshal(f, &secrets); err != nil {
 		return nil, fmt.Errorf("could not parse secrets file %q: %w", path, err)
 	}
-
-	return &secrets, nil
-}
-
-func loadSecretsFromAWS() (*Secrets, error) {
-	secretName := "prod/factor"
-	region := "us-east-1"
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	config, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS config: %w", err)
-	}
-
-	svc := secretsmanager.NewFromConfig(config)
-
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId:     aws.String(secretName),
-		VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
-	}
-
-	result, err := svc.GetSecretValue(ctx, input)
-	if err != nil {
-		// For a list of exceptions thrown, see
-		// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-		return nil, fmt.Errorf("failed to get secret %q from Secrets Manager: %w", secretName, err)
-	}
-
-	var secretBytes []byte
-	if result.SecretString != nil {
-		secretBytes = []byte(*result.SecretString)
-	} else if len(result.SecretBinary) > 0 {
-		// SDK usually returns raw bytes; some setups store base64-encoded JSON.
-		secretBytes = result.SecretBinary
-	} else {
-		return nil, fmt.Errorf("secret %q from Secrets Manager had no SecretString or SecretBinary", secretName)
-	}
-
-	secrets := Secrets{}
-	if err := json.Unmarshal(secretBytes, &secrets); err != nil {
-		// If SecretBinary was base64-encoded JSON, try decoding then unmarshalling.
-		decoded, decErr := base64.StdEncoding.DecodeString(string(secretBytes))
-		if decErr == nil {
-			if err2 := json.Unmarshal(decoded, &secrets); err2 == nil {
-				return &secrets, nil
-			}
-		}
-		return nil, fmt.Errorf("failed to unmarshal secret from Secrets Manager: %w", err)
-	}
-
-	logger.New().Infof("loaded secrets from Secrets Manager")
 
 	return &secrets, nil
 }
