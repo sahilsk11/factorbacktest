@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 interface Props {
   date: string | null;
   holdings: HoldingRow[];
-  value: number | null;
   pctChange: number | null;
   // Bubbled up so consumers can clear the selection (e.g. close button
   // on the panel header).
@@ -20,13 +19,7 @@ interface Props {
 // at-a-glance bar for each weight, and the asset's price change to
 // next rebalance. This is the "what did the strategy do that day"
 // affordance the user asked for.
-export function DayInspector({
-  date,
-  holdings,
-  value,
-  pctChange,
-  onClose,
-}: Props): React.ReactNode {
+export function DayInspector({ date, holdings, pctChange, onClose }: Props): React.ReactNode {
   const empty = !date || holdings.length === 0;
 
   return (
@@ -42,15 +35,6 @@ export function DayInspector({
         </div>
         {date && (
           <div className="flex items-center gap-3">
-            {value !== null && (
-              <span className="font-mono text-sm text-muted-foreground">
-                ${' '}
-                {value.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </span>
-            )}
             {pctChange !== null && (
               <span
                 className={cn(

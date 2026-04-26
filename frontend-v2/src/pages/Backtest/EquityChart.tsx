@@ -35,21 +35,11 @@ interface Props {
 interface HeadlineState {
   pct: number;
   date: string;
-  // value in starting-cash units, e.g. $11,234.56. May be undefined
-  // for benchmark-only points — we always lock onto the strategy
-  // series for the headline so this is effectively always defined.
-  value: number | undefined;
 }
 
 // ----- Animated big-number readout for the headline. Lives inline so
 // the chart owns its choreography end-to-end. -----
-function HeadlineNumber({
-  pct,
-  value,
-}: {
-  pct: number;
-  value: number | undefined;
-}): React.ReactNode {
+function HeadlineNumber({ pct }: { pct: number }): React.ReactNode {
   const reduceMotion = useReducedMotion();
   const motionValue = useMotionValue(pct);
   const spring = useSpring(motionValue, { stiffness: 220, damping: 26, mass: 0.4 });
@@ -78,20 +68,9 @@ function HeadlineNumber({
       <span className="text-[11px] uppercase tracking-[0.18em] text-subtle-foreground">
         Strategy return
       </span>
-      <div className="flex items-baseline gap-3">
-        <span className={cn('font-mono text-5xl font-semibold tracking-tight', colorClass)}>
-          {formatDelta(shown)}
-        </span>
-        {value !== undefined && (
-          <span className="font-mono text-base text-muted-foreground">
-            ${' '}
-            {value.toLocaleString('en-US', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        )}
-      </div>
+      <span className={cn('font-mono text-5xl font-semibold tracking-tight', colorClass)}>
+        {formatDelta(shown)}
+      </span>
     </div>
   );
 }
@@ -212,7 +191,6 @@ export function EquityChart({
     ? {
         pct: lockedStrategyPoint.pctReturn,
         date: lockedStrategyPoint.date,
-        value: lockedStrategyPoint.value,
       }
     : null;
 
@@ -280,7 +258,7 @@ export function EquityChart({
     <div ref={containerRef} className="relative h-full w-full overflow-hidden">
       {/* Floating headline (top-left). Lifts above the chart canvas. */}
       <div className="pointer-events-none absolute left-6 top-6 z-10">
-        {headline && <HeadlineNumber pct={headline.pct} value={headline.value} />}
+        {headline && <HeadlineNumber pct={headline.pct} />}
         {headline && (
           <div className="mt-1 font-mono text-xs text-muted-foreground">
             {formatDateLong(headline.date)}

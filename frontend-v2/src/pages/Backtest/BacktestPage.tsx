@@ -403,7 +403,6 @@ export function BacktestPage(): React.ReactNode {
           <DayInspector
             date={inspectorDate}
             holdings={inspector?.holdings ?? []}
-            value={inspector?.value ?? null}
             pctChange={inspector?.pctChange ?? null}
             onClose={() => {
               setSelectedDate(null);
