@@ -3,7 +3,6 @@
 # - Generate request/response Go structs
 # - Generate resolver file stubs (if missing)
 # - Update api.go router registration
-# - Generate Terraform for API Gateway
 
 endpoints:
   - path: /updateOrders
@@ -14,9 +13,6 @@ endpoints:
     request:
     response:
       success: string
-    aws:
-      integration_type: lambda_proxy
-      timeout: 30
 
   - path: /sendSavedStrategySummaryEmails
     method: POST
@@ -26,9 +22,6 @@ endpoints:
       # Empty object means no request body
     response:
       message: string
-    aws:
-      integration_type: lambda_proxy
-      timeout: 30
 
   # Example: Endpoint with request body (uncomment and customize as needed)
   # - path: /exampleEndpoint
@@ -42,6 +35,3 @@ endpoints:
   #   response:
   #     result: string
   #     count: int
-  #   aws:
-  #     integration_type: lambda_proxy
-  #     timeout: 30

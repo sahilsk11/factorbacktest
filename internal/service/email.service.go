@@ -199,11 +199,10 @@ func findTemplatePath(templateName string) (string, error) {
 	wd, _ := os.Getwd()
 
 	possiblePaths := []string{
-		filepath.Join("templates", templateName+".html"),                // From project root
-		filepath.Join("..", "templates", templateName+".html"),          // From internal/service/
-		filepath.Join("../..", "templates", templateName+".html"),       // From deeper nested dirs
-		filepath.Join(wd, "templates", templateName+".html"),            // Absolute from current dir
-		filepath.Join("/go/src/app", "templates", templateName+".html"), // Lambda path
+		filepath.Join("templates", templateName+".html"),          // From project root
+		filepath.Join("..", "templates", templateName+".html"),    // From internal/service/
+		filepath.Join("../..", "templates", templateName+".html"), // From deeper nested dirs
+		filepath.Join(wd, "templates", templateName+".html"),      // Absolute from current dir
 	}
 
 	for _, templatePath := range possiblePaths {
