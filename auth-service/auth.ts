@@ -8,6 +8,7 @@ const config = loadConfig();
 
 export const pool = new Pool({
   connectionString: config.database.url,
+  ssl: config.database.ssl,
   max: 10,
 });
 
