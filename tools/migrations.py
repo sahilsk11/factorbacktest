@@ -57,7 +57,10 @@ def get_migration_filename(num, migration_type):
   return matched_files[0]
 
 def get_max_migration_num():
-  files = os.listdir()
+  # Only consider .sql files; the directory also holds non-migration files
+  # like embed.go (used by cmd/migrate to bake the SQL into the prod binary),
+  # which would otherwise sort to the end and break int() parsing.
+  files = [f for f in os.listdir() if f.endswith(".sql")]
   files = sorted(files)
   last_file = files[-1]
   migration_number_str = last_file.split("_")[0]
