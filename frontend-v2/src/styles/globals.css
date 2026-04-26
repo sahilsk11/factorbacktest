@@ -1,0 +1,95 @@
+@import 'tailwindcss';
+
+/* Geist variable fonts. The packages register CSS @font-face rules and
+ * expose the families as 'Geist Variable' / 'Geist Mono Variable'. We
+ * alias them in @theme below so utilities like font-sans / font-mono
+ * resolve to Geist by default. */
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+/* Design tokens — single source of truth, mirrors plans/frontend-v2-north-star.md §2.
+ * Tailwind v4 turns each --color-* / --font-* into a utility automatically
+ * (e.g. --color-card → bg-card, text-card; --font-mono → font-mono). */
+@theme {
+  /* Surfaces */
+  --color-background: #0a0a0b;
+  --color-card: #111214;
+  --color-elevated: #1a1b1f;
+
+  /* Borders — semantic names track shadcn-v4 conventions so future
+   * shadcn primitives drop in without renaming. */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.1);
+
+  /* Text */
+  --color-foreground: #fafafa;
+  --color-muted-foreground: #a1a1aa;
+  --color-subtle-foreground: #71717a;
+
+  /* Semantic colors. Gain/loss are emerald-500 / red-500; their
+   * matching gradient stops live in the StrategyCard component. */
+  --color-gain: #10b981;
+  --color-loss: #ef4444;
+  --color-accent: #3b82f6;
+  --color-accent-foreground: #ffffff;
+  --color-warn: #f59e0b;
+
+  /* Type. Geist Sans for UI, Geist Mono for every number / table /
+   * tooltip / axis label — see body { font-variant-numeric } below. */
+  --font-sans:
+    'Geist Variable', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:
+    'Geist Mono Variable', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* Radii — small + tight, no chunky cards. */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+/* Base resets. The single biggest "fintech vs homework project" lever:
+ * tabular-nums + slashed-zero on every number by default. We turn it
+ * on globally and let prose blocks opt out if needed. */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    font-variant-numeric: tabular-nums slashed-zero;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Numbers, tables, axis labels, tooltips. Use `.font-mono` or apply
+   * directly. */
+  code,
+  kbd,
+  samp,
+  pre,
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums slashed-zero;
+  }
+
+  /* Focus ring — keep visible but subtle. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Dark is the default and the only theme implemented. The .dark class
+ * on <html> is set by the ThemeProvider so future light-mode work is
+ * additive, not a swap. */
+:root {
+  color-scheme: dark;
+}

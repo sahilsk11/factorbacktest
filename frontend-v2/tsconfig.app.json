@@ -15,6 +15,14 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path aliases — `@/*` maps to `src/*`. Both the bundler (via
+       vite-tsconfig-paths) and tsc (via this config) read from here.
+       baseUrl is deprecated in TS 6+, so paths are written relative
+       to the tsconfig instead. */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     /* Strictness */
     "strict": true,
     "noImplicitOverride": true,

@@ -1,9 +1,19 @@
+import { Route, Routes } from 'react-router';
+
+import { RootLayout } from '@/components/layout/RootLayout';
+import { ComingSoonPage } from '@/pages/ComingSoon';
+import { HomePage } from '@/pages/Home/HomePage';
+
+// Route table. Add new pages here, not in main.tsx.
 function App() {
   return (
-    <main>
-      <h1>frontend-v2</h1>
-      <p>Scaffolding only — no implementation yet.</p>
-    </main>
+    <Routes>
+      <Route element={<RootLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="backtest" element={<ComingSoonPage pageName="Backtest" />} />
+        <Route path="investments" element={<ComingSoonPage pageName="Investments" />} />
+      </Route>
+    </Routes>
   );
 }
 
