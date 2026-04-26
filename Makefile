@@ -59,12 +59,12 @@ migrate:
 	$(PYTHON) tools/migrations.py up postgres
 
 deploy-fe:
-	cd frontend;npm run build;
-	aws s3 sync ./frontend/build s3://factorbacktest.net
-	aws s3 sync ./frontend/build s3://www.factorbacktest.net
-	aws s3 sync ./frontend/build s3://factor.trade
-	aws s3 sync ./frontend/build s3://www.factor.trade
-	rm -rf ./frontend/build;
+	cd frontend-v2;npm run build;
+	aws s3 sync ./frontend-v2/dist s3://factorbacktest.net
+	aws s3 sync ./frontend-v2/dist s3://www.factorbacktest.net
+	aws s3 sync ./frontend-v2/dist s3://factor.trade
+	aws s3 sync ./frontend-v2/dist s3://www.factor.trade
+	rm -rf ./frontend-v2/dist;
 	aws cloudfront create-invalidation --distribution-id E2LDUUB6BBDSV8 --paths "/*" --output text
 	aws cloudfront create-invalidation --distribution-id E28M2984LB2P97 --paths "/*" --output text
 
