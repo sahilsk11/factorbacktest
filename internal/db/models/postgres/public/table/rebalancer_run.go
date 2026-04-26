@@ -16,7 +16,7 @@ var RebalancerRun = newRebalancerRunTable("public", "rebalancer_run", "")
 type rebalancerRunTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	RebalancerRunID         postgres.ColumnString
 	Date                    postgres.ColumnDate
 	CreatedAt               postgres.ColumnTimestampz
@@ -44,6 +44,16 @@ func (a RebalancerRunTable) AS(alias string) *RebalancerRunTable {
 // Schema creates new RebalancerRunTable with assigned schema name
 func (a RebalancerRunTable) FromSchema(schemaName string) *RebalancerRunTable {
 	return newRebalancerRunTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new RebalancerRunTable with assigned table prefix
+func (a RebalancerRunTable) WithPrefix(prefix string) *RebalancerRunTable {
+	return newRebalancerRunTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new RebalancerRunTable with assigned table suffix
+func (a RebalancerRunTable) WithSuffix(suffix string) *RebalancerRunTable {
+	return newRebalancerRunTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newRebalancerRunTable(schemaName, tableName, alias string) *RebalancerRunTable {

@@ -16,7 +16,7 @@ var AdjustedPrice = newAdjustedPriceTable("public", "adjusted_price", "")
 type adjustedPriceTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	ID        postgres.ColumnInteger
 	Date      postgres.ColumnDate
 	Symbol    postgres.ColumnString
@@ -41,6 +41,16 @@ func (a AdjustedPriceTable) AS(alias string) *AdjustedPriceTable {
 // Schema creates new AdjustedPriceTable with assigned schema name
 func (a AdjustedPriceTable) FromSchema(schemaName string) *AdjustedPriceTable {
 	return newAdjustedPriceTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new AdjustedPriceTable with assigned table prefix
+func (a AdjustedPriceTable) WithPrefix(prefix string) *AdjustedPriceTable {
+	return newAdjustedPriceTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new AdjustedPriceTable with assigned table suffix
+func (a AdjustedPriceTable) WithSuffix(suffix string) *AdjustedPriceTable {
+	return newAdjustedPriceTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newAdjustedPriceTable(schemaName, tableName, alias string) *AdjustedPriceTable {

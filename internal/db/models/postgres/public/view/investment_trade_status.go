@@ -16,7 +16,7 @@ var InvestmentTradeStatus = newInvestmentTradeStatusTable("public", "investment_
 type investmentTradeStatusTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InvestmentTradeID postgres.ColumnString
 	Side              postgres.ColumnString
 	Symbol            postgres.ColumnString
@@ -50,6 +50,16 @@ func (a InvestmentTradeStatusTable) AS(alias string) *InvestmentTradeStatusTable
 // Schema creates new InvestmentTradeStatusTable with assigned schema name
 func (a InvestmentTradeStatusTable) FromSchema(schemaName string) *InvestmentTradeStatusTable {
 	return newInvestmentTradeStatusTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new InvestmentTradeStatusTable with assigned table prefix
+func (a InvestmentTradeStatusTable) WithPrefix(prefix string) *InvestmentTradeStatusTable {
+	return newInvestmentTradeStatusTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new InvestmentTradeStatusTable with assigned table suffix
+func (a InvestmentTradeStatusTable) WithSuffix(suffix string) *InvestmentTradeStatusTable {
+	return newInvestmentTradeStatusTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newInvestmentTradeStatusTable(schemaName, tableName, alias string) *InvestmentTradeStatusTable {

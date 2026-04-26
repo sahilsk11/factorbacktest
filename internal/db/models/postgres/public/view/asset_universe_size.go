@@ -16,7 +16,7 @@ var AssetUniverseSize = newAssetUniverseSizeTable("public", "asset_universe_size
 type assetUniverseSizeTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	DisplayName       postgres.ColumnString
 	AssetUniverseName postgres.ColumnString
 	NumAssets         postgres.ColumnInteger
@@ -39,6 +39,16 @@ func (a AssetUniverseSizeTable) AS(alias string) *AssetUniverseSizeTable {
 // Schema creates new AssetUniverseSizeTable with assigned schema name
 func (a AssetUniverseSizeTable) FromSchema(schemaName string) *AssetUniverseSizeTable {
 	return newAssetUniverseSizeTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new AssetUniverseSizeTable with assigned table prefix
+func (a AssetUniverseSizeTable) WithPrefix(prefix string) *AssetUniverseSizeTable {
+	return newAssetUniverseSizeTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new AssetUniverseSizeTable with assigned table suffix
+func (a AssetUniverseSizeTable) WithSuffix(suffix string) *AssetUniverseSizeTable {
+	return newAssetUniverseSizeTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newAssetUniverseSizeTable(schemaName, tableName, alias string) *AssetUniverseSizeTable {

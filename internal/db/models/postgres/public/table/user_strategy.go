@@ -16,7 +16,7 @@ var UserStrategy = newUserStrategyTable("public", "user_strategy", "")
 type userStrategyTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	UserStrategyID       postgres.ColumnString
 	UserID               postgres.ColumnString
 	StrategyInput        postgres.ColumnString
@@ -43,6 +43,16 @@ func (a UserStrategyTable) AS(alias string) *UserStrategyTable {
 // Schema creates new UserStrategyTable with assigned schema name
 func (a UserStrategyTable) FromSchema(schemaName string) *UserStrategyTable {
 	return newUserStrategyTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new UserStrategyTable with assigned table prefix
+func (a UserStrategyTable) WithPrefix(prefix string) *UserStrategyTable {
+	return newUserStrategyTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new UserStrategyTable with assigned table suffix
+func (a UserStrategyTable) WithSuffix(suffix string) *UserStrategyTable {
+	return newUserStrategyTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newUserStrategyTable(schemaName, tableName, alias string) *UserStrategyTable {

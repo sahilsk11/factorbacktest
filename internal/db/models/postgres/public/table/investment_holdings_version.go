@@ -16,7 +16,7 @@ var InvestmentHoldingsVersion = newInvestmentHoldingsVersionTable("public", "inv
 type investmentHoldingsVersionTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InvestmentHoldingsVersionID postgres.ColumnString
 	InvestmentID                postgres.ColumnString
 	CreatedAt                   postgres.ColumnTimestampz
@@ -40,6 +40,16 @@ func (a InvestmentHoldingsVersionTable) AS(alias string) *InvestmentHoldingsVers
 // Schema creates new InvestmentHoldingsVersionTable with assigned schema name
 func (a InvestmentHoldingsVersionTable) FromSchema(schemaName string) *InvestmentHoldingsVersionTable {
 	return newInvestmentHoldingsVersionTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new InvestmentHoldingsVersionTable with assigned table prefix
+func (a InvestmentHoldingsVersionTable) WithPrefix(prefix string) *InvestmentHoldingsVersionTable {
+	return newInvestmentHoldingsVersionTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new InvestmentHoldingsVersionTable with assigned table suffix
+func (a InvestmentHoldingsVersionTable) WithSuffix(suffix string) *InvestmentHoldingsVersionTable {
+	return newInvestmentHoldingsVersionTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newInvestmentHoldingsVersionTable(schemaName, tableName, alias string) *InvestmentHoldingsVersionTable {

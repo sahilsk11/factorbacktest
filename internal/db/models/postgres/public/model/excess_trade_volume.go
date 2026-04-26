@@ -18,7 +18,7 @@ type ExcessTradeVolume struct {
 	ExcessTradeVolumeID uuid.UUID `sql:"primary_key"`
 	TickerID            uuid.UUID
 	Quantity            decimal.Decimal
+	TradeOrderID        *uuid.UUID
 	CreatedAt           time.Time
 	RebalancerRunID     uuid.UUID
-	TradeOrderID        *uuid.UUID
 }

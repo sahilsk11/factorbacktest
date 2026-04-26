@@ -16,7 +16,7 @@ var InvestmentRebalanceError = newInvestmentRebalanceErrorTable("public", "inves
 type investmentRebalanceErrorTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	InvestmentRebalanceErrorID postgres.ColumnString
 	RebalancerRunID            postgres.ColumnString
 	InvestmentID               postgres.ColumnString
@@ -40,6 +40,16 @@ func (a InvestmentRebalanceErrorTable) AS(alias string) *InvestmentRebalanceErro
 // Schema creates new InvestmentRebalanceErrorTable with assigned schema name
 func (a InvestmentRebalanceErrorTable) FromSchema(schemaName string) *InvestmentRebalanceErrorTable {
 	return newInvestmentRebalanceErrorTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new InvestmentRebalanceErrorTable with assigned table prefix
+func (a InvestmentRebalanceErrorTable) WithPrefix(prefix string) *InvestmentRebalanceErrorTable {
+	return newInvestmentRebalanceErrorTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new InvestmentRebalanceErrorTable with assigned table suffix
+func (a InvestmentRebalanceErrorTable) WithSuffix(suffix string) *InvestmentRebalanceErrorTable {
+	return newInvestmentRebalanceErrorTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newInvestmentRebalanceErrorTable(schemaName, tableName, alias string) *InvestmentRebalanceErrorTable {

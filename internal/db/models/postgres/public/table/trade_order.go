@@ -16,7 +16,7 @@ var TradeOrder = newTradeOrderTable("public", "trade_order", "")
 type tradeOrderTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	TradeOrderID      postgres.ColumnString
 	ProviderID        postgres.ColumnString
 	TickerID          postgres.ColumnString
@@ -50,6 +50,16 @@ func (a TradeOrderTable) AS(alias string) *TradeOrderTable {
 // Schema creates new TradeOrderTable with assigned schema name
 func (a TradeOrderTable) FromSchema(schemaName string) *TradeOrderTable {
 	return newTradeOrderTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new TradeOrderTable with assigned table prefix
+func (a TradeOrderTable) WithPrefix(prefix string) *TradeOrderTable {
+	return newTradeOrderTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new TradeOrderTable with assigned table suffix
+func (a TradeOrderTable) WithSuffix(suffix string) *TradeOrderTable {
+	return newTradeOrderTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newTradeOrderTable(schemaName, tableName, alias string) *TradeOrderTable {

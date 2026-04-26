@@ -19,10 +19,10 @@ type Strategy struct {
 	RebalanceInterval string
 	NumAssets         int32
 	AssetUniverse     string
+	Saved             bool
 	UserAccountID     *uuid.UUID
 	CreatedAt         time.Time
 	ModifiedAt        time.Time
 	Published         bool
-	Saved             bool
 	Description       *string
 }

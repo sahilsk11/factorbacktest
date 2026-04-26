@@ -16,7 +16,7 @@ var APIRequest = newAPIRequestTable("public", "api_request", "")
 type aPIRequestTable struct {
 	postgres.Table
 
-	//Columns
+	// Columns
 	RequestID     postgres.ColumnString
 	UserID        postgres.ColumnString
 	IPAddress     postgres.ColumnString
@@ -48,6 +48,16 @@ func (a APIRequestTable) AS(alias string) *APIRequestTable {
 // Schema creates new APIRequestTable with assigned schema name
 func (a APIRequestTable) FromSchema(schemaName string) *APIRequestTable {
 	return newAPIRequestTable(schemaName, a.TableName(), a.Alias())
+}
+
+// WithPrefix creates new APIRequestTable with assigned table prefix
+func (a APIRequestTable) WithPrefix(prefix string) *APIRequestTable {
+	return newAPIRequestTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+}
+
+// WithSuffix creates new APIRequestTable with assigned table suffix
+func (a APIRequestTable) WithSuffix(suffix string) *APIRequestTable {
+	return newAPIRequestTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
 func newAPIRequestTable(schemaName, tableName, alias string) *APIRequestTable {
