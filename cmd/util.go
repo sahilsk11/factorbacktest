@@ -11,6 +11,7 @@ import (
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/repository"
 	"factorbacktest/internal/service"
+	"time"
 
 	"factorbacktest/internal/util"
 	"fmt"
@@ -56,6 +57,29 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
 	// TODO - possible db leak, since I don't have the defer here
+
+	// Pool sizing. Without these calls we get Go's defaults: MaxIdleConns=2,
+	// MaxOpenConns=unlimited, both lifetimes infinite. That's wrong for a
+	// long-lived API process talking to managed Postgres:
+	//
+	// - Unlimited MaxOpenConns lets a traffic burst (or a runaway query)
+	//   blow past the RDS connection cap and start failing requests with
+	//   "too many connections for role". 25 is comfortably under the
+	//   db.t-class default and matches the steady-state we already observe
+	//   in pg_stat_activity.
+	// - MaxIdleConns=2 is too low for our 10-goroutine fan-outs (see
+	//   factor_score.repository.go). On a burst the pool returns 10 conns
+	//   but only keeps 2 idle, closing the rest. The next batch then pays
+	//   a fresh TLS handshake (~3 RTT) per new conn.
+	// - ConnMaxLifetime=infinite means a connection killed by RDS-side
+	//   maintenance/failover sits in the pool until we try to use it and
+	//   get a half-open socket error. 30m forces a periodic refresh.
+	// - ConnMaxIdleTime=5m frees conns that were opened during a burst and
+	//   are no longer needed, so we don't hold idle conns indefinitely.
+	dbConn.SetMaxOpenConns(25)
+	dbConn.SetMaxIdleConns(10)
+	dbConn.SetConnMaxLifetime(30 * time.Minute)
+	dbConn.SetConnMaxIdleTime(5 * time.Minute)
 
 	priceRepository := repository.NewAdjustedPriceRepository(dbConn)
 
