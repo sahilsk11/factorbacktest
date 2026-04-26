@@ -22,8 +22,10 @@ require (
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/go-cmp v0.5.9
 	github.com/piquette/finance-go v1.1.0
+	github.com/resend/resend-go/v3 v3.6.0
 	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.13.0
+	golang.org/x/crypto v0.18.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/time v0.5.0
 )
@@ -66,7 +68,6 @@ require (
 	go.uber.org/atomic v1.6.0 // indirect
 	go.uber.org/multierr v1.5.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect

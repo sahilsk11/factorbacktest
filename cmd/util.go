@@ -16,6 +16,7 @@ import (
 	"factorbacktest/internal/util"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/lib/pq"
 )
@@ -154,8 +155,12 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		backtestHandler,
 	)
 
-	// Initialize email repository and service
-	emailRepository, err := repository.NewEmailRepository(secrets.SES.Region, secrets.SES.FromEmail)
+	// Pick the email backend. Default is Resend (post-SES migration);
+	// EMAIL_PROVIDER=ses is the one-release fallback that stays available
+	// until we delete the SES code path. The two implementations satisfy
+	// the same repository.EmailRepository interface so the service layer
+	// is unaware of which is wired.
+	emailRepository, err := buildEmailRepository(secrets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create email repository: %w", err)
 	}
@@ -177,7 +182,9 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 	// Auth is opt-in: NewFromSecrets returns an error when required secrets
 	// aren't set, and we treat that as "auth disabled" rather than a fatal
 	// boot error so local-dev binaries without auth secrets still work.
-	authService, err := auth.NewFromSecrets(context.Background(), secrets, dbConn)
+	// emailRepository is passed in so the auth package can deliver email
+	// OTPs through whichever provider cmd/util.go selected above.
+	authService, err := auth.NewFromSecrets(context.Background(), secrets, dbConn, emailRepository)
 	if err != nil {
 		log.Printf("[auth] not enabled: %v", err)
 	}
@@ -209,4 +216,27 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 	}
 
 	return apiHandler, nil
+}
+
+// buildEmailRepository selects the email backend based on the
+// EMAIL_PROVIDER env var. Default is Resend (post-SES migration); set
+// EMAIL_PROVIDER=ses to revert to AWS SES without redeploying code.
+// Removing the SES path is a follow-up PR once Resend has soaked.
+func buildEmailRepository(secrets util.Secrets) (repository.EmailRepository, error) {
+	provider := os.Getenv("EMAIL_PROVIDER")
+	if provider == "" {
+		provider = "resend"
+	}
+	switch provider {
+	case "ses":
+		return repository.NewSESEmailRepository(secrets.SES.Region, secrets.SES.FromEmail)
+	case "resend":
+		return repository.NewResendEmailRepository(
+			secrets.Resend.APIKey,
+			secrets.Resend.FromEmail,
+			secrets.Resend.FromName,
+		)
+	default:
+		return nil, fmt.Errorf("unknown EMAIL_PROVIDER=%q (expected resend or ses)", provider)
+	}
 }

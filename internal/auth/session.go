@@ -156,6 +156,26 @@ func (s *Service) upsertPhoneUser(_ context.Context, phone string) (uuid.UUID, e
 	return row.UserAccountID, nil
 }
 
+// upsertEmailOtpUser materializes a user_account row from an email
+// the user has just proven control of via OTP delivery + entry. We use
+// GetOrCreate (email-keyed) rather than GetOrCreateByProviderIdentity so
+// an existing row with the same email — created by Google sign-in or
+// any other provider — collapses into one user. Email is the linkable
+// identity here because the OTP we just verified IS proof of mailbox
+// control, equivalent to the email_verified=true claim from Google.
+func (s *Service) upsertEmailOtpUser(_ context.Context, email string) (uuid.UUID, error) {
+	in := &model.UserAccount{
+		Provider:   model.UserAccountProviderType_LocalEmail,
+		ProviderID: util.StringPointer(email),
+		Email:      util.StringPointer(email),
+	}
+	row, err := s.users.GetOrCreate(in)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return row.UserAccountID, nil
+}
+
 func truncate(s string, n int) string {
 	if len(s) > n {
 		return s[:n]

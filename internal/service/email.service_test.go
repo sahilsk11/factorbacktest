@@ -40,7 +40,7 @@ func initializeEmailService() (EmailService, error) {
 		return nil, fmt.Errorf("SES config not found in secrets")
 	}
 
-	emailRepo, err := repository.NewEmailRepository(s.SES.Region, s.SES.FromEmail)
+	emailRepo, err := repository.NewSESEmailRepository(s.SES.Region, s.SES.FromEmail)
 	if err != nil {
 		return nil, err
 	}

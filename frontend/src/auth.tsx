@@ -28,8 +28,6 @@ export interface AppSession {
 
 interface SignInApi {
   google: () => Promise<void>;
-  // Email OTP is not implemented in the backend. Stubs preserved so call
-  // sites compile; calling them throws.
   sendEmailOtp: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, otp: string) => Promise<void>;
   sendSmsOtp: (phoneNumber: string) => Promise<void>;
@@ -52,10 +50,10 @@ interface AuthContextValue {
 const defaultSignIn: SignInApi = {
   google: async () => {},
   sendEmailOtp: async () => {
-    throw new Error("email OTP is not enabled");
+    throw new Error("email OTP not initialized");
   },
   verifyEmailOtp: async () => {
-    throw new Error("email OTP is not enabled");
+    throw new Error("email OTP not initialized");
   },
   sendSmsOtp: async () => {},
   verifySmsOtp: async () => {},
@@ -117,11 +115,28 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
         // OAuth flow naturally and lands the session cookie when it returns.
         window.location.assign(`${endpoint}/auth/google/start`);
       },
-      sendEmailOtp: async () => {
-        throw new Error("email OTP is not enabled");
+      sendEmailOtp: async (email) => {
+        const r = await fetch(`${endpoint}/auth/email/send`, {
+          ...COMMON,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        // /auth/email/send always 204 — uniform response, no enumeration leak.
+        // Origin allowlist mismatch (403) is the only meaningful failure.
+        if (r.status === 403) throw new Error("origin not allowed");
+        if (!r.ok && r.status !== 204) throw new Error("failed to send email OTP");
       },
-      verifyEmailOtp: async () => {
-        throw new Error("email OTP is not enabled");
+      verifyEmailOtp: async (email, otp) => {
+        const r = await fetch(`${endpoint}/auth/email/verify`, {
+          ...COMMON,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, code: otp }),
+        });
+        if (r.status === 401) throw new Error("invalid email OTP");
+        if (!r.ok && r.status !== 204) throw new Error("failed to verify email OTP");
+        await refresh();
       },
       sendSmsOtp: async (phoneNumber) => {
         const r = await fetch(`${endpoint}/auth/sms/send`, {

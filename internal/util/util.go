@@ -65,13 +65,14 @@ func UUIDPointer(u uuid.UUID) *uuid.UUID {
 }
 
 type Secrets struct {
-	Port             int           `json:"port"`
-	DataJockeyApiKey string        `json:"dataJockey"`
-	ChatGPTApiKey    string        `json:"gpt"`
-	Db               DbSecrets     `json:"db"`
-	Alpaca           AlpacaSecrets `json:"alpaca"`
-	SES              SESSecrets    `json:"ses"`
-	Auth             AuthSecrets   `json:"auth"`
+	Port             int            `json:"port"`
+	DataJockeyApiKey string         `json:"dataJockey"`
+	ChatGPTApiKey    string         `json:"gpt"`
+	Db               DbSecrets      `json:"db"`
+	Alpaca           AlpacaSecrets  `json:"alpaca"`
+	SES              SESSecrets     `json:"ses"`
+	Resend           ResendSecrets  `json:"resend"`
+	Auth             AuthSecrets    `json:"auth"`
 }
 
 // AuthSecrets backs the custom Go auth package in internal/auth. All values
@@ -111,6 +112,16 @@ type DbSecrets struct {
 type SESSecrets struct {
 	Region    string `json:"region"`    // e.g., "us-east-1"
 	FromEmail string `json:"fromEmail"` // e.g., "noreply@factor.trade"
+}
+
+// ResendSecrets backs the Resend transactional-email + email-OTP path
+// (internal/repository/resend_email.repository.go and the email-OTP
+// handlers in internal/auth/email_otp.go). FromEmail must be on a
+// domain that's been verified in the Resend dashboard.
+type ResendSecrets struct {
+	APIKey    string `json:"apiKey"`    // re_xxx from https://resend.com/api-keys
+	FromEmail string `json:"fromEmail"` // e.g., "noreply@factor.trade"
+	FromName  string `json:"fromName"`  // e.g., "Factor"; optional display name
 }
 
 func (t DbSecrets) ToConnectionStr() string {
@@ -201,8 +212,6 @@ func loadSecretsFromEnv() (*Secrets, error) {
 		"apiKey":     get("apiKey"),
 		"apiSecret":  get("apiSecret"),
 		"endpoint":   get("endpoint"),
-		"region":     get("region"),
-		"fromEmail":  get("fromEmail"),
 	}
 	var missing []string
 	for k, v := range required {
@@ -253,8 +262,20 @@ func loadSecretsFromEnv() (*Secrets, error) {
 			Endpoint:  required["endpoint"],
 		},
 		SES: SESSecrets{
-			Region:    required["region"],
-			FromEmail: required["fromEmail"],
+			// Optional after the Resend migration. Only consumed when
+			// EMAIL_PROVIDER=ses in cmd/util.go.
+			Region:    get("region"),
+			FromEmail: get("fromEmail"),
+		},
+		Resend: ResendSecrets{
+			// Resend is the default email provider after the SES
+			// migration. Empty values are tolerated here so a binary
+			// that doesn't need email (e.g. local dev) still boots;
+			// cmd/util.go fails loudly if the active provider needs
+			// values that aren't set.
+			APIKey:    get("resend_apiKey"),
+			FromEmail: get("resend_fromEmail"),
+			FromName:  get("resend_fromName"),
 		},
 		Auth: auth,
 	}, nil

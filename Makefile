@@ -16,6 +16,7 @@ mocks:
 	mockgen -source=internal/repository/trade_order.repository.go -destination=internal/repository/mocks/mock_trade_order.repository.go
 	mockgen -source=internal/repository/rebalancer_run.repository.go -destination=internal/repository/mocks/mock_rebalancer_run.repository.go
 	mockgen -source=internal/repository/ses_email.repository.go -destination=internal/repository/mocks/mock_ses_email.repository.go
+	mockgen -source=internal/repository/email_otp.repository.go -destination=internal/repository/mocks/mock_email_otp.repository.go
 
 	# l2 services
 	mockgen -source=internal/calculator/factor_expression.service.go -destination=internal/calculator/mocks/mock_factor_expression.service.go
