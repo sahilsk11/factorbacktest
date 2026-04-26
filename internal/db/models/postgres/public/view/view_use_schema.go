@@ -13,6 +13,7 @@ func UseSchema(schema string) {
 	APIRequestLatency = APIRequestLatency.FromSchema(schema)
 	AssetUniverseSize = AssetUniverseSize.FromSchema(schema)
 	InvestmentTradeStatus = InvestmentTradeStatus.FromSchema(schema)
+	LatencySpanStats = LatencySpanStats.FromSchema(schema)
 	LatestExcessTradeVolume = LatestExcessTradeVolume.FromSchema(schema)
 	LatestInvestmentHoldings = LatestInvestmentHoldings.FromSchema(schema)
 	LatestRebalanceHoldings = LatestRebalanceHoldings.FromSchema(schema)
