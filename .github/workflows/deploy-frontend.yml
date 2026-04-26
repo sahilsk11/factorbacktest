@@ -39,6 +39,8 @@ jobs:
 
       - name: Build
         working-directory: frontend-v2
+        env:
+          VITE_API_BASE_URL: https://api.factor.trade
         run: npm run build
 
       - name: Configure AWS credentials
