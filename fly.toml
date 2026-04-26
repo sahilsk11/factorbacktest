@@ -4,6 +4,14 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile.fly"
 
+[deploy]
+  # Run pending DB migrations before the new app version takes traffic. Fly
+  # runs this in a temp VM with full app secrets injected (FB_SECRETS_FROM_ENV
+  # gives the binary the same db creds the API uses). A non-zero exit aborts
+  # the release, so a broken migration leaves prod on the previous version
+  # rather than half-migrated.
+  release_command = "/app/migrate"
+
 [env]
   FB_SECRETS_FROM_ENV = "1"
   GIN_MODE = "release"

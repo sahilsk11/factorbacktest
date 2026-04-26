@@ -1,8 +1,11 @@
-# Fly.io image: single Go API binary on a slim Debian base. tini reaps
-# zombies and forwards SIGTERM so Fly's stop signal is honored cleanly.
+# Fly.io image: Go API binary plus a sibling migrate binary on a slim Debian
+# base. tini reaps zombies and forwards SIGTERM so Fly's stop signal is honored
+# cleanly. The migrate binary is invoked by Fly's release_command (see
+# fly.toml) and embeds the migrations/ directory, so it doesn't need to ship
+# alongside the SQL files at runtime.
 
 # -----------------------------------------------------------------------------
-# Stage 1: build the Go API binary
+# Stage 1: build the Go binaries
 # -----------------------------------------------------------------------------
 FROM golang:1.25 AS go-build
 
@@ -17,6 +20,7 @@ ARG commit_hash
 ENV commit_hash=$commit_hash
 
 RUN GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o /out/api ./cmd/api
+RUN GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o /out/migrate ./cmd/migrate
 
 # -----------------------------------------------------------------------------
 # Stage 2: runtime image
@@ -28,6 +32,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=go-build /out/api /app/api
+COPY --from=go-build /out/migrate /app/migrate
 
 ARG commit_hash
 ENV commit_hash=$commit_hash
