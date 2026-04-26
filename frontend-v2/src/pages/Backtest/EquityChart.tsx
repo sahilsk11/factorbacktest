@@ -43,7 +43,13 @@ interface HeadlineState {
 
 // ----- Animated big-number readout for the headline. Lives inline so
 // the chart owns its choreography end-to-end. -----
-function HeadlineNumber({ pct, value }: { pct: number; value: number | undefined }): React.ReactNode {
+function HeadlineNumber({
+  pct,
+  value,
+}: {
+  pct: number;
+  value: number | undefined;
+}): React.ReactNode {
   const reduceMotion = useReducedMotion();
   const motionValue = useMotionValue(pct);
   const spring = useSpring(motionValue, { stiffness: 220, damping: 26, mass: 0.4 });
@@ -212,8 +218,7 @@ export function EquityChart({
 
   // Strategy line color follows sign of locked point. This is the
   // single most distinctively-Robinhood touch in the whole chart.
-  const strategyColor =
-    headline && headline.pct < 0 ? STRATEGY_NEGATIVE_COLOR : STRATEGY_COLOR;
+  const strategyColor = headline && headline.pct < 0 ? STRATEGY_NEGATIVE_COLOR : STRATEGY_COLOR;
 
   // Mouse handlers. Translate clientX → date by linear interpolation
   // over the allDates array; nearest snapshot wins. We don't use
@@ -275,9 +280,7 @@ export function EquityChart({
     <div ref={containerRef} className="relative h-full w-full overflow-hidden">
       {/* Floating headline (top-left). Lifts above the chart canvas. */}
       <div className="pointer-events-none absolute left-6 top-6 z-10">
-        {headline && (
-          <HeadlineNumber pct={headline.pct} value={headline.value} />
-        )}
+        {headline && <HeadlineNumber pct={headline.pct} value={headline.value} />}
         {headline && (
           <div className="mt-1 font-mono text-xs text-muted-foreground">
             {formatDateLong(headline.date)}
@@ -393,9 +396,7 @@ export function EquityChart({
             <Crosshair
               x={xScale(lockedDate)}
               strategyY={yScale(lockedStrategyPoint.pctReturn)}
-              benchmarkY={
-                lockedBenchmarkPoint ? yScale(lockedBenchmarkPoint.pctReturn) : null
-              }
+              benchmarkY={lockedBenchmarkPoint ? yScale(lockedBenchmarkPoint.pctReturn) : null}
               top={PADDING.top}
               bottom={size.height - PADDING.bottom}
               strategyColor={strategyColor}
@@ -406,30 +407,32 @@ export function EquityChart({
           )}
 
           {/* Glowing endpoint puck — the Robinhood "laser mode" pulse. */}
-          {strategy && (() => {
-            const last = strategy.points[strategy.points.length - 1];
-            if (!last) return null;
-            return (
-              <PulseDot
-                cx={xScale(last.date)}
-                cy={yScale(last.pctReturn)}
-                color={strategyColor}
-              />
-            );
-          })()}
+          {strategy &&
+            (() => {
+              const last = strategy.points[strategy.points.length - 1];
+              if (!last) return null;
+              return (
+                <PulseDot
+                  cx={xScale(last.date)}
+                  cy={yScale(last.pctReturn)}
+                  color={strategyColor}
+                />
+              );
+            })()}
 
           {/* Right-edge floating price pill on the strategy line. */}
-          {strategy && (() => {
-            const last = strategy.points[strategy.points.length - 1];
-            if (!last) return null;
-            return (
-              <RightEdgePill
-                x={size.width - PADDING.right}
-                y={yScale(last.pctReturn)}
-                pct={last.pctReturn}
-              />
-            );
-          })()}
+          {strategy &&
+            (() => {
+              const last = strategy.points[strategy.points.length - 1];
+              if (!last) return null;
+              return (
+                <RightEdgePill
+                  x={size.width - PADDING.right}
+                  y={yScale(last.pctReturn)}
+                  pct={last.pctReturn}
+                />
+              );
+            })()}
         </svg>
       )}
     </div>
@@ -470,9 +473,23 @@ function Crosshair({
         strokeWidth={isSelected ? 1.4 : 1}
         strokeDasharray={isSelected ? undefined : '2 3'}
       />
-      <circle cx={x} cy={strategyY} r={5} fill="var(--color-background)" stroke={strategyColor} strokeWidth={2} />
+      <circle
+        cx={x}
+        cy={strategyY}
+        r={5}
+        fill="var(--color-background)"
+        stroke={strategyColor}
+        strokeWidth={2}
+      />
       {benchmarkY !== null && (
-        <circle cx={x} cy={benchmarkY} r={4} fill="var(--color-background)" stroke={benchmarkColor} strokeWidth={1.5} />
+        <circle
+          cx={x}
+          cy={benchmarkY}
+          r={4}
+          fill="var(--color-background)"
+          stroke={benchmarkColor}
+          strokeWidth={1.5}
+        />
       )}
       <text
         x={x}

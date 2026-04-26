@@ -63,9 +63,7 @@ export function InlineProgress({ status, steps, error, onDismissError }: Props):
               <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle-foreground">
                 Running backtest
               </span>
-              <span className="text-sm text-foreground">
-                {currentStep?.label ?? 'Starting…'}
-              </span>
+              <span className="text-sm text-foreground">{currentStep?.label ?? 'Starting…'}</span>
             </div>
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
               {completed}/{denom}

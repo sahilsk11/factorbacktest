@@ -28,7 +28,14 @@ const REBALANCE_OPTIONS: { id: RebalanceInterval; label: string }[] = [
 // Right-side slide-out drawer. Holds the same fields as the full
 // builder, condensed for in-place tweaking. Pre-fills with the
 // currently-displayed run so "tweak one knob" is one click away.
-export function RerunPanel({ open, onClose, initial, universes, busy, onRun }: Props): React.ReactNode {
+export function RerunPanel({
+  open,
+  onClose,
+  initial,
+  universes,
+  busy,
+  onRun,
+}: Props): React.ReactNode {
   const [factorExpression, setFactorExpression] = useState(initial.factorExpression);
   const [factorName, setFactorName] = useState(initial.factorName);
   const [assetUniverse, setAssetUniverse] = useState(initial.assetUniverse);

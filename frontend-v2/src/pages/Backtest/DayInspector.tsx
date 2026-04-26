@@ -20,7 +20,13 @@ interface Props {
 // at-a-glance bar for each weight, and the asset's price change to
 // next rebalance. This is the "what did the strategy do that day"
 // affordance the user asked for.
-export function DayInspector({ date, holdings, value, pctChange, onClose }: Props): React.ReactNode {
+export function DayInspector({
+  date,
+  holdings,
+  value,
+  pctChange,
+  onClose,
+}: Props): React.ReactNode {
   const empty = !date || holdings.length === 0;
 
   return (
@@ -146,12 +152,7 @@ function HoldingsTable({ rows }: { rows: HoldingRow[] }): React.ReactNode {
                 {r.priceChange === null ? (
                   <span className="font-mono text-subtle-foreground">—</span>
                 ) : (
-                  <span
-                    className={cn(
-                      'font-mono',
-                      r.priceChange >= 0 ? 'text-gain' : 'text-loss',
-                    )}
-                  >
+                  <span className={cn('font-mono', r.priceChange >= 0 ? 'text-gain' : 'text-loss')}>
                     {formatDelta(r.priceChange)}
                   </span>
                 )}
@@ -167,5 +168,10 @@ function HoldingsTable({ rows }: { rows: HoldingRow[] }): React.ReactNode {
 function formatDateLong(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }

@@ -19,7 +19,12 @@ interface Props {
 // monospace numbers, sign-aware coloring on the return tiles. Cards
 // fade in staggered after the chart finishes its draw-on so the eye
 // can finish tracking the line first.
-export function MetricsBar({ sharpe, annualizedReturn, annualizedStdev, totalReturn }: Props): React.ReactNode {
+export function MetricsBar({
+  sharpe,
+  annualizedReturn,
+  annualizedStdev,
+  totalReturn,
+}: Props): React.ReactNode {
   const tiles = [
     {
       label: 'Total return',
