@@ -1,6 +1,5 @@
-# Multi-stage Fly.io image: Go API + Node Better Auth sidecar in one container.
-# Both processes run in the same Fly machine. Go binds the public port (3009)
-# and reverse-proxies /api/auth/* to the local Node service on 127.0.0.1:3001.
+# Fly.io image: single Go API binary on a slim Debian base. tini reaps
+# zombies and forwards SIGTERM so Fly's stop signal is honored cleanly.
 
 # -----------------------------------------------------------------------------
 # Stage 1: build the Go API binary
@@ -20,46 +19,20 @@ ENV commit_hash=$commit_hash
 RUN GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o /out/api ./cmd/api
 
 # -----------------------------------------------------------------------------
-# Stage 2: install + build the Node auth-service
+# Stage 2: runtime image
 # -----------------------------------------------------------------------------
-FROM node:20-bookworm-slim AS node-build
-
-WORKDIR /src/auth-service
-
-COPY auth-service/package.json auth-service/package-lock.json* ./
-RUN npm ci --no-audit --no-fund
-
-COPY auth-service/ ./
-RUN npm run build
-
-# Drop devDependencies for the runtime image. We keep node_modules around so
-# `node dist/...` works without re-installing at container start.
-RUN npm prune --omit=dev
-
-# -----------------------------------------------------------------------------
-# Stage 3: runtime image with both binaries + Node + a tiny supervisor
-# -----------------------------------------------------------------------------
-FROM node:20-bookworm-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
 
-# `tini` reaps zombies and forwards signals so SIGTERM from Fly cleanly stops
-# both the Go and Node processes.
-RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY --from=go-build  /out/api                    /app/api
-COPY --from=node-build /src/auth-service/dist     /app/auth-service/dist
-COPY --from=node-build /src/auth-service/node_modules /app/auth-service/node_modules
-COPY --from=node-build /src/auth-service/package.json /app/auth-service/package.json
-
-COPY scripts/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+COPY --from=go-build /out/api /app/api
 
 ARG commit_hash
 ENV commit_hash=$commit_hash
-ENV NODE_ENV=production
 
 EXPOSE 3009
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["/app/start.sh"]
+CMD ["/app/api"]

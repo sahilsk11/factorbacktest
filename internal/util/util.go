@@ -76,7 +76,6 @@ type Secrets struct {
 	ChatGPTApiKey    string        `json:"gpt"`
 	Db               DbSecrets     `json:"db"`
 	Alpaca           AlpacaSecrets `json:"alpaca"`
-	Jwt              string        `json:"jwt"`
 	SES              SESSecrets    `json:"ses"`
 	Auth             AuthSecrets   `json:"auth"`
 }
@@ -90,8 +89,6 @@ type AuthSecrets struct {
 	// out (existing cookies fail HMAC verification).
 	SessionSecret string `json:"sessionSecret"`
 	// GoogleClientID / GoogleClientSecret come from Google Cloud Console.
-	// The same values are already used by Better Auth; we read them under
-	// the auth.* namespace here so the Go-side config is self-contained.
 	GoogleClientID     string `json:"googleClientId"`
 	GoogleClientSecret string `json:"googleClientSecret"`
 	// TwilioAccountSID / TwilioAuthToken authenticate REST calls to Twilio.
@@ -274,7 +271,6 @@ func loadSecretsFromEnv() (*Secrets, error) {
 	required := map[string]string{
 		"dataJockey": get("dataJockey"),
 		"gpt":        get("gpt"),
-		"jwt":        get("jwt"),
 		"host":       get("host"),
 		"port":       get("port"),
 		"user":       get("user"),
@@ -321,7 +317,6 @@ func loadSecretsFromEnv() (*Secrets, error) {
 	return &Secrets{
 		DataJockeyApiKey: required["dataJockey"],
 		ChatGPTApiKey:    required["gpt"],
-		Jwt:              required["jwt"],
 		Db: DbSecrets{
 			Host:      required["host"],
 			Port:      required["port"],

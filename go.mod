@@ -23,8 +23,6 @@ require (
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
-	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.5.9
 	github.com/piquette/finance-go v1.1.0
 	go.uber.org/mock v0.4.0

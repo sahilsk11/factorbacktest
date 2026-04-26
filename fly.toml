@@ -8,34 +8,22 @@ primary_region = "iad"
   FB_SECRETS_FROM_ENV = "1"
   GIN_MODE = "release"
 
-  # Embedded Better Auth sidecar — non-secret configuration. Real secrets
-  # (betterAuthSecret, googleClientSecret, resendApiKey, twilioAuthToken,
-  # twilioAccountSid) are set via `flyctl secrets set` using the same
-  # camelCase names already used for the rest of the app's secrets.
-  APP_BASE_URL          = "https://api.factor.trade"
-  # Where the custom Go auth's Google OAuth callback redirects on success.
-  # Must match the FE origin (where users come from). The auth package never
-  # accepts a redirect target from query params; this env var is the only
-  # way to change it.
+  # Public base URL of the Go API. The internal/auth package uses this as
+  # the OAuth redirect_uri host and as the issuer on internal tokens.
+  APP_BASE_URL = "https://api.factor.trade"
+  # Where the Google OAuth callback redirects on success. Must match the FE
+  # origin (where users come from). The auth package never accepts a
+  # redirect target from query params; this env var is the only way to
+  # change it.
   FACTOR_AUTH_FRONTEND_BASE_URL = "https://factor.trade"
-  AUTH_DB_SCHEMA        = "auth"
-  TRUSTED_ORIGINS       = "https://factor.trade,https://www.factor.trade,https://api.factor.trade,https://factorbacktest.fly.dev"
-  FEATURE_GOOGLE        = "true"
-  FEATURE_EMAIL_OTP     = "false"   # parity with Supabase setup; flip on once Resend/SES is wired
-  FEATURE_SMS_OTP       = "true"
-  EMAIL_PROVIDER        = "console" # unused while FEATURE_EMAIL_OTP=false
-  EMAIL_FROM            = "no-reply@factor.trade"
-  SMS_PROVIDER          = "twilio"
-  APP_USER_SYNC_ENABLED = "false"
 
 [http_service]
   internal_port = 3009
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # Keep one machine warm so users don't eat the ~30s cold-start hit (Node
-  # auth-service + Go API + Postgres TLS handshake) on the first request
-  # after a quiet period.
+  # Keep one machine warm so users don't eat the cold-start hit (Go API +
+  # Postgres TLS handshake) on the first request after a quiet period.
   min_machines_running = 1
 
   [[http_service.checks]]

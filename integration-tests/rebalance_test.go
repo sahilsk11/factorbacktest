@@ -45,7 +45,6 @@ func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
 		ChatGPTApiKey:    "",
 		Db:               testDb.DBConfig,
 		Alpaca:           util.AlpacaSecrets{},
-		Jwt:              "",
 		SES:              util.SESSecrets{},
 	}
 

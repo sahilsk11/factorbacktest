@@ -58,7 +58,6 @@ func main() {
 			ApiSecret: "",
 			Endpoint:  "",
 		},
-		Jwt: "",
 		SES: util.SESSecrets{
 			Region:    "",
 			FromEmail: "",
