@@ -288,13 +288,13 @@ export function EquityChart({
         )}
       </div>
 
-      {/* Legend (top-right). Static — labels never animate. */}
-      {benchmark && (
-        <div className="pointer-events-none absolute right-6 top-6 z-10 flex items-center gap-4 text-xs">
+{/* Legend (bottom-center). Static — labels never animate. */}
+        {benchmark && (
+        <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-4 text-xs">
           <LegendDot color={strategyColor} label={strategy?.label ?? 'Strategy'} />
           <LegendDot color={BENCHMARK_COLOR} label={benchmark.label} dashed />
         </div>
-      )}
+        )}
 
       {ready && (
         <svg
