@@ -25,7 +25,7 @@ export function Hero(): React.ReactNode {
             // navigate returns a Promise in react-router v7; void it so
             // ESLint's no-misused-promises stays happy and so an
             // accidental navigation rejection doesn't surface unhandled.
-            void navigate('/backtest');
+            void navigate('/builder');
           }}
         >
           Create Strategy

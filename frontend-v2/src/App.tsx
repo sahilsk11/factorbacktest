@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router';
 
 import { RootLayout } from '@/components/layout/RootLayout';
+import { BuilderPage } from '@/pages/Builder/BuilderPage';
 import { ComingSoonPage } from '@/pages/ComingSoon';
 import { HomePage } from '@/pages/Home/HomePage';
 
@@ -10,6 +11,7 @@ function App() {
     <Routes>
       <Route element={<RootLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="builder" element={<BuilderPage />} />
         <Route path="backtest" element={<ComingSoonPage pageName="Backtest" />} />
         <Route path="investments" element={<ComingSoonPage pageName="Investments" />} />
       </Route>
