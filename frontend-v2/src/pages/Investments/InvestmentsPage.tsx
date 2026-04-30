@@ -59,7 +59,9 @@ function InvestmentCard({ investment }: { investment: Investment }): React.React
       <div className="border-b border-border p-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="text-base font-semibold text-foreground">{investment.strategy.strategyName}</h3>
+            <h3 className="text-base font-semibold text-foreground">
+              {investment.strategy.strategyName}
+            </h3>
             <p className="mt-1 text-xs text-muted-foreground">
               Started: {new Date(investment.startDate).toLocaleDateString()}
             </p>
@@ -86,7 +88,8 @@ function InvestmentCard({ investment }: { investment: Investment }): React.React
             {formatPercent(investment.percentReturnFraction)}
           </p>
           <p className={`text-xs ${isProfit ? 'text-gain' : 'text-loss'}`}>
-            {isProfit ? '+' : ''}{formatCurrency(profitLoss)}
+            {isProfit ? '+' : ''}
+            {formatCurrency(profitLoss)}
           </p>
         </div>
       </div>
@@ -96,9 +99,7 @@ function InvestmentCard({ investment }: { investment: Investment }): React.React
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Holdings</p>
-            <p className="mt-1 text-sm text-foreground">
-              {investment.holdings.length} assets
-            </p>
+            <p className="mt-1 text-sm text-foreground">{investment.holdings.length} assets</p>
           </div>
           <button
             onClick={() => setExpanded(!expanded)}
@@ -146,10 +147,7 @@ function InvestmentCard({ investment }: { investment: Investment }): React.React
                 </h4>
                 <div className="mt-2 space-y-1">
                   {investment.holdings.map((holding) => (
-                    <div
-                      key={holding.symbol}
-                      className="flex items-center justify-between text-xs"
-                    >
+                    <div key={holding.symbol} className="flex items-center justify-between text-xs">
                       <span className="font-medium text-foreground">{holding.symbol}</span>
                       <span className="text-muted-foreground">
                         {holding.quantity.toFixed(4)} • {formatCurrency(holding.marketValue)}
