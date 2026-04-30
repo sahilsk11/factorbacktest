@@ -21,3 +21,38 @@ export interface PublishedStrategy {
   annualizedStandardDeviation: number | null;
   description: string | null;
 }
+
+// Investment types. Source: api/get_investments.resolver.go
+export interface Investment {
+  investmentID: string;
+  originalAmountDollars: number;
+  startDate: string; // ISO-8601 date string
+  strategy: InvestmentStrategy;
+  holdings: Holding[];
+  percentReturnFraction: number;
+  currentValue: number;
+  completedTrades: FilledTrade[];
+  paused: boolean;
+}
+
+export interface InvestmentStrategy {
+  strategyID: string;
+  strategyName: string;
+  factorExpression: string;
+  numAssets: number;
+  assetUniverse: string;
+  rebalanceInterval: string;
+}
+
+export interface Holding {
+  symbol: string;
+  quantity: number;
+  marketValue: number;
+}
+
+export interface FilledTrade {
+  symbol: string;
+  quantity: number;
+  fillPrice: number;
+  filledAt: string; // ISO-8601 datetime string
+}

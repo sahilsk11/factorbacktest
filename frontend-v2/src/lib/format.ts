@@ -41,3 +41,14 @@ export function formatDelta(value: number | null | undefined, fractionDigits = 2
   const pct = (value * 100).toFixed(fractionDigits);
   return value >= 0 ? `+${pct}%` : `${pct}%`;
 }
+
+// Format currency in USD. Always shows $ sign and 2 decimal places.
+export function formatCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return N_A;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
