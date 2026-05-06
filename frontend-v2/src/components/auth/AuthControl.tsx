@@ -1,4 +1,11 @@
-import { ChevronDown, LoaderCircle, LogOut, ShieldCheck, TrendingUp, UserRound } from 'lucide-react';
+import {
+  ChevronDown,
+  LoaderCircle,
+  LogOut,
+  ShieldCheck,
+  TrendingUp,
+  UserRound,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
