@@ -1,6 +1,6 @@
+import { ChevronDown, LoaderCircle, LogOut, ShieldCheck, TrendingUp, UserRound } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { ChevronDown, LoaderCircle, LogOut, ShieldCheck, TrendingUp, UserRound } from 'lucide-react';
 
 import { AuthModal } from './AuthModal';
 import { Button } from '@/components/ui/button';
