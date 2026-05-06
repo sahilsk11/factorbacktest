@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router';
 
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { RootLayout } from '@/components/layout/RootLayout';
 import { BacktestPage } from '@/pages/Backtest/BacktestPage';
 import { BuilderPage } from '@/pages/Builder/BuilderPage';
@@ -14,7 +15,14 @@ function App() {
         <Route index element={<HomePage />} />
         <Route path="builder" element={<BuilderPage />} />
         <Route path="backtest" element={<BacktestPage />} />
-        <Route path="investments" element={<InvestmentsPage />} />
+        <Route
+          path="investments"
+          element={
+            <ProtectedRoute>
+              <InvestmentsPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
     </Routes>
   );
