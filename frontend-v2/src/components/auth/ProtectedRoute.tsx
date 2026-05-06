@@ -1,4 +1,5 @@
 import { Navigate } from 'react-router';
+
 import { useAuth } from '@/lib/auth-context';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {

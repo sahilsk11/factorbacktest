@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router';
 
-import { RootLayout } from '@/components/layout/RootLayout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { RootLayout } from '@/components/layout/RootLayout';
 import { BacktestPage } from '@/pages/Backtest/BacktestPage';
 import { BuilderPage } from '@/pages/Builder/BuilderPage';
 import { HomePage } from '@/pages/Home/HomePage';
