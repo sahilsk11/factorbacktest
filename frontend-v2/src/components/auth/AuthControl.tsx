@@ -1,4 +1,5 @@
-import { ChevronDown, LoaderCircle, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronDown, LoaderCircle, LogOut, ShieldCheck, TrendingUp, UserRound } from 'lucide-react';
+import { Link } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { AuthModal } from './AuthModal';
@@ -112,6 +113,16 @@ export function AuthControl(): React.ReactNode {
             <p className="text-xs uppercase tracking-widest text-subtle-foreground">Signed in</p>
             <p className="mt-1 truncate font-mono text-sm text-foreground">{user.id}</p>
           </div>
+
+          <Link
+            to="/investments"
+            className="mt-2 flex h-10 w-full items-center gap-2 rounded-md px-3 text-sm text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+            role="menuitem"
+            onClick={() => setMenuOpen(false)}
+          >
+            <TrendingUp className="size-4" aria-hidden />
+            Investments
+          </Link>
 
           {error && (
             <div className="mt-2 rounded-md border border-loss/30 bg-loss/10 px-3 py-2 text-sm text-loss">
