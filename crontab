@@ -1,0 +1,10 @@
+TZ=America/New_York
+
+# Morning saved-strategy summary email — 8:30am ET on weekdays.
+30 8 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/sendSavedStrategySummaryEmails -H "X-Cron-Secret: $CRON_SECRET"
+
+# Trigger portfolio rebalancing — 10:00am ET on weekdays.
+0 10 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/rebalance -H "X-Cron-Secret: $CRON_SECRET"
+
+# Poll pending broker orders during the trading day so completed fills are reflected in local state.
+*/15 10-16 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/updateOrders -H "X-Cron-Secret: $CRON_SECRET"
