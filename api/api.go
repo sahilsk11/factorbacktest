@@ -147,9 +147,13 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/activeInvestments", m.getInvestments)
 	engine.GET("/publishedStrategies", m.getPublishedStrategies)
 
-	engine.POST("/rebalance", m.rebalance)
-	engine.POST("/updateOrders", m.updateOrders)
-	engine.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
+	// Internal cron endpoints — only callable by the supercronic process
+	// group via a shared secret. Never expose these without requireCronSecret.
+	cron := engine.Group("/internal/cron")
+	cron.Use(m.requireCronSecret)
+	cron.POST("/rebalance", m.rebalance)
+	cron.POST("/updateOrders", m.updateOrders)
+	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
 	return engine
 }
@@ -206,6 +210,18 @@ func blockBots(c *gin.Context) {
 			c.Abort()
 			return
 		}
+	}
+	c.Next()
+}
+
+// requireCronSecret guards /internal/cron/* routes. The supercronic process
+// group injects CRON_SECRET via the Fly secret of the same name; any request
+// missing or mismatching the header gets a 403 before reaching the handler.
+func (m ApiHandler) requireCronSecret(c *gin.Context) {
+	secret := os.Getenv("CRON_SECRET")
+	if secret == "" || c.GetHeader("X-Cron-Secret") != secret {
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
 	}
 	c.Next()
 }
