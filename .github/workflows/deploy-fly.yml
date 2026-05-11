@@ -12,6 +12,7 @@ on:
       - 'go.sum'
       - 'Makefile'
       - 'Dockerfile.fly'
+      - 'crontab'
       - 'fly.toml'
       - 'migrations/**'
       - 'tools/**'
