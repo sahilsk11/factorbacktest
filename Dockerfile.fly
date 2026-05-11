@@ -29,11 +29,21 @@ FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates && rm -rf /var/lib/apt/lists/*
+# curl is needed by the cron process to hit internal endpoints.
+# supercronic replaces raw cron; it logs to stdout, respects SIGTERM,
+# and doesn't require a setuid binary.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tini ca-certificates curl && rm -rf /var/lib/apt/lists/*
+
+ARG SUPERCRONIC_VERSION=v0.2.29
+RUN curl -fsSLo /usr/local/bin/supercronic \
+    https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64 \
+    && chmod +x /usr/local/bin/supercronic
 
 COPY --from=go-build /out/api /app/api
 COPY --from=go-build /out/migrate /app/migrate
 COPY --from=go-build /src/templates /app/templates
+COPY crontab /app/crontab
 
 ARG commit_hash
 ENV commit_hash=$commit_hash

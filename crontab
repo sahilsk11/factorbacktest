@@ -1,0 +1,14 @@
+# Supercronic crontab for factorbacktest Fly.io cron process group.
+# Times are in America/New_York. CRON_SECRET must be set as a Fly secret.
+# The cron process group hits /internal/cron/* on the web process via the
+# public app URL so it works even when the web Machine auto-stops.
+TZ=America/New_York
+
+# Morning pulse email — 8:30 AM weekdays
+30 8 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/sendSavedStrategySummaryEmails -H "X-Cron-Secret: $CRON_SECRET"
+
+# Rebalance — 10:00 AM weekdays
+0 10 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/rebalance -H "X-Cron-Secret: $CRON_SECRET"
+
+# Update pending orders — every 15 min during market hours (10 AM–4 PM weekdays)
+*/15 10-16 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/updateOrders -H "X-Cron-Secret: $CRON_SECRET"

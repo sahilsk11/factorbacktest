@@ -12,6 +12,14 @@ primary_region = "iad"
   # rather than half-migrated.
   release_command = "/app/migrate"
 
+# Two process groups: web serves HTTP traffic, cron runs supercronic.
+# Fly creates a separate Machine for each group and scales them independently.
+# Only web is wired to the http_service so the cron Machine is never exposed
+# publicly. Scale cron to exactly 1 to avoid duplicate job fires.
+[processes]
+  web  = "/app/api"
+  cron = "supercronic /app/crontab"
+
 [env]
   FB_SECRETS_FROM_ENV = "1"
   GIN_MODE = "release"
@@ -35,6 +43,7 @@ primary_region = "iad"
   # + initial Postgres TLS handshake), and that's an acceptable tradeoff
   # for not paying for a warm machine 24/7.
   min_machines_running = 0
+  processes = ["web"]
 
   [[http_service.checks]]
     method = "get"
@@ -46,3 +55,9 @@ primary_region = "iad"
 [[vm]]
   size = "shared-cpu-2x"
   memory = "1gb"
+  processes = ["web"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+  processes = ["cron"]
