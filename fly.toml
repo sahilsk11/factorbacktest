@@ -25,6 +25,10 @@ primary_region = "iad"
   # change it.
   FACTOR_AUTH_FRONTEND_BASE_URL = "https://factor.trade"
 
+[processes]
+  web = "/app/api"
+  cron = "supercronic /app/crontab"
+
 [http_service]
   internal_port = 3009
   force_https = true
@@ -35,6 +39,7 @@ primary_region = "iad"
   # + initial Postgres TLS handshake), and that's an acceptable tradeoff
   # for not paying for a warm machine 24/7.
   min_machines_running = 0
+  processes = ["web"]
 
   [[http_service.checks]]
     method = "get"
