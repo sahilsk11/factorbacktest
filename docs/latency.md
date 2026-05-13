@@ -106,6 +106,45 @@ export FLY_URL='https://api.factor.trade/backtest'
 export LAMBDA_URL='https://tgwmxgtk07.execute-api.us-east-1.amazonaws.com/prod/backtest'
 ```
 
+## RDS vs Neon A/B helper
+
+For provider comparisons, use `cmd/latency-bench` so both targets receive
+the same payload shape and the same measurement loop.
+
+```bash
+go run ./cmd/latency-bench \
+  -mode api \
+  -name-a rds \
+  -name-b neon \
+  -api-a 'http://localhost:3009/backtest' \
+  -api-b 'http://localhost:3010/backtest' \
+  -payload /tmp/payload.json \
+  -runs 5 \
+  -warmups 1
+```
+
+For all-cold API runs, add `-cold`; the tool appends a tiny expression
+perturbation per measured run so each request misses the factor-score cache.
+
+For direct DB checks, pass DSNs directly or via `BENCH_DB_A`/`BENCH_DB_B`.
+Use direct, non-pooler Neon connections for migrations, restores, and these
+query timings.
+
+```bash
+go run ./cmd/latency-bench \
+  -mode db \
+  -name-a rds \
+  -name-b neon \
+  -db-a "$RDS_DATABASE_URL" \
+  -db-b "$NEON_DATABASE_URL" \
+  -query-file /tmp/query.sql \
+  -runs 10 \
+  -warmups 2
+```
+
+The benchmark drains every result row before stopping the timer. Keep queries
+read-only when pointed at production RDS.
+
 ## The sample payload
 
 Drop this at `/tmp/payload.json`. It's a real factor expression
