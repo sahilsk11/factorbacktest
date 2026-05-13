@@ -87,6 +87,8 @@ func (s *TestServer) Stop() error {
 }
 
 func Test_rebalanceFlow(t *testing.T) {
+	t.Setenv("CRON_SECRET", "test-cron-secret")
+
 	manager, err := NewTestDbManager()
 	require.NoError(t, err)
 
@@ -134,7 +136,7 @@ func Test_rebalanceFlow(t *testing.T) {
 	startTime := time.Now()
 	request := map[string]string{}
 	response := map[string]string{}
-	err = hitEndpoint(server.URL, "rebalance", http.MethodPost, request, &response)
+	err = hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()
 

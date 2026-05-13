@@ -261,7 +261,11 @@ def update_api_go(endpoints: List[Dict[str, Any]]) -> None:
         method = endpoint['method'].upper()
         path = endpoint['path']
         handler = endpoint['handler']
-        
+
+        if endpoint.get('register_route') is False:
+            print(f"  Skipping {path} (register_route: false)")
+            continue
+
         # Skip if route already exists
         if path in existing_paths:
             print(f"  Skipping {path} (already registered)")

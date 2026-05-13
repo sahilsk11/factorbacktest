@@ -147,9 +147,11 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/activeInvestments", m.getInvestments)
 	engine.GET("/publishedStrategies", m.getPublishedStrategies)
 
-	engine.POST("/rebalance", m.rebalance)
-	engine.POST("/updateOrders", m.updateOrders)
-	engine.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
+	cron := engine.Group("/internal/cron")
+	cron.Use(m.requireCronSecret)
+	cron.POST("/rebalance", m.rebalance)
+	cron.POST("/updateOrders", m.updateOrders)
+	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
 	return engine
 }
@@ -381,6 +383,15 @@ func (m ApiHandler) getGoogleAuthMiddleware(c *gin.Context) {
 func (m ApiHandler) requireAuthenticatedUser(c *gin.Context) {
 	if _, ok := c.Get("userAccountID"); !ok {
 		returnErrorJsonCode(fmt.Errorf("authentication required"), c, 401)
+		return
+	}
+	c.Next()
+}
+
+func (m ApiHandler) requireCronSecret(c *gin.Context) {
+	secret := os.Getenv("CRON_SECRET")
+	if secret == "" || c.GetHeader("X-Cron-Secret") != secret {
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 		return
 	}
 	c.Next()

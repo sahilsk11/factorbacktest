@@ -5,19 +5,21 @@
 # - Update api.go router registration
 
 endpoints:
-  - path: /updateOrders
+  - path: /internal/cron/updateOrders
     method: POST
     handler: updateOrders
     requires_auth: false
     generate_resolver: false
+    register_route: false
     request:
     response:
       success: string
 
-  - path: /sendSavedStrategySummaryEmails
+  - path: /internal/cron/sendSavedStrategySummaryEmails
     method: POST
     handler: sendSavedStrategySummaryEmails
     requires_auth: false
+    register_route: false
     request:
       # Empty object means no request body
     response:
