@@ -15,6 +15,7 @@ primary_region = "iad"
 [env]
   FB_SECRETS_FROM_ENV = "1"
   GIN_MODE = "release"
+  TZ = "America/New_York"
 
   # Public base URL of the Go API. The internal/auth package uses this as
   # the OAuth redirect_uri host and as the issuer on internal tokens.

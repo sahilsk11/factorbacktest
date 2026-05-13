@@ -79,4 +79,4 @@ test:
 	echo $(shell git rev-parse --short HEAD)
 
 generate-api:
-	tools/env/bin/python tools/generate_api.py
+	$(PYTHON) tools/generate_api.py

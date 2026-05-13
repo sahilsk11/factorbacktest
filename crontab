@@ -1,5 +1,3 @@
-TZ=America/New_York
-
 # Morning saved-strategy summary email - 8:30am ET on weekdays.
 30 8 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/sendSavedStrategySummaryEmails -H "X-Cron-Secret: $CRON_SECRET"
 
