@@ -6,6 +6,8 @@ import (
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/util"
 	"log"
+	"os"
+	"strconv"
 
 	_ "github.com/lib/pq"
 )
@@ -17,6 +19,13 @@ func main() {
 	}
 
 	secrets.Port = 3009
+	if port := os.Getenv("PORT"); port != "" {
+		parsed, err := strconv.Atoi(port)
+		if err != nil || parsed <= 0 {
+			log.Fatalf("invalid PORT %q: %v", port, err)
+		}
+		secrets.Port = parsed
+	}
 
 	apiHandler, err := cmd.InitializeDependencies(*secrets, nil)
 	if err != nil {

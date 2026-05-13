@@ -101,12 +101,14 @@ type AlpacaSecrets struct {
 }
 
 type DbSecrets struct {
-	Host      string `json:"host"`
-	User      string `json:"user"`
-	Port      string `json:"port"`
-	Password  string `json:"password"`
-	Database  string `json:"database"`
-	EnableSsl bool   `json:"enableSsl"`
+	ConnectionURL          string `json:"connectionUrl"`
+	MigrationConnectionURL string `json:"migrationConnectionUrl"`
+	Host                   string `json:"host"`
+	User                   string `json:"user"`
+	Port                   string `json:"port"`
+	Password               string `json:"password"`
+	Database               string `json:"database"`
+	EnableSsl              bool   `json:"enableSsl"`
 }
 
 type SESSecrets struct {
@@ -125,12 +127,22 @@ type ResendSecrets struct {
 }
 
 func (t DbSecrets) ToConnectionStr() string {
+	if t.ConnectionURL != "" {
+		return t.ConnectionURL
+	}
 	x := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s",
 		t.Host, t.Port, t.User, t.Password, t.Database)
 	if !t.EnableSsl {
 		x += " sslmode=disable"
 	}
 	return x
+}
+
+func (t DbSecrets) ToMigrationConnectionStr() string {
+	if t.MigrationConnectionURL != "" {
+		return t.MigrationConnectionURL
+	}
+	return t.ToConnectionStr()
 }
 
 func LoadSecrets() (*Secrets, error) {
@@ -204,14 +216,18 @@ func loadSecretsFromEnv() (*Secrets, error) {
 	required := map[string]string{
 		"dataJockey": get("dataJockey"),
 		"gpt":        get("gpt"),
-		"host":       get("host"),
-		"port":       get("port"),
-		"user":       get("user"),
-		"password":   get("password"),
-		"database":   get("database"),
 		"apiKey":     get("apiKey"),
 		"apiSecret":  get("apiSecret"),
 		"endpoint":   get("endpoint"),
+	}
+	databaseURL := firstNonEmpty(get("DATABASE_URL"), get("databaseUrl"), get("connectionUrl"))
+	migrationDatabaseURL := firstNonEmpty(get("MIGRATE_DATABASE_URL"), get("MIGRATION_DATABASE_URL"), get("migrationConnectionUrl"))
+	if databaseURL == "" {
+		required["host"] = get("host")
+		required["port"] = get("port")
+		required["user"] = get("user")
+		required["password"] = get("password")
+		required["database"] = get("database")
 	}
 	var missing []string
 	for k, v := range required {
@@ -249,12 +265,14 @@ func loadSecretsFromEnv() (*Secrets, error) {
 		DataJockeyApiKey: required["dataJockey"],
 		ChatGPTApiKey:    required["gpt"],
 		Db: DbSecrets{
-			Host:      required["host"],
-			Port:      required["port"],
-			User:      required["user"],
-			Password:  required["password"],
-			Database:  required["database"],
-			EnableSsl: enableSsl,
+			ConnectionURL:          databaseURL,
+			MigrationConnectionURL: migrationDatabaseURL,
+			Host:                   required["host"],
+			Port:                   required["port"],
+			User:                   required["user"],
+			Password:               required["password"],
+			Database:               required["database"],
+			EnableSsl:              enableSsl,
 		},
 		Alpaca: AlpacaSecrets{
 			ApiKey:    required["apiKey"],
@@ -279,6 +297,15 @@ func loadSecretsFromEnv() (*Secrets, error) {
 		},
 		Auth: auth,
 	}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func HashFactorExpression(in string) string {

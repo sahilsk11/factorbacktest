@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("migrate: load secrets: %v", err)
 	}
-	db, err := sql.Open("postgres", secrets.Db.ToConnectionStr())
+	db, err := sql.Open("postgres", secrets.Db.ToMigrationConnectionStr())
 	if err != nil {
 		log.Fatalf("migrate: open db: %v", err)
 	}
@@ -93,10 +93,19 @@ func run(db *sql.DB) error {
 // because the table doesn't exist, we apply the bootstrap script in the same
 // transaction and return version 0.
 func ensureSchemaVersion(tx *sql.Tx) (int, error) {
+	if _, err := tx.Exec(`SAVEPOINT schema_version_bootstrap`); err != nil {
+		return 0, fmt.Errorf("create bootstrap savepoint: %w", err)
+	}
 	var v int
 	err := tx.QueryRow(`SELECT version FROM schema_version`).Scan(&v)
 	if err == nil {
+		if _, releaseErr := tx.Exec(`RELEASE SAVEPOINT schema_version_bootstrap`); releaseErr != nil {
+			return 0, fmt.Errorf("release bootstrap savepoint: %w", releaseErr)
+		}
 		return v, nil
+	}
+	if _, rollbackErr := tx.Exec(`ROLLBACK TO SAVEPOINT schema_version_bootstrap`); rollbackErr != nil {
+		return 0, fmt.Errorf("rollback bootstrap savepoint (after select error %v): %w", err, rollbackErr)
 	}
 	bootstrap, readErr := fs.ReadFile(migrations.FS, "000000_schema_version.sql")
 	if readErr != nil {
