@@ -123,7 +123,6 @@ func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UU
 		UserAccountID: userAccountID,
 		AmountDollars: int32(amount),
 		StartDate:     date,
-		PausedAt:      util.TimePointer(time.Now().UTC()),
 	})
 	if err != nil {
 		return err
@@ -164,6 +163,7 @@ type GetStatsResponse struct {
 	Holdings              []domain.Position
 	OriginalAmount        int32
 	StartDate             time.Time
+	Paused                bool
 	PercentReturnFraction decimal.Decimal
 	CurrentValue          decimal.Decimal
 	CompletedTrades       []domain.FilledTrade
@@ -233,6 +233,7 @@ func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uui
 		CompletedTrades:       completedTrades,
 		Strategy:              *strategy,
 		OriginalAmount:        investment.AmountDollars,
+		Paused:                investment.PausedAt != nil,
 	}, nil
 }
 
