@@ -23,33 +23,33 @@ instead — that's a separate concern handled by a different process.
 | ------------------------------------ | ------------------------------------------------------------------- |
 | `https://api.factor.trade`           | The Fly deployment under test.                                      |
 | `https://tgwmxgtk07.execute-api.us-east-1.amazonaws.com/prod` | The legacy AWS Lambda deployment, kept alive as a baseline. |
-| `secrets.json` / `secrets-dev.json`  | Postgres creds for prod RDS (`alpha.cuutadkicrvi.us-east-2.rds.amazonaws.com`). |
+| `DATABASE_URL` / `MIGRATE_DATABASE_URL` | Neon Postgres URLs used by the Fly API and release migrations. |
 | `api_request` table                  | Every request: `request_id`, `route`, `start_ts`, `duration_ms`, `version` (deploy SHA), `request_body`, `ip_address`. |
 | `latency_tracking` table             | One row per request, jsonb tree of `(name, elapsed, subSpans)` spans. |
 | `latency_span_stats` view            | Flat `(request_id, route, start_ts, version, span_path, depth, elapsed_ms)`. **Use this; it's why we did the work.** |
 | `flyctl logs` / `flyctl status`      | Real-time process logs and machine state.                           |
 
-The Fly egress-IP-to-RDS path measures ~22ms TCP RTT. The Lambda path
-measures ~12ms. So the same code paying the same query count will be
-~10ms-per-round-trip slower on Fly than on Lambda by physics alone — keep
-that floor in mind when interpreting numbers.
+The Fly-to-Neon path should be measured during each investigation. So the
+same code paying the same query count may still differ between Fly and the
+historical Lambda baseline by network placement alone — keep that floor in
+mind when interpreting numbers.
 
 ## Why we kept the Lambda URL as a baseline
 
 The Lambda backend (PR #117 removed the deploy pipeline but the function
-itself is still hot) ran the same Go binary against the same RDS for years.
+itself is still hot) ran the same Go binary against the same database for years.
 Its measured wall-clock numbers are the **closest thing we have to a
 ground-truth lower bound** for any /backtest workload, because:
 
 - Same source tree (commit `26911f2` is what's deployed on Lambda).
-- Same RDS database. Same network neighborhood (us-east-1 → us-east-2 inside AWS).
+- Same application data; the current Fly deployment uses Neon Postgres.
 - Different runtime (Lambda Graviton ARM, no scale-to-zero penalty after the
   first invocation).
 
 So the rule is: **a Fly investigation is a success when Fly approaches or
 beats Lambda's wall-clock for the same payload**. If Fly is much slower than
-Lambda, the gap is either network (us-east-2 RDS over the public internet
-from Fly Ashburn) or a real regression, and the spans will tell you which.
+Lambda, the gap is either network placement or a real regression, and the
+spans will tell you which.
 
 ## The loop
 
@@ -91,12 +91,12 @@ from Fly Ashburn) or a real regression, and the spans will tell you which.
 brew install libpq
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
 
-# DB env. Pulled from secrets.json at the repo root.
-export PGHOST=alpha.cuutadkicrvi.us-east-2.rds.amazonaws.com
-export PGUSER=postgres
-export PGDATABASE=postgres
+# DB env. Pulled from Neon or from Fly's DATABASE_URL secret.
+export PGHOST='<neon-host>'
+export PGUSER='<neon-user>'
+export PGDATABASE='<neon-database>'
 export PGPORT=5432
-export PGPASSWORD="$(jq -r .db.password secrets.json)"
+export PGPASSWORD='<neon-password>'
 
 # Sanity: should print server time.
 psql -c "select now();"
@@ -284,7 +284,7 @@ after any change to see the delta on each span independently.
 
 ## Step 6: Compare Fly to the Lambda baseline
 
-Both backends write to the same RDS. Lambda rows are tagged
+Both backends write to the same logical application database. Lambda rows are tagged
 `version = '26911f2'` and have `ip_address IS NULL` (API Gateway strips it
 through the Lambda proxy by default). Fly rows have `version` =
 deploy-SHA and `ip_address` = your client's IP.

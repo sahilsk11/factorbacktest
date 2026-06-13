@@ -9,9 +9,11 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/logger"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -101,6 +103,7 @@ type AlpacaSecrets struct {
 }
 
 type DbSecrets struct {
+	URL       string `json:"url"`
 	Host      string `json:"host"`
 	User      string `json:"user"`
 	Port      string `json:"port"`
@@ -125,12 +128,42 @@ type ResendSecrets struct {
 }
 
 func (t DbSecrets) ToConnectionStr() string {
+	if t.URL != "" {
+		return sanitizePostgresURL(t.URL)
+	}
+
 	x := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s",
 		t.Host, t.Port, t.User, t.Password, t.Database)
 	if !t.EnableSsl {
 		x += " sslmode=disable"
 	}
 	return x
+}
+
+func MigrationConnectionStr(secrets Secrets) string {
+	if v := os.Getenv("MIGRATE_DATABASE_URL"); v != "" {
+		return sanitizePostgresURL(v)
+	}
+	return secrets.Db.ToConnectionStr()
+}
+
+func sanitizePostgresURL(raw string) string {
+	if !strings.HasPrefix(raw, "postgres://") && !strings.HasPrefix(raw, "postgresql://") {
+		return raw
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+
+	// Neon connection strings often include channel_binding=require. lib/pq
+	// does not consume that option as a driver setting, so it can be forwarded
+	// as a PostgreSQL startup parameter. Strip it before handing the URL to pq.
+	q := u.Query()
+	q.Del("channel_binding")
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func LoadSecrets() (*Secrets, error) {
@@ -204,14 +237,17 @@ func loadSecretsFromEnv() (*Secrets, error) {
 	required := map[string]string{
 		"dataJockey": get("dataJockey"),
 		"gpt":        get("gpt"),
-		"host":       get("host"),
-		"port":       get("port"),
-		"user":       get("user"),
-		"password":   get("password"),
-		"database":   get("database"),
 		"apiKey":     get("apiKey"),
 		"apiSecret":  get("apiSecret"),
 		"endpoint":   get("endpoint"),
+	}
+	dbURL := get("DATABASE_URL")
+	if dbURL == "" {
+		required["host"] = get("host")
+		required["port"] = get("port")
+		required["user"] = get("user")
+		required["password"] = get("password")
+		required["database"] = get("database")
 	}
 	var missing []string
 	for k, v := range required {
@@ -249,6 +285,7 @@ func loadSecretsFromEnv() (*Secrets, error) {
 		DataJockeyApiKey: required["dataJockey"],
 		ChatGPTApiKey:    required["gpt"],
 		Db: DbSecrets{
+			URL:       dbURL,
 			Host:      required["host"],
 			Port:      required["port"],
 			User:      required["user"],
