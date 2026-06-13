@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("migrate: load secrets: %v", err)
 	}
-	db, err := sql.Open("postgres", secrets.Db.ToConnectionStr())
+	db, err := sql.Open("postgres", util.MigrationConnectionStr(*secrets))
 	if err != nil {
 		log.Fatalf("migrate: open db: %v", err)
 	}
