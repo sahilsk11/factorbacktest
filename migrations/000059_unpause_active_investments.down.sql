@@ -1,0 +1,1 @@
+-- Irreversible data correction: previous paused_at timestamps are not recoverable.

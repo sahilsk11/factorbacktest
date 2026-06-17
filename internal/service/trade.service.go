@@ -368,7 +368,7 @@ func (h tradeServiceHandler) updateOrder(tx *sql.Tx, tradeOrderID uuid.UUID) (*m
 
 	state := tradeOrder.Status
 	// check valid state transition
-	if order.Status == "expired" || order.Status == "cancelled" {
+	if order.Status == "expired" || order.Status == "canceled" || order.Status == "cancelled" || order.ExpiredAt != nil || order.CanceledAt != nil {
 		state = model.TradeOrderStatus_Canceled
 	} else if state == model.TradeOrderStatus_Pending && order.FilledAt != nil {
 		state = model.TradeOrderStatus_Completed

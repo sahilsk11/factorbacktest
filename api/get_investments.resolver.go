@@ -125,7 +125,7 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]service.GetStatsResponse)
 			PercentReturnFraction: stats.PercentReturnFraction.InexactFloat64(),
 			CurrentValue:          stats.CurrentValue.InexactFloat64(),
 			CompletedTrades:       completedTrades,
-			Paused:                false,
+			Paused:                stats.Paused,
 		})
 	}
 
