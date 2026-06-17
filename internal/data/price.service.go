@@ -98,7 +98,7 @@ func (pr *PriceCache) Get(symbol string, date time.Time) (float64, error) {
 }
 
 func percentChange(end, start float64) float64 {
-	return ((end - start) / end) * 100
+	return ((end - start) / start) * 100
 }
 
 func stdevsFromPriceMap(minMaxMap map[string]*minMax, priceCache map[string]map[string]float64, stdevInputs []LoadStdevCacheInput, tradingDays []time.Time) (*stdevCache, error) {
