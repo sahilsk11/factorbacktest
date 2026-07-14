@@ -13,24 +13,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type endInvestmentServiceStub struct {
+type requestLiquidationServiceStub struct {
 	service.InvestmentService
-	end func(context.Context, uuid.UUID, uuid.UUID) error
+	requestLiquidation func(context.Context, uuid.UUID, uuid.UUID) error
 }
 
-func (s endInvestmentServiceStub) End(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
-	return s.end(ctx, userAccountID, investmentID)
+func (s requestLiquidationServiceStub) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
+	return s.requestLiquidation(ctx, userAccountID, investmentID)
 }
 
-func TestEndInvestment(t *testing.T) {
+func TestRequestLiquidation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	userAccountID := uuid.New()
 	investmentID := uuid.New()
 
 	t.Run("queues an owned investment for liquidation", func(t *testing.T) {
 		called := false
-		handler := ApiHandler{InvestmentService: endInvestmentServiceStub{
-			end: func(_ context.Context, gotUserAccountID, gotInvestmentID uuid.UUID) error {
+		handler := ApiHandler{InvestmentService: requestLiquidationServiceStub{
+			requestLiquidation: func(_ context.Context, gotUserAccountID, gotInvestmentID uuid.UUID) error {
 				called = true
 				require.Equal(t, userAccountID, gotUserAccountID)
 				require.Equal(t, investmentID, gotInvestmentID)
@@ -39,29 +39,29 @@ func TestEndInvestment(t *testing.T) {
 		}}
 		recorder := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequest(http.MethodPost, "/investments/"+investmentID.String()+"/end", nil)
+		ctx.Request = httptest.NewRequest(http.MethodPost, "/investments/"+investmentID.String()+"/request-liquidation", nil)
 		ctx.Params = gin.Params{{Key: "investmentID", Value: investmentID.String()}}
 		ctx.Set("userAccountID", userAccountID.String())
 
-		handler.endInvestment(ctx)
+		handler.requestLiquidation(ctx)
 
 		require.True(t, called)
 		require.Equal(t, http.StatusAccepted, recorder.Code)
 	})
 
 	t.Run("does not reveal an unowned investment", func(t *testing.T) {
-		handler := ApiHandler{InvestmentService: endInvestmentServiceStub{
-			end: func(context.Context, uuid.UUID, uuid.UUID) error {
+		handler := ApiHandler{InvestmentService: requestLiquidationServiceStub{
+			requestLiquidation: func(context.Context, uuid.UUID, uuid.UUID) error {
 				return repository.ErrInvestmentNotFound
 			},
 		}}
 		recorder := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequest(http.MethodPost, "/investments/"+investmentID.String()+"/end", nil)
+		ctx.Request = httptest.NewRequest(http.MethodPost, "/investments/"+investmentID.String()+"/request-liquidation", nil)
 		ctx.Params = gin.Params{{Key: "investmentID", Value: investmentID.String()}}
 		ctx.Set("userAccountID", userAccountID.String())
 
-		handler.endInvestment(ctx)
+		handler.requestLiquidation(ctx)
 
 		require.Equal(t, http.StatusNotFound, recorder.Code)
 	})

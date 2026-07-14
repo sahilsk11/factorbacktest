@@ -144,7 +144,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.POST("/isStrategyBookmarked", m.isStrategyBookmarked)
 	engine.GET("/savedStrategies", m.getSavedStrategies)
 	engine.POST("/investInStrategy", m.investInStrategy)
-	engine.POST("/investments/:investmentID/end", m.endInvestment)
+	engine.POST("/investments/:investmentID/request-liquidation", m.requestLiquidation)
 	engine.GET("/activeInvestments", m.getInvestments)
 	engine.GET("/publishedStrategies", m.getPublishedStrategies)
 

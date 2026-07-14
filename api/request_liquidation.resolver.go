@@ -10,10 +10,10 @@ import (
 	"github.com/google/uuid"
 )
 
-func (m ApiHandler) endInvestment(c *gin.Context) {
+func (m ApiHandler) requestLiquidation(c *gin.Context) {
 	userAccountIDValue, ok := c.Get("userAccountID")
 	if !ok {
-		returnErrorJsonCode(fmt.Errorf("must be logged in to end an investment"), c, http.StatusUnauthorized)
+		returnErrorJsonCode(fmt.Errorf("must be logged in to request liquidation"), c, http.StatusUnauthorized)
 		return
 	}
 
@@ -28,7 +28,7 @@ func (m ApiHandler) endInvestment(c *gin.Context) {
 		return
 	}
 
-	err = m.InvestmentService.End(c.Request.Context(), userAccountID, investmentID)
+	err = m.InvestmentService.RequestLiquidation(c.Request.Context(), userAccountID, investmentID)
 	if errors.Is(err, repository.ErrInvestmentNotFound) {
 		returnErrorJsonCode(repository.ErrInvestmentNotFound, c, http.StatusNotFound)
 		return

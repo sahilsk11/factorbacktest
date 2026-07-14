@@ -201,7 +201,7 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 	})
 }
 
-func TestInvestmentServiceEnd(t *testing.T) {
+func TestInvestmentServiceRequestLiquidation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	investmentRepository := mock_repository.NewMockInvestmentRepository(ctrl)
 	handler := investmentServiceHandler{InvestmentRepository: investmentRepository}
@@ -212,7 +212,7 @@ func TestInvestmentServiceEnd(t *testing.T) {
 		RequestLiquidation(investmentID, userAccountID).
 		Return(&model.Investment{InvestmentID: investmentID}, nil)
 
-	require.NoError(t, handler.End(context.Background(), userAccountID, investmentID))
+	require.NoError(t, handler.RequestLiquidation(context.Background(), userAccountID, investmentID))
 }
 
 func TestGetTargetPortfolioForLiquidation(t *testing.T) {

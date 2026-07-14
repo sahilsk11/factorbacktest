@@ -29,13 +29,13 @@ import (
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
 	Add(ctx context.Context, userAccountID uuid.UUID, strategyID uuid.UUID, amount int) error
-	End(ctx context.Context, userAccountID, investmentID uuid.UUID) error
+	RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
 }
 
-func (h investmentServiceHandler) End(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
+func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
 	_, err := h.InvestmentRepository.RequestLiquidation(investmentID, userAccountID)
 	return err
 }
