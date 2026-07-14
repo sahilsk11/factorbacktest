@@ -13,13 +13,14 @@ import (
 )
 
 type Investment struct {
-	InvestmentID  uuid.UUID `sql:"primary_key"`
-	AmountDollars int32
-	StartDate     time.Time
-	StrategyID    uuid.UUID
-	UserAccountID uuid.UUID
-	CreatedAt     time.Time
-	ModifiedAt    time.Time
-	EndDate       *time.Time
-	PausedAt      *time.Time
+	InvestmentID           uuid.UUID `sql:"primary_key"`
+	AmountDollars          int32
+	StartDate              time.Time
+	StrategyID             uuid.UUID
+	UserAccountID          uuid.UUID
+	CreatedAt              time.Time
+	ModifiedAt             time.Time
+	EndDate                *time.Time
+	PausedAt               *time.Time
+	LiquidationRequestedAt *time.Time
 }

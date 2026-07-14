@@ -35,6 +35,7 @@ type tradeServiceHandler struct {
 	HoldingsVersionRepository   repository.InvestmentHoldingsVersionRepository
 	RebalancerRunRepository     repository.RebalancerRunRepository
 	ExcessTradeVolumeRepository repository.ExcessTradeVolumeRepository
+	InvestmentRepository        repository.InvestmentRepository
 }
 
 func NewTradeService(
@@ -47,6 +48,7 @@ func NewTradeService(
 	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
 	RebalancerRunRepository repository.RebalancerRunRepository,
 	excessTradeVolumeRepository repository.ExcessTradeVolumeRepository,
+	investmentRepository repository.InvestmentRepository,
 ) TradeService {
 	return tradeServiceHandler{
 		Db:                          db,
@@ -58,6 +60,7 @@ func NewTradeService(
 		HoldingsVersionRepository:   holdingsVersionRepository,
 		RebalancerRunRepository:     RebalancerRunRepository,
 		ExcessTradeVolumeRepository: excessTradeVolumeRepository,
+		InvestmentRepository:        investmentRepository,
 	}
 }
 
@@ -574,6 +577,12 @@ func (h tradeServiceHandler) updatePortfoliosFromTrades(tx *sql.Tx, completedTra
 		})
 		if err != nil {
 			return err
+		}
+
+		if len(newPortfolio.Positions) == 0 {
+			if _, err := h.InvestmentRepository.CompleteLiquidation(tx, investmentID); err != nil {
+				return err
+			}
 		}
 	}
 
