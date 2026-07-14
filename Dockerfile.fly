@@ -30,7 +30,7 @@ FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tini ca-certificates curl \
+    tini ca-certificates curl tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.29/supercronic-linux-amd64 \

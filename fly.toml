@@ -15,6 +15,9 @@ primary_region = "iad"
 [env]
   FB_SECRETS_FROM_ENV = "1"
   GIN_MODE = "release"
+  # Supercronic reads TZ when it starts and schedules the crontab in this
+  # timezone. The runtime image includes tzdata for DST-aware ET scheduling.
+  TZ = "America/New_York"
 
   # Public base URL of the Go API. The internal/auth package uses this as
   # the OAuth redirect_uri host and as the issuer on internal tokens.
