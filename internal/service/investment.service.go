@@ -29,9 +29,15 @@ import (
 // account and calculates how to dice it up among all investments
 type InvestmentService interface {
 	Add(ctx context.Context, userAccountID uuid.UUID, strategyID uuid.UUID, amount int) error
+	RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
+}
+
+func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
+	_, err := h.InvestmentRepository.RequestLiquidation(investmentID, userAccountID)
+	return err
 }
 
 type investmentServiceHandler struct {
@@ -280,6 +286,16 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	pm map[string]decimal.Decimal,
 	tickerIDMap map[string]uuid.UUID,
 ) (*calculator.ComputeTargetPortfolioResponse, error) {
+	if investment.LiquidationRequestedAt != nil {
+		target := domain.NewPortfolio()
+		target.SetCash(portfolioValue)
+		return &calculator.ComputeTargetPortfolioResponse{
+			TargetPortfolio: target,
+			AssetWeights:    map[string]float64{},
+			FactorScores:    map[string]float64{},
+		}, nil
+	}
+
 	// figure out what the strategy should hold if we rebalance
 	// now
 	strategy, err := h.StrategyRepository.Get(investment.StrategyID)
@@ -347,6 +363,13 @@ func (h investmentServiceHandler) rebalanceInvestment(
 
 	if currentHoldingsValue.Equal(decimal.Zero) {
 		return nil, fmt.Errorf("holdings have no value")
+	}
+
+	if investment.LiquidationRequestedAt != nil && len(initialPortfolio.Positions) == 0 {
+		if _, err := h.InvestmentRepository.CompleteLiquidation(tx, investment.InvestmentID); err != nil {
+			return nil, err
+		}
+		return &rebalanceInvestmentResponse{}, nil
 	}
 
 	computeTargetPortfolioResponse, err := h.getTargetPortfolio(

@@ -201,6 +201,52 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 	})
 }
 
+func TestInvestmentServiceRequestLiquidation(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	investmentRepository := mock_repository.NewMockInvestmentRepository(ctrl)
+	handler := investmentServiceHandler{InvestmentRepository: investmentRepository}
+	userAccountID := uuid.New()
+	investmentID := uuid.New()
+
+	investmentRepository.EXPECT().
+		RequestLiquidation(investmentID, userAccountID).
+		Return(&model.Investment{InvestmentID: investmentID}, nil)
+
+	require.NoError(t, handler.RequestLiquidation(context.Background(), userAccountID, investmentID))
+}
+
+func TestGetTargetPortfolioForLiquidation(t *testing.T) {
+	requestedAt := time.Now()
+	portfolioValue := decimal.NewFromFloat(123.45)
+	tickerID := uuid.New()
+	priceMap := map[string]decimal.Decimal{"AAPL": decimal.NewFromFloat(123.45)}
+	handler := investmentServiceHandler{}
+
+	result, err := handler.getTargetPortfolio(
+		context.Background(),
+		model.Investment{LiquidationRequestedAt: &requestedAt},
+		time.Now(),
+		portfolioValue,
+		priceMap,
+		map[string]uuid.UUID{},
+	)
+	require.NoError(t, err)
+	require.Empty(t, result.TargetPortfolio.Positions)
+	require.Equal(t, portfolioValue, *result.TargetPortfolio.Cash)
+
+	current := domain.NewPortfolio()
+	current.Positions["AAPL"] = &domain.Position{
+		Symbol:        "AAPL",
+		TickerID:      tickerID,
+		ExactQuantity: decimal.NewFromInt(1),
+	}
+	trades, err := transitionToTarget(context.Background(), *current, *result.TargetPortfolio, priceMap)
+	require.NoError(t, err)
+	require.Len(t, trades, 1)
+	require.Equal(t, tickerID, trades[0].TickerID)
+	require.Equal(t, decimal.NewFromInt(-1), trades[0].ExactQuantity)
+}
+
 func Test_transitionToTarget(t *testing.T) {
 	t.Run("idk", func(t *testing.T) {
 		startingPortfolio := domain.Portfolio{

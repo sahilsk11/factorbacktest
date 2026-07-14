@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,7 +18,11 @@ type InvestmentRepository interface {
 	Add(tx *sql.Tx, si model.Investment) (*model.Investment, error)
 	Get(id uuid.UUID) (*model.Investment, error)
 	List(StrategyInvestmentListFilter) ([]model.Investment, error)
+	RequestLiquidation(investmentID, userAccountID uuid.UUID) (*model.Investment, error)
+	CompleteLiquidation(tx *sql.Tx, investmentID uuid.UUID) (bool, error)
 }
+
+var ErrInvestmentNotFound = errors.New("investment not found")
 
 type investmentRepositoryHandler struct {
 	Db *sql.DB
@@ -78,7 +83,10 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 		table.Investment.EndDate.IS_NULL(),
 	}
 	if !filter.IncludePaused {
-		whereClauses = append(whereClauses, table.Investment.PausedAt.IS_NULL())
+		whereClauses = append(whereClauses, postgres.OR(
+			table.Investment.PausedAt.IS_NULL(),
+			table.Investment.LiquidationRequestedAt.IS_NOT_NULL(),
+		))
 	}
 	if len(filter.UserAccountIDs) > 0 {
 		ids := []postgres.Expression{}
@@ -99,4 +107,62 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 	}
 
 	return result, nil
+}
+
+func (h investmentRepositoryHandler) RequestLiquidation(investmentID, userAccountID uuid.UUID) (*model.Investment, error) {
+	t := table.Investment
+	now := time.Now().UTC()
+	query := t.UPDATE(
+		t.LiquidationRequestedAt,
+		t.ModifiedAt,
+	).SET(
+		postgres.TimestampzExp(postgres.COALESCE(
+			t.LiquidationRequestedAt,
+			postgres.TimestampzT(now),
+		)),
+		postgres.TimestampzT(now),
+	).WHERE(
+		t.InvestmentID.EQ(postgres.UUID(investmentID)).
+			AND(t.UserAccountID.EQ(postgres.UUID(userAccountID))).
+			AND(t.EndDate.IS_NULL()),
+	).RETURNING(t.AllColumns)
+
+	result := model.Investment{}
+	err := query.Query(h.Db, &result)
+	if errors.Is(err, qrm.ErrNoRows) {
+		return nil, ErrInvestmentNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to request liquidation for investment %s: %w", investmentID, err)
+	}
+	return &result, nil
+}
+
+func (h investmentRepositoryHandler) CompleteLiquidation(tx *sql.Tx, investmentID uuid.UUID) (bool, error) {
+	t := table.Investment
+	query := t.UPDATE(
+		t.EndDate,
+		t.ModifiedAt,
+	).SET(
+		postgres.CURRENT_DATE(),
+		postgres.NOW(),
+	).WHERE(
+		t.InvestmentID.EQ(postgres.UUID(investmentID)).
+			AND(t.LiquidationRequestedAt.IS_NOT_NULL()).
+			AND(t.EndDate.IS_NULL()),
+	)
+
+	var db qrm.Executable = h.Db
+	if tx != nil {
+		db = tx
+	}
+	result, err := query.Exec(db)
+	if err != nil {
+		return false, fmt.Errorf("failed to complete liquidation for investment %s: %w", investmentID, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
 }

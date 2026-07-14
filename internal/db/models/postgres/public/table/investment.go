@@ -17,15 +17,16 @@ type investmentTable struct {
 	postgres.Table
 
 	// Columns
-	InvestmentID  postgres.ColumnString
-	AmountDollars postgres.ColumnInteger
-	StartDate     postgres.ColumnDate
-	StrategyID    postgres.ColumnString
-	UserAccountID postgres.ColumnString
-	CreatedAt     postgres.ColumnTimestampz
-	ModifiedAt    postgres.ColumnTimestampz
-	EndDate       postgres.ColumnDate
-	PausedAt      postgres.ColumnTimestampz
+	InvestmentID           postgres.ColumnString
+	AmountDollars          postgres.ColumnInteger
+	StartDate              postgres.ColumnDate
+	StrategyID             postgres.ColumnString
+	UserAccountID          postgres.ColumnString
+	CreatedAt              postgres.ColumnTimestampz
+	ModifiedAt             postgres.ColumnTimestampz
+	EndDate                postgres.ColumnDate
+	PausedAt               postgres.ColumnTimestampz
+	LiquidationRequestedAt postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -66,32 +67,34 @@ func newInvestmentTable(schemaName, tableName, alias string) *InvestmentTable {
 
 func newInvestmentTableImpl(schemaName, tableName, alias string) investmentTable {
 	var (
-		InvestmentIDColumn  = postgres.StringColumn("investment_id")
-		AmountDollarsColumn = postgres.IntegerColumn("amount_dollars")
-		StartDateColumn     = postgres.DateColumn("start_date")
-		StrategyIDColumn    = postgres.StringColumn("strategy_id")
-		UserAccountIDColumn = postgres.StringColumn("user_account_id")
-		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
-		ModifiedAtColumn    = postgres.TimestampzColumn("modified_at")
-		EndDateColumn       = postgres.DateColumn("end_date")
-		PausedAtColumn      = postgres.TimestampzColumn("paused_at")
-		allColumns          = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn}
-		mutableColumns      = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn}
+		InvestmentIDColumn           = postgres.StringColumn("investment_id")
+		AmountDollarsColumn          = postgres.IntegerColumn("amount_dollars")
+		StartDateColumn              = postgres.DateColumn("start_date")
+		StrategyIDColumn             = postgres.StringColumn("strategy_id")
+		UserAccountIDColumn          = postgres.StringColumn("user_account_id")
+		CreatedAtColumn              = postgres.TimestampzColumn("created_at")
+		ModifiedAtColumn             = postgres.TimestampzColumn("modified_at")
+		EndDateColumn                = postgres.DateColumn("end_date")
+		PausedAtColumn               = postgres.TimestampzColumn("paused_at")
+		LiquidationRequestedAtColumn = postgres.TimestampzColumn("liquidation_requested_at")
+		allColumns                   = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn, LiquidationRequestedAtColumn}
+		mutableColumns               = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn, LiquidationRequestedAtColumn}
 	)
 
 	return investmentTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		InvestmentID:  InvestmentIDColumn,
-		AmountDollars: AmountDollarsColumn,
-		StartDate:     StartDateColumn,
-		StrategyID:    StrategyIDColumn,
-		UserAccountID: UserAccountIDColumn,
-		CreatedAt:     CreatedAtColumn,
-		ModifiedAt:    ModifiedAtColumn,
-		EndDate:       EndDateColumn,
-		PausedAt:      PausedAtColumn,
+		InvestmentID:           InvestmentIDColumn,
+		AmountDollars:          AmountDollarsColumn,
+		StartDate:              StartDateColumn,
+		StrategyID:             StrategyIDColumn,
+		UserAccountID:          UserAccountIDColumn,
+		CreatedAt:              CreatedAtColumn,
+		ModifiedAt:             ModifiedAtColumn,
+		EndDate:                EndDateColumn,
+		PausedAt:               PausedAtColumn,
+		LiquidationRequestedAt: LiquidationRequestedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

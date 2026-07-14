@@ -127,6 +127,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		holdingsVersionRepository,
 		rebalancerRunRepository,
 		excessVolumeRepository,
+		strategyInvestmentRepository,
 	)
 	investmentService := service.NewInvestmentService(
 		dbConn,

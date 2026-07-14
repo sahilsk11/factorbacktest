@@ -23,6 +23,7 @@ import (
 type MockInvestmentRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockInvestmentRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockInvestmentRepositoryMockRecorder is the mock recorder for MockInvestmentRepository.
@@ -57,6 +58,21 @@ func (mr *MockInvestmentRepositoryMockRecorder) Add(tx, si any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockInvestmentRepository)(nil).Add), tx, si)
 }
 
+// CompleteLiquidation mocks base method.
+func (m *MockInvestmentRepository) CompleteLiquidation(tx *sql.Tx, investmentID uuid.UUID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CompleteLiquidation", tx, investmentID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CompleteLiquidation indicates an expected call of CompleteLiquidation.
+func (mr *MockInvestmentRepositoryMockRecorder) CompleteLiquidation(tx, investmentID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteLiquidation", reflect.TypeOf((*MockInvestmentRepository)(nil).CompleteLiquidation), tx, investmentID)
+}
+
 // Get mocks base method.
 func (m *MockInvestmentRepository) Get(id uuid.UUID) (*model.Investment, error) {
 	m.ctrl.T.Helper()
@@ -85,4 +101,19 @@ func (m *MockInvestmentRepository) List(arg0 repository.StrategyInvestmentListFi
 func (mr *MockInvestmentRepositoryMockRecorder) List(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockInvestmentRepository)(nil).List), arg0)
+}
+
+// RequestLiquidation mocks base method.
+func (m *MockInvestmentRepository) RequestLiquidation(investmentID, userAccountID uuid.UUID) (*model.Investment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestLiquidation", investmentID, userAccountID)
+	ret0, _ := ret[0].(*model.Investment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestLiquidation indicates an expected call of RequestLiquidation.
+func (mr *MockInvestmentRepositoryMockRecorder) RequestLiquidation(investmentID, userAccountID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestLiquidation", reflect.TypeOf((*MockInvestmentRepository)(nil).RequestLiquidation), investmentID, userAccountID)
 }

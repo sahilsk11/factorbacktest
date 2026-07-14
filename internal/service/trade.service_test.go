@@ -29,10 +29,12 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		holdingsRepository := mock_repository.NewMockInvestmentHoldingsRepository(ctrl)
 		holdingsVersionRepository := mock_repository.NewMockInvestmentHoldingsVersionRepository(ctrl)
+		investmentRepository := mock_repository.NewMockInvestmentRepository(ctrl)
 
 		handler := tradeServiceHandler{
 			HoldingsRepository:        holdingsRepository,
 			HoldingsVersionRepository: holdingsVersionRepository,
+			InvestmentRepository:      investmentRepository,
 		}
 
 		db, err := util.NewTestDb()
@@ -87,6 +89,10 @@ func Test_updatePortfoliosFromTrades(t *testing.T) {
 			}).Return(
 			nil, nil,
 		)
+
+		investmentRepository.EXPECT().
+			CompleteLiquidation(tx, investmentID).
+			Return(true, nil)
 
 		err = handler.updatePortfoliosFromTrades(tx, completedTradesByInvestment, cashTickerID)
 		require.NoError(t, err)
