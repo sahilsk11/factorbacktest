@@ -17,6 +17,8 @@ import (
 	"factorbacktest/cmd"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/util"
+
+	"github.com/gin-gonic/gin"
 )
 
 var seedName = flag.String("seed", "", "name of seed to apply at startup")
@@ -69,6 +71,13 @@ func main() {
 		log.Fatalf("failed to initialize dependencies: %v", err)
 	}
 	apiHandler.Port = port
+	if seededUserAccountID != nil {
+		apiHandler.AuthMiddleware = func(c *gin.Context) {
+			c.Set("userAccountID", seededUserAccountID.String())
+			c.Next()
+		}
+		apiHandler.AuthService = nil
+	}
 
 	lg := logger.New()
 	ctx := context.WithValue(context.Background(), logger.ContextKey, lg)

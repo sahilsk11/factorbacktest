@@ -167,13 +167,14 @@ func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UU
 }
 
 type GetStatsResponse struct {
-	Holdings              []domain.Position
-	OriginalAmount        int32
-	StartDate             time.Time
-	PercentReturnFraction decimal.Decimal
-	CurrentValue          decimal.Decimal
-	CompletedTrades       []domain.FilledTrade
-	Strategy              model.Strategy
+	Holdings               []domain.Position
+	OriginalAmount         int32
+	StartDate              time.Time
+	LiquidationRequestedAt *time.Time
+	PercentReturnFraction  decimal.Decimal
+	CurrentValue           decimal.Decimal
+	CompletedTrades        []domain.FilledTrade
+	Strategy               model.Strategy
 }
 
 func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error) {
@@ -232,13 +233,14 @@ func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uui
 	}
 
 	return &GetStatsResponse{
-		Holdings:              positions,
-		StartDate:             investment.StartDate,
-		CurrentValue:          totalValue,
-		PercentReturnFraction: returnFraction,
-		CompletedTrades:       completedTrades,
-		Strategy:              *strategy,
-		OriginalAmount:        investment.AmountDollars,
+		Holdings:               positions,
+		StartDate:              investment.StartDate,
+		LiquidationRequestedAt: investment.LiquidationRequestedAt,
+		CurrentValue:           totalValue,
+		PercentReturnFraction:  returnFraction,
+		CompletedTrades:        completedTrades,
+		Strategy:               *strategy,
+		OriginalAmount:         investment.AmountDollars,
 	}, nil
 }
 

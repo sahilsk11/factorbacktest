@@ -1,15 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { apiClient } from '@/lib/api';
+import { apiClient, isApiError } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/lib/format';
 import type { Investment } from '@/types/api';
+
+const investmentsQueryKey = ['investments'] as const;
 
 // Investments page - displays user's investment portfolio
 export function InvestmentsPage(): React.ReactNode {
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['investments'],
+    queryKey: investmentsQueryKey,
     queryFn: () => apiClient.get<Investment[]>('/activeInvestments'),
   });
 
@@ -50,8 +53,26 @@ export function InvestmentsPage(): React.ReactNode {
 
 function InvestmentCard({ investment }: { investment: Investment }): React.ReactNode {
   const [expanded, setExpanded] = useState(false);
+  const [confirmingLiquidation, setConfirmingLiquidation] = useState(false);
+  const queryClient = useQueryClient();
   const profitLoss = investment.currentValue - investment.originalAmountDollars;
   const isProfit = profitLoss >= 0;
+  const liquidationRequested = investment.liquidationRequestedAt !== null;
+  const requestLiquidation = useMutation({
+    mutationFn: () =>
+      apiClient.post<{ success: boolean }>(
+        `/investments/${investment.investmentID}/request-liquidation`,
+      ),
+    onSuccess: async () => {
+      setConfirmingLiquidation(false);
+      await queryClient.invalidateQueries({ queryKey: investmentsQueryKey });
+    },
+  });
+  const requestError = requestLiquidation.error
+    ? isApiError(requestLiquidation.error)
+      ? requestLiquidation.error.message
+      : 'Failed to request liquidation'
+    : null;
 
   return (
     <Card className="flex flex-col">
@@ -186,9 +207,87 @@ function InvestmentCard({ investment }: { investment: Investment }): React.React
                 </div>
               </div>
             )}
+
+            {/* Liquidation */}
+            <div className="border-t border-border pt-4">
+              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                End Investment
+              </h4>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="max-w-md text-xs leading-5 text-muted-foreground">
+                  Queue sell orders for all current holdings during the next rebalance.
+                </p>
+                <Button
+                  type="button"
+                  variant={liquidationRequested ? 'outline' : 'default'}
+                  size="sm"
+                  disabled={liquidationRequested || requestLiquidation.isPending}
+                  onClick={() => {
+                    requestLiquidation.reset();
+                    setConfirmingLiquidation(true);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  {liquidationRequested
+                    ? 'Liquidation requested'
+                    : requestLiquidation.isPending
+                      ? 'Requesting...'
+                      : 'End investment'}
+                </Button>
+              </div>
+              {investment.liquidationRequestedAt && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Requested {new Date(investment.liquidationRequestedAt).toLocaleString()}
+                </p>
+              )}
+              {requestError && <p className="mt-2 text-xs text-loss">{requestError}</p>}
+            </div>
           </div>
         )}
       </div>
+
+      {confirmingLiquidation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`liquidation-title-${investment.investmentID}`}
+            className="w-full max-w-md rounded-lg border border-border bg-card p-5"
+          >
+            <h3
+              id={`liquidation-title-${investment.investmentID}`}
+              className="text-base font-semibold text-foreground"
+            >
+              End investment?
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              This will request liquidation and queue sell orders for the next rebalance. The
+              investment stays active until those sell orders complete.
+            </p>
+            {requestError && <p className="mt-3 text-sm text-loss">{requestError}</p>}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={requestLiquidation.isPending}
+                onClick={() => setConfirmingLiquidation(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={requestLiquidation.isPending}
+                onClick={() => requestLiquidation.mutate()}
+              >
+                {requestLiquidation.isPending ? 'Requesting...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
