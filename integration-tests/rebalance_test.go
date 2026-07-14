@@ -19,6 +19,7 @@ import (
 	"factorbacktest/internal/testseed"
 	"factorbacktest/internal/util"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
@@ -33,6 +34,14 @@ type TestServer struct {
 }
 
 func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
+	return NewTestServerWithDependencies(testDb, NewMockAlpacaRepositoryForTests(), nil)
+}
+
+func NewTestServerWithDependencies(
+	testDb *TestDbManager,
+	alpacaRepository repository.AlpacaRepository,
+	authMiddleware gin.HandlerFunc,
+) (*TestServer, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on ephemeral port: %w", err)
@@ -48,7 +57,6 @@ func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
 		SES:              util.SESSecrets{},
 	}
 
-	alpacaRepository := NewMockAlpacaRepositoryForTests()
 	priceRepository := repository.NewAdjustedPriceRepository(testDb.db)
 	priceService := data.NewPriceService(testDb.db, priceRepository, nil, nil)
 	handler, err := cmd.InitializeDependencies(secrets, &api.ApiHandler{
@@ -60,6 +68,7 @@ func NewTestServer(testDb *TestDbManager) (*TestServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize dependencies: %w", err)
 	}
+	handler.AuthMiddleware = authMiddleware
 
 	lg := logger.New()
 	ctx := context.WithValue(context.Background(), logger.ContextKey, lg)
