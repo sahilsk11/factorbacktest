@@ -110,29 +110,26 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 }
 
 func (h investmentRepositoryHandler) RequestLiquidation(investmentID, userAccountID uuid.UUID) (*model.Investment, error) {
+	t := table.Investment
+	now := time.Now().UTC()
+	query := t.UPDATE(
+		t.LiquidationRequestedAt,
+		t.ModifiedAt,
+	).SET(
+		postgres.TimestampzExp(postgres.COALESCE(
+			t.LiquidationRequestedAt,
+			postgres.TimestampzT(now),
+		)),
+		postgres.TimestampzT(now),
+	).WHERE(
+		t.InvestmentID.EQ(postgres.UUID(investmentID)).
+			AND(t.UserAccountID.EQ(postgres.UUID(userAccountID))).
+			AND(t.EndDate.IS_NULL()),
+	).RETURNING(t.AllColumns)
+
 	result := model.Investment{}
-	err := h.Db.QueryRow(`
-		UPDATE investment
-		SET liquidation_requested_at = COALESCE(liquidation_requested_at, now()),
-		    modified_at = now()
-		WHERE investment_id = $1
-		  AND user_account_id = $2
-		  AND end_date IS NULL
-		RETURNING investment_id, amount_dollars, start_date, strategy_id,
-		          user_account_id, created_at, modified_at, end_date, paused_at,
-		          liquidation_requested_at`, investmentID, userAccountID).Scan(
-		&result.InvestmentID,
-		&result.AmountDollars,
-		&result.StartDate,
-		&result.StrategyID,
-		&result.UserAccountID,
-		&result.CreatedAt,
-		&result.ModifiedAt,
-		&result.EndDate,
-		&result.PausedAt,
-		&result.LiquidationRequestedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
+	err := query.Query(h.Db, &result)
+	if errors.Is(err, qrm.ErrNoRows) {
 		return nil, ErrInvestmentNotFound
 	}
 	if err != nil {
@@ -142,19 +139,24 @@ func (h investmentRepositoryHandler) RequestLiquidation(investmentID, userAccoun
 }
 
 func (h investmentRepositoryHandler) CompleteLiquidation(tx *sql.Tx, investmentID uuid.UUID) (bool, error) {
-	type execer interface {
-		Exec(query string, args ...any) (sql.Result, error)
-	}
-	var db execer = h.Db
+	t := table.Investment
+	query := t.UPDATE(
+		t.EndDate,
+		t.ModifiedAt,
+	).SET(
+		postgres.CURRENT_DATE(),
+		postgres.NOW(),
+	).WHERE(
+		t.InvestmentID.EQ(postgres.UUID(investmentID)).
+			AND(t.LiquidationRequestedAt.IS_NOT_NULL()).
+			AND(t.EndDate.IS_NULL()),
+	)
+
+	var db qrm.Executable = h.Db
 	if tx != nil {
 		db = tx
 	}
-	result, err := db.Exec(`
-		UPDATE investment
-		SET end_date = CURRENT_DATE, modified_at = now()
-		WHERE investment_id = $1
-		  AND liquidation_requested_at IS NOT NULL
-		  AND end_date IS NULL`, investmentID)
+	result, err := query.Exec(db)
 	if err != nil {
 		return false, fmt.Errorf("failed to complete liquidation for investment %s: %w", investmentID, err)
 	}
