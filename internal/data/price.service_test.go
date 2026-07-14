@@ -2,12 +2,19 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"factorbacktest/internal/db/models/postgres/public/model"
+	"factorbacktest/internal/repository"
+	mock_repository "factorbacktest/internal/repository/mocks"
 	"factorbacktest/internal/util"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 // import (
@@ -209,4 +216,69 @@ func Test_priceServiceHandler_GetLatestPrices(t *testing.T) {
 			"AAPL": decimal.NewFromFloat(100),
 		}, resp)
 	})
+}
+
+func TestPriceServiceUpdatePricesCommitsSuccessfulSymbolsIndependently(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	prices := mock_repository.NewMockAdjustedPriceRepository(ctrl)
+	latestDate := time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)
+
+	prices.EXPECT().LatestPriceDates([]string{"AAPL", "BAD"}).Return(map[string]time.Time{
+		"AAPL": latestDate,
+	}, nil)
+	prices.EXPECT().Add(nil, gomock.Any()).DoAndReturn(func(_ *sql.Tx, models []model.AdjustedPrice) error {
+		require.Len(t, models, 1)
+		require.Equal(t, "AAPL", models[0].Symbol)
+		return nil
+	})
+
+	provider := &recordingQuoteProvider{
+		points: map[string][]DailyPricePoint{
+			"AAPL": {{Date: latestDate.AddDate(0, 0, 1), Price: decimal.NewFromInt(200)}},
+		},
+		errors: map[string]error{
+			"BAD": fmt.Errorf("symbol not found"),
+		},
+	}
+	service := priceServiceHandler{QuoteProvider: provider}
+
+	result, err := service.UpdatePrices(context.Background(), []string{"AAPL", "BAD", "AAPL", repository.CASH_SYMBOL}, prices)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"AAPL"}, result.UpdatedSymbols)
+	require.Equal(t, []string{"BAD"}, result.FailedSymbols)
+	require.Equal(t, latestDate.Add(-priceRefreshOverlap), provider.startFor("AAPL"))
+}
+
+type recordingQuoteProvider struct {
+	points map[string][]DailyPricePoint
+	errors map[string]error
+
+	mu     sync.Mutex
+	starts map[string]time.Time
+}
+
+func (p *recordingQuoteProvider) ProviderName() string { return "test" }
+
+func (p *recordingQuoteProvider) GetLatestQuotes(context.Context, []string) (*QuoteResponse, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (p *recordingQuoteProvider) GetDailyAdjCloses(_ context.Context, symbol string, start, _ time.Time) ([]DailyPricePoint, error) {
+	p.mu.Lock()
+	if p.starts == nil {
+		p.starts = map[string]time.Time{}
+	}
+	p.starts[symbol] = start
+	p.mu.Unlock()
+	if err := p.errors[symbol]; err != nil {
+		return nil, err
+	}
+	return p.points[symbol], nil
+}
+
+func (p *recordingQuoteProvider) startFor(symbol string) time.Time {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.starts[symbol]
 }

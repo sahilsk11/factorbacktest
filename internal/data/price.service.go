@@ -30,7 +30,12 @@ type PriceService interface {
 	LoadPriceCache(ctx context.Context, inputs []LoadPriceCacheInput, stdevs []LoadStdevCacheInput) (*PriceCache, error)
 	GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error)
 	IngestPrices(ctx context.Context, tx *sql.Tx, symbol string, adjPricesRepository repository.AdjustedPriceRepository, start *time.Time) error
-	UpdateUniversePrices(ctx context.Context, tx *sql.Tx, tickerRepository repository.TickerRepository, adjPricesRepository repository.AdjustedPriceRepository) (int, error)
+	UpdatePrices(ctx context.Context, symbols []string, adjPricesRepository repository.AdjustedPriceRepository) (PriceUpdateResult, error)
+}
+
+type PriceUpdateResult struct {
+	UpdatedSymbols []string
+	FailedSymbols  []string
 }
 
 type LoadPriceCacheInput struct {
@@ -454,7 +459,7 @@ func (h priceServiceHandler) IngestPrices(
 	adjPricesRepository repository.AdjustedPriceRepository,
 	start *time.Time,
 ) error {
-	s := time.Date(2000, 1, 0, 0, 0, 0, 0, time.UTC)
+	s := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	if start != nil {
 		s = *start
 	}
@@ -463,6 +468,9 @@ func (h priceServiceHandler) IngestPrices(
 	points, err := h.QuoteProvider.GetDailyAdjCloses(ctx, symbol, s, now)
 	if err != nil {
 		return err
+	}
+	if len(points) == 0 {
+		return fmt.Errorf("no daily price data returned")
 	}
 
 	models := []model.AdjustedPrice{}
@@ -483,76 +491,118 @@ func (h priceServiceHandler) IngestPrices(
 	return nil
 }
 
-func (h priceServiceHandler) UpdateUniversePrices(
+const (
+	priceUpdateWorkers  = 5
+	priceRefreshOverlap = 7 * 24 * time.Hour
+)
+
+func (h priceServiceHandler) UpdatePrices(
 	ctx context.Context,
-	tx *sql.Tx,
-	tickerRepository repository.TickerRepository,
+	symbols []string,
 	adjPricesRepository repository.AdjustedPriceRepository,
-) (int, error) {
+) (PriceUpdateResult, error) {
 	log := logger.FromContext(ctx)
 
-	assets, err := tickerRepository.List()
+	symbols = uniqueSymbols(symbols)
+	if len(symbols) == 0 {
+		return PriceUpdateResult{}, fmt.Errorf("no symbols supplied for price update")
+	}
+
+	latestDates, err := adjPricesRepository.LatestPriceDates(symbols)
 	if err != nil {
-		return 0, err
-	}
-	if len(assets) == 0 {
-		return 0, fmt.Errorf("no assets found in universe")
+		return PriceUpdateResult{}, err
 	}
 
-	assets = append(assets, model.Ticker{
-		Symbol: "SPY",
-	})
+	log.Infof("updating prices for %d active symbols", len(symbols))
+	result := h.asyncIngestPrices(ctx, symbols, latestDates, adjPricesRepository)
+	log.Infof("updated prices for %d symbols; %d failed", len(result.UpdatedSymbols), len(result.FailedSymbols))
 
-	symbols := []string{}
-	for _, a := range assets {
-		symbols = append(symbols, a.Symbol)
+	if len(result.UpdatedSymbols) == 0 && len(result.FailedSymbols) > 0 {
+		return result, fmt.Errorf("failed to update prices for every symbol")
+	}
+	if err := ctx.Err(); err != nil {
+		return result, err
 	}
 
-	log.Infof("found %d assets to update", len(assets))
-
-	h.asyncIngestPrices(ctx, tx, symbols, adjPricesRepository)
-
-	log.Infof("updated %d prices", len(symbols))
-
-	return len(symbols), nil
+	return result, nil
 }
 
-func (h priceServiceHandler) asyncIngestPrices(ctx context.Context, tx *sql.Tx, symbols []string, adjPriceRepository repository.AdjustedPriceRepository) error {
+func (h priceServiceHandler) asyncIngestPrices(ctx context.Context, symbols []string, latestDates map[string]time.Time, adjPriceRepository repository.AdjustedPriceRepository) PriceUpdateResult {
 	log := logger.FromContext(ctx)
-	numGoroutines := 10
+	type ingestResult struct {
+		symbol string
+		err    error
+	}
 
-	inputCh := make(chan string, len(symbols))
+	inputCh := make(chan string)
+	resultCh := make(chan ingestResult, len(symbols))
 
 	var wg sync.WaitGroup
-	for _, f := range symbols {
-		wg.Add(1)
-		inputCh <- f
-	}
-	close(inputCh)
-
-	for i := 0; i < numGoroutines; i++ {
+	wg.Add(priceUpdateWorkers)
+	for i := 0; i < priceUpdateWorkers; i++ {
 		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case symbol, ok := <-inputCh:
-					if !ok {
-						return
-					}
-					err := h.IngestPrices(ctx, tx, symbol, adjPriceRepository, nil)
-					if err != nil {
-						log.Warnf("failed to ingest price for %s: %s\n", symbol, err.Error())
-					}
-					wg.Done()
-				}
+			defer wg.Done()
+			for symbol := range inputCh {
+				start := incrementalPriceStart(latestDates[symbol])
+				// nil uses the repository's database handle, making this symbol's
+				// upsert independent from every other symbol.
+				err := h.IngestPrices(ctx, nil, symbol, adjPriceRepository, start)
+				resultCh <- ingestResult{symbol: symbol, err: err}
 			}
 		}()
 	}
 
-	wg.Wait()
+	go func() {
+		defer close(inputCh)
+		for _, symbol := range symbols {
+			select {
+			case <-ctx.Done():
+				return
+			case inputCh <- symbol:
+			}
+		}
+	}()
 
-	return nil
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	result := PriceUpdateResult{}
+	for ingest := range resultCh {
+		if ingest.err != nil {
+			log.Warnf("failed to ingest price for %s: %s", ingest.symbol, ingest.err)
+			result.FailedSymbols = append(result.FailedSymbols, ingest.symbol)
+			continue
+		}
+		result.UpdatedSymbols = append(result.UpdatedSymbols, ingest.symbol)
+	}
+
+	return result
+}
+
+func incrementalPriceStart(latestDate time.Time) *time.Time {
+	if latestDate.IsZero() {
+		return nil
+	}
+	start := latestDate.Add(-priceRefreshOverlap)
+	return &start
+}
+
+func uniqueSymbols(symbols []string) []string {
+	seen := make(map[string]struct{}, len(symbols))
+	out := make([]string, 0, len(symbols))
+	for _, symbol := range symbols {
+		if symbol == "" || symbol == repository.CASH_SYMBOL {
+			continue
+		}
+		if _, ok := seen[symbol]; ok {
+			continue
+		}
+		seen[symbol] = struct{}{}
+		out = append(out, symbol)
+	}
+	return out
 }
 
 // i absolutely hate this function but it's the only way to get the latest price using yahoo finance

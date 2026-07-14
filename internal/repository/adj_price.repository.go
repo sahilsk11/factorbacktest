@@ -54,6 +54,7 @@ type AdjustedPriceRepository interface {
 	ListTradingDays(start, end time.Time) ([]time.Time, error)
 	LatestTradingDay() (*time.Time, error)
 	LatestPrices(symbols []string) ([]domain.AssetPrice, error)
+	LatestPriceDates(symbols []string) (map[string]time.Time, error)
 
 	// this is weird
 	GetMany([]GetManyInput) ([]domain.AssetPrice, error)
@@ -298,6 +299,49 @@ func (h adjustedPriceRepositoryHandler) LatestPrices(symbols []string) ([]domain
 			Date:   model.Date,
 			Price:  model.Price,
 		})
+	}
+
+	return out, nil
+}
+
+// LatestPriceDates returns only symbols that already have price history. A
+// missing map entry is therefore an intentional signal to backfill a symbol.
+func (h adjustedPriceRepositoryHandler) LatestPriceDates(symbols []string) (map[string]time.Time, error) {
+	if len(symbols) == 0 {
+		return map[string]time.Time{}, nil
+	}
+
+	symbolExpressions := make([]postgres.Expression, 0, len(symbols))
+	for _, symbol := range symbols {
+		symbolExpressions = append(symbolExpressions, postgres.String(symbol))
+	}
+
+	query := table.AdjustedPrice.
+		SELECT(
+			table.AdjustedPrice.Symbol,
+			postgres.MAX(table.AdjustedPrice.Date).AS("latest_date"),
+		).
+		WHERE(table.AdjustedPrice.Symbol.IN(symbolExpressions...)).
+		GROUP_BY(table.AdjustedPrice.Symbol)
+
+	q, args := query.Sql()
+	rows, err := h.Db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest price dates: %w", err)
+	}
+	defer rows.Close()
+
+	out := make(map[string]time.Time, len(symbols))
+	for rows.Next() {
+		var symbol string
+		var date time.Time
+		if err := rows.Scan(&symbol, &date); err != nil {
+			return nil, fmt.Errorf("failed to scan latest price date: %w", err)
+		}
+		out[symbol] = date
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read latest price dates: %w", err)
 	}
 
 	return out, nil
