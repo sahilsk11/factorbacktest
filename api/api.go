@@ -116,6 +116,17 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	if m.AuthService != nil {
 		engine.Use(m.AuthService.Middleware())
 		m.AuthService.RegisterRoutes(engine)
+	} else if m.AuthMiddleware != nil {
+		engine.GET("/auth/session", func(c *gin.Context) {
+			userAccountID, ok := c.Get("userAccountID")
+			if !ok {
+				c.JSON(http.StatusOK, gin.H{"user": nil})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"user": gin.H{"id": fmt.Sprint(userAccountID)},
+			})
+		})
 	}
 
 	engine.Use(m.getGoogleAuthMiddleware)

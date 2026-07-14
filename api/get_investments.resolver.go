@@ -12,15 +12,16 @@ import (
 )
 
 type GetInvestmentsResponse struct {
-	InvestmentID          uuid.UUID     `json:"investmentID"`
-	OriginalAmountDollars int32         `json:"originalAmountDollars"`
-	StartDate             string        `json:"startDate"`
-	Strategy              Strategy      `json:"strategy"`
-	Holdings              []Holdings    `json:"holdings"`
-	PercentReturnFraction float64       `json:"percentReturnFraction"`
-	CurrentValue          float64       `json:"currentValue"`
-	CompletedTrades       []FilledTrade `json:"completedTrades"`
-	Paused                bool          `json:"paused"`
+	InvestmentID           uuid.UUID     `json:"investmentID"`
+	OriginalAmountDollars  int32         `json:"originalAmountDollars"`
+	StartDate              string        `json:"startDate"`
+	LiquidationRequestedAt *string       `json:"liquidationRequestedAt"`
+	Strategy               Strategy      `json:"strategy"`
+	Holdings               []Holdings    `json:"holdings"`
+	PercentReturnFraction  float64       `json:"percentReturnFraction"`
+	CurrentValue           float64       `json:"currentValue"`
+	CompletedTrades        []FilledTrade `json:"completedTrades"`
+	Paused                 bool          `json:"paused"`
 }
 
 type Holdings struct {
@@ -109,10 +110,17 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]service.GetStatsResponse)
 			})
 		}
 
+		var liquidationRequestedAt *string
+		if stats.LiquidationRequestedAt != nil {
+			formatted := stats.LiquidationRequestedAt.Format(time.RFC3339)
+			liquidationRequestedAt = &formatted
+		}
+
 		out = append(out, GetInvestmentsResponse{
-			InvestmentID:          investmentID,
-			OriginalAmountDollars: stats.OriginalAmount,
-			StartDate:             stats.StartDate.Format(time.DateOnly),
+			InvestmentID:           investmentID,
+			OriginalAmountDollars:  stats.OriginalAmount,
+			StartDate:              stats.StartDate.Format(time.DateOnly),
+			LiquidationRequestedAt: liquidationRequestedAt,
 			Strategy: Strategy{
 				StrategyID:        stats.Strategy.StrategyID,
 				StrategyName:      stats.Strategy.StrategyName,

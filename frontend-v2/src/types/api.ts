@@ -27,6 +27,7 @@ export interface Investment {
   investmentID: string;
   originalAmountDollars: number;
   startDate: string; // ISO-8601 date string
+  liquidationRequestedAt: string | null;
   strategy: InvestmentStrategy;
   holdings: Holding[];
   percentReturnFraction: number;
