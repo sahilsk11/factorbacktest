@@ -40,11 +40,18 @@ func (m mockPriceServiceForTestsHandler) LoadPriceCache(ctx context.Context, inp
 }
 
 func (m mockPriceServiceForTestsHandler) GetLatestPrices(ctx context.Context, symbols []string) (map[string]decimal.Decimal, error) {
-	return map[string]decimal.Decimal{
+	prices := map[string]decimal.Decimal{
 		"AAPL": decimal.NewFromFloat(130.04466247558594),
 		"META": decimal.NewFromFloat(272.8704833984375),
 		"GOOG": decimal.NewFromFloat(87.5940017700195),
-	}, nil
+	}
+	out := map[string]decimal.Decimal{}
+	for _, symbol := range symbols {
+		if price, ok := prices[symbol]; ok {
+			out[symbol] = price
+		}
+	}
+	return out, nil
 }
 
 func NewMockAlpacaRepositoryForTests() repository.AlpacaRepository {

@@ -53,6 +53,9 @@ type ApiHandler struct {
 	// secrets configured), /auth/* is unmounted; the API still serves
 	// unauthenticated routes but every authenticated route 401s.
 	AuthService *auth.Service
+	// AuthMiddleware allows an embedding application or integration harness
+	// to establish identity before the built-in auth providers run.
+	AuthMiddleware gin.HandlerFunc
 
 	AlpacaRepository repository.AlpacaRepository
 }
@@ -95,6 +98,9 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		AllowCredentials: true,
 		ExposeHeaders:    []string{"Set-Cookie"},
 	}))
+	if m.AuthMiddleware != nil {
+		engine.Use(m.AuthMiddleware)
+	}
 
 	// Custom Go auth: install the cookie middleware FIRST, then mount
 	// /auth/* routes. Gin doesn't apply middleware retroactively to routes
