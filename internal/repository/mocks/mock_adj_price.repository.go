@@ -103,6 +103,21 @@ func (mr *MockAdjustedPriceRepositoryMockRecorder) GetManyOnDay(arg0, arg1 any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetManyOnDay", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).GetManyOnDay), arg0, arg1)
 }
 
+// LatestPriceDates mocks base method.
+func (m *MockAdjustedPriceRepository) LatestPriceDates(symbols []string) (map[string]time.Time, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LatestPriceDates", symbols)
+	ret0, _ := ret[0].(map[string]time.Time)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LatestPriceDates indicates an expected call of LatestPriceDates.
+func (mr *MockAdjustedPriceRepositoryMockRecorder) LatestPriceDates(symbols any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestPriceDates", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).LatestPriceDates), symbols)
+}
+
 // LatestPrices mocks base method.
 func (m *MockAdjustedPriceRepository) LatestPrices(symbols []string) ([]domain.AssetPrice, error) {
 	m.ctrl.T.Helper()

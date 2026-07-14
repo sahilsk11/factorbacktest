@@ -31,8 +31,8 @@ func (m mockPriceServiceForTestsHandler) IngestPrices(ctx context.Context, tx *s
 	return fmt.Errorf("IngestPrices not implemented")
 }
 
-func (m mockPriceServiceForTestsHandler) UpdateUniversePrices(ctx context.Context, tx *sql.Tx, tickerRepository repository.TickerRepository, adjPricesRepository repository.AdjustedPriceRepository) (int, error) {
-	return 0, fmt.Errorf("UpdateUniversePrices not implemented")
+func (m mockPriceServiceForTestsHandler) UpdatePrices(ctx context.Context, symbols []string, adjPricesRepository repository.AdjustedPriceRepository) (data.PriceUpdateResult, error) {
+	return data.PriceUpdateResult{}, fmt.Errorf("UpdatePrices not implemented")
 }
 
 func (m mockPriceServiceForTestsHandler) LoadPriceCache(ctx context.Context, inputs []data.LoadPriceCacheInput, stdevs []data.LoadStdevCacheInput) (*data.PriceCache, error) {

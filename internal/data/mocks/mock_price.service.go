@@ -88,17 +88,17 @@ func (mr *MockPriceServiceMockRecorder) LoadPriceCache(ctx, inputs, stdevs any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadPriceCache", reflect.TypeOf((*MockPriceService)(nil).LoadPriceCache), ctx, inputs, stdevs)
 }
 
-// UpdateUniversePrices mocks base method.
-func (m *MockPriceService) UpdateUniversePrices(ctx context.Context, tx *sql.Tx, tickerRepository repository.TickerRepository, adjPricesRepository repository.AdjustedPriceRepository) (int, error) {
+// UpdatePrices mocks base method.
+func (m *MockPriceService) UpdatePrices(ctx context.Context, symbols []string, adjPricesRepository repository.AdjustedPriceRepository) (data.PriceUpdateResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateUniversePrices", ctx, tx, tickerRepository, adjPricesRepository)
-	ret0, _ := ret[0].(int)
+	ret := m.ctrl.Call(m, "UpdatePrices", ctx, symbols, adjPricesRepository)
+	ret0, _ := ret[0].(data.PriceUpdateResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// UpdateUniversePrices indicates an expected call of UpdateUniversePrices.
-func (mr *MockPriceServiceMockRecorder) UpdateUniversePrices(ctx, tx, tickerRepository, adjPricesRepository any) *gomock.Call {
+// UpdatePrices indicates an expected call of UpdatePrices.
+func (mr *MockPriceServiceMockRecorder) UpdatePrices(ctx, symbols, adjPricesRepository any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUniversePrices", reflect.TypeOf((*MockPriceService)(nil).UpdateUniversePrices), ctx, tx, tickerRepository, adjPricesRepository)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdatePrices", reflect.TypeOf((*MockPriceService)(nil).UpdatePrices), ctx, symbols, adjPricesRepository)
 }
