@@ -155,6 +155,11 @@ func TestInvestmentLiquidationHTTPFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, requested.LiquidationRequestedAt)
 	requestedAt := *requested.LiquidationRequestedAt
+	allInvestments := []api.GetInvestmentsResponse{}
+	hitAuthenticatedEndpoint(t, server.URL, "/investments", http.MethodGet, user.UserAccountID, http.StatusOK, &allInvestments)
+	require.Len(t, allInvestments, 1)
+	require.Equal(t, "LIQUIDATION_REQUESTED", allInvestments[0].Status)
+	require.Nil(t, allInvestments[0].EndDate)
 
 	hitAuthenticatedEndpoint(t, server.URL, "/investments/"+investment.InvestmentID.String()+"/request-liquidation", http.MethodPost, user.UserAccountID, http.StatusAccepted, &response)
 	requestedAgain, err := investmentRepository.Get(investment.InvestmentID)
@@ -171,6 +176,10 @@ func TestInvestmentLiquidationHTTPFlow(t *testing.T) {
 	require.Equal(t, "GOOG", requests[1].Symbol)
 	require.Equal(t, alpaca.Sell, requests[1].Side)
 	require.Equal(t, decimal.NewFromFloat(0.25), requests[1].Quantity)
+	allInvestments = nil
+	hitAuthenticatedEndpoint(t, server.URL, "/investments", http.MethodGet, user.UserAccountID, http.StatusOK, &allInvestments)
+	require.Len(t, allInvestments, 1)
+	require.Equal(t, "LIQUIDATING", allInvestments[0].Status)
 
 	pending, err := investmentRepository.Get(investment.InvestmentID)
 	require.NoError(t, err)
@@ -193,6 +202,11 @@ func TestInvestmentLiquidationHTTPFlow(t *testing.T) {
 	active := []api.GetInvestmentsResponse{}
 	hitAuthenticatedEndpoint(t, server.URL, "/activeInvestments", http.MethodGet, user.UserAccountID, http.StatusOK, &active)
 	require.Empty(t, active)
+	allInvestments = nil
+	hitAuthenticatedEndpoint(t, server.URL, "/investments", http.MethodGet, user.UserAccountID, http.StatusOK, &allInvestments)
+	require.Len(t, allInvestments, 1)
+	require.Equal(t, "LIQUIDATED", allInvestments[0].Status)
+	require.NotNil(t, allInvestments[0].EndDate)
 
 	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &map[string]string{}))
 	require.Len(t, broker.placedRequests(), 2, "an ended investment must not create more orders")

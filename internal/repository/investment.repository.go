@@ -72,6 +72,7 @@ func (h investmentRepositoryHandler) Get(id uuid.UUID) (*model.Investment, error
 type StrategyInvestmentListFilter struct {
 	UserAccountIDs []uuid.UUID
 	IncludePaused  bool
+	IncludeEnded   bool
 }
 
 func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) ([]model.Investment, error) {
@@ -79,8 +80,9 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 		SELECT(table.Investment.AllColumns).
 		ORDER_BY(table.Investment.CreatedAt.DESC())
 
-	whereClauses := []postgres.BoolExpression{
-		table.Investment.EndDate.IS_NULL(),
+	whereClauses := []postgres.BoolExpression{}
+	if !filter.IncludeEnded {
+		whereClauses = append(whereClauses, table.Investment.EndDate.IS_NULL())
 	}
 	if !filter.IncludePaused {
 		whereClauses = append(whereClauses, postgres.OR(
@@ -98,7 +100,9 @@ func (h investmentRepositoryHandler) List(filter StrategyInvestmentListFilter) (
 		)
 	}
 
-	query = query.WHERE(postgres.AND(whereClauses...))
+	if len(whereClauses) > 0 {
+		query = query.WHERE(postgres.AND(whereClauses...))
+	}
 
 	result := []model.Investment{}
 	err := query.Query(h.Db, &result)

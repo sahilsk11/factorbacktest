@@ -15,7 +15,9 @@ type GetInvestmentsResponse struct {
 	InvestmentID           uuid.UUID     `json:"investmentID"`
 	OriginalAmountDollars  int32         `json:"originalAmountDollars"`
 	StartDate              string        `json:"startDate"`
+	EndDate                *string       `json:"endDate"`
 	LiquidationRequestedAt *string       `json:"liquidationRequestedAt"`
+	Status                 string        `json:"status"`
 	Strategy               Strategy      `json:"strategy"`
 	Holdings               []Holdings    `json:"holdings"`
 	PercentReturnFraction  float64       `json:"percentReturnFraction"`
@@ -46,7 +48,15 @@ type Strategy struct {
 	RebalanceInterval string    `json:"rebalanceInterval"`
 }
 
-func (m ApiHandler) getInvestments(c *gin.Context) {
+func (m ApiHandler) getActiveInvestments(c *gin.Context) {
+	m.getInvestments(c, false)
+}
+
+func (m ApiHandler) getAllInvestments(c *gin.Context) {
+	m.getInvestments(c, true)
+}
+
+func (m ApiHandler) getInvestments(c *gin.Context, includeEnded bool) {
 	ginUserAccountID, ok := c.Get("userAccountID")
 	if !ok {
 		returnErrorJson(fmt.Errorf("must be logged in to view investments"), c)
@@ -67,6 +77,7 @@ func (m ApiHandler) getInvestments(c *gin.Context) {
 	investments, err := m.InvestmentRepository.List(repository.StrategyInvestmentListFilter{
 		UserAccountIDs: []uuid.UUID{userAccountID},
 		IncludePaused:  true,
+		IncludeEnded:   includeEnded,
 	})
 	if err != nil {
 		returnErrorJson(err, c)
@@ -115,12 +126,19 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]service.GetStatsResponse)
 			formatted := stats.LiquidationRequestedAt.Format(time.RFC3339)
 			liquidationRequestedAt = &formatted
 		}
+		var endDate *string
+		if stats.EndDate != nil {
+			formatted := stats.EndDate.Format(time.DateOnly)
+			endDate = &formatted
+		}
 
 		out = append(out, GetInvestmentsResponse{
 			InvestmentID:           investmentID,
 			OriginalAmountDollars:  stats.OriginalAmount,
 			StartDate:              stats.StartDate.Format(time.DateOnly),
+			EndDate:                endDate,
 			LiquidationRequestedAt: liquidationRequestedAt,
+			Status:                 string(stats.Status),
 			Strategy: Strategy{
 				StrategyID:        stats.Strategy.StrategyID,
 				StrategyName:      stats.Strategy.StrategyName,

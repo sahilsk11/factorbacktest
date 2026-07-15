@@ -162,7 +162,8 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/savedStrategies", m.getSavedStrategies)
 	engine.POST("/investInStrategy", m.investInStrategy)
 	engine.POST("/investments/:investmentID/request-liquidation", m.requestLiquidation)
-	engine.GET("/activeInvestments", m.getInvestments)
+	engine.GET("/activeInvestments", m.getActiveInvestments)
+	engine.GET("/investments", m.getAllInvestments)
 	engine.GET("/publishedStrategies", m.getPublishedStrategies)
 
 	cron := engine.Group("/internal/cron")
