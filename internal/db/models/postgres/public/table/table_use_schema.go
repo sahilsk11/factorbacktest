@@ -29,6 +29,7 @@ func UseSchema(schema string) {
 	LatencyTracking = LatencyTracking.FromSchema(schema)
 	RebalancePrice = RebalancePrice.FromSchema(schema)
 	RebalancerRun = RebalancerRun.FromSchema(schema)
+	ReconciliationRun = ReconciliationRun.FromSchema(schema)
 	SchemaVersion = SchemaVersion.FromSchema(schema)
 	Strategy = Strategy.FromSchema(schema)
 	StrategyRun = StrategyRun.FromSchema(schema)

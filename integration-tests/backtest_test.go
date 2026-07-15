@@ -37,7 +37,7 @@ func hitEndpoint(baseURL, route string, method string, payload interface{}, targ
 	if method == http.MethodPost {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if strings.HasPrefix(route, "internal/cron/") {
+	if strings.HasPrefix(route, "internal/") {
 		req.Header.Set("X-Cron-Secret", os.Getenv("CRON_SECRET"))
 	}
 

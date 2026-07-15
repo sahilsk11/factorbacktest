@@ -17,4 +17,5 @@ type InvestmentHoldingsVersion struct {
 	InvestmentID                uuid.UUID
 	CreatedAt                   time.Time
 	RebalancerRunID             *uuid.UUID
+	ReconciliationRunID         *uuid.UUID
 }

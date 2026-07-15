@@ -33,6 +33,8 @@ type InvestmentService interface {
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
+	PreviewReconciliation(ctx context.Context) (*ReconciliationPreview, error)
+	ApplyReconciliation(ctx context.Context, runID uuid.UUID) error
 }
 
 func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
@@ -185,6 +187,7 @@ const (
 	InvestmentStatusActive               InvestmentStatus = "ACTIVE"
 	InvestmentStatusLiquidationRequested InvestmentStatus = "LIQUIDATION_REQUESTED"
 	InvestmentStatusLiquidating          InvestmentStatus = "LIQUIDATING"
+	InvestmentStatusLiquidationBlocked   InvestmentStatus = "LIQUIDATION_BLOCKED"
 	InvestmentStatusLiquidated           InvestmentStatus = "LIQUIDATED"
 )
 
@@ -199,6 +202,12 @@ func getInvestmentStatus(investment model.Investment, trades []*model.Investment
 		if trade.Side != nil && *trade.Side == model.TradeOrderSide_Sell &&
 			trade.Status != nil && *trade.Status == model.TradeOrderStatus_Pending {
 			return InvestmentStatusLiquidating
+		}
+	}
+	for _, trade := range trades {
+		if trade.Side != nil && *trade.Side == model.TradeOrderSide_Sell && trade.Status != nil &&
+			(*trade.Status == model.TradeOrderStatus_Error || *trade.Status == model.TradeOrderStatus_Canceled) {
+			return InvestmentStatusLiquidationBlocked
 		}
 	}
 	return InvestmentStatusLiquidationRequested
