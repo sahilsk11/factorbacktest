@@ -170,11 +170,38 @@ type GetStatsResponse struct {
 	Holdings               []domain.Position
 	OriginalAmount         int32
 	StartDate              time.Time
+	EndDate                *time.Time
 	LiquidationRequestedAt *time.Time
+	Status                 InvestmentStatus
 	PercentReturnFraction  decimal.Decimal
 	CurrentValue           decimal.Decimal
 	CompletedTrades        []domain.FilledTrade
 	Strategy               model.Strategy
+}
+
+type InvestmentStatus string
+
+const (
+	InvestmentStatusActive               InvestmentStatus = "ACTIVE"
+	InvestmentStatusLiquidationRequested InvestmentStatus = "LIQUIDATION_REQUESTED"
+	InvestmentStatusLiquidating          InvestmentStatus = "LIQUIDATING"
+	InvestmentStatusLiquidated           InvestmentStatus = "LIQUIDATED"
+)
+
+func getInvestmentStatus(investment model.Investment, trades []*model.InvestmentTradeStatus) InvestmentStatus {
+	if investment.EndDate != nil {
+		return InvestmentStatusLiquidated
+	}
+	if investment.LiquidationRequestedAt == nil {
+		return InvestmentStatusActive
+	}
+	for _, trade := range trades {
+		if trade.Side != nil && *trade.Side == model.TradeOrderSide_Sell &&
+			trade.Status != nil && *trade.Status == model.TradeOrderStatus_Pending {
+			return InvestmentStatusLiquidating
+		}
+	}
+	return InvestmentStatusLiquidationRequested
 }
 
 func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error) {
@@ -235,7 +262,9 @@ func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uui
 	return &GetStatsResponse{
 		Holdings:               positions,
 		StartDate:              investment.StartDate,
+		EndDate:                investment.EndDate,
 		LiquidationRequestedAt: investment.LiquidationRequestedAt,
+		Status:                 getInvestmentStatus(*investment, allTradesWithStatus),
 		CurrentValue:           totalValue,
 		PercentReturnFraction:  returnFraction,
 		CompletedTrades:        completedTrades,

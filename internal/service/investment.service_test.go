@@ -215,6 +215,49 @@ func TestInvestmentServiceRequestLiquidation(t *testing.T) {
 	require.NoError(t, handler.RequestLiquidation(context.Background(), userAccountID, investmentID))
 }
 
+func TestGetInvestmentStatus(t *testing.T) {
+	now := time.Now().UTC()
+	sell := model.TradeOrderSide_Sell
+	pending := model.TradeOrderStatus_Pending
+
+	tests := []struct {
+		name       string
+		investment model.Investment
+		trades     []*model.InvestmentTradeStatus
+		want       InvestmentStatus
+	}{
+		{name: "active", want: InvestmentStatusActive},
+		{
+			name:       "liquidation requested",
+			investment: model.Investment{LiquidationRequestedAt: &now},
+			want:       InvestmentStatusLiquidationRequested,
+		},
+		{
+			name:       "sell orders pending",
+			investment: model.Investment{LiquidationRequestedAt: &now},
+			trades: []*model.InvestmentTradeStatus{{
+				Side:   &sell,
+				Status: &pending,
+			}},
+			want: InvestmentStatusLiquidating,
+		},
+		{
+			name: "liquidated",
+			investment: model.Investment{
+				LiquidationRequestedAt: &now,
+				EndDate:                &now,
+			},
+			want: InvestmentStatusLiquidated,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, getInvestmentStatus(tt.investment, tt.trades))
+		})
+	}
+}
+
 func TestGetTargetPortfolioForLiquidation(t *testing.T) {
 	requestedAt := time.Now()
 	portfolioValue := decimal.NewFromFloat(123.45)
