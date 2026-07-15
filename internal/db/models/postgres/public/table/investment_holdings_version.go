@@ -21,6 +21,7 @@ type investmentHoldingsVersionTable struct {
 	InvestmentID                postgres.ColumnString
 	CreatedAt                   postgres.ColumnTimestampz
 	RebalancerRunID             postgres.ColumnString
+	ReconciliationRunID         postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -65,8 +66,9 @@ func newInvestmentHoldingsVersionTableImpl(schemaName, tableName, alias string) 
 		InvestmentIDColumn                = postgres.StringColumn("investment_id")
 		CreatedAtColumn                   = postgres.TimestampzColumn("created_at")
 		RebalancerRunIDColumn             = postgres.StringColumn("rebalancer_run_id")
-		allColumns                        = postgres.ColumnList{InvestmentHoldingsVersionIDColumn, InvestmentIDColumn, CreatedAtColumn, RebalancerRunIDColumn}
-		mutableColumns                    = postgres.ColumnList{InvestmentIDColumn, CreatedAtColumn, RebalancerRunIDColumn}
+		ReconciliationRunIDColumn         = postgres.StringColumn("reconciliation_run_id")
+		allColumns                        = postgres.ColumnList{InvestmentHoldingsVersionIDColumn, InvestmentIDColumn, CreatedAtColumn, RebalancerRunIDColumn, ReconciliationRunIDColumn}
+		mutableColumns                    = postgres.ColumnList{InvestmentIDColumn, CreatedAtColumn, RebalancerRunIDColumn, ReconciliationRunIDColumn}
 	)
 
 	return investmentHoldingsVersionTable{
@@ -77,6 +79,7 @@ func newInvestmentHoldingsVersionTableImpl(schemaName, tableName, alias string) 
 		InvestmentID:                InvestmentIDColumn,
 		CreatedAt:                   CreatedAtColumn,
 		RebalancerRunID:             RebalancerRunIDColumn,
+		ReconciliationRunID:         ReconciliationRunIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

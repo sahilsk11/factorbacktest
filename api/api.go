@@ -172,6 +172,11 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	cron.POST("/updateOrders", m.updateOrders)
 	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
+	reconciliation := engine.Group("/internal/reconciliation")
+	reconciliation.Use(m.requireCronSecret)
+	reconciliation.POST("/preview", m.previewReconciliation)
+	reconciliation.POST("/:reconciliationRunID/apply", m.applyReconciliation)
+
 	return engine
 }
 

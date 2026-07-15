@@ -219,6 +219,7 @@ func TestGetInvestmentStatus(t *testing.T) {
 	now := time.Now().UTC()
 	sell := model.TradeOrderSide_Sell
 	pending := model.TradeOrderStatus_Pending
+	failed := model.TradeOrderStatus_Error
 
 	tests := []struct {
 		name       string
@@ -227,6 +228,15 @@ func TestGetInvestmentStatus(t *testing.T) {
 		want       InvestmentStatus
 	}{
 		{name: "active", want: InvestmentStatusActive},
+		{
+			name:       "sell order failed",
+			investment: model.Investment{LiquidationRequestedAt: &now},
+			trades: []*model.InvestmentTradeStatus{{
+				Side:   &sell,
+				Status: &failed,
+			}},
+			want: InvestmentStatusLiquidationBlocked,
+		},
 		{
 			name:       "liquidation requested",
 			investment: model.Investment{LiquidationRequestedAt: &now},
