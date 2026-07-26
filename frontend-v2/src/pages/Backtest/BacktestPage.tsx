@@ -356,18 +356,18 @@ export function BacktestPage(): React.ReactNode {
               card. Off the right side to avoid the y-axis labels +
               right-edge price pill, off the top to avoid the
               headline KPI. */}
-          {builderState && (
-            <div className="absolute bottom-5 left-5 z-20">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPanelOpen(true)}
-                disabled={isRunning}
-              >
-                Configure & re-run
-              </Button>
-            </div>
-          )}
+{builderState && (
+        <div className="absolute bottom-5 left-5 z-20 hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPanelOpen(true)}
+            disabled={isRunning}
+          >
+            Configure & re-run
+          </Button>
+        </div>
+      )}
 
           {lastResult ? (
             <EquityChart
