@@ -1,0 +1,21 @@
+{
+  "name": "factorbacktest",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "ALPHA_ENV=test go run cmd/api/main.go",
+      "description": "Go backend API on :3009 (ALPHA_ENV=test loads secrets-test.json and points at the local Postgres on :5440)."
+    },
+    {
+      "name": "frontend",
+      "command": "cd frontend-v2 && npm run dev",
+      "description": "Vite dev server for frontend-v2 on :3000. Talks to the local API via the built-in VITE_API_BASE_URL default (http://localhost:3009)."
+    }
+  ],
+  "ports": [
+    { "name": "frontend", "port": 3000 },
+    { "name": "api", "port": 3009 }
+  ]
+}
