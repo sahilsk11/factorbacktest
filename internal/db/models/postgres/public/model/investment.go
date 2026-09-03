@@ -23,4 +23,6 @@ type Investment struct {
 	EndDate                *time.Time
 	PausedAt               *time.Time
 	LiquidationRequestedAt *time.Time
+	ErrorAt                *time.Time
+	ErrorReason            *string
 }

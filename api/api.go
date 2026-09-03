@@ -172,6 +172,10 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	cron.POST("/updateOrders", m.updateOrders)
 	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
+	internalInvestments := engine.Group("/internal/investments")
+	internalInvestments.Use(m.requireCronSecret)
+	internalInvestments.POST("/:investmentID/clear-error", m.clearInvestmentError)
+
 	return engine
 }
 

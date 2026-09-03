@@ -33,6 +33,7 @@ type InvestmentService interface {
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
+	ClearInvestmentError(ctx context.Context, investmentID uuid.UUID) error
 }
 
 func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
@@ -172,6 +173,8 @@ type GetStatsResponse struct {
 	StartDate              time.Time
 	EndDate                *time.Time
 	LiquidationRequestedAt *time.Time
+	ErrorAt                *time.Time
+	ErrorReason            *string
 	Status                 InvestmentStatus
 	PercentReturnFraction  decimal.Decimal
 	CurrentValue           decimal.Decimal
@@ -264,6 +267,8 @@ func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uui
 		StartDate:              investment.StartDate,
 		EndDate:                investment.EndDate,
 		LiquidationRequestedAt: investment.LiquidationRequestedAt,
+		ErrorAt:                investment.ErrorAt,
+		ErrorReason:            investment.ErrorReason,
 		Status:                 getInvestmentStatus(*investment, allTradesWithStatus),
 		CurrentValue:           totalValue,
 		PercentReturnFraction:  returnFraction,
@@ -285,6 +290,15 @@ func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model
 
 	investmentsToRebalance := []model.Investment{}
 	for _, investment := range investments {
+		if investment.ErrorAt != nil {
+			log.Infof(
+				"skipping rebalancing investment id %s: in error since %s (%s)",
+				investment.InvestmentID,
+				investment.ErrorAt.Format(time.RFC3339),
+				stringOrEmpty(investment.ErrorReason),
+			)
+			continue
+		}
 		log.Infof("rebalancing %s", investment.InvestmentID.String())
 		tradeOrders, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
 			InvestmentID: &investment.InvestmentID,
@@ -359,6 +373,7 @@ func (h investmentServiceHandler) getTargetPortfolio(
 type rebalanceInvestmentResponse struct {
 	ProposedTrades           []*domain.ProposedTrade
 	InsertedInvestmentTrades []model.InvestmentTrade
+	InvestmentRebalanceID    uuid.UUID
 }
 
 // rebalanceInvestment creates the InvestmentRebalance entry
@@ -479,6 +494,7 @@ func (h investmentServiceHandler) rebalanceInvestment(
 	return &rebalanceInvestmentResponse{
 		ProposedTrades:           proposedTrades,
 		InsertedInvestmentTrades: insertedInvestmentTrades,
+		InvestmentRebalanceID:    investmentRebalance.InvestmentRebalanceID,
 	}, nil
 }
 
@@ -677,7 +693,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	}
 
 	proposedTrades := []*domain.ProposedTrade{}
-	investmentTrades := []model.InvestmentTrade{}
+	plan := []rebalancePlanEntry{}
 
 	tx, err := h.Db.Begin()
 	if err != nil {
@@ -704,7 +720,14 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 		numSucceeded++
 		proposedTrades = append(proposedTrades, result.ProposedTrades...)
-		investmentTrades = append(investmentTrades, result.InsertedInvestmentTrades...)
+		if result.InvestmentRebalanceID != uuid.Nil {
+			plan = append(plan, rebalancePlanEntry{
+				InvestmentID:          investment.InvestmentID,
+				InvestmentRebalanceID: result.InvestmentRebalanceID,
+				ProposedTrades:        result.ProposedTrades,
+				InvestmentTrades:      result.InsertedInvestmentTrades,
+			})
+		}
 	}
 
 	if len(rebalanceErrors) > 0 {
@@ -716,13 +739,13 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		return fmt.Errorf("all %d investments failed to rebalance. first error: %w", len(rebalanceErrors), rebalanceErrors[0])
 	}
 
-	log.Infof("generated %d investment trades", len(investmentTrades))
+	log.Infof("generated %d investment trades", len(proposedTrades))
 
 	rebalancerRun.RebalancerRunState = model.RebalancerRunState_Pending
 	if len(investmentsToRebalance) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investments to rebalance")
-	} else if len(investmentTrades) == 0 {
+	} else if len(proposedTrades) == 0 {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no investment trades generated")
 	}
@@ -747,45 +770,16 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		return err
 	}
 
-	if len(investmentTrades) == 0 || len(investmentsToRebalance) == 0 {
+	if len(proposedTrades) == 0 || len(investmentsToRebalance) == 0 {
 		return nil
 	}
 
-	// until we have some fancier math for reconciling completed trades,
-	// treat any failure here as fatal
-	// TODO - improve reconciliation + partial trade completion
-	executedTrades, tradeExecutionErr := h.TradingService.ExecuteBlock(ctx, proposedTrades, rebalancerRun.RebalancerRunID)
-
-	updateInvesmtentTradeErrors := []error{}
-	for _, tradeOrder := range executedTrades {
-		for _, investmentTrade := range investmentTrades {
-			if tradeOrder.TickerID == investmentTrade.TickerID {
-				investmentTrade.TradeOrderID = &tradeOrder.TradeOrderID
-				_, err = h.InvestmentTradeRepository.Update(
-					nil,
-					investmentTrade,
-					[]postgres.Column{
-						table.InvestmentTrade.TradeOrderID,
-					},
-				)
-				if err != nil {
-					updateInvesmtentTradeErrors = append(updateInvesmtentTradeErrors, err)
-				}
-			}
-		}
+	execution := h.executeRebalancePlan(ctx, rebalancerRun, plan)
+	if execution.Err != nil {
+		log.Warnf("rebalance run %s completed with trade errors: %s", rebalancerRun.RebalancerRunID, execution.Err.Error())
 	}
 
-	if len(updateInvesmtentTradeErrors) > 0 && tradeExecutionErr != nil {
-		return fmt.Errorf("failed to execute trades AND update %d investment trade status. trade err: %w | first update err: %w", len(updateInvesmtentTradeErrors), tradeExecutionErr, updateInvesmtentTradeErrors[0])
-	}
-	if tradeExecutionErr != nil {
-		return fmt.Errorf("failure on executing orders for rebalance run %s: %w\n", rebalancerRun.RebalancerRunID.String(), tradeExecutionErr)
-	}
-	if len(updateInvesmtentTradeErrors) > 0 {
-		return fmt.Errorf("failed to update %d investment trade status. first update err: %w", len(updateInvesmtentTradeErrors), updateInvesmtentTradeErrors[0])
-	}
-
-	if len(executedTrades) == 0 {
+	if len(execution.ExecutedOrders) == 0 && execution.Err == nil {
 		rebalancerRun.RebalancerRunState = model.RebalancerRunState_Completed
 		rebalancerRun.Notes = util.StringPointer("no trade orders generated - investment trades must have cancelled out")
 		_, err = h.RebalancerRunRepository.Update(nil, rebalancerRun, []postgres.Column{
@@ -797,6 +791,67 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func stringOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func tradeOrderSideMatchesInvestmentTrade(order model.TradeOrder, trade model.InvestmentTrade) bool {
+	if order.TickerID != trade.TickerID {
+		return false
+	}
+	return order.Side == trade.Side
+}
+
+func hasPendingExecutedTrade(orders []model.TradeOrder) bool {
+	for _, order := range orders {
+		if order.Status == model.TradeOrderStatus_Pending {
+			return true
+		}
+	}
+	return false
+}
+
+func (h investmentServiceHandler) linkExecutedTradesToInvestmentTrades(
+	investmentTrades []model.InvestmentTrade,
+	executedTrades []model.TradeOrder,
+) error {
+	updateErrors := []error{}
+	linkedOrders := map[uuid.UUID]bool{}
+
+	for i := range investmentTrades {
+		investmentTrade := investmentTrades[i]
+		for _, tradeOrder := range executedTrades {
+			if !tradeOrderSideMatchesInvestmentTrade(tradeOrder, investmentTrade) {
+				continue
+			}
+			if linkedOrders[tradeOrder.TradeOrderID] {
+				continue
+			}
+			investmentTrade.TradeOrderID = &tradeOrder.TradeOrderID
+			linkedOrders[tradeOrder.TradeOrderID] = true
+			_, err := h.InvestmentTradeRepository.Update(
+				nil,
+				investmentTrade,
+				[]postgres.Column{
+					table.InvestmentTrade.TradeOrderID,
+				},
+			)
+			if err != nil {
+				updateErrors = append(updateErrors, err)
+			}
+			break
+		}
+	}
+
+	if len(updateErrors) > 0 {
+		return fmt.Errorf("failed to update %d investment trade(s): %w", len(updateErrors), updateErrors[0])
+	}
 	return nil
 }
 

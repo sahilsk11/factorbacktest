@@ -20,6 +20,8 @@ type InvestmentRepository interface {
 	List(StrategyInvestmentListFilter) ([]model.Investment, error)
 	RequestLiquidation(investmentID, userAccountID uuid.UUID) (*model.Investment, error)
 	CompleteLiquidation(tx *sql.Tx, investmentID uuid.UUID) (bool, error)
+	SetErrorAt(tx *sql.Tx, investmentID uuid.UUID, reason string) error
+	ClearErrorAt(tx *sql.Tx, investmentID uuid.UUID) error
 }
 
 var ErrInvestmentNotFound = errors.New("investment not found")
@@ -169,4 +171,49 @@ func (h investmentRepositoryHandler) CompleteLiquidation(tx *sql.Tx, investmentI
 		return false, err
 	}
 	return rows > 0, nil
+}
+
+func (h investmentRepositoryHandler) SetErrorAt(tx *sql.Tx, investmentID uuid.UUID, reason string) error {
+	now := time.Now().UTC()
+	query := table.Investment.UPDATE(
+		table.Investment.ErrorAt,
+		table.Investment.ErrorReason,
+		table.Investment.ModifiedAt,
+	).MODEL(model.Investment{
+		ErrorAt:     &now,
+		ErrorReason: &reason,
+		ModifiedAt:  now,
+	}).WHERE(table.Investment.InvestmentID.EQ(postgres.UUID(investmentID)))
+
+	var db qrm.Executable = h.Db
+	if tx != nil {
+		db = tx
+	}
+	_, err := query.Exec(db)
+	if err != nil {
+		return fmt.Errorf("failed to set error on investment %s: %w", investmentID, err)
+	}
+	return nil
+}
+
+func (h investmentRepositoryHandler) ClearErrorAt(tx *sql.Tx, investmentID uuid.UUID) error {
+	query := table.Investment.UPDATE(
+		table.Investment.ErrorAt,
+		table.Investment.ErrorReason,
+		table.Investment.ModifiedAt,
+	).MODEL(model.Investment{
+		ErrorAt:     nil,
+		ErrorReason: nil,
+		ModifiedAt:  time.Now().UTC(),
+	}).WHERE(table.Investment.InvestmentID.EQ(postgres.UUID(investmentID)))
+
+	var db qrm.Executable = h.Db
+	if tx != nil {
+		db = tx
+	}
+	_, err := query.Exec(db)
+	if err != nil {
+		return fmt.Errorf("failed to clear error on investment %s: %w", investmentID, err)
+	}
+	return nil
 }

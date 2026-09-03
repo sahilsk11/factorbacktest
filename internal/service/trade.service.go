@@ -118,7 +118,7 @@ func (h tradeServiceHandler) placeOrder(
 			prefix = *insertedOrder.Notes + " | "
 		}
 		errMsg := fmt.Sprintf("%sorder for trade request %s %s %s failed: %s", prefix, alpacaSide, symbol, quantity.String(), err.Error())
-		_, noteErr := h.TradeOrderRepository.Update(nil,
+		updatedOrder, noteErr := h.TradeOrderRepository.Update(nil,
 			insertedOrder.TradeOrderID,
 			model.TradeOrder{
 				Notes: &errMsg,
@@ -128,7 +128,11 @@ func (h tradeServiceHandler) placeOrder(
 		if noteErr != nil {
 			return nil, fmt.Errorf("failed to execute order for trade order %s: %w (also failed to persist notes: %v)", insertedOrder.TradeOrderID, err, noteErr)
 		}
-		return nil, fmt.Errorf("failed to execute order for trade order %s: %w", insertedOrder.TradeOrderID, err)
+		if updatedOrder != nil {
+			return updatedOrder, fmt.Errorf("failed to execute order for trade order %s: %w", insertedOrder.TradeOrderID, err)
+		}
+		insertedOrder.Notes = &errMsg
+		return insertedOrder, fmt.Errorf("failed to execute order for trade order %s: %w", insertedOrder.TradeOrderID, err)
 	}
 
 	orderID, err := uuid.Parse(order.ID)
@@ -252,33 +256,20 @@ func aggregateAndFormatTrades(ctx context.Context, trades []*domain.ProposedTrad
 
 // assumes trades are already aggregated by symbol
 func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*domain.ProposedTrade, rebalancerRunID uuid.UUID) ([]model.TradeOrder, error) {
-	// TODO - should we still store the trade order if it failed,
-	// but give it status failed? i think that will be easier to
-	// look up later and understand what happened instead of
-	// leaving the col null in investmentTrade
+	log := logger.FromContext(ctx)
 
 	trades, excessQuantities := aggregateAndFormatTrades(ctx, rawTrades)
 
-	// first ensure that we have enough quantity for the order
-	currentHoldings, err := h.AlpacaRepository.GetPositions()
+	brokerPositions, err := h.AlpacaRepository.GetPositions()
 	if err != nil {
 		return nil, err
 	}
-	for _, t := range trades {
-		if t.ExactQuantity.LessThan(decimal.Zero) {
-			for _, position := range currentHoldings {
-				// if we hold less of the symbol than we want to sell, error
-				if t.Symbol == position.Symbol && (position.Qty.LessThan(t.ExactQuantity) ||
-					position.QtyAvailable.LessThan(t.ExactQuantity)) {
-					return nil, fmt.Errorf("insufficient %s (%f) to sell %f", t.Symbol, position.QtyAvailable.InexactFloat64(), t.ExactQuantity.InexactFloat64())
-				}
-			}
-		}
+	if err := validateBrokerSellCapacity(trades, brokerPositions); err != nil {
+		return nil, err
 	}
 
-	// maybe check buying power
-
 	generatedOrders := []model.TradeOrder{}
+	executionErrors := []error{}
 
 	// do a simple two pass to run all sells first
 	for _, t := range trades {
@@ -290,16 +281,19 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 				ExpectedPrice:   t.ExpectedPrice,
 				RebalancerRunID: rebalancerRunID,
 			})
-			if err != nil {
-				return generatedOrders, err
+			if order != nil {
+				generatedOrders = append(generatedOrders, *order)
 			}
-			generatedOrders = append(generatedOrders, *order)
+			if err != nil {
+				executionErrors = append(executionErrors, err)
+				log.Warnf("sell order failed for %s: %s", t.Symbol, err.Error())
+				continue
+			}
 		}
 	}
 
 	for _, t := range trades {
 		if t.ExactQuantity.GreaterThan(decimal.Zero) {
-			// only our buy orders should generate excess
 			tx, err := h.Db.Begin()
 			if err != nil {
 				return generatedOrders, err
@@ -325,8 +319,13 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 				ExpectedPrice:   t.ExpectedPrice,
 				RebalancerRunID: rebalancerRunID,
 			})
+			if order != nil {
+				generatedOrders = append(generatedOrders, *order)
+			}
 			if err != nil {
-				return generatedOrders, err
+				executionErrors = append(executionErrors, err)
+				log.Warnf("buy order failed for %s: %s", t.Symbol, err.Error())
+				continue
 			}
 			if excessModel != nil {
 				excessModel.TradeOrderID = &order.TradeOrderID
@@ -341,9 +340,11 @@ func (h tradeServiceHandler) ExecuteBlock(ctx context.Context, rawTrades []*doma
 			if err != nil {
 				return generatedOrders, err
 			}
-
-			generatedOrders = append(generatedOrders, *order)
 		}
+	}
+
+	if len(executionErrors) > 0 {
+		return generatedOrders, fmt.Errorf("%d trade order(s) failed; first error: %w", len(executionErrors), executionErrors[0])
 	}
 
 	return generatedOrders, nil
