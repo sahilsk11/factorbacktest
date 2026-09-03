@@ -67,7 +67,7 @@ func TestLiquidationWithBrokerLedgerMismatchEntersErrorState(t *testing.T) {
 	latest, err := holdingsRepository.GetLatestHoldings(nil, investment.InvestmentID)
 	require.NoError(t, err)
 	require.True(t, latest.Positions["INTC"].ExactQuantity.Equal(decimal.RequireFromString("1.19749006")),
-		"ledger unchanged until reconciliation apply")
+		"ledger holdings unchanged after failed sell")
 
 	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &map[string]string{}))
 	require.Empty(t, broker.placedRequests(), "cron must skip investments already in error state")

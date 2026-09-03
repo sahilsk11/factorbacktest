@@ -155,7 +155,3 @@ func (h investmentServiceHandler) markRebalancerRunTradeFailure(
 	})
 	return err
 }
-
-func (h investmentServiceHandler) ClearInvestmentError(ctx context.Context, investmentID uuid.UUID) error {
-	return h.InvestmentRepository.ClearErrorAt(nil, investmentID)
-}

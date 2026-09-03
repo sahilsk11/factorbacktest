@@ -33,7 +33,6 @@ type InvestmentService interface {
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
-	ClearInvestmentError(ctx context.Context, investmentID uuid.UUID) error
 }
 
 func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
