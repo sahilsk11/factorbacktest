@@ -17,6 +17,8 @@ type GetInvestmentsResponse struct {
 	StartDate              string        `json:"startDate"`
 	EndDate                *string       `json:"endDate"`
 	LiquidationRequestedAt *string       `json:"liquidationRequestedAt"`
+	ErrorAt                *string       `json:"errorAt"`
+	ErrorReason            *string       `json:"errorReason"`
 	Status                 string        `json:"status"`
 	Strategy               Strategy      `json:"strategy"`
 	Holdings               []Holdings    `json:"holdings"`
@@ -131,6 +133,11 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]service.GetStatsResponse)
 			formatted := stats.EndDate.Format(time.DateOnly)
 			endDate = &formatted
 		}
+		var errorAt *string
+		if stats.ErrorAt != nil {
+			formatted := stats.ErrorAt.Format(time.RFC3339)
+			errorAt = &formatted
+		}
 
 		out = append(out, GetInvestmentsResponse{
 			InvestmentID:           investmentID,
@@ -138,6 +145,8 @@ func getInvestmentsResponseFromDomain(in map[uuid.UUID]service.GetStatsResponse)
 			StartDate:              stats.StartDate.Format(time.DateOnly),
 			EndDate:                endDate,
 			LiquidationRequestedAt: liquidationRequestedAt,
+			ErrorAt:                errorAt,
+			ErrorReason:            stats.ErrorReason,
 			Status:                 string(stats.Status),
 			Strategy: Strategy{
 				StrategyID:        stats.Strategy.StrategyID,

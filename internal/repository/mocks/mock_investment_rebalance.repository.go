@@ -14,6 +14,7 @@ import (
 	model "factorbacktest/internal/db/models/postgres/public/model"
 	reflect "reflect"
 
+	postgres "github.com/go-jet/jet/v2/postgres"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -71,6 +72,21 @@ func (mr *MockInvestmentRebalanceRepositoryMockRecorder) Get(tx, id any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).Get), tx, id)
 }
 
+// HasPendingForInvestment mocks base method.
+func (m *MockInvestmentRebalanceRepository) HasPendingForInvestment(investmentID uuid.UUID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasPendingForInvestment", investmentID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HasPendingForInvestment indicates an expected call of HasPendingForInvestment.
+func (mr *MockInvestmentRebalanceRepositoryMockRecorder) HasPendingForInvestment(investmentID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasPendingForInvestment", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).HasPendingForInvestment), investmentID)
+}
+
 // List mocks base method.
 func (m *MockInvestmentRebalanceRepository) List(tx *sql.Tx) ([]model.InvestmentRebalance, error) {
 	m.ctrl.T.Helper()
@@ -84,4 +100,19 @@ func (m *MockInvestmentRebalanceRepository) List(tx *sql.Tx) ([]model.Investment
 func (mr *MockInvestmentRebalanceRepositoryMockRecorder) List(tx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).List), tx)
+}
+
+// Update mocks base method.
+func (m *MockInvestmentRebalanceRepository) Update(tx *sql.Tx, ir model.InvestmentRebalance, columns postgres.ColumnList) (*model.InvestmentRebalance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", tx, ir, columns)
+	ret0, _ := ret[0].(*model.InvestmentRebalance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockInvestmentRebalanceRepositoryMockRecorder) Update(tx, ir, columns any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).Update), tx, ir, columns)
 }

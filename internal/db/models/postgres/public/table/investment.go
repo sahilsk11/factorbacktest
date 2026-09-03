@@ -27,6 +27,8 @@ type investmentTable struct {
 	EndDate                postgres.ColumnDate
 	PausedAt               postgres.ColumnTimestampz
 	LiquidationRequestedAt postgres.ColumnTimestampz
+	ErrorAt                postgres.ColumnTimestampz
+	ErrorReason            postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -77,8 +79,10 @@ func newInvestmentTableImpl(schemaName, tableName, alias string) investmentTable
 		EndDateColumn                = postgres.DateColumn("end_date")
 		PausedAtColumn               = postgres.TimestampzColumn("paused_at")
 		LiquidationRequestedAtColumn = postgres.TimestampzColumn("liquidation_requested_at")
-		allColumns                   = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn, LiquidationRequestedAtColumn}
-		mutableColumns               = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn, LiquidationRequestedAtColumn}
+		ErrorAtColumn                = postgres.TimestampzColumn("error_at")
+		ErrorReasonColumn            = postgres.StringColumn("error_reason")
+		allColumns                   = postgres.ColumnList{InvestmentIDColumn, AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn, LiquidationRequestedAtColumn, ErrorAtColumn, ErrorReasonColumn}
+		mutableColumns               = postgres.ColumnList{AmountDollarsColumn, StartDateColumn, StrategyIDColumn, UserAccountIDColumn, CreatedAtColumn, ModifiedAtColumn, EndDateColumn, PausedAtColumn, LiquidationRequestedAtColumn, ErrorAtColumn, ErrorReasonColumn}
 	)
 
 	return investmentTable{
@@ -95,6 +99,8 @@ func newInvestmentTableImpl(schemaName, tableName, alias string) investmentTable
 		EndDate:                EndDateColumn,
 		PausedAt:               PausedAtColumn,
 		LiquidationRequestedAt: LiquidationRequestedAtColumn,
+		ErrorAt:                ErrorAtColumn,
+		ErrorReason:            ErrorReasonColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

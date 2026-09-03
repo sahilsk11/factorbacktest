@@ -23,7 +23,6 @@ import (
 type MockInvestmentRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockInvestmentRepositoryMockRecorder
-	isgomock struct{}
 }
 
 // MockInvestmentRepositoryMockRecorder is the mock recorder for MockInvestmentRepository.
@@ -56,6 +55,20 @@ func (m *MockInvestmentRepository) Add(tx *sql.Tx, si model.Investment) (*model.
 func (mr *MockInvestmentRepositoryMockRecorder) Add(tx, si any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockInvestmentRepository)(nil).Add), tx, si)
+}
+
+// ClearErrorAt mocks base method.
+func (m *MockInvestmentRepository) ClearErrorAt(tx *sql.Tx, investmentID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearErrorAt", tx, investmentID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ClearErrorAt indicates an expected call of ClearErrorAt.
+func (mr *MockInvestmentRepositoryMockRecorder) ClearErrorAt(tx, investmentID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearErrorAt", reflect.TypeOf((*MockInvestmentRepository)(nil).ClearErrorAt), tx, investmentID)
 }
 
 // CompleteLiquidation mocks base method.
@@ -116,4 +129,18 @@ func (m *MockInvestmentRepository) RequestLiquidation(investmentID, userAccountI
 func (mr *MockInvestmentRepositoryMockRecorder) RequestLiquidation(investmentID, userAccountID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestLiquidation", reflect.TypeOf((*MockInvestmentRepository)(nil).RequestLiquidation), investmentID, userAccountID)
+}
+
+// SetErrorAt mocks base method.
+func (m *MockInvestmentRepository) SetErrorAt(tx *sql.Tx, investmentID uuid.UUID, reason string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetErrorAt", tx, investmentID, reason)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetErrorAt indicates an expected call of SetErrorAt.
+func (mr *MockInvestmentRepositoryMockRecorder) SetErrorAt(tx, investmentID, reason any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetErrorAt", reflect.TypeOf((*MockInvestmentRepository)(nil).SetErrorAt), tx, investmentID, reason)
 }

@@ -44,6 +44,7 @@ func (m mockPriceServiceForTestsHandler) GetLatestPrices(ctx context.Context, sy
 		"AAPL": decimal.NewFromFloat(130.04466247558594),
 		"META": decimal.NewFromFloat(272.8704833984375),
 		"GOOG": decimal.NewFromFloat(87.5940017700195),
+		"INTC": decimal.NewFromFloat(20.15),
 	}
 	out := map[string]decimal.Decimal{}
 	for _, symbol := range symbols {
