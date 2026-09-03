@@ -5,6 +5,17 @@
 # - Update api.go router registration
 
 endpoints:
+  - path: /internal/cron/updatePrices
+    method: POST
+    handler: updatePrices
+    requires_auth: false
+    generate_resolver: false
+    register_route: false
+    request:
+    response:
+      numUpdatedAssets: int
+      failedSymbols: "[]string"
+
   - path: /internal/cron/updateOrders
     method: POST
     handler: updateOrders

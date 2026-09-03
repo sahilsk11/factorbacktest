@@ -155,7 +155,6 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/assetUniverses", m.getAssetUniverses)
 
 	engine.POST("/backtestBondPortfolio", m.backtestBondPortfolio)
-	engine.POST("/updatePrices", m.updatePrices)
 	engine.POST("/addAssetsToUniverse", m.addAssetsToUniverse)
 	engine.POST("/bookmarkStrategy", m.bookmarkStrategy)
 	engine.POST("/isStrategyBookmarked", m.isStrategyBookmarked)
@@ -170,6 +169,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	cron.Use(m.requireCronSecret)
 	cron.POST("/rebalance", m.rebalance)
 	cron.POST("/updateOrders", m.updateOrders)
+	cron.POST("/updatePrices", m.updatePrices)
 	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
 	return engine
