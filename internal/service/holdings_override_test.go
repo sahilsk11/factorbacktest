@@ -65,7 +65,7 @@ func TestAdminReplaceHoldingsCreatesNotedVersion(t *testing.T) {
 		AmountDollars: 1000,
 	})
 	initialVersion := testseed.CreateInvestmentHoldingsVersion(db, investment.InvestmentID)
-	cashTicker := testseed.LookupTickerBySymbol(db, ":CASH")
+	cashTicker := lookupOrCreateTicker(db, ":CASH", "cash")
 	testseed.CreateInvestmentHolding(db, testseed.InvestmentHoldingOpts{
 		VersionID: initialVersion.InvestmentHoldingsVersionID,
 		TickerID:  cashTicker.TickerID,
