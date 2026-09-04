@@ -32,6 +32,7 @@ type InvestmentService interface {
 	RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
+	RunReconcile(ctx context.Context) (*ReconcileResult, error)
 	Rebalance(ctx context.Context) error
 }
 
@@ -1126,39 +1127,6 @@ func (h investmentServiceHandler) reconcileAggregatePortfolio() ([]ReconErr, err
 	}
 
 	return reconErrors, nil
-}
-
-func (h investmentServiceHandler) Reconcile(ctx context.Context) error {
-	log := logger.FromContext(ctx)
-	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
-	if err != nil {
-		return err
-	}
-	for _, i := range investments {
-		reconErrors, err := h.reconcileInvestment(ctx, i.InvestmentID)
-		if err != nil {
-			return err
-		}
-		for _, err := range reconErrors {
-			log.Warnf("recon err on investment %s: %s", err.InvestmentID.String(), err.Message)
-		}
-
-		reconErr, err := h.reconcileTrades(i.InvestmentID)
-		if err != nil {
-			return err
-		} else if reconErr != nil {
-			log.Warnf("trade recon err on investment %s: %s", reconErr.InvestmentID.String(), reconErr.Message)
-		}
-	}
-	reconErrors, err := h.reconcileAggregatePortfolio()
-	if err != nil {
-		return err
-	}
-	for _, err := range reconErrors {
-		log.Warnf("recon err on aggregate portfolio %s: %s", err.InvestmentID.String(), err.Message)
-	}
-
-	return nil
 }
 
 func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) (*ReconErr, error) {
