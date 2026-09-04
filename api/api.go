@@ -172,6 +172,13 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	cron.POST("/updatePrices", m.updatePrices)
 	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
+	admin := engine.Group("/internal/admin")
+	admin.Use(m.requireAdminApiKey)
+	admin.POST("/reconcile", m.adminReconcile)
+	admin.POST("/updatePrices", m.updatePrices)
+	admin.POST("/rebalance", m.rebalance)
+	admin.POST("/updateOrders", m.updateOrders)
+
 	return engine
 }
 
@@ -410,6 +417,15 @@ func (m ApiHandler) requireAuthenticatedUser(c *gin.Context) {
 func (m ApiHandler) requireCronSecret(c *gin.Context) {
 	secret := os.Getenv("CRON_SECRET")
 	if secret == "" || c.GetHeader("X-Cron-Secret") != secret {
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+	c.Next()
+}
+
+func (m ApiHandler) requireAdminApiKey(c *gin.Context) {
+	secret := os.Getenv("ADMIN_API_KEY")
+	if secret == "" || c.GetHeader("X-Admin-Api-Key") != secret {
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 		return
 	}
