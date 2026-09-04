@@ -121,4 +121,12 @@ export default defineConfig([
       'no-restricted-syntax': 'off',
     },
   },
+  {
+    files: ['e2e/**/*.{ts,tsx}', 'playwright.config.ts', 'vitest.config.ts'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/consistent-type-definitions': 'off',
+    },
+  },
 ]);
