@@ -25,6 +25,7 @@ import (
 type MockFactorExpressionService struct {
 	ctrl     *gomock.Controller
 	recorder *MockFactorExpressionServiceMockRecorder
+	isgomock struct{}
 }
 
 // MockFactorExpressionServiceMockRecorder is the mock recorder for MockFactorExpressionService.
@@ -94,6 +95,7 @@ func (mr *MockFactorExpressionServiceMockRecorder) CalculateLatestFactorScores(c
 type MockfactorMetricCalculations struct {
 	ctrl     *gomock.Controller
 	recorder *MockfactorMetricCalculationsMockRecorder
+	isgomock struct{}
 }
 
 // MockfactorMetricCalculationsMockRecorder is the mock recorder for MockfactorMetricCalculations.

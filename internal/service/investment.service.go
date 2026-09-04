@@ -34,6 +34,7 @@ type InvestmentService interface {
 	Reconcile(ctx context.Context) error
 	RunReconcile(ctx context.Context) (*ReconcileResult, error)
 	Rebalance(ctx context.Context) error
+	AdminReplaceHoldings(ctx context.Context, investmentID uuid.UUID, req AdminReplaceHoldingsRequest) (*AdminReplaceHoldingsResponse, error)
 }
 
 func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
@@ -1130,21 +1131,38 @@ func (h investmentServiceHandler) reconcileAggregatePortfolio() ([]ReconErr, err
 }
 
 func (h investmentServiceHandler) reconcileTrades(investmentID uuid.UUID) (*ReconErr, error) {
-	initialVersionID, err := h.HoldingsVersionRepository.GetEarliestVersionID(investmentID)
+	var (
+		baselineVersionID uuid.UUID
+		createdAfter      *time.Time
+	)
+
+	notedVersion, err := h.HoldingsVersionRepository.GetLatestNotedVersion(investmentID)
 	if err != nil {
 		return nil, err
 	}
+	if notedVersion != nil {
+		baselineVersionID = notedVersion.InvestmentHoldingsVersionID
+		createdAfter = &notedVersion.CreatedAt
+	} else {
+		initialVersionID, err := h.HoldingsVersionRepository.GetEarliestVersionID(investmentID)
+		if err != nil {
+			return nil, err
+		}
+		baselineVersionID = *initialVersionID
+	}
 
-	initialHoldings, err := h.HoldingsRepository.Get(*initialVersionID)
+	initialHoldings, err := h.HoldingsRepository.Get(baselineVersionID)
 	if err != nil {
 		return nil, err
 	}
 
 	status := model.TradeOrderStatus_Completed
-	trades, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
+	tradeFilter := repository.InvestmentTradeListFilter{
 		InvestmentID: &investmentID,
 		Status:       &status,
-	})
+		CreatedAfter: createdAfter,
+	}
+	trades, err := h.InvestmentTradeRepository.List(nil, tradeFilter)
 	if err != nil {
 		return nil, err
 	}

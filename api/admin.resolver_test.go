@@ -9,20 +9,30 @@ import (
 	"factorbacktest/internal/service"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 type runReconcileServiceStub struct {
 	service.InvestmentService
-	runReconcile func(context.Context) (*service.ReconcileResult, error)
+	runReconcile          func(context.Context) (*service.ReconcileResult, error)
+	adminReplaceHoldings  func(context.Context, uuid.UUID, service.AdminReplaceHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error)
 }
 
 func (s runReconcileServiceStub) RunReconcile(ctx context.Context) (*service.ReconcileResult, error) {
 	return s.runReconcile(ctx)
+}
+
+func (s runReconcileServiceStub) AdminReplaceHoldings(ctx context.Context, investmentID uuid.UUID, req service.AdminReplaceHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error) {
+	if s.adminReplaceHoldings != nil {
+		return s.adminReplaceHoldings(ctx, investmentID, req)
+	}
+	return nil, nil
 }
 
 func newAdminRouter(t *testing.T, handler ApiHandler) *gin.Engine {
@@ -32,6 +42,7 @@ func newAdminRouter(t *testing.T, handler ApiHandler) *gin.Engine {
 	admin := engine.Group("/internal/admin")
 	admin.Use(handler.requireAdminApiKey)
 	admin.POST("/reconcile", handler.adminReconcile)
+	admin.POST("/investments/:investmentID/holdings", handler.adminReplaceHoldings)
 	admin.POST("/updatePrices", handler.updatePrices)
 	admin.POST("/rebalance", handler.rebalance)
 	admin.POST("/updateOrders", handler.updateOrders)
@@ -175,5 +186,37 @@ func TestAdminRebalanceRequiresApiKey(t *testing.T) {
 		engine.ServeHTTP(recorder, req)
 		require.Equal(t, http.StatusOK, recorder.Code)
 		require.True(t, called)
+	})
+}
+
+func TestAdminReplaceHoldingsRequiresApiKey(t *testing.T) {
+	t.Setenv("ADMIN_API_KEY", "test-admin-api-key")
+	investmentID := uuid.New()
+
+	handler := ApiHandler{
+		InvestmentService: runReconcileServiceStub{
+			adminReplaceHoldings: func(context.Context, uuid.UUID, service.AdminReplaceHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error) {
+				return &service.AdminReplaceHoldingsResponse{VersionID: uuid.New()}, nil
+			},
+		},
+	}
+	engine := newAdminRouter(t, handler)
+	path := "/internal/admin/investments/" + investmentID.String() + "/holdings"
+
+	t.Run("forbidden without key", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"note":"x","cash":1,"positions":[]}`))
+		req.Header.Set("Content-Type", "application/json")
+		engine.ServeHTTP(recorder, req)
+		require.Equal(t, http.StatusForbidden, recorder.Code)
+	})
+
+	t.Run("forbidden with wrong key", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"note":"x","cash":1,"positions":[]}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Admin-Api-Key", "wrong-key")
+		engine.ServeHTTP(recorder, req)
+		require.Equal(t, http.StatusForbidden, recorder.Code)
 	})
 }

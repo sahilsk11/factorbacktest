@@ -24,6 +24,7 @@ import (
 type MockExcessTradeVolumeRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockExcessTradeVolumeRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockExcessTradeVolumeRepositoryMockRecorder is the mock recorder for MockExcessTradeVolumeRepository.
