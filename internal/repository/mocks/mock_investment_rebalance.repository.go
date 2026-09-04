@@ -103,6 +103,21 @@ func (mr *MockInvestmentRebalanceRepositoryMockRecorder) List(tx any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).List), tx)
 }
 
+// ListByRebalancerRunID mocks base method.
+func (m *MockInvestmentRebalanceRepository) ListByRebalancerRunID(tx *sql.Tx, rebalancerRunID uuid.UUID) ([]model.InvestmentRebalance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByRebalancerRunID", tx, rebalancerRunID)
+	ret0, _ := ret[0].([]model.InvestmentRebalance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByRebalancerRunID indicates an expected call of ListByRebalancerRunID.
+func (mr *MockInvestmentRebalanceRepositoryMockRecorder) ListByRebalancerRunID(tx, rebalancerRunID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRebalancerRunID", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).ListByRebalancerRunID), tx, rebalancerRunID)
+}
+
 // Update mocks base method.
 func (m *MockInvestmentRebalanceRepository) Update(tx *sql.Tx, ir model.InvestmentRebalance, columns postgres.ColumnList) (*model.InvestmentRebalance, error) {
 	m.ctrl.T.Helper()

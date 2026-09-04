@@ -123,6 +123,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		tradeOrderRepository,
 		tickerRepository,
 		investmentTradeRepository,
+		investmentRebalanceRepository,
 		holdingsRepository,
 		holdingsVersionRepository,
 		rebalancerRunRepository,

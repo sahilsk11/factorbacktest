@@ -81,6 +81,13 @@ func (h investmentServiceHandler) finalizeRebalancePlan(
 
 	for _, entry := range plan {
 		if len(entry.InvestmentTrades) == 0 {
+			if err := markInvestmentRebalanceCompleted(
+				h.InvestmentRebalanceRepository,
+				nil,
+				entry.InvestmentRebalanceID,
+			); err != nil {
+				return err
+			}
 			continue
 		}
 
@@ -122,6 +129,14 @@ func (h investmentServiceHandler) finalizeRebalancePlan(
 
 		if hasPending {
 			continue
+		}
+
+		if err := markInvestmentRebalanceCompleted(
+			h.InvestmentRebalanceRepository,
+			nil,
+			entry.InvestmentRebalanceID,
+		); err != nil {
+			return err
 		}
 	}
 	return nil
