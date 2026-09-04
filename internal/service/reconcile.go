@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"factorbacktest/internal/domain"
 	"factorbacktest/internal/logger"
 	"factorbacktest/internal/repository"
 )
@@ -29,6 +30,10 @@ func reconErrToIssue(err ReconErr) ReconIssue {
 }
 
 func (h investmentServiceHandler) RunReconcile(ctx context.Context) (*ReconcileResult, error) {
+	profile, endProfile := domain.NewProfile()
+	defer endProfile()
+	ctx = context.WithValue(ctx, domain.ContextProfileKey, profile)
+
 	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
 	if err != nil {
 		return nil, err
