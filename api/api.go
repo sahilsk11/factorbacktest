@@ -175,6 +175,9 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	admin := engine.Group("/internal/admin")
 	admin.Use(m.requireAdminApiKey)
 	admin.POST("/reconcile", m.adminReconcile)
+	admin.POST("/updatePrices", m.updatePrices)
+	admin.POST("/rebalance", m.rebalance)
+	admin.POST("/updateOrders", m.updateOrders)
 
 	return engine
 }

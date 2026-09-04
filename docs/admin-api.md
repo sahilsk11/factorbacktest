@@ -1,6 +1,6 @@
 # Admin API
 
-Read-only operational endpoints for factorbot and on-call checks. Separate from cron routes (`CRON_SECRET` / `X-Cron-Secret`).
+Operational endpoints for factorbot and on-call use. Separate from cron routes (`CRON_SECRET` / `X-Cron-Secret`).
 
 ## Setup (Fly)
 
@@ -8,9 +8,11 @@ Read-only operational endpoints for factorbot and on-call checks. Separate from 
 fly secrets set ADMIN_API_KEY="<generate-a-long-random-secret>" -a factorbacktest
 ```
 
-## Reconcile
+All admin routes require header `X-Admin-Api-Key: $ADMIN_API_KEY`.
 
-Runs existing `InvestmentService.Reconcile` checks and returns structured issues as JSON (no ledger writes, no Alpaca orders).
+## Reconcile (read-only)
+
+Runs existing `InvestmentService.Reconcile` checks and returns structured issues as JSON. No ledger writes or Alpaca orders.
 
 ```bash
 curl -sS -X POST "https://api.factor.trade/internal/admin/reconcile" \
@@ -32,3 +34,18 @@ Example response with broker/ledger drift:
 ```
 
 When no issues are found, `status` is `OK` and `issues` is empty.
+
+## Ops triggers
+
+These reuse the same handlers as `/internal/cron/*` (cron routes remain unchanged).
+
+```bash
+curl -sS -X POST "https://api.factor.trade/internal/admin/updatePrices" \
+  -H "X-Admin-Api-Key: $ADMIN_API_KEY"
+
+curl -sS -X POST "https://api.factor.trade/internal/admin/rebalance" \
+  -H "X-Admin-Api-Key: $ADMIN_API_KEY"
+
+curl -sS -X POST "https://api.factor.trade/internal/admin/updateOrders" \
+  -H "X-Admin-Api-Key: $ADMIN_API_KEY"
+```
