@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/db/models/postgres/public/table"
 	"fmt"
@@ -11,8 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrTickerNotFound = errors.New("ticker not found")
+
 type TickerRepository interface {
 	Get(tickerID uuid.UUID) (*model.Ticker, error)
+	GetBySymbol(symbol string) (*model.Ticker, error)
 	List() ([]model.Ticker, error)
 	GetOrCreate(tx *sql.Tx, t model.Ticker) (*model.Ticker, error)
 	GetCashTicker() (*model.Ticker, error)
@@ -50,6 +54,23 @@ func (h tickerRepositoryHandler) List() ([]model.Ticker, error) {
 	}
 
 	return result, nil
+}
+
+func (h tickerRepositoryHandler) GetBySymbol(symbol string) (*model.Ticker, error) {
+	query := table.Ticker.
+		SELECT(table.Ticker.AllColumns).
+		WHERE(table.Ticker.Symbol.EQ(postgres.String(symbol)))
+
+	out := model.Ticker{}
+	err := query.Query(h.Db, &out)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, ErrTickerNotFound
+		}
+		return nil, fmt.Errorf("failed to get ticker by symbol %s: %w", symbol, err)
+	}
+
+	return &out, nil
 }
 
 func (h tickerRepositoryHandler) Get(tickerID uuid.UUID) (*model.Ticker, error) {

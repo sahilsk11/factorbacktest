@@ -182,6 +182,9 @@ func TestRunReconcileDoesNotPanicWithoutProfileInContext(t *testing.T) {
 		Return(portfolio, nil).
 		Times(3)
 	holdingsVersionRepository.EXPECT().
+		GetLatestNotedVersion(investmentID).
+		Return(nil, nil)
+	holdingsVersionRepository.EXPECT().
 		GetEarliestVersionID(investmentID).
 		Return(&versionID, nil)
 	holdingsRepository.EXPECT().

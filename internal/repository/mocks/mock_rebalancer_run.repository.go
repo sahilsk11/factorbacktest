@@ -23,6 +23,7 @@ import (
 type MockRebalancerRunRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockRebalancerRunRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockRebalancerRunRepositoryMockRecorder is the mock recorder for MockRebalancerRunRepository.

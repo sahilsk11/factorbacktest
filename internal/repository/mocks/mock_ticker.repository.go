@@ -22,6 +22,7 @@ import (
 type MockTickerRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockTickerRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockTickerRepositoryMockRecorder is the mock recorder for MockTickerRepository.
@@ -54,6 +55,21 @@ func (m *MockTickerRepository) Get(tickerID uuid.UUID) (*model.Ticker, error) {
 func (mr *MockTickerRepositoryMockRecorder) Get(tickerID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockTickerRepository)(nil).Get), tickerID)
+}
+
+// GetBySymbol mocks base method.
+func (m *MockTickerRepository) GetBySymbol(symbol string) (*model.Ticker, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBySymbol", symbol)
+	ret0, _ := ret[0].(*model.Ticker)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBySymbol indicates an expected call of GetBySymbol.
+func (mr *MockTickerRepositoryMockRecorder) GetBySymbol(symbol any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySymbol", reflect.TypeOf((*MockTickerRepository)(nil).GetBySymbol), symbol)
 }
 
 // GetCashTicker mocks base method.

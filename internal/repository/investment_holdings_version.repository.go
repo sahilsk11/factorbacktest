@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"factorbacktest/internal/db/models/postgres/public/table"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 )
 
@@ -18,6 +20,7 @@ type InvestmentHoldingsVersionRepository interface {
 	List() ([]model.InvestmentHoldingsVersion, error)
 	GetLatestVersionID(investmentID uuid.UUID) (*uuid.UUID, error)
 	GetEarliestVersionID(investmentID uuid.UUID) (*uuid.UUID, error)
+	GetLatestNotedVersion(investmentID uuid.UUID) (*model.InvestmentHoldingsVersion, error)
 }
 
 type investmentHoldingsVersionRepositoryHandler struct {
@@ -93,6 +96,30 @@ func (h investmentHoldingsVersionRepositoryHandler) GetLatestVersionID(investmen
 	return &out.InvestmentHoldingsVersionID, nil
 }
 
+func (h investmentHoldingsVersionRepositoryHandler) GetLatestNotedVersion(investmentID uuid.UUID) (*model.InvestmentHoldingsVersion, error) {
+	query := table.InvestmentHoldingsVersion.SELECT(
+		table.InvestmentHoldingsVersion.AllColumns,
+	).WHERE(
+		postgres.AND(
+			table.InvestmentHoldingsVersion.InvestmentID.EQ(postgres.UUID(investmentID)),
+			table.InvestmentHoldingsVersion.Note.IS_NOT_NULL(),
+			postgres.NOT(table.InvestmentHoldingsVersion.Note.EQ(postgres.String(""))),
+		),
+	).ORDER_BY(
+		table.InvestmentHoldingsVersion.CreatedAt.DESC(),
+	).LIMIT(1)
+
+	result := model.InvestmentHoldingsVersion{}
+	err := query.Query(h.Db, &result)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("could not get latest noted holdings version for investment %s: %w", investmentID.String(), err)
+	}
+
+	return &result, nil
+}
 func (h investmentHoldingsVersionRepositoryHandler) GetEarliestVersionID(investmentID uuid.UUID) (*uuid.UUID, error) {
 	query := table.InvestmentHoldingsVersion.SELECT(
 		table.InvestmentHoldingsVersion.InvestmentHoldingsVersionID,

@@ -25,6 +25,7 @@ import (
 type MockAlpacaRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockAlpacaRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockAlpacaRepositoryMockRecorder is the mock recorder for MockAlpacaRepository.

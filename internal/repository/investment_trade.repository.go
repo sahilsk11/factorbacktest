@@ -99,6 +99,7 @@ type InvestmentTradeListFilter struct {
 	RebalancerRunID *uuid.UUID
 	InvestmentID    *uuid.UUID
 	Status          *model.TradeOrderStatus
+	CreatedAfter    *time.Time
 }
 
 func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter InvestmentTradeListFilter) ([]*model.InvestmentTradeStatus, error) {
@@ -129,6 +130,13 @@ func (h investmentTradeRepositoryHandler) List(tx *sql.Tx, listFilter Investment
 		whereClauses = append(whereClauses,
 			view.InvestmentTradeStatus.Status.EQ(
 				postgres.NewEnumValue(listFilter.Status.String()),
+			),
+		)
+	}
+	if listFilter.CreatedAfter != nil {
+		whereClauses = append(whereClauses,
+			view.InvestmentTradeStatus.CreatedAt.GT(
+				postgres.TimestampzT(*listFilter.CreatedAfter),
 			),
 		)
 	}

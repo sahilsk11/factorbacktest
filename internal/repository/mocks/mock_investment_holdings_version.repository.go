@@ -22,6 +22,7 @@ import (
 type MockInvestmentHoldingsVersionRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockInvestmentHoldingsVersionRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockInvestmentHoldingsVersionRepositoryMockRecorder is the mock recorder for MockInvestmentHoldingsVersionRepository.
@@ -84,6 +85,21 @@ func (m *MockInvestmentHoldingsVersionRepository) GetEarliestVersionID(investmen
 func (mr *MockInvestmentHoldingsVersionRepositoryMockRecorder) GetEarliestVersionID(investmentID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEarliestVersionID", reflect.TypeOf((*MockInvestmentHoldingsVersionRepository)(nil).GetEarliestVersionID), investmentID)
+}
+
+// GetLatestNotedVersion mocks base method.
+func (m *MockInvestmentHoldingsVersionRepository) GetLatestNotedVersion(investmentID uuid.UUID) (*model.InvestmentHoldingsVersion, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestNotedVersion", investmentID)
+	ret0, _ := ret[0].(*model.InvestmentHoldingsVersion)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestNotedVersion indicates an expected call of GetLatestNotedVersion.
+func (mr *MockInvestmentHoldingsVersionRepositoryMockRecorder) GetLatestNotedVersion(investmentID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestNotedVersion", reflect.TypeOf((*MockInvestmentHoldingsVersionRepository)(nil).GetLatestNotedVersion), investmentID)
 }
 
 // GetLatestVersionID mocks base method.
