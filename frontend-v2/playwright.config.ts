@@ -36,6 +36,7 @@ export default (async () => {
 
   return defineConfig({
     testDir: './e2e',
+    testIgnore: process.env.CI ? ['**/create-investment-screenshots.spec.ts'] : undefined,
     timeout: 180_000,
     expect: { timeout: 30_000 },
     fullyParallel: false,
