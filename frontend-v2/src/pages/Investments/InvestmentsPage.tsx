@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { CreateInvestmentDialog } from './CreateInvestmentDialog';
+import { investmentsQueryKey } from './investments-query';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { apiClient, isApiError } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/lib/format';
 import type { Investment } from '@/types/api';
 
-const investmentsQueryKey = ['investments'] as const;
-
 // Investments page - displays user's investment portfolio
 export function InvestmentsPage(): React.ReactNode {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createDialogKey, setCreateDialogKey] = useState(0);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: investmentsQueryKey,
     queryFn: () => apiClient.get<Investment[]>('/activeInvestments'),
@@ -18,11 +20,23 @@ export function InvestmentsPage(): React.ReactNode {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">My Investments</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Track your active investments and their performance over time.
-        </p>
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">My Investments</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Track your active investments and their performance over time.
+          </p>
+        </div>
+        <Button
+          type="button"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            setCreateDialogKey((key) => key + 1);
+            setCreateOpen(true);
+          }}
+        >
+          Create new investment
+        </Button>
       </header>
 
       {isLoading && <InvestmentSkeletonGrid />}
@@ -37,7 +51,12 @@ export function InvestmentsPage(): React.ReactNode {
       {data && (
         <>
           {data.length === 0 ? (
-            <EmptyState />
+            <EmptyState
+              onCreate={() => {
+                setCreateDialogKey((key) => key + 1);
+                setCreateOpen(true);
+              }}
+            />
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {data.map((investment) => (
@@ -47,6 +66,12 @@ export function InvestmentsPage(): React.ReactNode {
           )}
         </>
       )}
+
+      <CreateInvestmentDialog
+        key={createDialogKey}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
     </div>
   );
 }
@@ -306,7 +331,7 @@ function InvestmentSkeletonGrid(): React.ReactNode {
   );
 }
 
-function EmptyState(): React.ReactNode {
+function EmptyState({ onCreate }: { onCreate: () => void }): React.ReactNode {
   return (
     <Card className="flex flex-col items-center justify-center py-16 text-center">
       <h3 className="text-lg font-semibold text-foreground">No investments yet</h3>
@@ -314,6 +339,9 @@ function EmptyState(): React.ReactNode {
         Start investing in strategies to see your portfolio here. Track your investments and monitor
         their performance over time.
       </p>
+      <Button type="button" className="mt-6" onClick={onCreate}>
+        Create new investment
+      </Button>
     </Card>
   );
 }

@@ -20,6 +20,7 @@ var seeds = map[string]func(*sql.DB){
 	"home_strategies":        seedHomeStrategies,
 	"active_investment":      seedActiveInvestment,
 	"liquidating_investment": seedLiquidatingInvestment,
+	"authenticated_empty":    seedAuthenticatedEmpty,
 }
 
 func seedHomeStrategies(db *sql.DB) {
@@ -156,6 +157,41 @@ func seedInvestment(db *sql.DB, liquidationRequested bool) {
 			Quantity:  qty,
 		})
 	}
+}
+
+func seedAuthenticatedEmpty(db *sql.DB) {
+	aapl := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "AAPL", Name: "Apple"})
+	goog := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "GOOG", Name: "Google"})
+	meta := testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "META", Name: "Meta"})
+	testseed.CreateTicker(db, testseed.TickerOpts{Symbol: "SPY", Name: "SPDR S&P 500 ETF"})
+
+	for _, universe := range []struct {
+		name        string
+		displayName string
+	}{
+		{"SPY_TOP_80", "SPY Top 80"},
+		{"SPY_TOP_100", "SPY Top 100"},
+		{"SPY_TOP_300", "SPY Top 300"},
+	} {
+		u := testseed.CreateAssetUniverse(db, testseed.AssetUniverseOpts{
+			Name:        universe.name,
+			DisplayName: universe.displayName,
+		})
+		for _, id := range []uuid.UUID{aapl.TickerID, goog.TickerID, meta.TickerID} {
+			testseed.CreateAssetUniverseTicker(db, u.AssetUniverseID, id)
+		}
+	}
+
+	end := time.Now().UTC()
+	start := end.AddDate(-3, 0, -100)
+	testseed.InsertSyntheticPrices(db, testseed.SyntheticPricesOpts{
+		Symbols: []string{"AAPL", "GOOG", "META", "SPY"},
+		Start:   start,
+		End:     end,
+	})
+
+	user := testseed.CreateUserAccount(db, testseed.UserAccountOpts{Email: "test@gmail.com"})
+	seededUserAccountID = &user.UserAccountID
 }
 
 func sortedSeedNames() []string {
