@@ -26,16 +26,17 @@ type TradeService interface {
 }
 
 type tradeServiceHandler struct {
-	Db                          *sql.DB
-	AlpacaRepository            repository.AlpacaRepository
-	TradeOrderRepository        repository.TradeOrderRepository
-	TickerRepository            repository.TickerRepository
-	InvestmentTradeRepository   repository.InvestmentTradeRepository
-	HoldingsRepository          repository.InvestmentHoldingsRepository
-	HoldingsVersionRepository   repository.InvestmentHoldingsVersionRepository
-	RebalancerRunRepository     repository.RebalancerRunRepository
-	ExcessTradeVolumeRepository repository.ExcessTradeVolumeRepository
-	InvestmentRepository        repository.InvestmentRepository
+	Db                            *sql.DB
+	AlpacaRepository              repository.AlpacaRepository
+	TradeOrderRepository          repository.TradeOrderRepository
+	TickerRepository              repository.TickerRepository
+	InvestmentTradeRepository     repository.InvestmentTradeRepository
+	InvestmentRebalanceRepository repository.InvestmentRebalanceRepository
+	HoldingsRepository            repository.InvestmentHoldingsRepository
+	HoldingsVersionRepository     repository.InvestmentHoldingsVersionRepository
+	RebalancerRunRepository       repository.RebalancerRunRepository
+	ExcessTradeVolumeRepository   repository.ExcessTradeVolumeRepository
+	InvestmentRepository          repository.InvestmentRepository
 }
 
 func NewTradeService(
@@ -44,6 +45,7 @@ func NewTradeService(
 	tradeOrderRepository repository.TradeOrderRepository,
 	tickerRepository repository.TickerRepository,
 	itRepository repository.InvestmentTradeRepository,
+	investmentRebalanceRepository repository.InvestmentRebalanceRepository,
 	holdingsRepository repository.InvestmentHoldingsRepository,
 	holdingsVersionRepository repository.InvestmentHoldingsVersionRepository,
 	RebalancerRunRepository repository.RebalancerRunRepository,
@@ -51,16 +53,17 @@ func NewTradeService(
 	investmentRepository repository.InvestmentRepository,
 ) TradeService {
 	return tradeServiceHandler{
-		Db:                          db,
-		AlpacaRepository:            alpacaRepository,
-		TradeOrderRepository:        tradeOrderRepository,
-		TickerRepository:            tickerRepository,
-		InvestmentTradeRepository:   itRepository,
-		HoldingsRepository:          holdingsRepository,
-		HoldingsVersionRepository:   holdingsVersionRepository,
-		RebalancerRunRepository:     RebalancerRunRepository,
-		ExcessTradeVolumeRepository: excessTradeVolumeRepository,
-		InvestmentRepository:        investmentRepository,
+		Db:                            db,
+		AlpacaRepository:              alpacaRepository,
+		TradeOrderRepository:          tradeOrderRepository,
+		TickerRepository:              tickerRepository,
+		InvestmentTradeRepository:     itRepository,
+		InvestmentRebalanceRepository: investmentRebalanceRepository,
+		HoldingsRepository:            holdingsRepository,
+		HoldingsVersionRepository:     holdingsVersionRepository,
+		RebalancerRunRepository:       RebalancerRunRepository,
+		ExcessTradeVolumeRepository:   excessTradeVolumeRepository,
+		InvestmentRepository:          investmentRepository,
 	}
 }
 
@@ -453,28 +456,32 @@ func (h tradeServiceHandler) UpdateAllPendingOrders(ctx context.Context) error {
 	}
 
 	for _, rebalancerRunID := range rebalancerRuns {
+		if err := completeInvestmentRebalancesForRun(
+			tx,
+			h.InvestmentRebalanceRepository,
+			h.InvestmentTradeRepository,
+			rebalancerRunID,
+		); err != nil {
+			return err
+		}
+
 		relevantInvestmentTrades, err := h.InvestmentTradeRepository.List(tx, repository.InvestmentTradeListFilter{
 			RebalancerRunID: &rebalancerRunID,
 		})
 		if err != nil {
 			return err
 		}
-		allCompleted := true
-		for _, t := range relevantInvestmentTrades {
-			if t.Status == nil || *t.Status != model.TradeOrderStatus_Completed {
-				allCompleted = false
-			}
+		if !investmentTradeStatusesAllCompleted(relevantInvestmentTrades) {
+			continue
 		}
-		if allCompleted {
-			_, err = h.RebalancerRunRepository.Update(tx, &model.RebalancerRun{
-				RebalancerRunID:    rebalancerRunID,
-				RebalancerRunState: model.RebalancerRunState_Completed,
-			}, []postgres.Column{
-				table.RebalancerRun.RebalancerRunState,
-			})
-			if err != nil {
-				return err
-			}
+		_, err = h.RebalancerRunRepository.Update(tx, &model.RebalancerRun{
+			RebalancerRunID:    rebalancerRunID,
+			RebalancerRunState: model.RebalancerRunState_Completed,
+		}, []postgres.Column{
+			table.RebalancerRun.RebalancerRunState,
+		})
+		if err != nil {
+			return err
 		}
 	}
 

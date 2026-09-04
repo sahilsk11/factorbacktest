@@ -17,6 +17,7 @@ type InvestmentRebalanceRepository interface {
 	Add(tx *sql.Tx, ir model.InvestmentRebalance) (*model.InvestmentRebalance, error)
 	Get(tx *sql.Tx, id uuid.UUID) (*model.InvestmentRebalance, error)
 	List(tx *sql.Tx) ([]model.InvestmentRebalance, error)
+	ListByRebalancerRunID(tx *sql.Tx, rebalancerRunID uuid.UUID) ([]model.InvestmentRebalance, error)
 	HasPendingForInvestment(investmentID uuid.UUID) (bool, error)
 	Update(tx *sql.Tx, ir model.InvestmentRebalance, columns postgres.ColumnList) (*model.InvestmentRebalance, error)
 }
@@ -86,6 +87,26 @@ func (h investmentRebalanceRepositoryHandler) List(tx *sql.Tx) ([]model.Investme
 		return nil, fmt.Errorf("failed to list investment rebalances: %w", err)
 	}
 
+	return result, nil
+}
+
+func (h investmentRebalanceRepositoryHandler) ListByRebalancerRunID(
+	tx *sql.Tx,
+	rebalancerRunID uuid.UUID,
+) ([]model.InvestmentRebalance, error) {
+	query := table.InvestmentRebalance.
+		SELECT(table.InvestmentRebalance.AllColumns).
+		WHERE(table.InvestmentRebalance.RebalancerRunID.EQ(postgres.UUID(rebalancerRunID)))
+
+	var db qrm.Queryable = h.Db
+	if tx != nil {
+		db = tx
+	}
+
+	result := []model.InvestmentRebalance{}
+	if err := query.Query(db, &result); err != nil {
+		return nil, fmt.Errorf("failed to list investment rebalances for run: %w", err)
+	}
 	return result, nil
 }
 
