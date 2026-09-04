@@ -31,6 +31,7 @@ type investmentTradeStatusTable struct {
 	InvestmentID      postgres.ColumnString
 	TradeOrderID      postgres.ColumnString
 	TickerID          postgres.ColumnString
+	CreatedAt         postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -85,8 +86,9 @@ func newInvestmentTradeStatusTableImpl(schemaName, tableName, alias string) inve
 		InvestmentIDColumn      = postgres.StringColumn("investment_id")
 		TradeOrderIDColumn      = postgres.StringColumn("trade_order_id")
 		TickerIDColumn          = postgres.StringColumn("ticker_id")
-		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, ExpectedPriceColumn, ExpectedAmountColumn, FilledPriceColumn, FilledAmountColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn}
-		mutableColumns          = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, ExpectedPriceColumn, ExpectedAmountColumn, FilledPriceColumn, FilledAmountColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn}
+		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
+		allColumns              = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, ExpectedPriceColumn, ExpectedAmountColumn, FilledPriceColumn, FilledAmountColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn, CreatedAtColumn}
+		mutableColumns          = postgres.ColumnList{InvestmentTradeIDColumn, SideColumn, SymbolColumn, StatusColumn, QuantityColumn, ExpectedPriceColumn, ExpectedAmountColumn, FilledPriceColumn, FilledAmountColumn, FilledAtColumn, RebalancerRunIDColumn, InvestmentIDColumn, TradeOrderIDColumn, TickerIDColumn, CreatedAtColumn}
 	)
 
 	return investmentTradeStatusTable{
@@ -107,6 +109,7 @@ func newInvestmentTradeStatusTableImpl(schemaName, tableName, alias string) inve
 		InvestmentID:      InvestmentIDColumn,
 		TradeOrderID:      TradeOrderIDColumn,
 		TickerID:          TickerIDColumn,
+		CreatedAt:         CreatedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

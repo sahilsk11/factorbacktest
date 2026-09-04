@@ -29,4 +29,5 @@ type InvestmentTradeStatus struct {
 	InvestmentID      *uuid.UUID
 	TradeOrderID      *uuid.UUID
 	TickerID          *uuid.UUID
+	CreatedAt         *time.Time
 }
