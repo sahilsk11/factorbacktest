@@ -33,6 +33,7 @@ type InvestmentService interface {
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	Rebalance(ctx context.Context) error
+	CheckQuantityMismatch(ctx context.Context) (*QuantityMismatchCheckResult, error)
 }
 
 func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
@@ -1064,29 +1065,9 @@ func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, inves
 }
 
 func (h investmentServiceHandler) reconcileAggregatePortfolio() ([]ReconErr, error) {
-	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
+	totalHoldings, err := h.aggregateInvestmentHoldings()
 	if err != nil {
 		return nil, err
-	}
-	totalHoldings := domain.NewPortfolio()
-	for _, i := range investments {
-		holdings, err := h.HoldingsRepository.GetLatestHoldings(nil, i.InvestmentID)
-		if err != nil {
-			return nil, err
-		}
-		totalHoldings.SetCash(totalHoldings.Cash.Add(*holdings.Cash))
-		for _, p := range holdings.Positions {
-			if _, ok := totalHoldings.Positions[p.Symbol]; !ok {
-				totalHoldings.Positions[p.Symbol] = &domain.Position{
-					Symbol:        p.Symbol,
-					Quantity:      0,
-					ExactQuantity: decimal.Zero,
-					TickerID:      p.TickerID,
-				}
-			}
-			totalHoldings.Positions[p.Symbol].Quantity += p.Quantity
-			totalHoldings.Positions[p.Symbol].ExactQuantity = totalHoldings.Positions[p.Symbol].ExactQuantity.Add(p.ExactQuantity)
-		}
 	}
 
 	account, err := h.AlpacaRepository.GetAccount()
@@ -1094,35 +1075,15 @@ func (h investmentServiceHandler) reconcileAggregatePortfolio() ([]ReconErr, err
 		return nil, err
 	}
 
-	reconErrors := []ReconErr{}
-
-	if account.Cash.LessThan(*totalHoldings.Cash) {
-		reconErrors = append(reconErrors, ReconErr{
-			Message: fmt.Sprintf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()),
-		})
-	}
-
-	excessHoldingThreshold := decimal.NewFromInt(2)
-
-	actuallyHeld, err := h.AlpacaRepository.GetPositions()
+	positions, err := h.AlpacaRepository.GetPositions()
 	if err != nil {
 		return nil, err
 	}
-	epsilonZero := decimal.NewFromFloat(1e-6)
-	for _, p := range totalHoldings.Positions {
-		for _, a := range actuallyHeld {
-			if a.Symbol == p.Symbol {
-				if a.Qty.LessThan(p.ExactQuantity.Sub(epsilonZero)) {
-					reconErrors = append(reconErrors, ReconErr{
-						Message: fmt.Sprintf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f (%f)", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64(), a.Qty.Sub(p.ExactQuantity).InexactFloat64()),
-					})
-				} else if a.Qty.GreaterThan(p.ExactQuantity.Add(excessHoldingThreshold)) {
-					reconErrors = append(reconErrors, ReconErr{
-						Message: fmt.Sprintf("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64()),
-					})
-				}
-			}
-		}
+
+	mismatches := detectQuantityMismatches(totalHoldings, account, positions)
+	reconErrors := make([]ReconErr, 0, len(mismatches))
+	for _, mismatch := range mismatches {
+		reconErrors = append(reconErrors, quantityMismatchToReconErr(mismatch))
 	}
 
 	return reconErrors, nil
