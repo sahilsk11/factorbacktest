@@ -1,11 +1,19 @@
+# Schedule reference for factorbacktest cron jobs.
+#
+# These jobs are executed by GitHub Actions (.github/workflows/cron.yml), not by
+# a Fly machine. Each job POSTs to the API with X-Cron-Secret; Fly web scales
+# from zero on the incoming HTTP request.
+#
+# Times are America/New_York (weekdays only).
+
 # Morning saved-strategy summary email - 8:30am ET on weekdays.
-30 8 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/sendSavedStrategySummaryEmails -H "X-Cron-Secret: $CRON_SECRET"
+# 30 8 * * 1-5  ->  sendSavedStrategySummaryEmails
 
 # Ingest adjusted prices before rebalance - 9:00am ET on weekdays.
-0 9 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/updatePrices -H "X-Cron-Secret: $CRON_SECRET"
+# 0 9 * * 1-5  ->  updatePrices
 
 # Trigger portfolio rebalancing - 10:00am ET on weekdays.
-0 10 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/rebalance -H "X-Cron-Secret: $CRON_SECRET"
+# 0 10 * * 1-5  ->  rebalance
 
 # Poll pending broker orders during the trading day so completed fills are reflected in local state.
-*/15 10-16 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/updateOrders -H "X-Cron-Secret: $CRON_SECRET"
+# */15 10-16 * * 1-5  ->  updateOrders

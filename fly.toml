@@ -15,8 +15,7 @@ primary_region = "iad"
 [env]
   FB_SECRETS_FROM_ENV = "1"
   GIN_MODE = "release"
-  # Supercronic reads TZ when it starts and schedules the crontab in this
-  # timezone. The runtime image includes tzdata for DST-aware ET scheduling.
+  # Wall-clock timezone for logs and any ET-based logic in the API binary.
   TZ = "America/New_York"
 
   # Public base URL of the Go API. The internal/auth package uses this as
@@ -30,17 +29,14 @@ primary_region = "iad"
 
 [processes]
   web = "/app/api"
-  cron = "supercronic /app/crontab"
 
 [http_service]
   internal_port = 3009
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # Scale to zero between bursts. Traffic is ~entirely cron-driven, so the
-  # first request after idle eats the cold-start (container start + Go init
-  # + initial Postgres TLS handshake), and that's an acceptable tradeoff
-  # for not paying for a warm machine 24/7.
+  # Scale to zero between bursts. Cron and user traffic wake the machine via
+  # HTTP (cron runs from GitHub Actions; see .github/workflows/cron.yml).
   min_machines_running = 0
   processes = ["web"]
 
@@ -52,5 +48,6 @@ primary_region = "iad"
     grace_period = "10s"
 
 [[vm]]
-  size = "shared-cpu-2x"
-  memory = "1gb"
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["web"]

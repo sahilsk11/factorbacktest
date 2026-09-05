@@ -1,0 +1,69 @@
+# Scheduled cron jobs for factorbacktest. Replaces the Fly "cron" process group
+# (supercronic on a 24/7 VM) with GitHub Actions that POST to the API. Fly web
+# machines scale to zero between requests; GHA wakes them via HTTP.
+#
+# Requires repo secret CRON_SECRET (same value as Fly app secret).
+name: Cron
+
+on:
+  schedule:
+    # Morning saved-strategy summary email — 8:30am ET weekdays.
+    - cron: '30 8 * * 1-5'
+      timezone: America/New_York
+    # Ingest adjusted prices before rebalance — 9:00am ET weekdays.
+    - cron: '0 9 * * 1-5'
+      timezone: America/New_York
+    # Trigger portfolio rebalancing — 10:00am ET weekdays.
+    - cron: '0 10 * * 1-5'
+      timezone: America/New_York
+    # Poll pending broker orders during the trading day.
+    - cron: '0,15,30,45 10-16 * * 1-5'
+      timezone: America/New_York
+  workflow_dispatch:
+    inputs:
+      endpoint:
+        description: Cron endpoint to call
+        required: true
+        type: choice
+        options:
+          - sendSavedStrategySummaryEmails
+          - updatePrices
+          - rebalance
+          - updateOrders
+
+concurrency:
+  group: cron-${{ github.event.schedule || github.event.inputs.endpoint }}
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Resolve endpoint
+        id: endpoint
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "path=${{ github.event.inputs.endpoint }}" >> "$GITHUB_OUTPUT"
+          else
+            case "${{ github.event.schedule }}" in
+              '30 8 * * 1-5') echo "path=sendSavedStrategySummaryEmails" >> "$GITHUB_OUTPUT" ;;
+              '0 9 * * 1-5') echo "path=updatePrices" >> "$GITHUB_OUTPUT" ;;
+              '0 10 * * 1-5') echo "path=rebalance" >> "$GITHUB_OUTPUT" ;;
+              '0,15,30,45 10-16 * * 1-5') echo "path=updateOrders" >> "$GITHUB_OUTPUT" ;;
+              *) echo "Unknown schedule: ${{ github.event.schedule }}"; exit 1 ;;
+            esac
+          fi
+
+      - name: POST cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          API_BASE_URL: https://api.factor.trade
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET repository secret is not set"
+            exit 1
+          fi
+          curl -fsS -X POST \
+            "${API_BASE_URL}/internal/cron/${{ steps.endpoint.outputs.path }}" \
+            -H "X-Cron-Secret: $CRON_SECRET"
