@@ -37,11 +37,10 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # Scale to zero between bursts. Traffic is ~entirely cron-driven, so the
-  # first request after idle eats the cold-start (container start + Go init
-  # + initial Postgres TLS handshake), and that's an acceptable tradeoff
-  # for not paying for a warm machine 24/7.
-  min_machines_running = 0
+  # Keep one web machine warm so factor.trade landing does not pay a ~2s
+  # cold-start on GET /publishedStrategies (warm TTFB ~250–360ms). We pay
+  # for one always-on web VM instead of scale-to-zero on the marketing API.
+  min_machines_running = 1
   processes = ["web"]
 
   [[http_service.checks]]
