@@ -43,7 +43,7 @@ Two env knobs control runtime behavior. Both are respected by `vite dev`,
 
 Sources, in priority order:
 
-1. Per-process env (`VITE_API_BASE_URL=https://api.factor.trade npm run dev`)
+1. Per-process env (`VITE_API_BASE_URL=https://factor-api.ultron.sh npm run dev`)
 2. `frontend-v2/.env.local` — personal overrides (gitignored)
 3. `frontend-v2/.env` — copy from `.env.example` if you want a local default (gitignored)
 4. Built-in defaults in `src/lib/env.ts`
@@ -55,7 +55,7 @@ built-in defaults until you opt in.
 
 ```bash
 npm run dev           # local FE on :3000 → local Go on :3009
-npm run dev:prod-api  # local FE on :3000 → https://api.factor.trade
+npm run dev:prod-api  # local FE on :3000 → https://factor-api.ultron.sh
 npm run build         # production build into dist/
 npm run preview       # serve the production build locally
 npm run typecheck     # tsc project-references typecheck
@@ -68,7 +68,7 @@ npm run format:check  # prettier --check . (CI uses this)
 One-off override pattern:
 
 ```bash
-PORT=4000 VITE_API_BASE_URL=https://api.factor.trade npm run dev
+PORT=4000 VITE_API_BASE_URL=https://factor-api.ultron.sh npm run dev
 ```
 
 For Playwright, mirror the legacy [frontend/playwright.config.ts](../frontend/playwright.config.ts):

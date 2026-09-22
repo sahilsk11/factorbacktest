@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:prod-api": "VITE_API_BASE_URL=https://api.factor.trade vite",
+    "dev:prod-api": "VITE_API_BASE_URL=https://factor-api.ultron.sh vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
