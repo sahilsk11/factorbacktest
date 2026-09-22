@@ -21,7 +21,7 @@ instead — that's a separate concern handled by a different process.
 
 | Surface                              | What it gives you                                                   |
 | ------------------------------------ | ------------------------------------------------------------------- |
-| `https://api.factor.trade`           | The Fly deployment under test.                                      |
+| `https://factor-api.ultron.sh`        | The Fly deployment under test (Cloudflare hostname).                |
 | `https://tgwmxgtk07.execute-api.us-east-1.amazonaws.com/prod` | The legacy AWS Lambda deployment, kept alive as a baseline. |
 | `DATABASE_URL` / `MIGRATE_DATABASE_URL` | Neon Postgres URLs used by the Fly API and release migrations. |
 | `api_request` table                  | Every request: `request_id`, `route`, `start_ts`, `duration_ms`, `version` (deploy SHA), `request_body`, `ip_address`. |
@@ -102,7 +102,7 @@ export PGPASSWORD='<neon-password>'
 psql -c "select now();"
 
 # Endpoints.
-export FLY_URL='https://api.factor.trade/backtest'
+export FLY_URL='https://factor-api.ultron.sh/backtest'
 export LAMBDA_URL='https://tgwmxgtk07.execute-api.us-east-1.amazonaws.com/prod/backtest'
 ```
 

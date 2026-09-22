@@ -15,7 +15,7 @@ All admin routes require header `X-Admin-Api-Key: $ADMIN_API_KEY`.
 Runs existing `InvestmentService.Reconcile` checks and returns structured issues as JSON. No ledger writes or Alpaca orders.
 
 ```bash
-curl -sS -X POST "https://api.factor.trade/internal/admin/reconcile" \
+curl -sS -X POST "https://factor-api.ultron.sh/internal/admin/reconcile" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY"
 ```
 
@@ -40,7 +40,7 @@ When no issues are found, `status` is `OK` and `issues` is empty.
 Appends a new holdings version with a manual baseline note. Writes a full cash + positions snapshot for that version. Does not mutate prior versions, create trades, or call Alpaca.
 
 ```bash
-curl -sS -X POST "https://api.factor.trade/internal/admin/investments/<investment-id>/holdings" \
+curl -sS -X POST "https://factor-api.ultron.sh/internal/admin/investments/<investment-id>/holdings" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -75,12 +75,12 @@ When any holdings version for an investment has a non-empty `note`, reconcile us
 These reuse the same handlers as `/internal/cron/*` (cron routes remain unchanged).
 
 ```bash
-curl -sS -X POST "https://api.factor.trade/internal/admin/updatePrices" \
+curl -sS -X POST "https://factor-api.ultron.sh/internal/admin/updatePrices" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY"
 
-curl -sS -X POST "https://api.factor.trade/internal/admin/rebalance" \
+curl -sS -X POST "https://factor-api.ultron.sh/internal/admin/rebalance" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY"
 
-curl -sS -X POST "https://api.factor.trade/internal/admin/updateOrders" \
+curl -sS -X POST "https://factor-api.ultron.sh/internal/admin/updateOrders" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY"
 ```
