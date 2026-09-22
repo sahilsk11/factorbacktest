@@ -32,7 +32,7 @@ import (
 // Config bundles every value the auth package needs at construction time.
 // Loaded from util.Secrets + a couple of env vars by NewFromSecrets.
 type Config struct {
-	PublicBaseURL         string        // e.g. https://api.factor.trade; used to compute the OAuth redirect URI
+	PublicBaseURL         string        // e.g. https://factor-api.ultron.sh; used to compute the OAuth redirect URI
 	FrontendBaseURL       string        // e.g. https://factor.trade; the only redirect target after OAuth callback
 	AllowedOrigins        []string      // Origin allowlist for state-changing POSTs; should match CORS allowlist
 	SessionSecret         []byte        // HMAC-SHA256 key for signing session cookies; must be >=32 bytes

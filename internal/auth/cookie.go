@@ -66,6 +66,14 @@ func (s *Service) verifyCookieValue(raw string) (uuid.UUID, bool) {
 // setSessionCookie is the ONLY emitter of the session Set-Cookie header.
 // Centralizing keeps cookie attributes in one place; a literal-string
 // assertion in tests catches accidental future downgrades.
+//
+// SameSite=None (not Lax): the production FE is https://factor.trade and
+// the API is https://factor-api.ultron.sh - different eTLD+1, so browser
+// fetch(..., {credentials:"include"}) is cross-site. Lax cookies are not
+// sent on cross-site XHR. None+Secure+__Host- is the minimum that still
+// attaches the session. CSRF on /auth/* POSTs is requireOrigin; other
+// JSON POSTs rely on CORS AllowOrigins (not a wildcard) plus
+// application/json not being a "simple" content-type.
 func (s *Service) setSessionCookie(c *gin.Context, signedValue string, maxAge time.Duration) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     sessionCookieName,
@@ -74,7 +82,7 @@ func (s *Service) setSessionCookie(c *gin.Context, signedValue string, maxAge ti
 		MaxAge:   int(maxAge.Seconds()),
 		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 }
 
@@ -86,6 +94,6 @@ func (s *Service) clearSessionCookie(c *gin.Context) {
 		MaxAge:   -1,
 		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 }

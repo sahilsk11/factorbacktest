@@ -85,7 +85,7 @@ These are real risks, but they live outside `internal/auth/`. Documenting them h
 | Threat | Where it's handled | Status today |
 |---|---|---|
 | XSS → cookie theft | FE code review + CSP header | Mitigated by `HttpOnly` cookies (theft impossible); fetch-from-victim's-browser still possible. CSP not yet set on CloudFront. |
-| Subdomain takeover → cookie injection | Cookie is `__Host-` + host-only on `api.factor.trade`, NOT `.factor.trade`. Sibling subdomains can't write our cookie. | Mitigated by design. |
+| Subdomain takeover → cookie injection | Cookie is `__Host-` + host-only on `factor-api.ultron.sh`, NOT `.ultron.sh` / `.factor.trade`. Sibling subdomains can't write our cookie. | Mitigated by design. |
 | HSTS missing → first-visit MITM | CloudFront + Fly response headers | TODO. ~5 min change at the edge. |
 | SIM swap → SMS factor compromised | SMS is fundamentally a low-assurance factor. | Accepted risk for current threat model. Don't gate high-value actions behind SMS only. |
 | Multi-instance rate-limit bypass | `internal/auth/ratelimit.go` uses an in-memory bucket, per process. | **Known gap.** Compensating: Twilio Verify's own per-phone limits + cost monitoring. Replace with a shared backend if abuse materializes. |
@@ -123,7 +123,7 @@ These are set in `Config` and matter:
 - `SessionTTL` = 30 days (sliding). Bumped on every authenticated request.
 - `SessionAbsoluteMaxAge` = 90 days (hard cap). Never bumped. Forces re-auth past this even for active users.
 - `SessionSecret` minimum length: 32 bytes. `New()` refuses to construct with less.
-- Cookie name: `__Host-factor_session`. Browser-enforced contract: Secure, host-only, Path=/.
+- Cookie name: `__Host-factor_session`. Browser-enforced contract: Secure, host-only, Path=/. SameSite=None because the FE (`factor.trade`) and API (`factor-api.ultron.sh`) are different sites.
 - State cookie TTL: 10 min. Long enough for slow connections, short enough to bound exposure.
 - SMS rate limits: 3/phone/10min, 10/IP/10min. Both must pass.
 
