@@ -19,9 +19,15 @@ primary_region = "iad"
   # timezone. The runtime image includes tzdata for DST-aware ET scheduling.
   TZ = "America/New_York"
 
-  # Public base URL of the Go API. The internal/auth package uses this as
-  # the OAuth redirect_uri host and as the issuer on internal tokens.
-  APP_BASE_URL = "https://api.factor.trade"
+  # Public base URL of the Go API (Cloudflare orange-cloud in front of
+  # this Fly app). internal/auth uses this as the OAuth redirect_uri host
+  # (APP_BASE_URL + /auth/google/callback) and as the issuer on internal
+  # tokens. Fly custom cert is CLI-managed, not in this file:
+  #   fly certs add factor-api.ultron.sh -a factorbacktest
+  # api.factor.trade can keep serving until its DNS is cut; dual-host is
+  # fine once both certs exist. FACTOR_AUTH_FRONTEND_BASE_URL stays the
+  # browser origin - do not point it at the API host.
+  APP_BASE_URL = "https://factor-api.ultron.sh"
   # Where the Google OAuth callback redirects on success. Must match the FE
   # origin (where users come from). The auth package never accepts a
   # redirect target from query params; this env var is the only way to
@@ -50,6 +56,16 @@ primary_region = "iad"
     timeout = "5s"
     grace_period = "10s"
 
+# Per-process sizes: web stays at shared-cpu-2x / 1gb (always-on landing
+# API). Cron is supercronic + curl, so a smaller VM is enough. Both
+# [[vm]] blocks must name their process group; a bare [[vm]] would apply
+# to every group and would resize web too.
 [[vm]]
   size = "shared-cpu-2x"
   memory = "1gb"
+  processes = ["web"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["cron"]
