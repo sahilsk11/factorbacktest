@@ -11,6 +11,7 @@ export interface UseBacktestStream {
   result: BacktestResponse | null;
   totalMs: number | null;
   run: (req: BacktestRequest) => Promise<BacktestResponse>;
+  applyCachedResult: (result: BacktestResponse) => void;
   reset: () => void;
 }
 
@@ -51,6 +52,20 @@ export function useBacktestStream(): UseBacktestStream {
     setError(null);
     setResult(null);
     setTotalMs(null);
+  }, []);
+
+  const applyCachedResult = useCallback((cached: BacktestResponse) => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    if (finishingTimerRef.current !== null) {
+      window.clearTimeout(finishingTimerRef.current);
+      finishingTimerRef.current = null;
+    }
+    setSteps([]);
+    setError(null);
+    setResult(cached);
+    setTotalMs(0);
+    setStatus('success');
   }, []);
 
   const run = useCallback(async (req: BacktestRequest): Promise<BacktestResponse> => {
@@ -135,5 +150,5 @@ export function useBacktestStream(): UseBacktestStream {
     }
   }, []);
 
-  return { status, steps, error, result, totalMs, run, reset };
+  return { status, steps, error, result, totalMs, run, applyCachedResult, reset };
 }
