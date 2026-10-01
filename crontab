@@ -4,6 +4,11 @@
 # Ingest adjusted prices before rebalance - 9:00am ET on weekdays.
 0 9 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/updatePrices -H "X-Cron-Secret: $CRON_SECRET"
 
+# Refresh published strategy backtest cache after price ingest - 9:30am ET on weekdays.
+# Handler returns 200 immediately and recomputes in the background so the Fly
+# proxy timeout cannot cancel a multi-strategy 3-year backtest.
+30 9 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/refreshPublishedStrategies -H "X-Cron-Secret: $CRON_SECRET"
+
 # Trigger portfolio rebalancing - 10:00am ET on weekdays.
 0 10 * * 1-5 curl -fsS -X POST https://api.factor.trade/internal/cron/rebalance -H "X-Cron-Secret: $CRON_SECRET"
 

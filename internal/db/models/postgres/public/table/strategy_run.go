@@ -25,6 +25,7 @@ type strategyRunTable struct {
 	AnnualizedReturn postgres.ColumnFloat
 	AnnualuzedStdev  postgres.ColumnFloat
 	CreatedAt        postgres.ColumnTimestampz
+	Result           postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -73,8 +74,9 @@ func newStrategyRunTableImpl(schemaName, tableName, alias string) strategyRunTab
 		AnnualizedReturnColumn = postgres.FloatColumn("annualized_return")
 		AnnualuzedStdevColumn  = postgres.FloatColumn("annualuzed_stdev")
 		CreatedAtColumn        = postgres.TimestampzColumn("created_at")
-		allColumns             = postgres.ColumnList{StrategyRunIDColumn, StrategyIDColumn, StartDateColumn, EndDateColumn, SharpeRatioColumn, AnnualizedReturnColumn, AnnualuzedStdevColumn, CreatedAtColumn}
-		mutableColumns         = postgres.ColumnList{StrategyIDColumn, StartDateColumn, EndDateColumn, SharpeRatioColumn, AnnualizedReturnColumn, AnnualuzedStdevColumn, CreatedAtColumn}
+		ResultColumn           = postgres.StringColumn("result")
+		allColumns             = postgres.ColumnList{StrategyRunIDColumn, StrategyIDColumn, StartDateColumn, EndDateColumn, SharpeRatioColumn, AnnualizedReturnColumn, AnnualuzedStdevColumn, CreatedAtColumn, ResultColumn}
+		mutableColumns         = postgres.ColumnList{StrategyIDColumn, StartDateColumn, EndDateColumn, SharpeRatioColumn, AnnualizedReturnColumn, AnnualuzedStdevColumn, CreatedAtColumn, ResultColumn}
 	)
 
 	return strategyRunTable{
@@ -89,6 +91,7 @@ func newStrategyRunTableImpl(schemaName, tableName, alias string) strategyRunTab
 		AnnualizedReturn: AnnualizedReturnColumn,
 		AnnualuzedStdev:  AnnualuzedStdevColumn,
 		CreatedAt:        CreatedAtColumn,
+		Result:           ResultColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
