@@ -259,7 +259,24 @@ func (r responseBodyWriter) Write(b []byte) (int, error) {
 	return r.ResponseWriter.Write(b)
 }
 
+// skipAPIRequestAudit is true for liveness/health traffic that must not write
+// to api_request. Fly's http_service.checks hit GET / every 30s (fly.toml);
+// auditing those inserts kept Neon from autosuspending overnight.
+func skipAPIRequestAudit(method, path string) bool {
+	switch {
+	case method == http.MethodGet && path == "/":
+		return true
+	default:
+		return false
+	}
+}
+
 func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
+	if skipAPIRequestAudit(ctx.Request.Method, ctx.Request.URL.Path) {
+		ctx.Next()
+		return
+	}
+
 	lg := logger.FromContext(ctx)
 	w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: ctx.Writer}
 	ctx.Writer = w
