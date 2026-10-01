@@ -67,19 +67,21 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 	//   "too many connections for role". 25 stays comfortably below typical
 	//   managed Postgres limits and matches the steady-state we already observe
 	//   in pg_stat_activity.
-	// - MaxIdleConns=2 is too low for our 10-goroutine fan-outs (see
-	//   factor_score.repository.go). On a burst the pool returns 10 conns
-	//   but only keeps 2 idle, closing the rest. The next batch then pays
-	//   a fresh TLS handshake (~3 RTT) per new conn.
+	// - MaxIdleConns balances burst fan-outs (see factor_score.repository.go,
+	//   up to ~10 concurrent queries) against Neon scale-to-zero: idle conns
+	//   must drop before the ~5m autosuspend window or compute never sleeps.
+	//   3 keeps a little headroom for back-to-back requests without holding
+	//   a large warm pool overnight.
 	// - ConnMaxLifetime=infinite means a connection killed by database-side
 	//   maintenance/failover sits in the pool until we try to use it and
 	//   get a half-open socket error. 30m forces a periodic refresh.
-	// - ConnMaxIdleTime=5m frees conns that were opened during a burst and
-	//   are no longer needed, so we don't hold idle conns indefinitely.
+	// - ConnMaxIdleTime must stay well under Neon's autosuspend interval (~5m).
+	//   A 5m idle timeout matched that window and kept endpoints active 24/7
+	//   whenever the Fly web VM held any idle pool connection.
 	dbConn.SetMaxOpenConns(25)
-	dbConn.SetMaxIdleConns(10)
+	dbConn.SetMaxIdleConns(3)
 	dbConn.SetConnMaxLifetime(30 * time.Minute)
-	dbConn.SetConnMaxIdleTime(5 * time.Minute)
+	dbConn.SetConnMaxIdleTime(45 * time.Second)
 
 	priceRepository := repository.NewAdjustedPriceRepository(dbConn)
 
