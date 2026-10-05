@@ -43,9 +43,14 @@ After US DST ends, shift UTC crons **+1 hour** or update `wrangler.toml`.
 ## Benchmark
 
 ```bash
-# Warm Fly vs CF staging (+ spike); optional cold wait for scale-to-zero
+# HTTP TTFB
 COLD_IDLE_SEC=180 bash scripts/benchmark.sh
+
+# Full backtests (Fly + CF staging when deployed)
+python3 scripts/bench-backtests.py
 ```
+
+See [`docs/benchmark-backtests-2026-10-05.md`](../docs/benchmark-backtests-2026-10-05.md) for strategy/horizon matrix and **`FB_DISABLE_FACTOR_SCORE_DB`** dry-run flags.
 
 ## Architecture
 

@@ -29,6 +29,8 @@ export interface Env {
 	resend_fromName?: string;
 	region?: string;
 	fromEmail?: string;
+	FB_DISABLE_FACTOR_SCORE_DB?: string;
+	FB_BENCH_ALLOW_SCORE_CACHE_BYPASS?: string;
 }
 
 /** Maps Worker secret bindings → process env expected by FB_SECRETS_FROM_ENV=1 (Fly parity). */
@@ -77,6 +79,8 @@ export function factorContainerEnv(env: Env): Record<string, string> {
 	copy("ADMIN_API_KEY");
 	copy("APP_BASE_URL");
 	copy("FACTOR_AUTH_FRONTEND_BASE_URL");
+	copy("FB_DISABLE_FACTOR_SCORE_DB");
+	copy("FB_BENCH_ALLOW_SCORE_CACHE_BYPASS");
 
 	return out;
 }
