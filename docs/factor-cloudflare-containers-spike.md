@@ -1,11 +1,12 @@
 # Factor → Cloudflare Containers spike (2026-10-05)
 
-**Status:** Staging deploy scaffold for **full Factor backend** (API + cron) on Cloudflare Containers. **No production cutover:** Fly `api.factor.trade` unchanged.
+**Status:** **Staging is live** at https://factor-cf-staging.sahilkapur-a.workers.dev (Factor Go API + cron on CF Containers, **same Neon as Fly**). Upstream scaffold in PR #170. **No prod DNS cutover.**
 
 **Related code:**
 
-- [`factor-cf-staging/`](../factor-cf-staging/) — **Factor Go API** (`Dockerfile.cf-api`) + Cron Triggers (target staging Worker)
-- [`factor-cf-spike/`](../factor-cf-spike/) — tiny Alpine cold-start probe (live: `factor-cf-spike.sahilkapur-a.workers.dev`)
+- [`factor-cf-staging/`](../factor-cf-staging/) — Worker + Container + Cron (this stack)
+- [`factor-cf-spike/`](../factor-cf-spike/) — Alpine cold-start probe (`factor-cf-spike.sahilkapur-a.workers.dev`)
+- [`docs/benchmark-backtests-2026-10-05.md`](benchmark-backtests-2026-10-05.md) — backtest matrix + cache bypass
 
 **Sahil direction (2026-10-05):** migrate **both** cron and core API to CF (shared Neon with Fly), then benchmark CF vs Fly cold/warm — not cron-only Phase A.
 
@@ -114,10 +115,10 @@ Implemented in [`factor-cf-staging/`](../factor-cf-staging/):
 - Container env from Worker secrets via `factorContainerEnv()` — same names as Fly `FB_SECRETS_FROM_ENV=1`
 - Image: [`Dockerfile.cf-api`](../Dockerfile.cf-api) (Go API only; no supercronic)
 
-**Staging URL (expected after deploy):** `https://factor-api-staging.sahilkapur-a.workers.dev`  
+**Staging URL (live):** `https://factor-cf-staging.sahilkapur-a.workers.dev`  
 **Prod Fly unchanged:** `https://api.factor.trade`
 
-**Deploy token:** use vault/secret **`CF_DEPLOY_RESUME_BUILDER`** (generic `CLOUDFLARE_API_TOKEN` returns **403 on Containers**).
+**Deploy token:** vault key **`CF_DEPLOY_RESUME_BUILDER`** (export as `CLOUDFLARE_API_TOKEN` in `scripts/deploy.sh`). Generic **`CLOUDFLARE_API_TOKEN` often 403s** on Containers image push.
 
 ### Cron on Cloudflare (concrete)
 
@@ -140,51 +141,52 @@ Implemented in [`factor-cf-staging/`](../factor-cf-staging/):
 
 ---
 
-## 3. Fly baseline measurements (2026-10-05, Cloud Agent)
+## 3. HTTP benchmarks (Fly warm vs CF cold Neon path)
 
 ### Method
 
-From the Cloud Agent VM (network path ≠ typical user, but consistent for A/B):
-
 ```bash
-curl -sS -o /dev/null -w 'ttfb=%{time_starttransfer}s total=%{time_total}s code=%{http_code}\n' URL
+curl -sS -o /dev/null -w 'ttfb=%{time_starttransfer}s\n' URL
+# or: cd factor-cf-staging && COLD_IDLE_SEC=180 bash scripts/benchmark.sh
 ```
 
-- **Target:** production `https://api.factor.trade` (Fly **web** process, warm `min_machines_running = 1`).
-- **Cold Fly machine:** **Not measured** — would require `flyctl machine stop` on a **non-prod** app; this agent has **no `FLY_API_TOKEN` / flyctl** and instructions forbid stopping prod.
+- **Fly:** `https://api.factor.trade` — warm web VM (`min_machines_running = 1`).
+- **CF staging:** `https://factor-cf-staging.sahilkapur-a.workers.dev` — container `sleepAfter = 5m`, **same Neon** as Fly.
+- **Neon-touching route:** `GET /publishedStrategies` (strategy list + latest run stats from Postgres).
 
-### Results (warm)
+### Summary (2026-10-05)
 
-| Endpoint | n | TTFB min | TTFB median | TTFB max | Notes |
-| -------- | - | -------- | ----------- | -------- | ----- |
-| `GET /` | 5 | 58ms | **68ms** | 95ms | Warm web VM |
-| `GET /publishedStrategies` | 5 | 98ms | **99ms** | 751ms | Neon read; one 751ms outlier |
-| Fly cold machine | — | — | **not measured** | — | No `flyctl` / no non-prod stop |
+| Platform | Route | Typical TTFB | Notes |
+| -------- | ----- | ------------ | ----- |
+| **Fly prod** | `GET /publishedStrategies` | **~0.10–0.15s** warm median | Always-on web; **much faster** for interactive reads |
+| **Fly prod** | `GET /` | **~0.07s** warm median | Minimal handler |
+| **CF staging** | `GET /publishedStrategies` (cold) | **~1.3–1.7s** median band | Container wake + Go boot + **Neon** query (Sahil box benches after idle) |
+| **CF staging** | same (warm container) | **~0.4–0.9s** | Still slower than Fly warm; no always-on VM |
+| **CF spike** (Alpine) | `GET /health` | ~0.1s warm; ~1–2s+ cold | Not Neon; probe only |
 
-### Cloudflare measurements (2026-10-05)
+**Takeaway:** CF scale-to-zero is viable for cron / off-peak if **~1.5s cold landing reads** are acceptable; Fly warm remains the latency baseline for `factor.trade` marketing until DNS cutover is explicitly approved.
 
-| Target | Endpoint | Median TTFB | Notes |
-| ------ | -------- | ----------- | ----- |
-| **Spike (live)** | `GET /health` | **~101ms warm**; **~2.2s after 3m idle** (2026-10-05 agent) | Sahil **~1.0s cold** median (Alpine); use `COLD_IDLE_SEC=180` in `scripts/benchmark.sh` |
-| **Staging API** | `GET /` | **not deployed** | `factor-api-staging…workers.dev` returns **404** until `scripts/deploy.sh` + secrets |
+Fly **machine** cold start on prod not measured (no non-prod stop).
 
-Deploy staging (from repo):
+### Deploy / re-bench
 
 ```bash
 cd factor-cf-staging
-cp secrets.example.env .dev.vars   # fill from Fly secrets — never commit
+cp secrets.example.env .dev.vars
 export CF_DEPLOY_RESUME_BUILDER='…'
 export CLOUDFLARE_ACCOUNT_ID='…'
 bash scripts/deploy.sh
-COLD_IDLE_SEC=300 bash scripts/benchmark.sh
+COLD_IDLE_SEC=180 bash scripts/benchmark.sh
 ```
 
-### Cloudflare deploy blockers (Cloud Agent 2026-10-05)
+### Factor-score cache bypass (backtest benches)
 
-1. **`CF_DEPLOY_RESUME_BUILDER`** — not in agent env (403 if using wrong token)
-2. **`CLOUDFLARE_ACCOUNT_ID`**
-3. **`.dev.vars`** — Fly-equivalent secrets (`DATABASE_URL`, `CRON_SECRET`, Alpaca, auth, …)
-4. Docker — available after manual `dockerd` start in agent; use Docker Desktop locally
+Not used for HTTP TTFB above. For POST `/backtest` dry runs:
+
+- **`FB_DISABLE_FACTOR_SCORE_DB=1`** on staging (in `wrangler.toml`)
+- Optional Fly: **`FB_BENCH_ALLOW_SCORE_CACHE_BYPASS=1`** + **`X-FB-Disable-Factor-Score-DB: 1`**
+
+Details: [`docs/benchmark-backtests-2026-10-05.md`](benchmark-backtests-2026-10-05.md).
 
 ---
 
@@ -222,12 +224,13 @@ Draft PR **#169** (1×/512 shrink) reduces web cost but is **orthogonal** to thi
 
 | Gate | Threshold | Measured? |
 | ---- | --------- | --------- |
-| Interactive cold (Go image + Neon) | TTFB **≤ ~700ms p50** on `/` and `/publishedStrategies` | **Pending** staging deploy |
-| Interactive warm | ≤ Fly warm (~70–100ms `/`, ~100ms published) | Fly measured; CF pending |
-| Cron | All four jobs fire; idempotent; **< 15m** | Pending staging |
+| Interactive cold (Go + Neon) | `GET /publishedStrategies` cold **~1.3–1.7s** vs Fly warm **~0.1s** | **Measured** on staging (HTTP) |
+| Interactive warm CF | Still **> Fly warm** (~0.4–0.9s observed when container hot) | Partial |
+| Cron | All four jobs fire on staging; idempotent; **< 15m** | Verify via logs |
+| Backtest wall time | 7-day + exploding × 1/3/5/10y, cache off | **Separate run** — see benchmark-backtests doc |
 | Cost | Both Fly VMs eliminated at steady state | Estimate only |
 
-**Next:** Deploy `factor-cf-staging` with `CF_DEPLOY_RESUME_BUILDER` → benchmark → if gates pass, plan DNS cutover (`api.factor.trade`) as a **separate explicit approval**.
+**Next:** Finish backtest matrix with **`FB_DISABLE_FACTOR_SCORE_DB`** on both sides → compare wall times. DNS cutover (`api.factor.trade`) only after explicit Sahil approval.
 
 ---
 

@@ -43,14 +43,18 @@ fly secrets set FB_BENCH_ALLOW_SCORE_CACHE_BYPASS=1 FB_DISABLE_FACTOR_SCORE_DB=1
 Raw JSON: [`factor-cf-staging/bench-results-latest.json`](../factor-cf-staging/bench-results-latest.json)  
 Log: `/opt/cursor/artifacts/fly-backtest-bench.log`
 
-## Results — CF staging
+## Results — CF staging (`https://factor-cf-staging.sahilkapur-a.workers.dev`)
 
-**Not run** — `https://factor-api-staging.sahilkapur-a.workers.dev` not deployed (404). After deploy with same Neon + `FB_DISABLE_FACTOR_SCORE_DB=1`:
+**Live** — same Neon as Fly; staging sets **`FB_DISABLE_FACTOR_SCORE_DB=1`** in `wrangler.toml`.
+
+Backtest wall-time matrix (7-day momentum + exploding rockets × 1/3/5/10y) is tracked **separately** from HTTP TTFB. Run:
 
 ```bash
 cd factor-cf-staging
-python3 scripts/bench-backtests.py   # Fly + CF when staging is up
+python3 scripts/bench-backtests.py
 ```
+
+CF HTTP cold Neon path (Sahil box, 2026-10-05): **`GET /publishedStrategies` ~1.3–1.7s** TTFB median after container sleep vs Fly warm **~0.10–0.15s** — see [`factor-cf-staging/README.md`](../factor-cf-staging/README.md).
 
 ## HTTP TTFB (supplementary)
 

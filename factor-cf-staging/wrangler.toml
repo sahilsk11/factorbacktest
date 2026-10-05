@@ -1,4 +1,4 @@
-name = "factor-api-staging"
+name = "factor-cf-staging"
 main = "src/index.ts"
 compatibility_date = "2025-10-05"
 workers_dev = true
@@ -10,8 +10,8 @@ enabled = true
 FB_SECRETS_FROM_ENV = "1"
 GIN_MODE = "release"
 TZ = "America/New_York"
-# OAuth issuer + redirect host for this Worker (update subdomain if account differs).
-APP_BASE_URL = "https://factor-api-staging.sahilkapur-a.workers.dev"
+# OAuth issuer + redirect host for staging (workers.dev — not api.factor.trade).
+APP_BASE_URL = "https://factor-cf-staging.sahilkapur-a.workers.dev"
 FACTOR_AUTH_FRONTEND_BASE_URL = "https://factor.trade"
 # Benchmark dry runs: skip factor_score DB read/write (see util.FactorScoreDBDisabled).
 FB_DISABLE_FACTOR_SCORE_DB = "1"

@@ -43,4 +43,4 @@ COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo cf-staging)"
 echo "==> wrangler deploy (commit ${COMMIT})"
 npx wrangler deploy --build-arg "commit_hash=${COMMIT}"
 
-echo "Done. Staging URL: https://factor-api-staging.sahilkapur-a.workers.dev (or your account subdomain)"
+echo "Done. Staging URL: https://factor-cf-staging.sahilkapur-a.workers.dev"

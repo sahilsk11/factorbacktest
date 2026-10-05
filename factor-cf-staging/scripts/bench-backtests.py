@@ -25,7 +25,7 @@ from typing import Any
 
 FLY_URL = os.environ.get("FLY_URL", "https://api.factor.trade").rstrip("/")
 CF_STAGING_URL = os.environ.get(
-    "CF_STAGING_URL", "https://factor-api-staging.sahilkapur-a.workers.dev"
+    "CF_STAGING_URL", "https://factor-cf-staging.sahilkapur-a.workers.dev"
 ).rstrip("/")
 HORIZONS_YEARS = [int(x) for x in os.environ.get("HORIZONS", "1,3,5,10").split(",")]
 BENCH_HEADER = os.environ.get("BENCH_NO_SCORE_CACHE_HEADER", "X-FB-Disable-Factor-Score-DB")

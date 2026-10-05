@@ -3,7 +3,7 @@
 set -euo pipefail
 
 FLY="${FLY_URL:-https://api.factor.trade}"
-CF_STAGING="${CF_STAGING_URL:-https://factor-api-staging.sahilkapur-a.workers.dev}"
+CF_STAGING="${CF_STAGING_URL:-https://factor-cf-staging.sahilkapur-a.workers.dev}"
 CF_SPIKE="${CF_SPIKE_URL:-https://factor-cf-spike.sahilkapur-a.workers.dev}"
 SAMPLES="${SAMPLES:-5}"
 COLD_IDLE_SEC="${COLD_IDLE_SEC:-0}"
