@@ -165,7 +165,7 @@ curl -sS -o /dev/null -w 'ttfb=%{time_starttransfer}s total=%{time_total}s code=
 
 | Target | Endpoint | Median TTFB | Notes |
 | ------ | -------- | ----------- | ----- |
-| **Spike (live)** | `GET /health` | **~101ms** (warm container) | Sahil reported **~1.0s cold** median when scaled to zero; rerun with `COLD_IDLE_SEC=300 bash factor-cf-staging/scripts/benchmark.sh` |
+| **Spike (live)** | `GET /health` | **~101ms warm**; **~2.2s after 3m idle** (2026-10-05 agent) | Sahil **~1.0s cold** median (Alpine); use `COLD_IDLE_SEC=180` in `scripts/benchmark.sh` |
 | **Staging API** | `GET /` | **not deployed** | `factor-api-staging…workers.dev` returns **404** until `scripts/deploy.sh` + secrets |
 
 Deploy staging (from repo):
