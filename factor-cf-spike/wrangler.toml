@@ -1,0 +1,31 @@
+# Non-prod Cloudflare spike for Factor (Containers + Cron). See docs/factor-cloudflare-containers-spike.md.
+name = "factor-cf-spike"
+main = "src/index.ts"
+compatibility_date = "2025-10-05"
+workers_dev = true
+
+[observability]
+enabled = true
+
+# Infrequent schedule — enough to prove cron → container wake without burning quota.
+[triggers]
+crons = ["0 14 * * *"]
+
+[[containers]]
+class_name = "SpikeContainer"
+scheduling_policy = "durable_object"
+
+[containers.images.base]
+dockerfile = "./Dockerfile"
+
+[[durable_objects.bindings]]
+name = "SPIKE_CONTAINER"
+class_name = "SpikeContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SpikeContainer"]
+
+[exports.SpikeContainer]
+type = "durable-object"
+storage = "sqlite"
