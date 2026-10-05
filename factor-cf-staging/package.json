@@ -1,0 +1,19 @@
+{
+  "name": "factor-cf-staging",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Factor Go API on Cloudflare Containers (staging workers.dev) + Cron Triggers",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "deploy": "bash scripts/deploy.sh",
+    "benchmark": "bash scripts/benchmark.sh"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20250927.0",
+    "typescript": "5.8.3",
+    "wrangler": "4.36.0"
+  }
+}

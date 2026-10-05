@@ -1,0 +1,98 @@
+[
+  {
+    "platform": "fly",
+    "strategy": "7-day momentum",
+    "horizon_years": 1,
+    "backtest_start": "2025-10-05",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 2.837482019000163,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "2b932f72-e268-4055-adf3-4bfd341ab3ab"
+  },
+  {
+    "platform": "fly",
+    "strategy": "7-day momentum",
+    "horizon_years": 3,
+    "backtest_start": "2023-10-06",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 6.850886892999824,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "8ac85b8f-99ce-4876-a000-ef58f9302d93"
+  },
+  {
+    "platform": "fly",
+    "strategy": "7-day momentum",
+    "horizon_years": 5,
+    "backtest_start": "2021-10-06",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 12.969656818999738,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "97b68c5f-4585-438f-bd20-6d7f94c458da"
+  },
+  {
+    "platform": "fly",
+    "strategy": "7-day momentum",
+    "horizon_years": 10,
+    "backtest_start": "2016-10-07",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 26.927351154000007,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "d234384d-3752-4a72-862e-7dc3487af98d"
+  },
+  {
+    "platform": "fly",
+    "strategy": "exploding rockets",
+    "horizon_years": 1,
+    "backtest_start": "2025-10-05",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 1.5421378529999856,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "2c55bc49-6ea6-4c9e-a80c-f9ccf06885a9"
+  },
+  {
+    "platform": "fly",
+    "strategy": "exploding rockets",
+    "horizon_years": 3,
+    "backtest_start": "2023-10-06",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 9.914467841999794,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "9c43f5f1-c946-46c0-83e2-1c50a749bc01"
+  },
+  {
+    "platform": "fly",
+    "strategy": "exploding rockets",
+    "horizon_years": 5,
+    "backtest_start": "2021-10-06",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 14.383466513999792,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "6117f229-e85b-4cf8-adc1-8a81d5628c76"
+  },
+  {
+    "platform": "fly",
+    "strategy": "exploding rockets",
+    "horizon_years": 10,
+    "backtest_start": "2016-10-07",
+    "backtest_end": "2026-10-05",
+    "wall_seconds": 27.882810155000243,
+    "http_code": 200,
+    "ok": true,
+    "error": null,
+    "strategy_id": "d20f714a-286d-4386-8c38-fe0a4c28cabd"
+  }
+]

@@ -1,0 +1,35 @@
+# Cloudflare Containers staging image: Factor Go API only (no supercronic/crontab).
+# Build context: repository root (see factor-cf-staging/scripts/deploy.sh).
+
+FROM golang:1.25 AS go-build
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG commit_hash=cf-staging
+ENV commit_hash=$commit_hash
+
+RUN GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o /out/api ./cmd/api
+
+FROM debian:bookworm-slim AS runtime
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tini ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=go-build /out/api /app/api
+COPY --from=go-build /src/templates /app/templates
+
+ARG commit_hash=cf-staging
+ENV commit_hash=$commit_hash
+
+EXPOSE 3009
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/app/api"]
