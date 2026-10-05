@@ -1,8 +1,13 @@
 # Factor → Cloudflare Containers spike (2026-10-05)
 
-**Status:** Research + non-prod scaffold only. **No production cutover** in this work: Fly `min_machines_running`, DNS (`api.factor.trade`), and cron machines are unchanged.
+**Status:** Staging deploy scaffold for **full Factor backend** (API + cron) on Cloudflare Containers. **No production cutover:** Fly `api.factor.trade` unchanged.
 
-**Related code:** [`factor-cf-spike/`](../factor-cf-spike/) (Worker + Container + Cron Trigger).
+**Related code:**
+
+- [`factor-cf-staging/`](../factor-cf-staging/) — **Factor Go API** (`Dockerfile.cf-api`) + Cron Triggers (target staging Worker)
+- [`factor-cf-spike/`](../factor-cf-spike/) — tiny Alpine cold-start probe (live: `factor-cf-spike.sahilkapur-a.workers.dev`)
+
+**Sahil direction (2026-10-05):** migrate **both** cron and core API to CF (shared Neon with Fly), then benchmark CF vs Fly cold/warm — not cron-only Phase A.
 
 ---
 
@@ -79,46 +84,40 @@ Implementation lives in `api/api.go` (`/internal/cron/*` + `requireCronSecret`).
 
 ---
 
-## 2. Target architecture (Cloudflare, scale-to-zero friendly)
+## 2. Target architecture (full Factor backend on Cloudflare)
 
-### Recommended phased shape
+**Goal:** One staging/production stack on CF: Worker edge + **Container running `/app/api`** + **Cron Triggers** posting to `/internal/cron/*` on the same container. **Neon URL shared with Fly** until cutover.
 
 ```mermaid
 flowchart LR
   subgraph edge [Workers edge]
-    W[Worker router]
-    CR[cron scheduled handler]
+    W[Worker fetch proxy]
+    CR[Cron scheduled POSTs]
   end
-  subgraph compute [Containers scale-to-zero]
-    API[Factor Go API image]
+  subgraph compute [Containers sleepAfter 5m]
+    API[Factor Go API :3009]
   end
-  subgraph data [Neon]
+  subgraph data [Neon shared]
     PG[(Postgres)]
   end
   Users --> W
-  W -->|HTTP routes| API
-  CR -->|start + monitor short task OR HTTP to API| API
+  W --> API
+  CR --> API
   API --> PG
 ```
 
-**Phase A — Cron only (lowest risk, largest always-on savings):**
+Implemented in [`factor-cf-staging/`](../factor-cf-staging/):
 
-Replace Fly **`cron` process group** with **Workers Cron Triggers** that either:
+- `@cloudflare/containers` `FactorApiContainer` — `defaultPort = 3009`, `sleepAfter = 5m`, `enableInternet = true` (Neon)
+- Worker `fetch` → `getContainer(FACTOR_API, "primary").fetch(request)` (all routes)
+- Worker `scheduled` → POST `http://container/internal/cron/...` with `X-Cron-Secret` (mirrors supercronic)
+- Container env from Worker secrets via `factorContainerEnv()` — same names as Fly `FB_SECRETS_FROM_ENV=1`
+- Image: [`Dockerfile.cf-api`](../Dockerfile.cf-api) (Go API only; no supercronic)
 
-1. **Thin Worker** POSTs to existing `/internal/cron/*` on Fly or staging API (same as supercronic today), or
-2. **Cron Container** (Durable Object scheduling policy) runs `curl` with secret injected via Worker secret → exits (see [CF cron container example](https://developers.cloudflare.com/containers/examples/cron/)).
+**Staging URL (expected after deploy):** `https://factor-api-staging.sahilkapur-a.workers.dev`  
+**Prod Fly unchanged:** `https://api.factor.trade`
 
-Eliminates **one always-on shared-cpu-2x/1GB VM** while keeping the web API on Fly until cold-start proof exists.
-
-**Phase B — Interactive API on Containers (higher risk):**
-
-- Worker terminates TLS, optional WAF, routes `/` + API paths to a **Container** running `/app/api`.
-- Keep **OAuth redirect URLs** stable (`APP_BASE_URL=https://api.factor.trade`) until deliberate DNS cutover.
-- Neon remains source of truth; expect **Neon compute wake** on cold paths in addition to container start.
-
-**Phase C — Workers for truly thin routes (optional):**
-
-Only if we extract stateless handlers (e.g. static JSON, redirects). The Go monolith is large; default is **Container for fat binary**, not a rewrite.
+**Deploy token:** use vault/secret **`CF_DEPLOY_RESUME_BUILDER`** (generic `CLOUDFLARE_API_TOKEN` returns **403 on Containers**).
 
 ### Cron on Cloudflare (concrete)
 
@@ -158,14 +157,34 @@ curl -sS -o /dev/null -w 'ttfb=%{time_starttransfer}s total=%{time_total}s code=
 
 | Endpoint | n | TTFB min | TTFB median | TTFB max | Notes |
 | -------- | - | -------- | ----------- | -------- | ----- |
-| `GET /` | 5 | 67ms | **93ms** | 153ms | Fly health check path; minimal handler |
-| `GET /publishedStrategies` | 6 | 99ms | **125ms** | 1.24s | First sample after `/` was 1.24s outlier; subsequent 99–246ms |
+| `GET /` | 5 | 58ms | **68ms** | 95ms | Warm web VM |
+| `GET /publishedStrategies` | 5 | 98ms | **99ms** | 751ms | Neon read; one 751ms outlier |
+| Fly cold machine | — | — | **not measured** | — | No `flyctl` / no non-prod stop |
 
-Historical comment in `fly.toml` cites warm TTFB **~250–360ms** for `/publishedStrategies` when marketing landing was sensitive to cold starts — current sample median is lower but still route-dependent.
+### Cloudflare measurements (2026-10-05)
 
-### Cloudflare spike measurements
+| Target | Endpoint | Median TTFB | Notes |
+| ------ | -------- | ----------- | ----- |
+| **Spike (live)** | `GET /health` | **~101ms** (warm container) | Sahil reported **~1.0s cold** median when scaled to zero; rerun with `COLD_IDLE_SEC=300 bash factor-cf-staging/scripts/benchmark.sh` |
+| **Staging API** | `GET /` | **not deployed** | `factor-api-staging…workers.dev` returns **404** until `scripts/deploy.sh` + secrets |
 
-**Not run** — `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` were **not** present in the Cloud Agent environment. Deploy [`factor-cf-spike/`](../factor-cf-spike/) and follow its README to capture cold `/health` TTFB.
+Deploy staging (from repo):
+
+```bash
+cd factor-cf-staging
+cp secrets.example.env .dev.vars   # fill from Fly secrets — never commit
+export CF_DEPLOY_RESUME_BUILDER='…'
+export CLOUDFLARE_ACCOUNT_ID='…'
+bash scripts/deploy.sh
+COLD_IDLE_SEC=300 bash scripts/benchmark.sh
+```
+
+### Cloudflare deploy blockers (Cloud Agent 2026-10-05)
+
+1. **`CF_DEPLOY_RESUME_BUILDER`** — not in agent env (403 if using wrong token)
+2. **`CLOUDFLARE_ACCOUNT_ID`**
+3. **`.dev.vars`** — Fly-equivalent secrets (`DATABASE_URL`, `CRON_SECRET`, Alpaca, auth, …)
+4. Docker — available after manual `dockerd` start in agent; use Docker Desktop locally
 
 ---
 
@@ -191,11 +210,11 @@ Draft PR **#169** (1×/512 shrink) reduces web cost but is **orthogonal** to thi
 | --------- | ---------- | -------------- |
 | Workers Paid | Already subscribed | \$5 (existing) |
 | Containers | Included allotment + usage when awake | Often **\$0–10** for cron-heavy / low QPS if sleep-to-zero |
-| Fly web only (Phase A) | Keep 1 warm web VM during transition | ~\$10–15 until Phase B |
+| Fly web + cron (both always-on) | **~\$20–30** | Removed after CF cutover |
+| CF Workers Paid + Containers sleep | **~\$5–15** typical low QPS | Shared Neon unchanged |
 
-**Win condition:** Remove **cron always-on VM** (~half of Fly compute) **plus**, if interactive cold TTFB ≤ Sahil’s budget, eventually remove web always-on VM.
+**Win condition:** Drop **both** Fly VMs when CF cold+warm TTFB meets Sahil’s bar and cron proves reliable for 1–2 weeks on staging.
 
-**Loss condition:** CF “always warm” basic pricing or frequent wakes (cron + health polls + Neon keepalive) **exceeds** sleepy Fly — unlikely for **cron-only** Phase A.
 
 ---
 
@@ -203,42 +222,21 @@ Draft PR **#169** (1×/512 shrink) reduces web cost but is **orthogonal** to thi
 
 | Gate | Threshold | Measured? |
 | ---- | --------- | --------- |
-| Interactive cold container + app | TTFB **≤ ~700ms p50** (Sahil CF Containers bar) on **`Dockerfile.fly` image** hitting `GET /` or `/publishedStrategies` | **No** — deploy spike v2 |
-| Interactive warm | Match or beat current warm **~100–150ms** TTFB for hot routes | Partial (Fly only) |
-| Cron cold | Accept **multi-second** wake if daily/hourly jobs; must finish **< 15m** | Not measured |
-| Neon cold add-on | Document separately; total user-facing latency = container + Neon | Not measured |
-| Rebalance correctness | Integration tests + paper/staging broker | Existing CI — rerun on staging CF |
-| Cost | Phase A saves ≥1 Fly VM without raising CF bill materially | Estimate only |
+| Interactive cold (Go image + Neon) | TTFB **≤ ~700ms p50** on `/` and `/publishedStrategies` | **Pending** staging deploy |
+| Interactive warm | ≤ Fly warm (~70–100ms `/`, ~100ms published) | Fly measured; CF pending |
+| Cron | All four jobs fire; idempotent; **< 15m** | Pending staging |
+| Cost | Both Fly VMs eliminated at steady state | Estimate only |
 
-**Decision tree:**
-
-- **Ship spike deploy** → run `factor-cf-spike`, then `Dockerfile.fly` staging worker, collect cold/warm tables.
-- **Hold** → cron-on-CF + Fly web if container cold fails interactive bar but cron savings matter.
-- **Abort CF interactive** → keep Fly web; optionally still move cron to CF Worker POSTs.
+**Next:** Deploy `factor-cf-staging` with `CF_DEPLOY_RESUME_BUILDER` → benchmark → if gates pass, plan DNS cutover (`api.factor.trade`) as a **separate explicit approval**.
 
 ---
 
-## 6. Non-prod spike (`factor-cf-spike/`)
+## 6. Non-prod projects
 
-Scaffold includes:
-
-- Worker `GET /health` → cold-start Container (Alpine + busybox httpd).
-- Cron `0 14 * * *` UTC → one-shot container task (`REASON=cron:…` exits 0).
-- `wrangler.toml` with `scheduling_policy = "durable_object"`.
-
-### Deploy blockers (this environment)
-
-1. `CLOUDFLARE_API_TOKEN` (Workers + Account + Containers scopes)
-2. `CLOUDFLARE_ACCOUNT_ID`
-3. Docker for image build during `wrangler deploy`
-4. Optional: dedicated CF subdomain / route — use `workers.dev` first
-
-### Recommended next step
-
-1. **Deploy `factor-cf-spike`** from a machine with CF credentials; record **5× cold** `/health` TTFB + Worker logs.
-2. **Promote spike** to slim Go image (`Dockerfile.fly` subset) on a **`api-staging.*`** hostname (no prod DNS).
-3. **Phase A prod:** Cron Trigger Worker POST → existing Fly cron routes; **delete cron Fly process** only after 1–2 weeks of successful fires.
-4. **Phase B:** Re-evaluate moving `web` to Containers against measured cold TTFB + Neon.
+| Directory | Purpose |
+| --------- | ------- |
+| [`factor-cf-staging/`](../factor-cf-staging/) | Full Go API + cron crons on Worker |
+| [`factor-cf-spike/`](../factor-cf-spike/) | Alpine `/health` latency probe |
 
 ---
 

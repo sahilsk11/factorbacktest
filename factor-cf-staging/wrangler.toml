@@ -1,0 +1,37 @@
+name = "factor-api-staging"
+main = "src/index.ts"
+compatibility_date = "2025-10-05"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+FB_SECRETS_FROM_ENV = "1"
+GIN_MODE = "release"
+TZ = "America/New_York"
+# OAuth issuer + redirect host for this Worker (update subdomain if account differs).
+APP_BASE_URL = "https://factor-api-staging.sahilkapur-a.workers.dev"
+FACTOR_AUTH_FRONTEND_BASE_URL = "https://factor.trade"
+
+# Fly crontab (America/New_York) → UTC for EDT (UTC−4). Adjust +1h after DST ends.
+[triggers]
+crons = [
+  "30 12 * * 1-5",
+  "0 13 * * 1-5",
+  "0 14 * * 1-5",
+  "*/15 14-20 * * 1-5",
+]
+
+[[containers]]
+class_name = "FactorApiContainer"
+max_instances = 2
+image = "../Dockerfile.cf-api"
+
+[[durable_objects.bindings]]
+name = "FACTOR_API"
+class_name = "FactorApiContainer"
+
+[exports.FactorApiContainer]
+type = "durable-object"
+storage = "sqlite"
