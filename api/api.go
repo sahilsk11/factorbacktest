@@ -83,6 +83,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 		)
 		c.Set(logger.ContextKey, l)
 	})
+	engine.Use(requestTimeoutMiddleware())
 	engine.Use(blockBots)
 	// CORS and the auth package's `requireOrigin` middleware MUST use the
 	// same allowlist or one will accept what the other rejects. Built in
@@ -138,6 +139,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(200, map[string]string{"message": "welcome to alpha"})
 	})
+	engine.GET("/health", m.health)
 
 	engine.POST("/backtest", m.backtest)
 	engine.POST("/backtest/stream", m.backtestStream)
@@ -186,7 +188,13 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 func (m ApiHandler) StartApi(ctx context.Context) error {
 	go m.runFactorScoreCleanup(ctx)
 	engine := m.InitializeRouterEngine(ctx)
-	return engine.Run(fmt.Sprintf(":%d", m.Port))
+	srv := &http.Server{
+		Addr:              fmt.Sprintf(":%d", m.Port),
+		Handler:           engine,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	return srv.ListenAndServe()
 }
 
 // runFactorScoreCleanup deletes factor_score rows older than 2 weeks every 24
@@ -266,6 +274,8 @@ func skipAPIRequestAudit(method, path string) bool {
 	switch {
 	case method == http.MethodGet && path == "/":
 		return true
+	case method == http.MethodGet && path == "/health":
+		return true
 	default:
 		return false
 	}
@@ -328,7 +338,9 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 
 	start := time.Now().UTC()
 	commit := os.Getenv("commit_hash")
-	req, err := m.ApiRequestRepository.Add(m.Db, model.APIRequest{
+	auditCtx, auditCancel := context.WithTimeout(ctx.Request.Context(), auditInsertTimeout)
+	defer auditCancel()
+	req, err := m.ApiRequestRepository.AddContext(auditCtx, m.Db, model.APIRequest{
 		UserID:        userID,
 		IPAddress:     strPtr(ctx.ClientIP()),
 		Method:        method,
@@ -359,7 +371,9 @@ func (m ApiHandler) logRequestMiddlware(ctx *gin.Context) {
 		req.StatusCode = int32Ptr(int32(ctx.Writer.Status()))
 		req.ResponseBody = strPtr(w.body.String())
 
-		err = m.ApiRequestRepository.Update(m.Db, *req)
+		updateCtx, updateCancel := context.WithTimeout(ctx.Request.Context(), auditUpdateTimeout)
+		defer updateCancel()
+		err = m.ApiRequestRepository.UpdateContext(updateCtx, m.Db, *req)
 		if err != nil {
 			lg.Error(err)
 		}
