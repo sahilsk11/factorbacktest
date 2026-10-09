@@ -50,6 +50,15 @@ primary_region = "iad"
     timeout = "5s"
     grace_period = "10s"
 
+  # Readiness: DB ping well below Fly liveness frequency so Neon can still
+  # autosuspend between checks (~30m vs ~5m suspend window).
+  [[http_service.checks]]
+    method = "get"
+    path = "/health"
+    interval = "30m"
+    timeout = "5s"
+    grace_period = "10s"
+
 [[vm]]
   size = "shared-cpu-2x"
   memory = "1gb"

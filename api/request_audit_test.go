@@ -12,6 +12,7 @@ func TestSkipAPIRequestAudit(t *testing.T) {
 		skip   bool
 	}{
 		{http.MethodGet, "/", true},
+		{http.MethodGet, "/health", true},
 		{http.MethodGet, "/publishedStrategies", false},
 		{http.MethodPost, "/", false},
 		{http.MethodGet, "/usageStats", false},
