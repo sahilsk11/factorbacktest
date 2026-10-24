@@ -12,28 +12,59 @@ All admin routes require header `X-Admin-Api-Key: $ADMIN_API_KEY`.
 
 ## Reconcile (read-only)
 
-Runs existing `InvestmentService.Reconcile` checks and returns structured issues as JSON. No ledger writes or Alpaca orders.
+Runs `InvestmentService.RunReconcile` and returns structured issues as JSON. No ledger writes, holdings mutations, or Alpaca orders.
+
+Aggregate comparison uses the **full union** of symbols: latest ledger holdings summed across **all** investments (including paused and closed) versus Alpaca positions, plus cash totals.
 
 ```bash
 curl -sS -X POST "https://api.factor.trade/internal/admin/reconcile" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY"
 ```
 
+`status` is one of:
+
+- `OK` — no issues
+- `DUST_ONLY` — every issue has `severity: "DUST"` (absolute dollar impact strictly below $50)
+- `DRIFT` — at least one `severity: "DRIFT"` issue (including per-investment checks)
+
+Clients that treat any non-`OK` status as "look at this" stay valid. Known leftover fractional dust (for example closed investments `947b6eff…` and `2bf80abe…`) is reported as `DUST` instead of passing silently.
+
+Issue types:
+
+| `type` | Meaning |
+| --- | --- |
+| `PHANTOM_POSITION` | Ledger has a nonzero qty; Alpaca does not |
+| `UNTRACKED_POSITION` | Alpaca has a nonzero qty; ledger does not |
+| `QUANTITY_MISMATCH` | Both sides hold the symbol and `abs(diff) > 1e-6` shares |
+| `CASH_MISMATCH` | `abs(alpaca cash - ledger cash) > $0.50` |
+| `STALE_PRICE` | A held symbol's latest adjusted price is older than 5 trading days (or missing) |
+
+Each aggregate issue includes `symbol`, `ledgerQty`, `alpacaQty`, `diff` (Alpaca − ledger), and `dollarValue` when a price is available. `severity` is `DUST` when the absolute dollar impact is below $50, otherwise `DRIFT`. Missing prices on a qty mismatch are treated as `DRIFT`. `STALE_PRICE` severity uses the position's approximate market value.
+
 Example response with broker/ledger drift:
 
 ```json
 {
-  "status": "ISSUES",
+  "status": "DRIFT",
   "checkedAt": "2026-09-04T10:00:00Z",
   "issues": [
     {
-      "message": "alpaca account holding insufficient INTC: aggregate portfolio 1.197000 vs alpaca 0.764000 (-0.433000)"
+      "type": "QUANTITY_MISMATCH",
+      "severity": "DRIFT",
+      "symbol": "INTC",
+      "ledgerQty": 1.197,
+      "alpacaQty": 0.764,
+      "diff": -0.433,
+      "dollarValue": -86.6,
+      "message": "QUANTITY_MISMATCH INTC: ledger 1.197 vs alpaca 0.764 (diff -0.433) (~$86.60)"
     }
   ]
 }
 ```
 
 When no issues are found, `status` is `OK` and `issues` is empty.
+
+The daily `/internal/cron/rebalance` job (and the admin rebalance trigger) runs this reconcile first. `DRIFT` issues are logged and returned on the rebalance response as `driftIssues`. Reconcile never blocks or changes rebalancing, and never mutates holdings.
 
 ## Replace holdings (admin override)
 
@@ -80,6 +111,8 @@ curl -sS -X POST "https://api.factor.trade/internal/admin/updatePrices" \
 
 curl -sS -X POST "https://api.factor.trade/internal/admin/rebalance" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY"
+
+Rebalance responses include `"success": "true"` and a `driftIssues` array (possibly empty) from the pre-rebalance reconcile. Rebalance still proceeds when that array is non-empty.
 
 curl -sS -X POST "https://api.factor.trade/internal/admin/updateOrders" \
   -H "X-Admin-Api-Key: $ADMIN_API_KEY"

@@ -166,7 +166,7 @@ func TestInvestmentLiquidationHTTPFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, requestedAt, *requestedAgain.LiquidationRequestedAt)
 
-	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &map[string]string{}))
+	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &cronSuccessBody{}))
 	requests := broker.placedRequests()
 	require.Len(t, requests, 2)
 	sort.Slice(requests, func(i, j int) bool { return requests[i].Symbol < requests[j].Symbol })
@@ -208,7 +208,7 @@ func TestInvestmentLiquidationHTTPFlow(t *testing.T) {
 	require.Equal(t, "LIQUIDATED", allInvestments[0].Status)
 	require.NotNil(t, allInvestments[0].EndDate)
 
-	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &map[string]string{}))
+	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &cronSuccessBody{}))
 	require.Len(t, broker.placedRequests(), 2, "an ended investment must not create more orders")
 }
 

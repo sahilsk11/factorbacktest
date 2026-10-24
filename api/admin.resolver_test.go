@@ -20,8 +20,8 @@ import (
 
 type runReconcileServiceStub struct {
 	service.InvestmentService
-	runReconcile          func(context.Context) (*service.ReconcileResult, error)
-	adminReplaceHoldings  func(context.Context, uuid.UUID, service.AdminReplaceHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error)
+	runReconcile         func(context.Context) (*service.ReconcileResult, error)
+	adminReplaceHoldings func(context.Context, uuid.UUID, service.AdminReplaceHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error)
 }
 
 func (s runReconcileServiceStub) RunReconcile(ctx context.Context) (*service.ReconcileResult, error) {
@@ -84,12 +84,23 @@ func TestAdminReconcileReturnsStructuredIssues(t *testing.T) {
 	handler := ApiHandler{
 		InvestmentService: runReconcileServiceStub{
 			runReconcile: func(context.Context) (*service.ReconcileResult, error) {
+				ledgerQty := 1.197
+				alpacaQty := 0.764
+				diff := alpacaQty - ledgerQty
+				dollar := diff * 20
 				return &service.ReconcileResult{
-					Status:    "ISSUES",
+					Status:    service.ReconStatusDustOnly,
 					CheckedAt: checkedAt,
 					Issues: []service.ReconIssue{
 						{
-							Message: "alpaca account holding insufficient INTC: aggregate portfolio 1.197000 vs alpaca 0.764000 (-0.433000)",
+							Type:        service.ReconIssueQuantityMismatch,
+							Severity:    service.ReconSeverityDust,
+							Symbol:      "INTC",
+							LedgerQty:   &ledgerQty,
+							AlpacaQty:   &alpacaQty,
+							Diff:        &diff,
+							DollarValue: &dollar,
+							Message:     "QUANTITY_MISMATCH INTC: ledger 1.197 vs alpaca 0.764 (diff -0.433) (~$8.66)",
 						},
 					},
 				}, nil
@@ -106,9 +117,12 @@ func TestAdminReconcileReturnsStructuredIssues(t *testing.T) {
 
 	var response service.ReconcileResult
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
-	require.Equal(t, "ISSUES", response.Status)
+	require.Equal(t, service.ReconStatusDustOnly, response.Status)
 	require.Len(t, response.Issues, 1)
 	require.Nil(t, response.Issues[0].InvestmentID)
+	require.Equal(t, service.ReconIssueQuantityMismatch, response.Issues[0].Type)
+	require.Equal(t, service.ReconSeverityDust, response.Issues[0].Severity)
+	require.Equal(t, "INTC", response.Issues[0].Symbol)
 	require.Contains(t, response.Issues[0].Message, "INTC")
 }
 
@@ -151,10 +165,10 @@ func TestAdminUpdatePricesRequiresApiKey(t *testing.T) {
 
 type adminRebalanceServiceStub struct {
 	service.InvestmentService
-	rebalance func(context.Context) error
+	rebalance func(context.Context) (*service.RebalanceResult, error)
 }
 
-func (s adminRebalanceServiceStub) Rebalance(ctx context.Context) error {
+func (s adminRebalanceServiceStub) Rebalance(ctx context.Context) (*service.RebalanceResult, error) {
 	return s.rebalance(ctx)
 }
 
@@ -164,9 +178,18 @@ func TestAdminRebalanceRequiresApiKey(t *testing.T) {
 	called := false
 	handler := ApiHandler{
 		InvestmentService: adminRebalanceServiceStub{
-			rebalance: func(context.Context) error {
+			rebalance: func(context.Context) (*service.RebalanceResult, error) {
 				called = true
-				return nil
+				return &service.RebalanceResult{
+					DriftIssues: []service.ReconIssue{
+						{
+							Type:     service.ReconIssuePhantomPosition,
+							Severity: service.ReconSeverityDrift,
+							Symbol:   "VST",
+							Message:  "PHANTOM_POSITION VST",
+						},
+					},
+				}, nil
 			},
 		},
 	}
@@ -186,6 +209,17 @@ func TestAdminRebalanceRequiresApiKey(t *testing.T) {
 		engine.ServeHTTP(recorder, req)
 		require.Equal(t, http.StatusOK, recorder.Code)
 		require.True(t, called)
+
+		var response struct {
+			Success     string               `json:"success"`
+			DriftIssues []service.ReconIssue `json:"driftIssues"`
+		}
+		require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+		require.Equal(t, "true", response.Success)
+		require.Len(t, response.DriftIssues, 1)
+		require.Equal(t, service.ReconIssuePhantomPosition, response.DriftIssues[0].Type)
+		require.Equal(t, service.ReconSeverityDrift, response.DriftIssues[0].Severity)
+		require.Equal(t, "VST", response.DriftIssues[0].Symbol)
 	})
 }
 

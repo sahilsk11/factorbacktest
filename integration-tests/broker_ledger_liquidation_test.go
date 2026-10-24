@@ -53,7 +53,7 @@ func TestLiquidationWithBrokerLedgerMismatchEntersErrorState(t *testing.T) {
 	defer server.Stop()
 
 	hitAuthenticatedEndpoint(t, server.URL, "/investments/"+investment.InvestmentID.String()+"/request-liquidation", http.MethodPost, user.UserAccountID, http.StatusAccepted, &map[string]bool{})
-	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &map[string]string{}))
+	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &cronSuccessBody{}))
 
 	require.Empty(t, broker.placedRequests(), "must not place broker orders when ledger exceeds broker inventory")
 
@@ -69,6 +69,6 @@ func TestLiquidationWithBrokerLedgerMismatchEntersErrorState(t *testing.T) {
 	require.True(t, latest.Positions["INTC"].ExactQuantity.Equal(decimal.RequireFromString("1.19749006")),
 		"ledger holdings unchanged after failed sell")
 
-	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &map[string]string{}))
+	require.NoError(t, hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, map[string]string{}, &cronSuccessBody{}))
 	require.Empty(t, broker.placedRequests(), "cron must skip investments already in error state")
 }

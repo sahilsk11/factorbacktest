@@ -144,7 +144,7 @@ func Test_rebalanceFlow(t *testing.T) {
 
 	startTime := time.Now()
 	request := map[string]string{}
-	response := map[string]string{}
+	response := cronSuccessBody{}
 	err = hitEndpoint(server.URL, "internal/cron/rebalance", http.MethodPost, request, &response)
 	require.NoError(t, err)
 	elapsed := time.Since(startTime).Milliseconds()

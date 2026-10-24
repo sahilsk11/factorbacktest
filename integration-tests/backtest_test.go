@@ -21,6 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type cronSuccessBody struct {
+	Success string `json:"success"`
+}
+
 func hitEndpoint(baseURL, route string, method string, payload interface{}, target interface{}) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {

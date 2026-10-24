@@ -33,7 +33,7 @@ type InvestmentService interface {
 	GetStats(ctx context.Context, investmentID uuid.UUID) (*GetStatsResponse, error)
 	Reconcile(ctx context.Context) error
 	RunReconcile(ctx context.Context) (*ReconcileResult, error)
-	Rebalance(ctx context.Context) error
+	Rebalance(ctx context.Context) (*RebalanceResult, error)
 	AdminReplaceHoldings(ctx context.Context, investmentID uuid.UUID, req AdminReplaceHoldingsRequest) (*AdminReplaceHoldingsResponse, error)
 }
 
@@ -619,8 +619,10 @@ func filterLowVolumeTrades(trades []*domain.ProposedTrade, amountThreshold decim
 	return out
 }
 
-func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
+func (h investmentServiceHandler) Rebalance(ctx context.Context) (*RebalanceResult, error) {
 	log := logger.FromContext(ctx)
+	out := &RebalanceResult{DriftIssues: []ReconIssue{}}
+	out.DriftIssues = h.logPreRebalanceReconcile(ctx)
 
 	// since this function is executing trades, we
 	// need this to be today. only in testing can
@@ -632,20 +634,20 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		fmt.Println("overriding date")
 		date, err = time.Parse(time.DateOnly, "2020-12-31")
 		if err != nil {
-			return err
+			return out, err
 		}
 	}
 
 	if open, err := h.AlpacaRepository.IsMarketOpen(); err != nil {
-		return err
+		return out, err
 	} else if !open {
-		return fmt.Errorf("market is not open")
+		return out, fmt.Errorf("market is not open")
 	}
 
 	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
 	investmentsToRebalance, err := h.listForRebalance(ctx)
 	if err != nil {
-		return err
+		return out, err
 	}
 
 	rebalancerRun, err := h.RebalancerRunRepository.Add(nil, model.RebalancerRun{
@@ -655,7 +657,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		NumInvestmentsAttempted: int32(len(investmentsToRebalance)),
 	})
 	if err != nil {
-		return err
+		return out, err
 	}
 
 	log = log.With(
@@ -670,7 +672,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 	// by getting assets on the fly idk
 	assets, err := h.TickerRepository.List()
 	if err != nil {
-		return err
+		return out, err
 	}
 	symbols := []string{}
 	tickerIDMap := map[string]uuid.UUID{}
@@ -683,14 +685,14 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 	pm, err := h.PriceService.GetLatestPrices(ctx, symbols)
 	if err != nil {
-		return fmt.Errorf("failed to get latest prices: %w", err)
+		return out, fmt.Errorf("failed to get latest prices: %w", err)
 	}
 
 	// before generating trades, let's store the price map so we can
 	// re-construct the entire rebalancer run later
 	err = h.RebalancePriceRepository.AddMany(pm, tickerIDMap, rebalancerRun.RebalancerRunID)
 	if err != nil {
-		return fmt.Errorf("failed to add rebalance prices: %w", err)
+		return out, fmt.Errorf("failed to add rebalance prices: %w", err)
 	}
 
 	proposedTrades := []*domain.ProposedTrade{}
@@ -698,7 +700,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 	tx, err := h.Db.Begin()
 	if err != nil {
-		return err
+		return out, err
 	}
 	defer tx.Rollback()
 
@@ -737,7 +739,7 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 
 	// if every single investment failed, abort the run entirely
 	if numSucceeded == 0 && len(rebalanceErrors) > 0 {
-		return fmt.Errorf("all %d investments failed to rebalance. first error: %w", len(rebalanceErrors), rebalanceErrors[0])
+		return out, fmt.Errorf("all %d investments failed to rebalance. first error: %w", len(rebalanceErrors), rebalanceErrors[0])
 	}
 
 	log.Infof("generated %d investment trades", len(proposedTrades))
@@ -763,16 +765,16 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 		table.RebalancerRun.Notes,
 	})
 	if err != nil {
-		return err
+		return out, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return err
+		return out, err
 	}
 
 	if len(proposedTrades) == 0 || len(investmentsToRebalance) == 0 {
-		return nil
+		return out, nil
 	}
 
 	execution := h.executeRebalancePlan(ctx, rebalancerRun, plan)
@@ -788,11 +790,11 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) error {
 			table.RebalancerRun.Notes,
 		})
 		if err != nil {
-			return err
+			return out, err
 		}
 	}
 
-	return nil
+	return out, nil
 }
 
 func stringOrEmpty(value *string) string {
@@ -1056,71 +1058,6 @@ func (h investmentServiceHandler) reconcileInvestment(ctx context.Context, inves
 					reconErrors = append(reconErrors, ReconErr{
 						InvestmentID: &investmentID,
 						Message:      fmt.Sprintf("investment %s holding %s, but is not expected to", investmentID.String(), p.Symbol),
-					})
-				}
-			}
-		}
-	}
-
-	return reconErrors, nil
-}
-
-func (h investmentServiceHandler) reconcileAggregatePortfolio() ([]ReconErr, error) {
-	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
-	if err != nil {
-		return nil, err
-	}
-	totalHoldings := domain.NewPortfolio()
-	for _, i := range investments {
-		holdings, err := h.HoldingsRepository.GetLatestHoldings(nil, i.InvestmentID)
-		if err != nil {
-			return nil, err
-		}
-		totalHoldings.SetCash(totalHoldings.Cash.Add(*holdings.Cash))
-		for _, p := range holdings.Positions {
-			if _, ok := totalHoldings.Positions[p.Symbol]; !ok {
-				totalHoldings.Positions[p.Symbol] = &domain.Position{
-					Symbol:        p.Symbol,
-					Quantity:      0,
-					ExactQuantity: decimal.Zero,
-					TickerID:      p.TickerID,
-				}
-			}
-			totalHoldings.Positions[p.Symbol].Quantity += p.Quantity
-			totalHoldings.Positions[p.Symbol].ExactQuantity = totalHoldings.Positions[p.Symbol].ExactQuantity.Add(p.ExactQuantity)
-		}
-	}
-
-	account, err := h.AlpacaRepository.GetAccount()
-	if err != nil {
-		return nil, err
-	}
-
-	reconErrors := []ReconErr{}
-
-	if account.Cash.LessThan(*totalHoldings.Cash) {
-		reconErrors = append(reconErrors, ReconErr{
-			Message: fmt.Sprintf("alpaca account holding insufficient cash: aggregate portfolio %f vs alpaca %f", totalHoldings.Cash.InexactFloat64(), account.Cash.InexactFloat64()),
-		})
-	}
-
-	excessHoldingThreshold := decimal.NewFromInt(2)
-
-	actuallyHeld, err := h.AlpacaRepository.GetPositions()
-	if err != nil {
-		return nil, err
-	}
-	epsilonZero := decimal.NewFromFloat(1e-6)
-	for _, p := range totalHoldings.Positions {
-		for _, a := range actuallyHeld {
-			if a.Symbol == p.Symbol {
-				if a.Qty.LessThan(p.ExactQuantity.Sub(epsilonZero)) {
-					reconErrors = append(reconErrors, ReconErr{
-						Message: fmt.Sprintf("alpaca account holding insufficient %s: aggregate portfolio %f vs alpaca %f (%f)", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64(), a.Qty.Sub(p.ExactQuantity).InexactFloat64()),
-					})
-				} else if a.Qty.GreaterThan(p.ExactQuantity.Add(excessHoldingThreshold)) {
-					reconErrors = append(reconErrors, ReconErr{
-						Message: fmt.Sprintf("alpaca account holding excess %s: aggregate portfolio %f vs alpaca %f", a.Symbol, p.ExactQuantity.InexactFloat64(), a.Qty.InexactFloat64()),
 					})
 				}
 			}
