@@ -131,7 +131,6 @@ func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UU
 		UserAccountID: userAccountID,
 		AmountDollars: int32(amount),
 		StartDate:     date,
-		PausedAt:      util.TimePointer(time.Now().UTC()),
 	})
 	if err != nil {
 		return err

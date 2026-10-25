@@ -56,3 +56,45 @@ func TestInvestmentLiquidationLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, ended.EndDate)
 }
+
+func TestListExcludesPausedInvestments(t *testing.T) {
+	db, err := util.NewTestDb()
+	require.NoError(t, err)
+	repository := NewInvestmentRepository(db)
+	user := testseed.CreateUserAccount(db, testseed.UserAccountOpts{Email: uuid.NewString() + "@example.com"})
+	universeName := "PAUSED_LIST_" + uuid.NewString()
+	testseed.CreateAssetUniverse(db, testseed.AssetUniverseOpts{Name: universeName})
+	strategy := testseed.CreateStrategy(db, testseed.StrategyOpts{
+		Name:              "paused-list-test",
+		UserAccountID:     user.UserAccountID,
+		AssetUniverse:     universeName,
+		NumAssets:         3,
+		RebalanceInterval: "DAILY",
+		FactorExpression:  "price()",
+	})
+	investment := testseed.CreateInvestment(db, testseed.InvestmentOpts{
+		StrategyID:    strategy.StrategyID,
+		UserAccountID: user.UserAccountID,
+		AmountDollars: 100,
+	})
+
+	active, err := repository.List(StrategyInvestmentListFilter{UserAccountIDs: []uuid.UUID{user.UserAccountID}})
+	require.NoError(t, err)
+	require.Len(t, active, 1)
+	require.Equal(t, investment.InvestmentID, active[0].InvestmentID)
+
+	_, err = db.Exec(`UPDATE investment SET paused_at = now() WHERE investment_id = $1`, investment.InvestmentID)
+	require.NoError(t, err)
+
+	excluded, err := repository.List(StrategyInvestmentListFilter{UserAccountIDs: []uuid.UUID{user.UserAccountID}})
+	require.NoError(t, err)
+	require.Empty(t, excluded, "paused investments without pending liquidation must stay out of the rebalance list")
+
+	included, err := repository.List(StrategyInvestmentListFilter{
+		UserAccountIDs: []uuid.UUID{user.UserAccountID},
+		IncludePaused:  true,
+	})
+	require.NoError(t, err)
+	require.Len(t, included, 1)
+	require.NotNil(t, included[0].PausedAt)
+}

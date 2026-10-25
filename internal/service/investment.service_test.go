@@ -7,7 +7,9 @@ import (
 	mock_calculator "factorbacktest/internal/calculator/mocks"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/repository"
 	mock_repository "factorbacktest/internal/repository/mocks"
+	"factorbacktest/internal/testseed"
 	"factorbacktest/internal/util"
 	"testing"
 	"time"
@@ -213,6 +215,44 @@ func TestInvestmentServiceRequestLiquidation(t *testing.T) {
 		Return(&model.Investment{InvestmentID: investmentID}, nil)
 
 	require.NoError(t, handler.RequestLiquidation(context.Background(), userAccountID, investmentID))
+}
+
+func TestInvestmentServiceAddStartsUnpaused(t *testing.T) {
+	db, err := util.NewTestDb()
+	require.NoError(t, err)
+	defer db.Close()
+
+	user := testseed.CreateUserAccount(db, testseed.UserAccountOpts{
+		Email: "add-unpaused-" + uuid.NewString() + "@example.com",
+	})
+	universeName := "ADD_UNPAUSED_" + uuid.NewString()
+	testseed.CreateAssetUniverse(db, testseed.AssetUniverseOpts{Name: universeName})
+	strategy := testseed.CreateStrategy(db, testseed.StrategyOpts{
+		Name:              "add-unpaused-test",
+		UserAccountID:     user.UserAccountID,
+		AssetUniverse:     universeName,
+		NumAssets:         3,
+		RebalanceInterval: "DAILY",
+		FactorExpression:  "price()",
+	})
+
+	investmentRepository := repository.NewInvestmentRepository(db)
+	handler := investmentServiceHandler{
+		Db:                        db,
+		InvestmentRepository:      investmentRepository,
+		TickerRepository:          repository.NewTickerRepository(db),
+		HoldingsVersionRepository: repository.NewInvestmentHoldingsVersionRepository(db),
+		HoldingsRepository:        repository.NewInvestmentHoldingsRepository(db),
+	}
+
+	require.NoError(t, handler.Add(context.Background(), user.UserAccountID, strategy.StrategyID, 100))
+
+	created, err := investmentRepository.List(repository.StrategyInvestmentListFilter{
+		UserAccountIDs: []uuid.UUID{user.UserAccountID},
+	})
+	require.NoError(t, err)
+	require.Len(t, created, 1)
+	require.Nil(t, created[0].PausedAt)
 }
 
 func TestGetInvestmentStatus(t *testing.T) {
