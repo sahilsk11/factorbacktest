@@ -27,6 +27,7 @@ func UseSchema(schema string) {
 	InvestmentRebalanceError = InvestmentRebalanceError.FromSchema(schema)
 	InvestmentTrade = InvestmentTrade.FromSchema(schema)
 	LatencyTracking = LatencyTracking.FromSchema(schema)
+	RawPrice = RawPrice.FromSchema(schema)
 	RebalancePrice = RebalancePrice.FromSchema(schema)
 	RebalancerRun = RebalancerRun.FromSchema(schema)
 	SchemaVersion = SchemaVersion.FromSchema(schema)

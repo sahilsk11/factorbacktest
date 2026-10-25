@@ -84,6 +84,11 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 	dbConn.SetConnMaxIdleTime(45 * time.Second)
 
 	priceRepository := repository.NewAdjustedPriceRepository(dbConn)
+	rawPriceRepository := repository.NewRawPriceRepository(dbConn)
+	rawPriceService := data.NewRawPriceService(
+		rawPriceRepository,
+		data.NewRawBarProvider(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret, secrets.Alpaca.Endpoint),
+	)
 
 	factorMetricsHandler := calculator.NewFactorMetricsHandler(
 		priceRepository,
@@ -215,6 +220,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		LatencencyTrackingRepository: repository.NewLatencyTrackingRepository(dbConn),
 		TickerRepository:             tickerRepository,
 		PriceService:                 priceService,
+		RawPriceService:              rawPriceService,
 		PriceRepository:              priceRepository,
 		AssetUniverseRepository:      assetUniverseRepository,
 		UserAccountRepository:        userAccountRepository,
