@@ -4,6 +4,7 @@ mocks:
 	mockgen -source=internal/repository/interest_rate.repository.go -destination=internal/repository/mocks/mock_interest_rate.repository.go
 	mockgen -source=internal/repository/adj_price.repository.go -destination=internal/repository/mocks/mock_adj_price.repository.go
 	mockgen -source=internal/repository/raw_price.repository.go -destination=internal/repository/mocks/mock_raw_price.repository.go
+	mockgen -source=internal/repository/corporate_action.repository.go -destination=internal/repository/mocks/mock_corporate_action.repository.go
 	mockgen -source=internal/repository/alpaca.repository.go -destination=internal/repository/mocks/mock_alpaca.repository.go
 	mockgen -source=internal/repository/investment.repository.go -destination=internal/repository/mocks/mock_investment.repository.go
 	mockgen -source=internal/repository/strategy.repository.go -destination=internal/repository/mocks/mock_strategy.repository.go

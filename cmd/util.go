@@ -89,6 +89,10 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		rawPriceRepository,
 		data.NewRawBarProvider(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret, secrets.Alpaca.Endpoint),
 	)
+	corporateActionService := data.NewCorporateActionService(
+		repository.NewCorporateActionRepository(dbConn),
+		data.NewCorporateActionProvider(secrets.Alpaca.ApiKey, secrets.Alpaca.ApiSecret, secrets.Alpaca.Endpoint),
+	)
 
 	factorMetricsHandler := calculator.NewFactorMetricsHandler(
 		priceRepository,
@@ -221,6 +225,7 @@ func InitializeDependencies(secrets util.Secrets, overrides *api.ApiHandler) (*a
 		TickerRepository:             tickerRepository,
 		PriceService:                 priceService,
 		RawPriceService:              rawPriceService,
+		CorporateActionService:       corporateActionService,
 		PriceRepository:              priceRepository,
 		AssetUniverseRepository:      assetUniverseRepository,
 		UserAccountRepository:        userAccountRepository,
