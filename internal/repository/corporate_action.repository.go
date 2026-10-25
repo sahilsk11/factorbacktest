@@ -24,7 +24,22 @@ func NewCorporateActionRepository(db *sql.DB) CorporateActionRepository {
 	return corporateActionRepositoryHandler{Db: db}
 }
 
+const corporateActionUpsertChunk = 4000
+
 func (h corporateActionRepositoryHandler) UpsertMany(rows []model.CorporateAction) error {
+	for i := 0; i < len(rows); i += corporateActionUpsertChunk {
+		j := i + corporateActionUpsertChunk
+		if j > len(rows) {
+			j = len(rows)
+		}
+		if err := h.upsertMany(rows[i:j]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h corporateActionRepositoryHandler) upsertMany(rows []model.CorporateAction) error {
 	if len(rows) == 0 {
 		return nil
 	}

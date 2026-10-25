@@ -35,7 +35,7 @@ func (m ApiHandler) updateCorporateActions(c *gin.Context) {
 		return
 	}
 
-	result, err := m.CorporateActionService.IngestCorporateActions(c, symbols, start, end)
+	result, err := m.CorporateActionService.IngestCorporateActions(c, symbols, start, end, c.Query("source"))
 	if err != nil {
 		returnErrorJson(err, c)
 		return
