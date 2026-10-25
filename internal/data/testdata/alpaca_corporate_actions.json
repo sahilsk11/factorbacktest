@@ -1,0 +1,74 @@
+{
+  "corporate_actions": {
+    "forward_splits": [
+      {
+        "symbol": "AAPL",
+        "cusip": "037833100",
+        "ex_date": "2020-08-31",
+        "process_date": "2020-08-31",
+        "record_date": "2020-08-24",
+        "payable_date": "2020-08-31",
+        "new_rate": 4,
+        "old_rate": 1,
+        "id": "aapl-split-2020-08-31"
+      },
+      {
+        "symbol": "NVDA",
+        "cusip": "67066G104",
+        "ex_date": "2021-07-20",
+        "process_date": "2021-07-20",
+        "record_date": "2021-07-16",
+        "payable_date": "2021-07-19",
+        "new_rate": 4,
+        "old_rate": 1,
+        "id": "nvda-split-2021-07-20"
+      },
+      {
+        "symbol": "NVDA",
+        "cusip": "67066G104",
+        "ex_date": "2024-06-10",
+        "process_date": "2024-06-10",
+        "record_date": "2024-06-07",
+        "payable_date": "2024-06-07",
+        "new_rate": 10,
+        "old_rate": 1,
+        "id": "nvda-split-2024-06-10"
+      }
+    ],
+    "cash_dividends": [
+      {
+        "symbol": "AAPL",
+        "cusip": "037833100",
+        "ex_date": "2020-08-07",
+        "process_date": "2020-08-13",
+        "record_date": "2020-08-10",
+        "payable_date": "2020-08-13",
+        "rate": 0.82,
+        "special": false,
+        "foreign": false,
+        "id": "aapl-div-2020-08-07"
+      }
+    ],
+    "cash_mergers": [
+      {
+        "acquiree_symbol": "EA",
+        "acquiree_cusip": "285512109",
+        "effective_date": "2026-08-04",
+        "process_date": "2026-08-04",
+        "payable_date": "2026-08-04",
+        "rate": 210,
+        "id": "ea-merger-2026-08-04"
+      },
+      {
+        "acquiree_symbol": "WBD",
+        "acquiree_cusip": "934423104",
+        "effective_date": "2026-10-06",
+        "process_date": "2026-10-06",
+        "payable_date": "2026-10-06",
+        "rate": 31.01666668,
+        "id": "wbd-merger-2026-10-06"
+      }
+    ]
+  },
+  "next_page_token": null
+}

@@ -16,6 +16,7 @@ func UseSchema(schema string) {
 	AssetUniverse = AssetUniverse.FromSchema(schema)
 	AssetUniverseTicker = AssetUniverseTicker.FromSchema(schema)
 	ContactMessage = ContactMessage.FromSchema(schema)
+	CorporateAction = CorporateAction.FromSchema(schema)
 	EmailPreference = EmailPreference.FromSchema(schema)
 	ExcessTradeVolume = ExcessTradeVolume.FromSchema(schema)
 	FactorScore = FactorScore.FromSchema(schema)

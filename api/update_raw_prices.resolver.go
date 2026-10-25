@@ -80,7 +80,7 @@ func parseOptionalDateQuery(value string) (*time.Time, error) {
 	}
 	t, err := time.Parse("2006-01-02", value)
 	if err != nil {
-		return nil, fmt.Errorf("invalid start date %q: want YYYY-MM-DD", value)
+		return nil, fmt.Errorf("invalid date %q: want YYYY-MM-DD", value)
 	}
 	utc := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 	return &utc, nil

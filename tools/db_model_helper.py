@@ -11,6 +11,7 @@ update_files = {
   "published_strategy_holdings",
   "rebalance_price.go",
   "raw_price.go",
+  "corporate_action.go",
 }
 
 os.chdir("./internal/db/models/postgres/public/model/")
