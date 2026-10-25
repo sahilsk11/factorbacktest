@@ -25,7 +25,6 @@ import (
 type MockAdjustedPriceRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockAdjustedPriceRepositoryMockRecorder
-	isgomock struct{}
 }
 
 // MockAdjustedPriceRepositoryMockRecorder is the mock recorder for MockAdjustedPriceRepository.
@@ -57,6 +56,20 @@ func (m *MockAdjustedPriceRepository) Add(arg0 *sql.Tx, arg1 []model.AdjustedPri
 func (mr *MockAdjustedPriceRepositoryMockRecorder) Add(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).Add), arg0, arg1)
+}
+
+// DeleteBySymbol mocks base method.
+func (m *MockAdjustedPriceRepository) DeleteBySymbol(arg0 *sql.Tx, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteBySymbol", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteBySymbol indicates an expected call of DeleteBySymbol.
+func (mr *MockAdjustedPriceRepositoryMockRecorder) DeleteBySymbol(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBySymbol", reflect.TypeOf((*MockAdjustedPriceRepository)(nil).DeleteBySymbol), arg0, arg1)
 }
 
 // Get mocks base method.

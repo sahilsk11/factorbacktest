@@ -55,6 +55,21 @@ func (mr *MockCorporateActionRepositoryMockRecorder) ListBySymbolRange(symbol, s
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBySymbolRange", reflect.TypeOf((*MockCorporateActionRepository)(nil).ListBySymbolRange), symbol, start, end)
 }
 
+// SymbolsNeedingRecompute mocks base method.
+func (m *MockCorporateActionRepository) SymbolsNeedingRecompute(from, to time.Time) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SymbolsNeedingRecompute", from, to)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SymbolsNeedingRecompute indicates an expected call of SymbolsNeedingRecompute.
+func (mr *MockCorporateActionRepositoryMockRecorder) SymbolsNeedingRecompute(from, to any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SymbolsNeedingRecompute", reflect.TypeOf((*MockCorporateActionRepository)(nil).SymbolsNeedingRecompute), from, to)
+}
+
 // UpsertMany mocks base method.
 func (m *MockCorporateActionRepository) UpsertMany(rows []model.CorporateAction) error {
 	m.ctrl.T.Helper()

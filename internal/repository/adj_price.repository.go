@@ -48,6 +48,7 @@ func (h adjustedPriceRepositoryHandler) AddToPriceCache(symbol string, date time
 
 type AdjustedPriceRepository interface {
 	Add(*sql.Tx, []model.AdjustedPrice) error
+	DeleteBySymbol(*sql.Tx, string) error
 	Get(string, time.Time) (decimal.Decimal, error)
 	GetManyOnDay([]string, time.Time) (map[string]decimal.Decimal, error)
 	List(symbols []string, start, end time.Time) ([]domain.AssetPrice, error)
@@ -97,6 +98,18 @@ func (h adjustedPriceRepositoryHandler) Add(tx *sql.Tx, adjPrices []model.Adjust
 		return fmt.Errorf("failed to add adjusted prices to db: %w", err)
 	}
 
+	return nil
+}
+
+func (h adjustedPriceRepositoryHandler) DeleteBySymbol(tx *sql.Tx, symbol string) error {
+	query := table.AdjustedPrice.DELETE().WHERE(table.AdjustedPrice.Symbol.EQ(postgres.String(symbol)))
+	var db qrm.Executable = h.Db
+	if tx != nil {
+		db = tx
+	}
+	if _, err := query.Exec(db); err != nil {
+		return fmt.Errorf("failed to delete adjusted prices for %s: %w", symbol, err)
+	}
 	return nil
 }
 

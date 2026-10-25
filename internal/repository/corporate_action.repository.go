@@ -14,6 +14,9 @@ import (
 type CorporateActionRepository interface {
 	UpsertMany(rows []model.CorporateAction) error
 	ListBySymbolRange(symbol string, start, end time.Time) ([]model.CorporateAction, error)
+	// SymbolsNeedingRecompute returns symbols whose actions were ingested on/after
+	// `from`, whose effective date falls in [from, to], or that are acquired/delisted.
+	SymbolsNeedingRecompute(from, to time.Time) ([]string, error)
 }
 
 type corporateActionRepositoryHandler struct {
@@ -59,4 +62,31 @@ func (h corporateActionRepositoryHandler) ListBySymbolRange(symbol string, start
 		return nil, fmt.Errorf("failed to list corporate actions for %s: %w", symbol, err)
 	}
 	return out, nil
+}
+
+func (h corporateActionRepositoryHandler) SymbolsNeedingRecompute(from, to time.Time) ([]string, error) {
+	t := table.CorporateAction
+	query := t.SELECT(t.Symbol).DISTINCT().WHERE(postgres.OR(
+		t.IngestedAt.GT_EQ(postgres.TimestampzT(from.UTC())),
+		t.EffectiveDate.BETWEEN(postgres.DateT(from), postgres.DateT(to)),
+		t.Type.EQ(postgres.String("acquired")),
+		t.Type.EQ(postgres.String("delisted")),
+	)).ORDER_BY(t.Symbol.ASC())
+
+	q, args := query.Sql()
+	rows, err := h.Db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list symbols needing adjusted-price recompute: %w", err)
+	}
+	defer rows.Close()
+
+	out := []string{}
+	for rows.Next() {
+		var symbol string
+		if err := rows.Scan(&symbol); err != nil {
+			return nil, fmt.Errorf("failed to scan symbol needing recompute: %w", err)
+		}
+		out = append(out, symbol)
+	}
+	return out, rows.Err()
 }
