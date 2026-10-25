@@ -37,6 +37,7 @@ type ApiHandler struct {
 	ApiRequestRepository         repository.ApiRequestRepository
 	LatencencyTrackingRepository repository.LatencyTrackingRepository
 	PriceService                 data.PriceService
+	RawPriceService              data.RawPriceService
 	InvestmentService            service.InvestmentService
 	TickerRepository             repository.TickerRepository
 	PriceRepository              repository.AdjustedPriceRepository
@@ -170,6 +171,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	cron.POST("/rebalance", m.rebalance)
 	cron.POST("/updateOrders", m.updateOrders)
 	cron.POST("/updatePrices", m.updatePrices)
+	cron.POST("/updateRawPrices", m.updateRawPrices)
 	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
 
 	admin := engine.Group("/internal/admin")
