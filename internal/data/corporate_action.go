@@ -426,7 +426,9 @@ func (s corporateActionService) IngestCorporateActions(ctx context.Context, symb
 		return result, err
 	}
 	result.NumRows = len(rows)
-	if result.NumRows == 0 && len(result.FailedSymbols) > 0 {
+	// 0 rows is success when Yahoo had no split/div events in the window.
+	// Only fail the request if every symbol's fetch failed.
+	if len(result.FailedSymbols) == len(symbols) {
 		return result, fmt.Errorf("failed to ingest corporate actions for every symbol")
 	}
 	return result, ctx.Err()

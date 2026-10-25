@@ -55,13 +55,14 @@ type adjustedPriceService struct {
 	cas    repository.CorporateActionRepository
 	ingest CorporateActionService
 	fetch  adjCloseFunc
+	dbMu   sync.Mutex
 }
 
 func NewAdjustedPriceService(prices repository.AdjustedPriceRepository, cas repository.CorporateActionRepository, ingest CorporateActionService) AdjustedPriceService {
-	return adjustedPriceService{prices: prices, cas: cas, ingest: ingest, fetch: fetchYahooAdjCloses}
+	return &adjustedPriceService{prices: prices, cas: cas, ingest: ingest, fetch: fetchYahooAdjCloses}
 }
 
-func (s adjustedPriceService) UpdateAdjustedPrices(ctx context.Context, symbols []string, dryRun bool) (AdjustedPriceUpdateResult, error) {
+func (s *adjustedPriceService) UpdateAdjustedPrices(ctx context.Context, symbols []string, dryRun bool) (AdjustedPriceUpdateResult, error) {
 	out := AdjustedPriceUpdateResult{UnexplainedChanges: []UnexplainedChange{}, FailedSymbols: []string{}}
 	symbols = uniqueSymbols(symbols)
 	if len(symbols) == 0 {
@@ -77,7 +78,7 @@ func (s adjustedPriceService) UpdateAdjustedPrices(ctx context.Context, symbols 
 			return out, fmt.Errorf("corporate action service is not configured")
 		}
 		if _, err := s.ingest.IngestCorporateActions(ctx, symbols, &windowStart, &now, ""); err != nil {
-			return out, err
+			log.Warnf("corporate action ingest failed: %s", err)
 		}
 	}
 	latest, err := s.prices.LatestPriceDates(symbols)
@@ -138,7 +139,7 @@ type adjPriceOutcome struct {
 	failed                 string
 }
 
-func (s adjustedPriceService) updateSymbol(ctx context.Context, symbol string, latest, windowStart, now time.Time, dryRun bool) (out adjPriceOutcome) {
+func (s *adjustedPriceService) updateSymbol(ctx context.Context, symbol string, latest, windowStart, now time.Time, dryRun bool) (out adjPriceOutcome) {
 	log := logger.FromContext(ctx)
 	fail := func(err error) adjPriceOutcome {
 		log.Warnf("failed to update adjusted prices for %s: %s", symbol, err)
@@ -160,7 +161,9 @@ func (s adjustedPriceService) updateSymbol(ctx context.Context, symbol string, l
 		}
 		return fail(err)
 	}
+	s.dbMu.Lock()
 	storedRows, err := s.prices.List([]string{symbol}, windowStart, now)
+	s.dbMu.Unlock()
 	if err != nil {
 		return fail(err)
 	}
@@ -170,7 +173,9 @@ func (s adjustedPriceService) updateSymbol(ctx context.Context, symbol string, l
 	}
 
 	if m := firstAdjMismatch(symbol, stored, yahoo); m != nil {
+		s.dbMu.Lock()
 		actions, err := s.cas.ListBySymbolRange(symbol, windowStart, now)
+		s.dbMu.Unlock()
 		if err != nil {
 			return fail(err)
 		}
@@ -197,7 +202,7 @@ func (s adjustedPriceService) updateSymbol(ctx context.Context, symbol string, l
 	return out
 }
 
-func (s adjustedPriceService) fullRepull(ctx context.Context, symbol string, now time.Time, dryRun bool) error {
+func (s *adjustedPriceService) fullRepull(ctx context.Context, symbol string, now time.Time, dryRun bool) error {
 	yahoo, err := s.fetch(ctx, symbol, time.Time{}, now) // start zero => Yahoo range=max
 	if err != nil || len(yahoo) == 0 {
 		if err == nil {
@@ -208,10 +213,12 @@ func (s adjustedPriceService) fullRepull(ctx context.Context, symbol string, now
 	return s.write(dryRun, adjCloseModels(symbol, yahoo, now))
 }
 
-func (s adjustedPriceService) write(dryRun bool, rows []model.AdjustedPrice) error {
+func (s *adjustedPriceService) write(dryRun bool, rows []model.AdjustedPrice) error {
 	if dryRun || len(rows) == 0 {
 		return nil
 	}
+	s.dbMu.Lock()
+	defer s.dbMu.Unlock()
 	for i := 0; i < len(rows); i += adjPriceUpsertChunk {
 		j := i + adjPriceUpsertChunk
 		if j > len(rows) {
@@ -265,15 +272,17 @@ func adjCloseModels(symbol string, points []DailyPricePoint, createdAt time.Time
 
 func fetchYahooAdjCloses(ctx context.Context, symbol string, start, end time.Time) ([]DailyPricePoint, error) {
 	symbol = yahooChartSymbol(symbol)
-	u := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?range=max&interval=1d", url.PathEscape(symbol))
-	if !start.IsZero() {
-		p2 := end.Unix()
-		if end.Equal(utcDate(end)) {
-			p2 = end.Add(24 * time.Hour).Unix()
-		}
-		u = fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d",
-			url.PathEscape(symbol), utcDate(start).Unix(), p2)
+	p2 := end.Unix()
+	if end.Equal(utcDate(end)) || start.IsZero() {
+		p2 = end.Add(24 * time.Hour).Unix()
 	}
+	// period1=0 is true daily max history. range=max downsamples to ~monthly bars.
+	p1 := int64(0)
+	if !start.IsZero() {
+		p1 = utcDate(start).Unix()
+	}
+	u := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d",
+		url.PathEscape(symbol), p1, p2)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err

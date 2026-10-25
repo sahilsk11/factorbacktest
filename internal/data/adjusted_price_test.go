@@ -169,14 +169,14 @@ func (f *countingFetch) get(_ context.Context, symbol string, _, _ time.Time) ([
 	return pts, nil
 }
 
-func newAdjPriceHarness(t *testing.T, points map[string][]DailyPricePoint) (adjustedPriceService, *mock_repository.MockAdjustedPriceRepository, *mock_repository.MockCorporateActionRepository, *stubCAIngest, *countingFetch) {
+func newAdjPriceHarness(t *testing.T, points map[string][]DailyPricePoint) (*adjustedPriceService, *mock_repository.MockAdjustedPriceRepository, *mock_repository.MockCorporateActionRepository, *stubCAIngest, *countingFetch) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	prices := mock_repository.NewMockAdjustedPriceRepository(ctrl)
 	cas := mock_repository.NewMockCorporateActionRepository(ctrl)
 	ingest := &stubCAIngest{}
 	fetch := &countingFetch{points: points, calls: map[string]int{}}
-	svc := adjustedPriceService{
+	svc := &adjustedPriceService{
 		prices: prices,
 		cas:    cas,
 		ingest: ingest,
