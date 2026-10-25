@@ -45,7 +45,7 @@ type AdjustedPriceUpdateResult struct {
 }
 
 type AdjustedPriceService interface {
-	UpdateAdjustedPrices(ctx context.Context, symbols []string, dryRun bool) (AdjustedPriceUpdateResult, error)
+	UpdateAdjustedPrices(ctx context.Context, symbols []string, dryRun, full bool) (AdjustedPriceUpdateResult, error)
 }
 
 type adjCloseFunc func(context.Context, string, time.Time, time.Time) ([]DailyPricePoint, error)
@@ -62,7 +62,7 @@ func NewAdjustedPriceService(prices repository.AdjustedPriceRepository, cas repo
 	return &adjustedPriceService{prices: prices, cas: cas, ingest: ingest, fetch: fetchYahooAdjCloses}
 }
 
-func (s *adjustedPriceService) UpdateAdjustedPrices(ctx context.Context, symbols []string, dryRun bool) (AdjustedPriceUpdateResult, error) {
+func (s *adjustedPriceService) UpdateAdjustedPrices(ctx context.Context, symbols []string, dryRun, full bool) (AdjustedPriceUpdateResult, error) {
 	out := AdjustedPriceUpdateResult{UnexplainedChanges: []UnexplainedChange{}, FailedSymbols: []string{}}
 	symbols = uniqueSymbols(symbols)
 	if len(symbols) == 0 {
@@ -71,7 +71,7 @@ func (s *adjustedPriceService) UpdateAdjustedPrices(ctx context.Context, symbols
 	now := time.Now().UTC()
 	windowStart := now.Add(-adjPriceLookback)
 	log := logger.FromContext(ctx)
-	log.Infof("updating adjusted prices for %d symbols (dryRun=%v)", len(symbols), dryRun)
+	log.Infof("updating adjusted prices for %d symbols (dryRun=%v full=%v)", len(symbols), dryRun, full)
 
 	if !dryRun {
 		if s.ingest == nil {
@@ -81,9 +81,13 @@ func (s *adjustedPriceService) UpdateAdjustedPrices(ctx context.Context, symbols
 			log.Warnf("corporate action ingest failed: %s", err)
 		}
 	}
-	latest, err := s.prices.LatestPriceDates(symbols)
-	if err != nil {
-		return out, err
+	latest := map[string]time.Time{}
+	if !full {
+		var err error
+		latest, err = s.prices.LatestPriceDates(symbols)
+		if err != nil {
+			return out, err
+		}
 	}
 
 	n := priceUpdateWorkers
@@ -203,7 +207,7 @@ func (s *adjustedPriceService) updateSymbol(ctx context.Context, symbol string, 
 }
 
 func (s *adjustedPriceService) fullRepull(ctx context.Context, symbol string, now time.Time, dryRun bool) error {
-	yahoo, err := s.fetch(ctx, symbol, time.Time{}, now) // start zero => Yahoo range=max
+	yahoo, err := s.fetch(ctx, symbol, time.Time{}, now) // start zero => period1=0 daily max
 	if err != nil || len(yahoo) == 0 {
 		if err == nil {
 			err = fmt.Errorf("empty adjusted close series")

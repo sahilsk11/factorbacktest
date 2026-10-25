@@ -44,7 +44,7 @@ func TestUpdateAdjustedPricesScenarios(t *testing.T) {
 			return nil
 		})
 
-		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"AAPL"}, false)
+		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"AAPL"}, false, false)
 		require.NoError(t, err)
 		require.Equal(t, 1, result.Appended)
 		require.Zero(t, result.FullRepulled)
@@ -76,7 +76,7 @@ func TestUpdateAdjustedPricesScenarios(t *testing.T) {
 			return nil
 		})
 
-		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"NVDA"}, false)
+		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"NVDA"}, false, false)
 		require.NoError(t, err)
 		require.Zero(t, result.Appended)
 		require.Equal(t, 1, result.FullRepulled)
@@ -95,7 +95,7 @@ func TestUpdateAdjustedPricesScenarios(t *testing.T) {
 		cas.EXPECT().ListBySymbolRange("KO", gomock.Any(), gomock.Any()).Return(nil, nil)
 		prices.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 
-		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"KO"}, false)
+		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"KO"}, false, false)
 		require.NoError(t, err)
 		require.Zero(t, result.Appended)
 		require.Zero(t, result.FullRepulled)
@@ -110,7 +110,7 @@ func TestUpdateAdjustedPricesScenarios(t *testing.T) {
 		prices.EXPECT().LatestPriceDates([]string{"ZZZ"}).Return(map[string]time.Time{"ZZZ": prev}, nil)
 		prices.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 
-		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"ZZZ"}, false)
+		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"ZZZ"}, false, false)
 		require.NoError(t, err)
 		require.Equal(t, []string{"ZZZ"}, result.FailedSymbols)
 		require.Zero(t, result.Appended)
@@ -124,7 +124,7 @@ func TestUpdateAdjustedPricesScenarios(t *testing.T) {
 		cas.EXPECT().ListBySymbolRange(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 		prices.EXPECT().Add(nil, gomock.Any()).Return(nil)
 
-		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"F"}, false)
+		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"F"}, false, false)
 		require.NoError(t, err)
 		require.Equal(t, 1, result.FullRepulled)
 		require.Zero(t, result.Appended)
@@ -136,10 +136,25 @@ func TestUpdateAdjustedPricesScenarios(t *testing.T) {
 		prices.EXPECT().LatestPriceDates([]string{"AAPL"}).Return(map[string]time.Time{}, nil)
 		prices.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 
-		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"AAPL"}, true)
+		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"AAPL"}, true, false)
 		require.NoError(t, err)
 		require.Equal(t, 1, result.FullRepulled)
 		require.False(t, ingest.called)
+	})
+
+	t.Run("full skips compare and re-pulls history", func(t *testing.T) {
+		svc, prices, cas, _, fetch := newAdjPriceHarness(t, map[string][]DailyPricePoint{"KLAC": yahooRecent})
+		prices.EXPECT().LatestPriceDates(gomock.Any()).Times(0)
+		prices.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+		cas.EXPECT().ListBySymbolRange(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+		prices.EXPECT().Add(nil, gomock.Any()).Return(nil)
+
+		result, err := svc.UpdateAdjustedPrices(context.Background(), []string{"KLAC"}, false, true)
+		require.NoError(t, err)
+		require.Equal(t, 1, result.FullRepulled)
+		require.Zero(t, result.Appended)
+		require.Empty(t, result.UnexplainedChanges)
+		require.Equal(t, 1, fetch.calls["KLAC"])
 	})
 }
 

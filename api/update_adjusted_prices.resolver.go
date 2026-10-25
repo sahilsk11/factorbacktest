@@ -20,7 +20,8 @@ func (m ApiHandler) updateAdjustedPrices(c *gin.Context) {
 	}
 
 	dryRun := strings.EqualFold(c.Query("dryRun"), "true")
-	result, err := m.AdjustedPriceService.UpdateAdjustedPrices(c, symbols, dryRun)
+	full := strings.EqualFold(c.Query("full"), "true")
+	result, err := m.AdjustedPriceService.UpdateAdjustedPrices(c, symbols, dryRun, full)
 	if err != nil {
 		returnErrorJson(err, c)
 		return
