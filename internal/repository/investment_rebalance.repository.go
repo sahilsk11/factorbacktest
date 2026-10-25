@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,6 +20,7 @@ type InvestmentRebalanceRepository interface {
 	List(tx *sql.Tx) ([]model.InvestmentRebalance, error)
 	ListByRebalancerRunID(tx *sql.Tx, rebalancerRunID uuid.UUID) ([]model.InvestmentRebalance, error)
 	HasPendingForInvestment(investmentID uuid.UUID) (bool, error)
+	GetLatestPlaced(investmentID uuid.UUID) (*model.InvestmentRebalance, error)
 	Update(tx *sql.Tx, ir model.InvestmentRebalance, columns postgres.ColumnList) (*model.InvestmentRebalance, error)
 }
 
@@ -108,6 +110,30 @@ func (h investmentRebalanceRepositoryHandler) ListByRebalancerRunID(
 		return nil, fmt.Errorf("failed to list investment rebalances for run: %w", err)
 	}
 	return result, nil
+}
+
+func (h investmentRebalanceRepositoryHandler) GetLatestPlaced(investmentID uuid.UUID) (*model.InvestmentRebalance, error) {
+	t := table.InvestmentRebalance
+	query := t.SELECT(t.AllColumns).
+		WHERE(
+			t.InvestmentID.EQ(postgres.UUID(investmentID)).
+				AND(postgres.OR(
+					t.State.EQ(postgres.NewEnumValue("COMPLETED")),
+					t.State.EQ(postgres.NewEnumValue("PENDING")),
+				)),
+		).
+		ORDER_BY(t.CreatedAt.DESC()).
+		LIMIT(1)
+
+	out := model.InvestmentRebalance{}
+	err := query.Query(h.Db, &out)
+	if errors.Is(err, qrm.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest placed investment rebalance for %s: %w", investmentID.String(), err)
+	}
+	return &out, nil
 }
 
 func (h investmentRebalanceRepositoryHandler) HasPendingForInvestment(investmentID uuid.UUID) (bool, error) {

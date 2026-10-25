@@ -73,6 +73,21 @@ func (mr *MockInvestmentRebalanceRepositoryMockRecorder) Get(tx, id any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).Get), tx, id)
 }
 
+// GetLatestPlaced mocks base method.
+func (m *MockInvestmentRebalanceRepository) GetLatestPlaced(investmentID uuid.UUID) (*model.InvestmentRebalance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestPlaced", investmentID)
+	ret0, _ := ret[0].(*model.InvestmentRebalance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestPlaced indicates an expected call of GetLatestPlaced.
+func (mr *MockInvestmentRebalanceRepositoryMockRecorder) GetLatestPlaced(investmentID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPlaced", reflect.TypeOf((*MockInvestmentRebalanceRepository)(nil).GetLatestPlaced), investmentID)
+}
+
 // HasPendingForInvestment mocks base method.
 func (m *MockInvestmentRebalanceRepository) HasPendingForInvestment(investmentID uuid.UUID) (bool, error) {
 	m.ctrl.T.Helper()
