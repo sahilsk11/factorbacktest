@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	_ "github.com/lib/pq"
 )
 
 func newHoldingsOverrideTestDB(t *testing.T) *sql.DB {
@@ -124,6 +124,154 @@ func TestAdminReplaceHoldingsCreatesNotedVersion(t *testing.T) {
 	require.InDelta(t, cash, latestHoldings.Cash.InexactFloat64(), 0.000001)
 	require.Len(t, latestHoldings.Positions, 1)
 	require.InDelta(t, 0.764168, latestHoldings.Positions["INTC"].ExactQuantity.InexactFloat64(), 0.000001)
+	require.InDelta(t, 100, result.Before.Cash, 0.000001)
+	require.NotNil(t, result.AuditID)
+
+	var auditKind, auditActor, auditPayload string
+	err = db.QueryRow(
+		`SELECT kind, actor, payload FROM admin_mutation_audit WHERE admin_mutation_audit_id = $1`,
+		*result.AuditID,
+	).Scan(&auditKind, &auditActor, &auditPayload)
+	require.NoError(t, err)
+	require.Equal(t, "ledger_adjust", auditKind)
+	require.Equal(t, "admin", auditActor)
+	require.Contains(t, auditPayload, `"mode": "replace"`)
+}
+
+func TestAdminAdjustHoldingsZerosDustAndKeepsCash(t *testing.T) {
+	db := newHoldingsOverrideTestDB(t)
+	defer db.Close()
+
+	user := newHoldingsOverrideTestUser(db)
+	universe := testseed.CreateAssetUniverse(db, testseed.AssetUniverseOpts{Name: "adjust-test-" + uuid.NewString()})
+	vst := lookupOrCreateTicker(db, "VST", "Vistra")
+	intc := lookupOrCreateTicker(db, "INTC", "Intel")
+	testseed.CreateAssetUniverseTicker(db, universe.AssetUniverseID, vst.TickerID)
+	testseed.CreateAssetUniverseTicker(db, universe.AssetUniverseID, intc.TickerID)
+	strategy := testseed.CreateStrategy(db, testseed.StrategyOpts{
+		Name:              "adjust-strategy-" + uuid.NewString(),
+		FactorExpression:  "close",
+		AssetUniverse:     universe.AssetUniverseName,
+		RebalanceInterval: "monthly",
+		NumAssets:         2,
+		UserAccountID:     user.UserAccountID,
+	})
+	investment := testseed.CreateInvestment(db, testseed.InvestmentOpts{
+		StrategyID:    strategy.StrategyID,
+		UserAccountID: user.UserAccountID,
+		AmountDollars: 1000,
+	})
+	_, err := db.Exec(`UPDATE investment SET end_date = CURRENT_DATE WHERE investment_id = $1`, investment.InvestmentID)
+	require.NoError(t, err)
+
+	version := testseed.CreateInvestmentHoldingsVersion(db, investment.InvestmentID)
+	cashTicker := lookupOrCreateTicker(db, ":CASH", "cash")
+	testseed.CreateInvestmentHolding(db, testseed.InvestmentHoldingOpts{
+		VersionID: version.InvestmentHoldingsVersionID,
+		TickerID:  cashTicker.TickerID,
+		Quantity:  decimal.RequireFromString("12.5"),
+	})
+	testseed.CreateInvestmentHolding(db, testseed.InvestmentHoldingOpts{
+		VersionID: version.InvestmentHoldingsVersionID,
+		TickerID:  vst.TickerID,
+		Quantity:  decimal.RequireFromString("0.12"),
+	})
+	testseed.CreateInvestmentHolding(db, testseed.InvestmentHoldingOpts{
+		VersionID: version.InvestmentHoldingsVersionID,
+		TickerID:  intc.TickerID,
+		Quantity:  decimal.RequireFromString("1"),
+	})
+
+	handler := NewInvestmentService(
+		db,
+		repository.NewInvestmentRepository(db),
+		repository.NewInvestmentHoldingsRepository(db),
+		repository.NewAssetUniverseRepository(db),
+		repository.NewStrategyRepository(db),
+		nil,
+		repository.NewTickerRepository(db),
+		repository.NewRebalancerRunRepository(db),
+		repository.NewInvestmentHoldingsVersionRepository(db),
+		repository.NewInvestmentTradeRepository(db),
+		BacktestHandler{},
+		nil,
+		nil,
+		repository.NewInvestmentRebalanceRepository(db),
+		repository.NewAdjustedPriceRepository(db),
+		repository.NewRebalancePriceRepository(db),
+		nil,
+	)
+
+	result, err := handler.AdminAdjustHoldings(context.Background(), investment.InvestmentID, AdminAdjustHoldingsRequest{
+		Note:           "write off phantom VST dust",
+		Actor:          "sahil",
+		ZeroOutSymbols: []string{"VST", "MISSING"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "sahil", result.Actor)
+	require.Contains(t, result.Note, "[manual-adjustment]")
+	require.Contains(t, result.Note, "write off phantom VST dust")
+	require.InDelta(t, 12.5, result.Before.Cash, 0.000001)
+	require.Len(t, result.Before.Positions, 2)
+	require.InDelta(t, 12.5, result.Holdings.Cash, 0.000001)
+	require.Len(t, result.Holdings.Positions, 1)
+	require.Equal(t, "INTC", result.Holdings.Positions[0].Symbol)
+	require.Equal(t, []string{"MISSING"}, result.SkippedSymbols)
+	require.NotNil(t, result.AuditID)
+
+	holdingsRepo := repository.NewInvestmentHoldingsRepository(db)
+	latest, err := holdingsRepo.GetLatestHoldings(nil, investment.InvestmentID)
+	require.NoError(t, err)
+	require.InDelta(t, 12.5, latest.Cash.InexactFloat64(), 0.000001)
+	require.Len(t, latest.Positions, 1)
+	require.InDelta(t, 1, latest.Positions["INTC"].ExactQuantity.InexactFloat64(), 0.000001)
+	_, hasVST := latest.Positions["VST"]
+	require.False(t, hasVST)
+
+	var cashSum, positionSum decimal.Decimal
+	err = db.QueryRow(`
+		SELECT COALESCE(SUM(CASE WHEN t.symbol = ':CASH' THEN h.quantity ELSE 0 END), 0),
+		       COALESCE(SUM(CASE WHEN t.symbol <> ':CASH' THEN h.quantity ELSE 0 END), 0)
+		FROM latest_investment_holdings h
+		JOIN ticker t ON t.ticker_id = h.ticker_id
+		WHERE h.investment_id = $1
+	`, investment.InvestmentID).Scan(&cashSum, &positionSum)
+	require.NoError(t, err)
+	require.True(t, cashSum.Equal(decimal.RequireFromString("12.5")))
+	require.True(t, positionSum.Equal(decimal.RequireFromString("1")))
+
+	beforeIssues := compareAggregatePortfolios(aggregateReconcileInput{
+		LedgerQty: map[string]decimal.Decimal{
+			"VST":  decimal.RequireFromString("0.12"),
+			"INTC": decimal.RequireFromString("1"),
+		},
+		AlpacaQty: map[string]decimal.Decimal{
+			"INTC": decimal.RequireFromString("1"),
+		},
+	})
+	require.Equal(t, ReconIssuePhantomPosition, issueByTypeSymbol(t, beforeIssues, ReconIssuePhantomPosition, "VST").Type)
+
+	afterIssues := compareAggregatePortfolios(aggregateReconcileInput{
+		LedgerQty: map[string]decimal.Decimal{
+			"INTC": decimal.RequireFromString("1"),
+		},
+		AlpacaQty: map[string]decimal.Decimal{
+			"INTC": decimal.RequireFromString("1"),
+		},
+	})
+	for _, issue := range afterIssues {
+		require.NotEqual(t, "VST", issue.Symbol)
+		require.NotEqual(t, ReconIssuePhantomPosition, issue.Type)
+	}
+
+	var payload string
+	err = db.QueryRow(
+		`SELECT payload FROM admin_mutation_audit WHERE admin_mutation_audit_id = $1`,
+		*result.AuditID,
+	).Scan(&payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, `"mode": "zero_out"`)
+	require.Contains(t, payload, "VST")
 }
 
 func TestReconcileTradesUsesEarliestVersionWithoutNote(t *testing.T) {
