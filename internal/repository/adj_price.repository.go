@@ -125,6 +125,8 @@ func (h adjustedPriceRepositoryHandler) Get(symbol string, date time.Time) (deci
 		return decimal.Zero, fmt.Errorf("failed to query price for %s on %v: %w", symbol, date, err)
 	}
 	if len(results) == 0 {
+		// Misses are not cached: a cache entry would make a missing price look
+		// like a successful zero, which callers must never treat as a real px.
 		return decimal.Zero, fmt.Errorf("no results for %s on %v", symbol, date)
 	}
 	result := results[0]
@@ -179,6 +181,8 @@ func (h adjustedPriceRepositoryHandler) GetManyOnDay(symbols []string, date time
 		out[symbol] = cachedPrice
 	}
 
+	// Symbols with no row on this date are omitted, not zeroed. Callers must
+	// exclude them from scoring/sizing rather than treating absence as 0.
 	return out, nil
 }
 

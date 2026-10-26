@@ -2,6 +2,8 @@ package domain
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -47,15 +49,33 @@ func (p Portfolio) DeepCopy() *Portfolio {
 
 func (p Portfolio) TotalValue(priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
 	totalValue := *p.Cash
+	missing := p.UnpricedSymbols(priceMap)
 	for symbol, position := range p.Positions {
 		price, ok := priceMap[symbol]
-		if !ok {
-			return decimal.Zero, fmt.Errorf("cannot compute portfolio total value: price map missing %s", symbol)
+		if !ok || !price.GreaterThan(decimal.Zero) {
+			continue
 		}
 		totalValue = totalValue.Add(position.ExactQuantity.Mul(price))
 	}
+	if len(missing) > 0 {
+		return totalValue, fmt.Errorf("price map missing %s", strings.Join(missing, ", "))
+	}
 
 	return totalValue, nil
+}
+
+// UnpricedSymbols lists held names with no usable (present and positive) price.
+// Missing is not treated as zero; callers should skip sizing those names.
+func (p Portfolio) UnpricedSymbols(priceMap map[string]decimal.Decimal) []string {
+	missing := make([]string, 0)
+	for symbol := range p.Positions {
+		price, ok := priceMap[symbol]
+		if !ok || !price.GreaterThan(decimal.Zero) {
+			missing = append(missing, symbol)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 type Position struct {

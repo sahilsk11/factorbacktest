@@ -231,7 +231,8 @@ func (h factorExpressionServiceHandler) CalculateFactorScoresWithCache(ctx conte
 	numErrors = 0
 	var lastErr error
 	for _, o := range results {
-		if o.Err != nil {
+		// Missing prices are per-symbol exclusions, not expression failures.
+		if o.Err != nil && !errors.As(o.Err, &factorMetricsMissingDataError{}) {
 			numErrors++
 			lastErr = o.Err
 		}
@@ -571,6 +572,19 @@ func evaluateFactorExpression(
 		"currentDate": date.Format(time.DateOnly),
 	}
 
+	// Assumption: a symbol with no adjusted_price on the evaluation date is
+	// excluded from scoring. Missing is not treated as zero, and a single
+	// unpriced name must not fail the rest of the universe. Dry-run (pr == nil)
+	// skips this so cache loading can still discover which dates the expression
+	// needs.
+	if pr != nil {
+		if _, err := pr.Get(symbol, date); err != nil {
+			return nil, factorMetricsMissingDataError{
+				Err: fmt.Errorf("no adjusted_price for %s on %s", symbol, date.Format(time.DateOnly)),
+			}
+		}
+	}
+
 	debug := formulaDebugger{}
 	functions := constructFunctionMap(ctx, db, pr, symbol, factorMetricsHandler, debug, date)
 	result, err := sharedEvaluator.Evaluate(expression, variables, functions)
@@ -683,18 +697,22 @@ func (h *DryRunFactorMetricsHandler) PbRatio(tx qrm.Queryable, symbol string, da
 }
 
 func (h factorMetricsHandler) Price(pr *data.PriceCache, symbol string, date time.Time) (float64, error) {
-	return pr.Get(symbol, date)
+	price, err := pr.Get(symbol, date)
+	if err != nil {
+		return 0, factorMetricsMissingDataError{Err: err}
+	}
+	return price, nil
 }
 
 func (h factorMetricsHandler) PricePercentChange(pr *data.PriceCache, symbol string, start, end time.Time) (float64, error) {
 	startPrice, err := pr.Get(symbol, start)
 	if err != nil {
-		return 0, err
+		return 0, factorMetricsMissingDataError{Err: err}
 	}
 
 	endPrice, err := pr.Get(symbol, end)
 	if err != nil {
-		return 0, err
+		return 0, factorMetricsMissingDataError{Err: err}
 	}
 
 	return percentChange(endPrice, startPrice), nil
@@ -705,7 +723,11 @@ func percentChange(end, start float64) float64 {
 }
 
 func (h factorMetricsHandler) AnnualizedStdevOfDailyReturns(ctx context.Context, pr *data.PriceCache, symbol string, start, end time.Time) (float64, error) {
-	return pr.GetStdev(ctx, symbol, start, end)
+	stdev, err := pr.GetStdev(ctx, symbol, start, end)
+	if err != nil {
+		return 0, factorMetricsMissingDataError{Err: err}
+	}
+	return stdev, nil
 }
 
 func (h factorMetricsHandler) MarketCap(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
@@ -716,7 +738,7 @@ func (h factorMetricsHandler) MarketCap(tx qrm.Queryable, symbol string, date ti
 
 	price, err := h.AdjustedPriceRepository.Get(symbol, date)
 	if err != nil {
-		return 0, err
+		return 0, factorMetricsMissingDataError{Err: err}
 	}
 	if out.SharesOutstandingBasic == nil {
 		return 0, factorMetricsMissingDataError{fmt.Errorf("%s does not have # shares outstanding on %v", symbol, date)}
@@ -728,7 +750,7 @@ func (h factorMetricsHandler) MarketCap(tx qrm.Queryable, symbol string, date ti
 func (h factorMetricsHandler) PeRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
 	price, err := h.AdjustedPriceRepository.Get(symbol, date)
 	if err != nil {
-		return 0, err
+		return 0, factorMetricsMissingDataError{Err: err}
 	}
 
 	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)
@@ -746,7 +768,7 @@ func (h factorMetricsHandler) PeRatio(tx qrm.Queryable, symbol string, date time
 func (h factorMetricsHandler) PbRatio(tx qrm.Queryable, symbol string, date time.Time) (float64, error) {
 	price, err := h.AdjustedPriceRepository.Get(symbol, date)
 	if err != nil {
-		return 0, err
+		return 0, factorMetricsMissingDataError{Err: err}
 	}
 
 	out, err := h.AssetFundamentalsRepository.Get(tx, symbol, date)

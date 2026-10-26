@@ -4,6 +4,7 @@ import (
 	"factorbacktest/internal"
 	"factorbacktest/internal/domain"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ type ComputeTargetPortfolioResponse struct {
 	TargetPortfolio *domain.Portfolio
 	AssetWeights    map[string]float64
 	FactorScores    map[string]float64
+	SkippedUnpriced []string
 }
 
 // Computes what the portfolio should hold on a given day, given the
@@ -36,9 +38,15 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 		return nil, fmt.Errorf("insufficient tickers: at least 3 target tickers required, got %d", in.TargetNumTickers)
 	}
 
+	// Assumption: if a symbol has no (or non-positive) adjusted_price on the
+	// date being evaluated, exclude it from selection and sizing. Do not fail
+	// the whole run and do not treat the missing price as zero (that would
+	// divide-by-zero when converting weights into share quantities).
+	pricedScores, skippedUnpriced := factorScoresWithPrice(in.FactorScores, in.PriceMap)
+
 	computeTargetInput := internal.CalculateTargetAssetWeightsInput{
 		Date:                 in.Date,
-		FactorScoresBySymbol: in.FactorScores,
+		FactorScoresBySymbol: pricedScores,
 		NumTickers:           in.TargetNumTickers,
 	}
 	newWeights, err := internal.CalculateTargetAssetWeights(computeTargetInput)
@@ -52,7 +60,7 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 
 	// convert weights into quantities
 	for symbol, weight := range newWeights {
-		price, ok := in.PriceMap[symbol]
+		price, ok := usablePrice(in.PriceMap, symbol)
 		if !ok {
 			return nil, fmt.Errorf("priceMap does not have %s", symbol)
 		}
@@ -88,5 +96,28 @@ func ComputeTargetPortfolio(in ComputeTargetPortfolioInput) (*ComputeTargetPortf
 		TargetPortfolio: targetPortfolio,
 		AssetWeights:    newWeights,
 		FactorScores:    selectedAssetFactorScores,
+		SkippedUnpriced: skippedUnpriced,
 	}, nil
+}
+
+func factorScoresWithPrice(scores map[string]*float64, priceMap map[string]decimal.Decimal) (map[string]*float64, []string) {
+	priced := make(map[string]*float64, len(scores))
+	skipped := make([]string, 0)
+	for symbol, score := range scores {
+		if _, ok := usablePrice(priceMap, symbol); !ok {
+			skipped = append(skipped, symbol)
+			continue
+		}
+		priced[symbol] = score
+	}
+	sort.Strings(skipped)
+	return priced, skipped
+}
+
+func usablePrice(priceMap map[string]decimal.Decimal, symbol string) (decimal.Decimal, bool) {
+	price, ok := priceMap[symbol]
+	if !ok || !price.GreaterThan(decimal.Zero) {
+		return decimal.Zero, false
+	}
+	return price, true
 }

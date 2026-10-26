@@ -130,8 +130,8 @@ func calculateWeightsViaNumTickers(
 	factorScoresBySymbol map[string]*float64,
 ) (map[string]float64, error) {
 	topScores := topNScores(factorScoresBySymbol, numTickers)
-	if len(topScores) != numTickers {
-		return nil, fmt.Errorf("target portfolio should have %d assets but calculated scores for %d assets", numTickers, len(topScores))
+	if len(topScores) == 0 {
+		return nil, fmt.Errorf("no assets with factor scores to weight")
 	}
 	numTickers = len(topScores)
 	if numTickers == 1 {

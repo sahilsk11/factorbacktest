@@ -238,17 +238,27 @@ func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uui
 		return nil, fmt.Errorf("failed to get latest prices: %w", err)
 	}
 
+	log := logger.FromContext(ctx)
 	totalValue, err := currentHoldings.TotalValue(latestPrices)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute total value: %w", err)
+		log.Errorf("unpriced holdings while valuing investment %s: %s", investmentID.String(), err)
 	}
 
 	startValue := decimal.NewFromInt32(investment.AmountDollars)
-	returnFraction := (totalValue.Sub(startValue)).Div(startValue)
+	returnFraction := decimal.Zero
+	if startValue.GreaterThan(decimal.Zero) {
+		returnFraction = (totalValue.Sub(startValue)).Div(startValue)
+	}
 
 	positions := []domain.Position{}
 	for _, p := range currentHoldings.Positions {
-		p.Value = util.DecimalPointer(p.ExactQuantity.Mul(latestPrices[p.Symbol]))
+		price, ok := latestPrices[p.Symbol]
+		if !ok || !price.GreaterThan(decimal.Zero) {
+			log.Errorf("cannot price held position %s in investment %s", p.Symbol, investmentID.String())
+			positions = append(positions, *p)
+			continue
+		}
+		p.Value = util.DecimalPointer(p.ExactQuantity.Mul(price))
 		positions = append(positions, *p)
 	}
 
@@ -385,6 +395,17 @@ func (h investmentServiceHandler) getTargetPortfolio(
 	if err != nil {
 		return nil, err
 	}
+	unpriced := make([]string, 0)
+	for _, ticker := range universe {
+		price, ok := pm[ticker.Symbol]
+		if !ok || !price.GreaterThan(decimal.Zero) {
+			unpriced = append(unpriced, ticker.Symbol)
+		}
+	}
+	if len(unpriced) > 0 {
+		sort.Strings(unpriced)
+		logger.FromContext(ctx).Warnf("excluding symbols with no price from target portfolio: %s", strings.Join(unpriced, ", "))
+	}
 	factorScoresOnLatestDay, err := h.FactorExpressionService.CalculateLatestFactorScores(ctx, universe, strategy.FactorExpression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate factor scores: %w", err)
@@ -438,7 +459,7 @@ func (h investmentServiceHandler) rebalanceInvestment(
 
 	currentHoldingsValue, err := initialPortfolio.TotalValue(pm)
 	if err != nil {
-		return nil, err
+		log.Errorf("unpriced holdings while valuing investment %s: %s", investment.InvestmentID.String(), err)
 	}
 
 	if currentHoldingsValue.Equal(decimal.Zero) {
@@ -553,22 +574,35 @@ func transitionToTarget(
 		if ok {
 			diff = position.ExactQuantity.Sub(prevPosition.ExactQuantity)
 		}
-		if !diff.Equal(decimal.Zero) {
-			trades = append(trades, &domain.ProposedTrade{
-				Symbol:        symbol,
-				TickerID:      position.TickerID,
-				ExactQuantity: diff,
-				ExpectedPrice: priceMap[symbol],
-			})
+		if diff.Equal(decimal.Zero) {
+			continue
 		}
+		price, ok := priceMap[symbol]
+		if !ok || !price.GreaterThan(decimal.Zero) {
+			log.Warnf("skipping buy/size of %s: no price on evaluation date", symbol)
+			continue
+		}
+		trades = append(trades, &domain.ProposedTrade{
+			Symbol:        symbol,
+			TickerID:      position.TickerID,
+			ExactQuantity: diff,
+			ExpectedPrice: price,
+		})
 	}
 	for symbol, position := range prevPositions {
 		if _, ok := targetPositions[symbol]; !ok {
+			price, ok := priceMap[symbol]
+			if !ok || !price.GreaterThan(decimal.Zero) {
+				// Held and unpriced: do not sell-at-zero. Sell-at-last-price
+				// into cash is intentionally out of scope.
+				log.Warnf("skipping trade of held %s: no price on evaluation date", symbol)
+				continue
+			}
 			trades = append(trades, &domain.ProposedTrade{
 				Symbol:        symbol,
 				TickerID:      position.TickerID,
 				ExactQuantity: position.ExactQuantity.Neg(),
-				ExpectedPrice: priceMap[symbol],
+				ExpectedPrice: price,
 			})
 		}
 	}
