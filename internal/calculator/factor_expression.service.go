@@ -122,35 +122,35 @@ func (h factorExpressionServiceHandler) CalculateFactorScoresWithCache(ctx conte
 
 	// if we have any of the inputs stored already, load them and remove
 	// from the inputs list
-	// if false {
-	_, endSpan := profile.StartNewSpan("get precomputed scores")
-	precomputedScores, err := h.getPrecomputedScores(&inputs)
-	if err != nil {
-		return nil, nil, err
-	}
-	numFound := 0
-	numErrors := 0
-	for date, valuesOnDate := range precomputedScores {
-		scoresOnDate := map[string]*float64{}
-		errList := []error{}
-		for symbol, score := range valuesOnDate {
-			if score.Error != nil {
-				errList = append(errList, errors.New(*score.Error))
-			} else {
-				scoresOnDate[symbol] = score.Score
+	if !util.FactorScoreDBDisabled(ctx) {
+		_, endSpan := profile.StartNewSpan("get precomputed scores")
+		precomputedScores, err := h.getPrecomputedScores(&inputs)
+		if err != nil {
+			return nil, nil, err
+		}
+		numFound := 0
+		numErrors := 0
+		for date, valuesOnDate := range precomputedScores {
+			scoresOnDate := map[string]*float64{}
+			errList := []error{}
+			for symbol, score := range valuesOnDate {
+				if score.Error != nil {
+					errList = append(errList, errors.New(*score.Error))
+				} else {
+					scoresOnDate[symbol] = score.Score
+				}
 			}
+			out[date] = &ScoresResultsOnDay{
+				SymbolScores: scoresOnDate,
+				Errors:       []error{},
+			}
+			numFound += len(valuesOnDate)
+			numErrors += len(errList)
 		}
-		out[date] = &ScoresResultsOnDay{
-			SymbolScores: scoresOnDate,
-			Errors:       []error{},
-		}
-		numFound += len(valuesOnDate)
-		numErrors += len(errList)
-	}
-	endSpan()
+		endSpan()
 
-	log.Infof("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
-	// }
+		log.Infof("found %d scores and %d errors, computing data for %d scores\n", numFound, numErrors, len(inputs))
+	}
 	span, endSpan := profile.StartNewSpan("load price cache")
 	cache, err := h.loadPriceCache(domain.NewCtxWithSubProfile(ctx, span), inputs)
 	if err != nil {
@@ -228,7 +228,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScoresWithCache(ctx conte
 	// endNewProfile()
 	endSpan()
 
-	numErrors = 0
+	numErrors := 0
 	var lastErr error
 	for _, o := range results {
 		if o.Err != nil {
@@ -240,8 +240,7 @@ func (h factorExpressionServiceHandler) CalculateFactorScoresWithCache(ctx conte
 		return nil, nil, fmt.Errorf("failed to evaluate expression: over 50%% of score calculations failed. last err: %w", lastErr)
 	}
 
-	_, endSpan = profile.StartNewSpan("adding factor scores to db")
-	addManyInput := []*model.FactorScore{}
+	_, endSpan = profile.StartNewSpan("merge factor score results")
 	for _, res := range results {
 		if _, ok := out[res.Date]; !ok {
 			out[res.Date] = &ScoresResultsOnDay{
@@ -250,31 +249,37 @@ func (h factorExpressionServiceHandler) CalculateFactorScoresWithCache(ctx conte
 			}
 		}
 
-		m := &model.FactorScore{
-			TickerID:             res.Ticker.TickerID,
-			FactorExpressionHash: util.HashFactorExpression(factorExpression),
-			Date:                 res.Date,
-		}
-
 		if res.Err != nil && !errors.As(res.Err, &factorMetricsMissingDataError{}) {
 			out[res.Date].Errors = append(out[res.Date].Errors, res.Err)
-			errString := res.Err.Error()
-			m.Error = &errString
 		} else if res.Err == nil {
 			out[res.Date].SymbolScores[res.Ticker.Symbol] = &res.ExpressionResult.Value
-			m.Score = &res.ExpressionResult.Value
 		}
-
-		addManyInput = append(addManyInput, m)
-	}
-
-	// if false {
-	err = h.FactorScoreRepository.AddMany(addManyInput)
-	if err != nil {
-		return nil, nil, err
 	}
 	endSpan()
-	// }
+
+	if !util.FactorScoreDBDisabled(ctx) {
+		_, endSpan = profile.StartNewSpan("adding factor scores to db")
+		addManyInput := []*model.FactorScore{}
+		for _, res := range results {
+			m := &model.FactorScore{
+				TickerID:             res.Ticker.TickerID,
+				FactorExpressionHash: util.HashFactorExpression(factorExpression),
+				Date:                 res.Date,
+			}
+			if res.Err != nil && !errors.As(res.Err, &factorMetricsMissingDataError{}) {
+				errString := res.Err.Error()
+				m.Error = &errString
+			} else if res.Err == nil {
+				m.Score = &res.ExpressionResult.Value
+			}
+			addManyInput = append(addManyInput, m)
+		}
+		err = h.FactorScoreRepository.AddMany(addManyInput)
+		if err != nil {
+			return nil, nil, err
+		}
+		endSpan()
+	}
 
 	return out, cache, nil
 }
