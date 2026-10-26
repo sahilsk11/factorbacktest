@@ -22,9 +22,21 @@ type InvestmentRepository interface {
 	CompleteLiquidation(tx *sql.Tx, investmentID uuid.UUID) (bool, error)
 	SetErrorAt(tx *sql.Tx, investmentID uuid.UUID, reason string) error
 	ClearErrorAt(tx *sql.Tx, investmentID uuid.UUID) error
+	Unpause(investmentID uuid.UUID) (*UnpauseResult, error)
 }
 
-var ErrInvestmentNotFound = errors.New("investment not found")
+var (
+	ErrInvestmentNotFound      = errors.New("investment not found")
+	ErrInvestmentEnded         = errors.New("investment has ended")
+	ErrInvestmentInLiquidation = errors.New("investment is in liquidation")
+)
+
+// UnpauseResult is the outcome of clearing paused_at. AlreadyActive is true
+// when the row was already unpaused; the update is skipped in that case.
+type UnpauseResult struct {
+	Investment    model.Investment
+	AlreadyActive bool
+}
 
 type investmentRepositoryHandler struct {
 	Db *sql.DB
@@ -216,4 +228,47 @@ func (h investmentRepositoryHandler) ClearErrorAt(tx *sql.Tx, investmentID uuid.
 		return fmt.Errorf("failed to clear error on investment %s: %w", investmentID, err)
 	}
 	return nil
+}
+
+func (h investmentRepositoryHandler) Unpause(investmentID uuid.UUID) (*UnpauseResult, error) {
+	investment, err := h.Get(investmentID)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, ErrInvestmentNotFound
+		}
+		return nil, err
+	}
+	if investment.EndDate != nil {
+		return nil, ErrInvestmentEnded
+	}
+	if investment.LiquidationRequestedAt != nil {
+		return nil, ErrInvestmentInLiquidation
+	}
+	if investment.PausedAt == nil {
+		return &UnpauseResult{Investment: *investment, AlreadyActive: true}, nil
+	}
+
+	now := time.Now().UTC()
+	t := table.Investment
+	query := t.UPDATE(
+		t.PausedAt,
+		t.ModifiedAt,
+	).MODEL(model.Investment{
+		PausedAt:   nil,
+		ModifiedAt: now,
+	}).WHERE(
+		t.InvestmentID.EQ(postgres.UUID(investmentID)).
+			AND(t.EndDate.IS_NULL()).
+			AND(t.LiquidationRequestedAt.IS_NULL()),
+	).RETURNING(t.AllColumns)
+
+	out := model.Investment{}
+	err = query.Query(h.Db, &out)
+	if errors.Is(err, qrm.ErrNoRows) {
+		return nil, ErrInvestmentEnded
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to unpause investment %s: %w", investmentID, err)
+	}
+	return &UnpauseResult{Investment: out, AlreadyActive: false}, nil
 }

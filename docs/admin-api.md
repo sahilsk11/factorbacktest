@@ -101,6 +101,29 @@ Example response:
 
 When any holdings version for an investment has a non-empty `note`, reconcile uses the latest such version as the trade-replay baseline and only applies completed trades created strictly after that version.
 
+## Unpause / approve investment
+
+Clears `paused_at` so the investment is eligible for the next scheduled rebalance candidate listing. New investments are created paused and stay out of rebalance until this approval. Does **not** place orders, trigger a rebalance, call the broker, or change cash/holdings.
+
+```bash
+curl -sS -X POST "https://api.factor.trade/internal/admin/investments/<investment-id>/unpause" \
+  -H "X-Admin-Api-Key: $ADMIN_API_KEY"
+```
+
+Example response:
+
+```json
+{
+  "investmentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "paused": false,
+  "alreadyActive": false
+}
+```
+
+- `200` with `alreadyActive: true` if the investment was already unpaused (idempotent; no write)
+- `404` if the investment does not exist
+- `409` if it has ended (`end_date` set) or is in liquidation (`liquidation_requested_at` set)
+
 ## Ops triggers
 
 These reuse the same handlers as `/internal/cron/*` (cron routes remain unchanged).

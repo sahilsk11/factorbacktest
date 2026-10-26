@@ -180,6 +180,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	admin.Use(m.requireAdminApiKey)
 	admin.POST("/reconcile", m.adminReconcile)
 	admin.POST("/investments/:investmentID/holdings", m.adminReplaceHoldings)
+	admin.POST("/investments/:investmentID/unpause", m.adminUnpauseInvestment)
 	admin.POST("/updatePrices", m.updatePrices)
 	admin.POST("/rebalance", m.rebalance)
 	admin.POST("/updateOrders", m.updateOrders)

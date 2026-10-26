@@ -35,6 +35,7 @@ type InvestmentService interface {
 	RunReconcile(ctx context.Context) (*ReconcileResult, error)
 	Rebalance(ctx context.Context) (*RebalanceResult, error)
 	AdminReplaceHoldings(ctx context.Context, investmentID uuid.UUID, req AdminReplaceHoldingsRequest) (*AdminReplaceHoldingsResponse, error)
+	AdminUnpause(ctx context.Context, investmentID uuid.UUID) (*AdminUnpauseResponse, error)
 }
 
 func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
