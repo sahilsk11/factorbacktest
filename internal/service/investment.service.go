@@ -280,8 +280,7 @@ func (h investmentServiceHandler) GetStats(ctx context.Context, investmentID uui
 }
 
 // listForRebalance retrieves all investments that should be
-// rebalanced right now
-// todo - fix so that it looks at rebalance interval
+// rebalanced right now, honoring each strategy's rebalance_interval.
 func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model.Investment, error) {
 	log := logger.FromContext(ctx)
 	investments, err := h.InvestmentRepository.List(repository.StrategyInvestmentListFilter{})
@@ -289,6 +288,7 @@ func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model
 		return nil, err
 	}
 
+	now := time.Now().UTC()
 	investmentsToRebalance := []model.Investment{}
 	for _, investment := range investments {
 		if investment.ErrorAt != nil {
@@ -300,7 +300,6 @@ func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model
 			)
 			continue
 		}
-		log.Infof("rebalancing %s", investment.InvestmentID.String())
 		tradeOrders, err := h.InvestmentTradeRepository.List(nil, repository.InvestmentTradeListFilter{
 			InvestmentID: &investment.InvestmentID,
 		})
@@ -313,12 +312,37 @@ func (h investmentServiceHandler) listForRebalance(ctx context.Context) ([]model
 				pendingInvestmentTradeID = *t.InvestmentTradeID
 			}
 		}
-
-		if pendingInvestmentTradeID == uuid.Nil {
-			investmentsToRebalance = append(investmentsToRebalance, investment)
-		} else {
+		if pendingInvestmentTradeID != uuid.Nil {
 			log.Infof("skipping rebalancing investment id %s: has pending investment trade %s\n", investment.InvestmentID, pendingInvestmentTradeID)
+			continue
 		}
+
+		if investment.LiquidationRequestedAt == nil {
+			strategy, err := h.StrategyRepository.Get(investment.StrategyID)
+			if err != nil {
+				return nil, err
+			}
+			lastPlaced, err := h.InvestmentRebalanceRepository.GetLatestPlaced(investment.InvestmentID)
+			if err != nil {
+				return nil, err
+			}
+			var lastPlacedAt *time.Time
+			if lastPlaced != nil {
+				lastPlacedAt = &lastPlaced.CreatedAt
+			}
+			if !dueForRebalance(strategy.RebalanceInterval, lastPlacedAt, now) {
+				log.Infof(
+					"skipping rebalancing investment id %s: last placed rebalance at %s, interval %s",
+					investment.InvestmentID,
+					lastPlacedAt.Format(time.RFC3339),
+					strategy.RebalanceInterval,
+				)
+				continue
+			}
+		}
+
+		log.Infof("rebalancing %s", investment.InvestmentID.String())
+		investmentsToRebalance = append(investmentsToRebalance, investment)
 	}
 
 	return investmentsToRebalance, nil
@@ -644,7 +668,6 @@ func (h investmentServiceHandler) Rebalance(ctx context.Context) (*RebalanceResu
 		return out, fmt.Errorf("market is not open")
 	}
 
-	// note - assumes everything is due for rebalance when run, i.e. rebalances everything
 	investmentsToRebalance, err := h.listForRebalance(ctx)
 	if err != nil {
 		return out, err
