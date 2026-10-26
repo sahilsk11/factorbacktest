@@ -49,3 +49,26 @@ func (m ApiHandler) adminReplaceHoldings(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, result)
 }
+
+func (m ApiHandler) adminUnpauseInvestment(ctx *gin.Context) {
+	investmentID, err := uuid.Parse(ctx.Param("investmentID"))
+	if err != nil {
+		returnErrorJsonCode(fmt.Errorf("invalid investment id"), ctx, http.StatusBadRequest)
+		return
+	}
+
+	result, err := m.InvestmentService.AdminUnpause(ctx.Request.Context(), investmentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrAdminUnpauseInvestmentNotFound):
+			returnErrorJsonCode(err, ctx, http.StatusNotFound)
+		case errors.Is(err, service.ErrAdminUnpauseTerminal):
+			returnErrorJsonCode(err, ctx, http.StatusConflict)
+		default:
+			returnErrorJson(err, ctx)
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, result)
+}

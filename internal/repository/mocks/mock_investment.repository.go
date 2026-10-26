@@ -145,3 +145,18 @@ func (mr *MockInvestmentRepositoryMockRecorder) SetErrorAt(tx, investmentID, rea
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetErrorAt", reflect.TypeOf((*MockInvestmentRepository)(nil).SetErrorAt), tx, investmentID, reason)
 }
+
+// Unpause mocks base method.
+func (m *MockInvestmentRepository) Unpause(investmentID uuid.UUID) (*repository.UnpauseResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Unpause", investmentID)
+	ret0, _ := ret[0].(*repository.UnpauseResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Unpause indicates an expected call of Unpause.
+func (mr *MockInvestmentRepositoryMockRecorder) Unpause(investmentID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unpause", reflect.TypeOf((*MockInvestmentRepository)(nil).Unpause), investmentID)
+}
