@@ -11,6 +11,7 @@ package table
 // this method only once at the beginning of the program.
 func UseSchema(schema string) {
 	AdjustedPrice = AdjustedPrice.FromSchema(schema)
+	AdminMutationAudit = AdminMutationAudit.FromSchema(schema)
 	APIRequest = APIRequest.FromSchema(schema)
 	AssetFundamental = AssetFundamental.FromSchema(schema)
 	AssetUniverse = AssetUniverse.FromSchema(schema)

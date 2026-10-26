@@ -22,6 +22,8 @@ type runReconcileServiceStub struct {
 	service.InvestmentService
 	runReconcile         func(context.Context) (*service.ReconcileResult, error)
 	adminReplaceHoldings func(context.Context, uuid.UUID, service.AdminReplaceHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error)
+	adminAdjustHoldings  func(context.Context, uuid.UUID, service.AdminAdjustHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error)
+	adminSellBrokerDust  func(context.Context, service.AdminSellBrokerDustRequest) (*service.AdminSellBrokerDustResponse, error)
 }
 
 func (s runReconcileServiceStub) RunReconcile(ctx context.Context) (*service.ReconcileResult, error) {
@@ -35,6 +37,20 @@ func (s runReconcileServiceStub) AdminReplaceHoldings(ctx context.Context, inves
 	return nil, nil
 }
 
+func (s runReconcileServiceStub) AdminAdjustHoldings(ctx context.Context, investmentID uuid.UUID, req service.AdminAdjustHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error) {
+	if s.adminAdjustHoldings != nil {
+		return s.adminAdjustHoldings(ctx, investmentID, req)
+	}
+	return nil, nil
+}
+
+func (s runReconcileServiceStub) AdminSellBrokerDust(ctx context.Context, req service.AdminSellBrokerDustRequest) (*service.AdminSellBrokerDustResponse, error) {
+	if s.adminSellBrokerDust != nil {
+		return s.adminSellBrokerDust(ctx, req)
+	}
+	return nil, nil
+}
+
 func newAdminRouter(t *testing.T, handler ApiHandler) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -43,6 +59,8 @@ func newAdminRouter(t *testing.T, handler ApiHandler) *gin.Engine {
 	admin.Use(handler.requireAdminApiKey)
 	admin.POST("/reconcile", handler.adminReconcile)
 	admin.POST("/investments/:investmentID/holdings", handler.adminReplaceHoldings)
+	admin.POST("/investments/:investmentID/holdings/adjust", handler.adminAdjustHoldings)
+	admin.POST("/broker/dust-sells", handler.adminSellBrokerDust)
 	admin.POST("/updatePrices", handler.updatePrices)
 	admin.POST("/rebalance", handler.rebalance)
 	admin.POST("/updateOrders", handler.updateOrders)
@@ -253,4 +271,34 @@ func TestAdminReplaceHoldingsRequiresApiKey(t *testing.T) {
 		engine.ServeHTTP(recorder, req)
 		require.Equal(t, http.StatusForbidden, recorder.Code)
 	})
+}
+
+func TestAdminAdjustAndDustSellRequireApiKey(t *testing.T) {
+	t.Setenv("ADMIN_API_KEY", "test-admin-api-key")
+	investmentID := uuid.New()
+	engine := newAdminRouter(t, ApiHandler{
+		InvestmentService: runReconcileServiceStub{
+			adminAdjustHoldings: func(context.Context, uuid.UUID, service.AdminAdjustHoldingsRequest) (*service.AdminReplaceHoldingsResponse, error) {
+				t.Fatal("should not be called without a valid key")
+				return nil, nil
+			},
+			adminSellBrokerDust: func(context.Context, service.AdminSellBrokerDustRequest) (*service.AdminSellBrokerDustResponse, error) {
+				t.Fatal("should not be called without a valid key")
+				return nil, nil
+			},
+		},
+	})
+
+	adjustPath := "/internal/admin/investments/" + investmentID.String() + "/holdings/adjust"
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, adjustPath, strings.NewReader(`{"note":"x","zeroOutSymbols":["VST"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	engine.ServeHTTP(recorder, req)
+	require.Equal(t, http.StatusForbidden, recorder.Code)
+
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/internal/admin/broker/dust-sells", strings.NewReader(`{"symbols":["XYZ"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	engine.ServeHTTP(recorder, req)
+	require.Equal(t, http.StatusForbidden, recorder.Code)
 }

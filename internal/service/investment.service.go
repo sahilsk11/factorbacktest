@@ -35,6 +35,8 @@ type InvestmentService interface {
 	RunReconcile(ctx context.Context) (*ReconcileResult, error)
 	Rebalance(ctx context.Context) (*RebalanceResult, error)
 	AdminReplaceHoldings(ctx context.Context, investmentID uuid.UUID, req AdminReplaceHoldingsRequest) (*AdminReplaceHoldingsResponse, error)
+	AdminAdjustHoldings(ctx context.Context, investmentID uuid.UUID, req AdminAdjustHoldingsRequest) (*AdminReplaceHoldingsResponse, error)
+	AdminSellBrokerDust(ctx context.Context, req AdminSellBrokerDustRequest) (*AdminSellBrokerDustResponse, error)
 }
 
 func (h investmentServiceHandler) RequestLiquidation(ctx context.Context, userAccountID, investmentID uuid.UUID) error {
@@ -60,6 +62,7 @@ type investmentServiceHandler struct {
 	PriceRepository               repository.AdjustedPriceRepository
 	RebalancePriceRepository      repository.RebalancePriceRepository
 	PriceService                  data.PriceService
+	AdminMutationAuditRepository  repository.AdminMutationAuditRepository
 }
 
 func NewInvestmentService(
@@ -99,6 +102,7 @@ func NewInvestmentService(
 		PriceRepository:               priceRepository,
 		RebalancePriceRepository:      rebalancePriceRepository,
 		PriceService:                  priceService,
+		AdminMutationAuditRepository:  repository.NewAdminMutationAuditRepository(db),
 	}
 }
 

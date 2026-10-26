@@ -76,6 +76,7 @@ curl -sS -X POST "https://api.factor.trade/internal/admin/investments/<investmen
   -H "Content-Type: application/json" \
   -d '{
     "note": "Broker ledger correction for INTC",
+    "actor": "sahil",
     "cash": 1.22,
     "positions": [{ "symbol": "INTC", "quantity": 0.764168 }]
   }'
@@ -84,22 +85,87 @@ curl -sS -X POST "https://api.factor.trade/internal/admin/investments/<investmen
 Request body:
 
 - `note` (required, non-empty string): stored on the new holdings version; used by reconcile as a baseline reset marker
+- `actor` (optional; defaults to `admin`)
 - `cash` (required number, may be `0`)
 - `positions` (array): each item has `symbol` (must resolve to a ticker) and `quantity` (>= 0)
 
-Example response:
-
-```json
-{
-  "versionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "holdings": {
-    "cash": 1.22,
-    "positions": [{ "symbol": "INTC", "quantity": 0.764168 }]
-  }
-}
-```
+The response includes `before` and `holdings` (the after snapshot), plus `auditId`. Every successful replace also inserts an `admin_mutation_audit` row (`kind=ledger_adjust`).
 
 When any holdings version for an investment has a non-empty `note`, reconcile uses the latest such version as the trade-replay baseline and only applies completed trades created strictly after that version.
+
+## Write off ledger dust (zero-out convenience)
+
+Same mechanism as replace: appends a noted holdings version, no Alpaca call, no fake trades. Starts from the current snapshot, sets the listed symbols to zero, and keeps cash unless `cash` is sent.
+
+Use this for **PHANTOM_POSITION** leftover on ended investments (shares the ledger still shows, Alpaca does not). Do **not** credit cash — those shares were never at the broker, so adding sale proceeds would create a cash mismatch.
+
+```bash
+curl -sS -X POST "https://api.factor.trade/internal/admin/investments/<investment-id>/holdings/adjust" \
+  -H "X-Admin-Api-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "note": "write off phantom fractional dust after liquidation",
+    "actor": "sahil",
+    "zeroOutSymbols": ["VST", "GEV", "NSC"]
+  }'
+```
+
+- `note` required
+- `zeroOutSymbols` required (explicit list)
+- `cash` optional; omit to keep the current cash row
+- Symbols not currently held are returned in `skippedSymbols` (the call still succeeds if at least one symbol was actually removed)
+
+The stored version note is prefixed with `[manual-adjustment] actor=... source=admin-api`.
+
+## Sell untracked Alpaca dust (optional, dry-run by default)
+
+Sells **explicit** Alpaca symbols that the ledger does not track (`UNTRACKED_POSITION`). Does not create `investment_trade` / `trade_order` rows. Uses the app's existing Alpaca client (`PlaceOrder` limit sell at 95% of current price, same as rebalance sells).
+
+**Dry-run is the default.** Execution requires all of: `dryRun=false`, `confirm=true`, and a non-empty `note`.
+
+```bash
+# preview (default)
+curl -sS -X POST "https://api.factor.trade/internal/admin/broker/dust-sells" \
+  -H "X-Admin-Api-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbols": ["XYZ", "ABC"],
+    "note": "preview untracked dust"
+  }'
+
+# execute (only after reviewing the dry-run)
+curl -sS -X POST "https://api.factor.trade/internal/admin/broker/dust-sells" \
+  -H "X-Admin-Api-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbols": ["XYZ", "ABC"],
+    "note": "sell untracked alpaca dust",
+    "actor": "sahil",
+    "dryRun": false,
+    "confirm": true,
+    "maxDollarsPerPosition": 50
+  }'
+```
+
+Safety rails (any failure refuses the whole request, nothing is sold):
+
+- Symbols must be listed explicitly; there is no sell-everything default
+- Symbol must currently be held at Alpaca
+- Symbol must **not** be held in any non-ended investment ledger
+- Symbol must **not** appear on any investment ledger, including ended ones (otherwise it is not UNTRACKED; write off the ledger first)
+- Per-position estimated value must be **below** the cap (default and hard ceiling **$50**; request may set a lower cap, never higher)
+- Execute also refuses when the market is closed
+
+This tool does not liquidate live investments, does not sell DRIFT-sized positions, and does not invent ledger fills.
+
+## What this does not do
+
+- Does not call Alpaca during ledger replace/adjust
+- Does not fabricate `trade_order` or `investment_trade` rows
+- Does not automatically sell all untracked positions
+- Does not touch production by itself; these are authenticated admin POSTs
+
+Audit trail: ledger mutations reuse `investment_holdings_version.note` (reconcile baseline) and write `admin_mutation_audit` (actor, kind, note, before/after JSON). Executed broker dust sells write `admin_mutation_audit` only (`kind=broker_dust_sell`). Dry-runs are not persisted.
 
 ## Ops triggers
 
