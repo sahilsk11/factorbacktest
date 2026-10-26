@@ -54,7 +54,7 @@ func CalculateMetrics(backtestResults []BacktestResult, relevantTradingDays []ti
 	numYears := numHours / (365 * 24)
 	annualizedReturn := math.Pow((endValue/startValue), 1/numYears) - 1
 
-	sharpeRatio := annualizedReturn / stdev
+	sharpeRatio := annualizedReturn / annualizedStdev
 
 	return &CalculateMetricsResult{
 		AnnualizedStdev:  annualizedStdev,
