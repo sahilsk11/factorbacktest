@@ -103,6 +103,14 @@ func NewInvestmentService(
 }
 
 func (h investmentServiceHandler) Add(ctx context.Context, userAccountID uuid.UUID, strategyID uuid.UUID, amount int) error {
+	strategy, err := h.StrategyRepository.Get(strategyID)
+	if err != nil {
+		return err
+	}
+	if err := CheckNewInvestmentRebalanceInterval(strategy.RebalanceInterval); err != nil {
+		return err
+	}
+
 	tx, err := h.Db.Begin()
 	if err != nil {
 		return err

@@ -2,7 +2,11 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+
+	"factorbacktest/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -52,6 +56,10 @@ func (m ApiHandler) investInStrategy(c *gin.Context) {
 	}
 
 	err = m.InvestmentService.Add(ctx, userAccountID, strategyID, requestBody.Amount)
+	if errors.Is(err, service.ErrUnsupportedNewInvestmentRebalanceInterval) {
+		returnErrorJsonCode(err, c, http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		returnErrorJson(err, c)
 		return

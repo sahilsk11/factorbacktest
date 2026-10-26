@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import {
+  ALLOWED_NEW_INVESTMENT_REBALANCE_INTERVALS,
   createInvestment,
   DEFAULT_CREATE_INVESTMENT_FORM,
   validateCreateInvestmentForm,
@@ -247,12 +248,16 @@ export function CreateInvestmentDialog({
               </span>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {REBALANCE_OPTIONS.map((option) => {
+                  const allowed = ALLOWED_NEW_INVESTMENT_REBALANCE_INTERVALS.includes(option.value);
                   const active = option.value === form.rebalanceInterval;
                   return (
                     <button
                       key={option.value}
                       type="button"
+                      disabled={!allowed}
+                      aria-disabled={!allowed}
                       onClick={() => {
+                        if (!allowed) return;
                         setForm((prev) => ({ ...prev, rebalanceInterval: option.value }));
                         setValidationError(null);
                       }}
@@ -260,7 +265,8 @@ export function CreateInvestmentDialog({
                         'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                         active
                           ? 'border-accent bg-accent/15 text-foreground'
-                          : 'border-border bg-elevated/50 text-muted-foreground hover:border-border-strong',
+                          : 'border-border bg-elevated/50 text-muted-foreground',
+                        allowed ? 'hover:border-border-strong' : 'cursor-not-allowed opacity-50',
                       )}
                     >
                       {option.label}
@@ -268,6 +274,9 @@ export function CreateInvestmentDialog({
                   );
                 })}
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Only daily rebalance is currently supported. Other intervals are coming later.
+              </p>
             </div>
 
             <div>

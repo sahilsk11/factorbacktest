@@ -45,4 +45,16 @@ describe('validateCreateInvestmentForm', () => {
   it('requires at least three assets', () => {
     expect(validateCreateInvestmentForm({ ...validForm, numAssets: 2 })).toMatch(/3 assets/i);
   });
+
+  it('rejects non-daily rebalance intervals', () => {
+    expect(validateCreateInvestmentForm({ ...validForm, rebalanceInterval: 'weekly' })).toMatch(
+      /only daily/i,
+    );
+    expect(validateCreateInvestmentForm({ ...validForm, rebalanceInterval: 'monthly' })).toMatch(
+      /only daily/i,
+    );
+    expect(validateCreateInvestmentForm({ ...validForm, rebalanceInterval: 'yearly' })).toMatch(
+      /only daily/i,
+    );
+  });
 });

@@ -1,6 +1,12 @@
 import { apiClient } from '@/lib/api';
 import type { RebalanceInterval } from '@/pages/Builder/types';
 
+// Mirrors internal/service/new_investment_rebalance_interval.go.
+// Live rebalance currently ignores interval and runs every investment each
+// cron (effectively daily). Until other intervals are honored, new
+// investments may only use daily. Expand or delete this with the Go list.
+export const ALLOWED_NEW_INVESTMENT_REBALANCE_INTERVALS: readonly RebalanceInterval[] = ['daily'];
+
 export interface CreateInvestmentForm {
   strategyName: string;
   amountDollars: number;
@@ -43,6 +49,9 @@ export function validateCreateInvestmentForm(form: CreateInvestmentForm): string
   }
   if (!form.rebalanceInterval) {
     return 'Rebalance interval is required';
+  }
+  if (!ALLOWED_NEW_INVESTMENT_REBALANCE_INTERVALS.includes(form.rebalanceInterval)) {
+    return 'Only daily rebalance is currently supported';
   }
   if (!Number.isInteger(form.numAssets) || form.numAssets < 3) {
     return 'Hold at least 3 assets';

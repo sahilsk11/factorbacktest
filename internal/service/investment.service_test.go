@@ -201,6 +201,21 @@ func Test_investmentServiceHandler_rebalanceInvestment(t *testing.T) {
 	})
 }
 
+func TestInvestmentServiceAddRejectsNonDailyRebalance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	strategyRepository := mock_repository.NewMockStrategyRepository(ctrl)
+	handler := investmentServiceHandler{StrategyRepository: strategyRepository}
+	strategyID := uuid.New()
+
+	strategyRepository.EXPECT().
+		Get(strategyID).
+		Return(&model.Strategy{RebalanceInterval: "monthly"}, nil)
+
+	err := handler.Add(context.Background(), uuid.New(), strategyID, 100)
+	require.ErrorIs(t, err, ErrUnsupportedNewInvestmentRebalanceInterval)
+	require.ErrorContains(t, err, "only daily rebalance is currently supported")
+}
+
 func TestInvestmentServiceRequestLiquidation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	investmentRepository := mock_repository.NewMockInvestmentRepository(ctrl)
