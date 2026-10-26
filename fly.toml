@@ -50,6 +50,14 @@ primary_region = "iad"
     timeout = "5s"
     grace_period = "10s"
 
+# Web stays shared-2x/1GB (interactive backtests + warm landing).
+# Cron only needs supercronic + curl POSTs to web — shrink to 1x/512.
 [[vm]]
   size = "shared-cpu-2x"
   memory = "1gb"
+  processes = ["web"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["cron"]
