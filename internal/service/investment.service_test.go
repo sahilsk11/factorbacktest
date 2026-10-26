@@ -216,6 +216,104 @@ func TestInvestmentServiceAddRejectsNonDailyRebalance(t *testing.T) {
 	require.ErrorContains(t, err, "only daily rebalance is currently supported")
 }
 
+func Test_rebalanceInvestment_doesNotBuyUnpricedSymbol(t *testing.T) {
+	db, err := util.NewTestDb()
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	holdingsRepository := mock_repository.NewMockInvestmentHoldingsRepository(ctrl)
+	universeRepository := mock_repository.NewMockAssetUniverseRepository(ctrl)
+	ssRepo := mock_repository.NewMockStrategyRepository(ctrl)
+	feService := mock_calculator.NewMockFactorExpressionService(ctrl)
+	investmentRebalanceRepository := mock_repository.NewMockInvestmentRebalanceRepository(ctrl)
+	investmentTradeRepository := mock_repository.NewMockInvestmentTradeRepository(ctrl)
+	holdingsVersionRepository := mock_repository.NewMockInvestmentHoldingsVersionRepository(ctrl)
+
+	handler := investmentServiceHandler{
+		HoldingsRepository:            holdingsRepository,
+		StrategyRepository:            ssRepo,
+		UniverseRepository:            universeRepository,
+		FactorExpressionService:       feService,
+		InvestmentRebalanceRepository: investmentRebalanceRepository,
+		InvestmentTradeRepository:     investmentTradeRepository,
+		HoldingsVersionRepository:     holdingsVersionRepository,
+	}
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	defer tx.Rollback()
+
+	investment := model.Investment{
+		InvestmentID: uuid.New(),
+		StrategyID:   uuid.New(),
+	}
+	rebalancerRun := model.RebalancerRun{RebalancerRunID: uuid.New(), Date: time.Now()}
+	eaID := uuid.New()
+	aaplID := uuid.New()
+	googID := uuid.New()
+	msftID := uuid.New()
+	tickerIDMap := map[string]uuid.UUID{
+		"EA":   eaID,
+		"AAPL": aaplID,
+		"GOOG": googID,
+		"MSFT": msftID,
+	}
+	// EA is in the universe and scores highest, but has no price on this date.
+	priceMap := map[string]decimal.Decimal{
+		"AAPL": decimal.NewFromInt(100),
+		"GOOG": decimal.NewFromInt(100),
+		"MSFT": decimal.NewFromInt(100),
+	}
+
+	startPortfolio := domain.NewPortfolio()
+	startPortfolio.SetCash(decimal.NewFromInt(300))
+
+	eaScore, aaplScore, googScore, msftScore := 999.0, 100.0, 200.0, 300.0
+	scoresOnDay := &calculator.ScoresResultsOnDay{
+		SymbolScores: map[string]*float64{
+			"EA":   &eaScore,
+			"AAPL": &aaplScore,
+			"GOOG": &googScore,
+			"MSFT": &msftScore,
+		},
+	}
+
+	latestVersionID := uuid.New()
+	holdingsVersionRepository.EXPECT().GetLatestVersionID(investment.InvestmentID).Return(&latestVersionID, nil)
+	holdingsRepository.EXPECT().GetLatestHoldings(nil, investment.InvestmentID).Return(startPortfolio, nil)
+	ssRepo.EXPECT().Get(gomock.Any()).Return(&model.Strategy{AssetUniverse: "universe", NumAssets: 3}, nil)
+	universeRepository.EXPECT().GetAssets("universe").Return([]model.Ticker{
+		{Symbol: "EA", TickerID: eaID},
+		{Symbol: "AAPL", TickerID: aaplID},
+		{Symbol: "GOOG", TickerID: googID},
+		{Symbol: "MSFT", TickerID: msftID},
+	}, nil)
+	feService.EXPECT().CalculateLatestFactorScores(gomock.Any(), gomock.Any(), gomock.Any()).Return(scoresOnDay, nil)
+	investmentRebalanceRepository.EXPECT().Add(gomock.Any(), gomock.Any()).Return(&model.InvestmentRebalance{}, nil)
+	investmentTradeRepository.EXPECT().
+		AddMany(tx, gomock.Any()).
+		DoAndReturn(func(tx *sql.Tx, trades []*model.InvestmentTrade) ([]model.InvestmentTrade, error) {
+			for _, trade := range trades {
+				require.NotEqual(t, eaID, trade.TickerID, "live rebalance must not size/buy an unpriced symbol")
+				require.True(t, trade.ExpectedPrice.GreaterThan(decimal.Zero))
+			}
+			out := make([]model.InvestmentTrade, 0, len(trades))
+			for _, trade := range trades {
+				out = append(out, *trade)
+			}
+			return out, nil
+		})
+
+	response, err := handler.rebalanceInvestment(context.Background(), tx, investment, rebalancerRun, priceMap, tickerIDMap)
+	require.NoError(t, err)
+	require.NotNil(t, response)
+	for _, trade := range response.ProposedTrades {
+		require.NotEqual(t, "EA", trade.Symbol)
+		require.True(t, trade.ExpectedPrice.GreaterThan(decimal.Zero))
+	}
+	require.NotEmpty(t, response.ProposedTrades)
+}
+
 func TestInvestmentServiceRequestLiquidation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	investmentRepository := mock_repository.NewMockInvestmentRepository(ctrl)

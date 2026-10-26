@@ -7,9 +7,11 @@ import (
 	"factorbacktest/internal/data"
 	"factorbacktest/internal/db/models/postgres/public/model"
 	"factorbacktest/internal/domain"
+	"factorbacktest/internal/logger"
 	"factorbacktest/internal/progress"
 	"factorbacktest/internal/repository"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -157,9 +159,10 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 		currentPortfolioValue, err := currentPortfolio.TotalValue(pm)
 		endTotalVal()
 		if err != nil {
-			endIterProfile()
-			endIter()
-			return nil, fmt.Errorf("failed to calculate portfolio value on %v: %w", t, err)
+			// Held names with no price on this date are left in place (sell-at-
+			// last-price is a later change). Use NAV of the priced remainder so
+			// the day can still rebalance into names we can price.
+			logger.FromContext(ctx).Warnf("unpriced holdings on %s: %s", t.Format(time.DateOnly), err)
 		}
 
 		valuesFromDay, ok := factorScoresByDay[t]
@@ -182,6 +185,9 @@ func (h BacktestHandler) Backtest(ctx context.Context, in BacktestInput) (*Backt
 			endIterProfile()
 			endIter()
 			continue
+		}
+		if len(computeTargetPortfolioResponse.SkippedUnpriced) > 0 {
+			logger.FromContext(ctx).Warnf("skipping unpriced symbols for new entries on %s: %s", t.Format(time.DateOnly), strings.Join(computeTargetPortfolioResponse.SkippedUnpriced, ", "))
 		}
 
 		out = append(out, BacktestResult{
@@ -291,12 +297,12 @@ func toSnapshots(result []BacktestResult, priceMap map[string]map[string]decimal
 			nextResamplingDate := result[i+1].Date
 			for symbol := range r.AssetWeights {
 				startPrice, ok := priceMap[r.Date.Format(time.DateOnly)][symbol]
-				if !ok {
-					return nil, fmt.Errorf("failed to get start price from cache: %s, %v", symbol, r.Date)
+				if !ok || !startPrice.GreaterThan(decimal.Zero) {
+					continue
 				}
 				endPrice, ok := priceMap[nextResamplingDate.Format(time.DateOnly)][symbol]
-				if !ok {
-					return nil, fmt.Errorf("failed to get end price from cache: %s, %v", symbol, r.Date)
+				if !ok || !endPrice.GreaterThan(decimal.Zero) {
+					continue
 				}
 				priceChangeTilNextResampling[symbol] = decimal.NewFromInt(100).Mul((endPrice.Sub(startPrice)).Div(startPrice)).InexactFloat64()
 			}
