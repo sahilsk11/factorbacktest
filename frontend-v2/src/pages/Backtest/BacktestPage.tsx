@@ -8,6 +8,11 @@ import { DayInspector } from './DayInspector';
 import { EquityChart } from './EquityChart';
 import { InlineProgress } from './InlineProgress';
 import { MetricsBar } from './MetricsBar';
+import {
+  publishedWindowOrFallback,
+  shouldUsePublishedCache,
+  type PublishedStrategyBacktest,
+} from './published-cache';
 import { RerunPanel } from './RerunPanel';
 import { snapshotsToStrategyPoints, snapshotToHoldings } from './transform';
 import { useBenchmarkSeries } from './useBenchmarkSeries';
@@ -17,7 +22,6 @@ import { apiClient } from '@/lib/api';
 import type { BacktestRequest, BacktestResponse } from '@/lib/backtest-stream/types';
 import { useBacktestStream } from '@/lib/backtest-stream/useBacktestStream';
 import type { AssetUniverse, BuilderState, RebalanceInterval } from '@/pages/Builder/types';
-import type { PublishedStrategy } from '@/types/api';
 
 interface LocationState {
   from: 'builder';
@@ -45,7 +49,14 @@ function builderStateToRequest(state: BuilderState): BacktestRequest {
   };
 }
 
-function strategyToBuilderState(s: PublishedStrategy, start: string, end: string): BuilderState {
+function strategyToBuilderState(
+  s: Pick<
+    PublishedStrategyBacktest,
+    'factorExpression' | 'strategyName' | 'assetUniverse' | 'rebalanceInterval' | 'numAssets'
+  >,
+  start: string,
+  end: string,
+): BuilderState {
   return {
     factorExpression: s.factorExpression,
     factorName: s.strategyName,
@@ -184,19 +195,23 @@ export function BacktestPage(): React.ReactNode {
       if (strategyId) {
         const startParam = searchParams.get('start');
         const endParam = searchParams.get('end');
-        const start =
-          startParam && !isNaN(new Date(startParam).getTime()) ? startParam : threeYearsAgo();
-        const end = endParam && !isNaN(new Date(endParam).getTime()) ? endParam : todayISO();
+        const { start, end } = publishedWindowOrFallback(
+          startParam,
+          endParam,
+          threeYearsAgo(),
+          todayISO(),
+        );
 
         apiClient
-          .get<PublishedStrategy[]>('/publishedStrategies')
-          .then((strategies) => {
-            const s = strategies.find((s) => s.strategyID === strategyId);
-            if (!s) {
-              void navigate('/builder', { replace: true });
+          .get<PublishedStrategyBacktest>(`/publishedStrategies/${strategyId}/backtest`)
+          .then((cached) => {
+            if (shouldUsePublishedCache(cached, startParam, endParam) && cached.result) {
+              const next = strategyToBuilderState(cached, cached.backtestStart, cached.backtestEnd);
+              setBuilderState(next);
+              stream.applyCachedResult(cached.result);
               return;
             }
-            const next = strategyToBuilderState(s, start, end);
+            const next = strategyToBuilderState(cached, start, end);
             setBuilderState(next);
             stream.run(builderStateToRequest(next)).catch(ignoreRunError);
           })
@@ -230,11 +245,10 @@ export function BacktestPage(): React.ReactNode {
       setHoveredDate(null);
       setRunCounter((c) => c + 1);
 
-      // Write current inputs into the URL so the page is shareable
-      // and reload-stable. We don't use the server-returned
-      // strategyID because there's no GET-by-id endpoint to look up
-      // a one-off (non-published) strategy.
-      if (builderState) {
+      // Streamed (non-cached) runs write inputs into the URL so the page is
+      // shareable without a published strategy id. Cache hits keep `?id=` so
+      // reload can reuse the published result instead of streaming again.
+      if (builderState && stream.status === 'finishing') {
         const next = new URLSearchParams();
         next.set('expr', builderState.factorExpression);
         next.set('name', builderState.factorName);

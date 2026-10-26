@@ -15,7 +15,9 @@ export interface PublishedStrategy {
   numAssets: number;
   assetUniverse: string;
   // Optional because GetLatestPublishedRun can return nil for
-  // strategies that have no runs yet.
+  // strategies that have no runs yet. Daily cron
+  // /internal/cron/refreshPublishedStrategies rewrites these from a
+  // fresh 3-year backtest after price ingest.
   sharpeRatio: number | null;
   annualizedReturn: number | null;
   annualizedStandardDeviation: number | null;

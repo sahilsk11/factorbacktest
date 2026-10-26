@@ -21,4 +21,5 @@ type StrategyRun struct {
 	AnnualizedReturn *float64
 	AnnualuzedStdev  *float64
 	CreatedAt        time.Time
+	Result           *string
 }

@@ -167,6 +167,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	engine.GET("/activeInvestments", m.getActiveInvestments)
 	engine.GET("/investments", m.getAllInvestments)
 	engine.GET("/publishedStrategies", m.getPublishedStrategies)
+	engine.GET("/publishedStrategies/:strategyID/backtest", m.getPublishedStrategyBacktest)
 
 	cron := engine.Group("/internal/cron")
 	cron.Use(m.requireCronSecret)
@@ -177,6 +178,7 @@ func (m ApiHandler) InitializeRouterEngine(ctx context.Context) *gin.Engine {
 	cron.POST("/updateCorporateActions", m.updateCorporateActions)
 	cron.POST("/updateAdjustedPrices", m.updateAdjustedPrices)
 	cron.POST("/sendSavedStrategySummaryEmails", m.sendSavedStrategySummaryEmails)
+	cron.POST("/refreshPublishedStrategies", m.refreshPublishedStrategies)
 
 	admin := engine.Group("/internal/admin")
 	admin.Use(m.requireAdminApiKey)

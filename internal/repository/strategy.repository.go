@@ -83,37 +83,6 @@ func (h strategyRepositoryHandler) Add(m model.Strategy) (*model.Strategy, error
 	return &out, nil
 }
 
-// ignores bookmarker col
-func (h strategyRepositoryHandler) ListMatchingStrategies(m model.Strategy) ([]model.Strategy, error) {
-	query := table.Strategy.
-		SELECT(table.Strategy.AllColumns).
-		WHERE(
-			postgres.AND(
-				// table.Strategy.StrategyName.EQ(postgres.String(m.StrategyName)),
-				table.Strategy.FactorExpression.EQ(postgres.String(m.FactorExpression)),
-				// idk how to deal with dates rn
-				// table.Strategy.BacktestStart.EQ(postgres.DateT(m.BacktestStart)),
-				// table.Strategy.BacktestEnd.EQ(postgres.DateT(m.BacktestEnd)),
-				table.Strategy.RebalanceInterval.EQ(postgres.String(m.RebalanceInterval)),
-				table.Strategy.NumAssets.EQ(postgres.Int32(m.NumAssets)),
-				table.Strategy.AssetUniverse.EQ(postgres.String(m.AssetUniverse)),
-				table.Strategy.UserAccountID.EQ(postgres.UUID(m.UserAccountID)),
-			),
-		).ORDER_BY(
-		table.Strategy.CreatedAt.DESC(),
-	)
-
-	out := []model.Strategy{}
-	err := query.Query(h.Db, &out)
-	if errors.Is(err, qrm.ErrNoRows) {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	return out, nil
-}
-
 type StrategyListFilter struct {
 	SavedByUser *uuid.UUID
 	Published   *bool

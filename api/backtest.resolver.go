@@ -42,11 +42,149 @@ type BacktestRequest struct {
 type BacktestResponse struct {
 	FactorName       string                              `json:"factorName"`
 	StrategyID       uuid.UUID                           `json:"strategyID"`
-	Snapshots        map[string]service.BacktestSnapshot `json:"backtestSnapshots"` // todo - figure this out
+	Snapshots        map[string]service.BacktestSnapshot `json:"backtestSnapshots"`
 	LatestHoldings   LatestHoldings                      `json:"latestHoldings"`
 	SharpeRatio      *float64                            `json:"sharpeRatio"`
 	AnnualizedReturn *float64                            `json:"annualizedReturn"`
 	AnnualizedStdev  *float64                            `json:"annualizedStandardDeviation"`
+}
+
+// publishedBacktestStartCash matches the frontend published-strategy click
+// path (BacktestPage builderStateToRequest). Cron refresh and cache hits
+// must use the same starting capital so card stats and the opened chart agree.
+const publishedBacktestStartCash = 10_000.0
+
+func samplingIntervalDuration(unit string) time.Duration {
+	samplingInterval := time.Hour * 24
+	if strings.EqualFold(unit, "weekly") {
+		samplingInterval *= 7
+	} else if strings.EqualFold(unit, "monthly") {
+		samplingInterval *= 30
+	} else if strings.EqualFold(unit, "yearly") {
+		samplingInterval *= 365
+	}
+	return samplingInterval
+}
+
+func publishedBacktestWindow(now time.Time) (time.Time, time.Time) {
+	end := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	start := end.AddDate(-3, 0, 0)
+	return start, end
+}
+
+func formatDate(t time.Time) string {
+	return t.Format("2006-01-02")
+}
+
+func marshalBacktestResult(resp *BacktestResponse) (*string, error) {
+	if resp == nil {
+		return nil, nil
+	}
+	bytes, err := json.Marshal(resp)
+	if err != nil {
+		return nil, err
+	}
+	s := string(bytes)
+	return &s, nil
+}
+
+func unmarshalBacktestResult(raw *string) (*BacktestResponse, error) {
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return nil, nil
+	}
+	var resp BacktestResponse
+	if err := json.Unmarshal([]byte(*raw), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func toAPIBacktestResponse(
+	strategy model.Strategy,
+	result *service.BacktestResponse,
+	metrics *calculator.CalculateMetricsResult,
+) *BacktestResponse {
+	if result == nil {
+		result = &service.BacktestResponse{}
+	}
+	if metrics == nil {
+		metrics = &calculator.CalculateMetricsResult{}
+	}
+	return &BacktestResponse{
+		StrategyID: strategy.StrategyID,
+		FactorName: strategy.StrategyName,
+		Snapshots:  result.Snapshots,
+		LatestHoldings: LatestHoldings{
+			Date:   result.LatestHoldings.Date,
+			Assets: result.LatestHoldings.Assets,
+		},
+		AnnualizedReturn: &metrics.AnnualizedReturn,
+		SharpeRatio:      &metrics.SharpeRatio,
+		AnnualizedStdev:  &metrics.AnnualizedStdev,
+	}
+}
+
+func newStrategyRun(
+	strategyID uuid.UUID,
+	start, end time.Time,
+	metrics *calculator.CalculateMetricsResult,
+	resultJSON *string,
+) model.StrategyRun {
+	run := model.StrategyRun{
+		StrategyID: strategyID,
+		StartDate:  start,
+		EndDate:    end,
+		Result:     resultJSON,
+	}
+	if metrics != nil {
+		run.SharpeRatio = &metrics.SharpeRatio
+		run.AnnualizedReturn = &metrics.AnnualizedReturn
+		run.AnnualuzedStdev = &metrics.AnnualizedStdev
+	}
+	return run
+}
+
+func (h ApiHandler) computeStrategyBacktest(
+	ctx context.Context,
+	strategy model.Strategy,
+	start, end time.Time,
+	startCash float64,
+) (*BacktestResponse, *calculator.CalculateMetricsResult, error) {
+	input := service.BacktestInput{
+		FactorExpression:  strategy.FactorExpression,
+		BacktestStart:     start,
+		BacktestEnd:       end,
+		RebalanceInterval: samplingIntervalDuration(strategy.RebalanceInterval),
+		StartingCash:      startCash,
+		NumTickers:        int(strategy.NumAssets),
+		AssetUniverse:     strategy.AssetUniverse,
+	}
+	result, err := h.BacktestHandler.Backtest(ctx, input)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to run backtest: %w", err)
+	}
+	metrics, err := h.StrategyService.CalculateMetrics(ctx, strategy.StrategyID, result.Results)
+	if err != nil {
+		logger.FromContext(ctx).Errorf("failed to calculate metrics: %w", err)
+		metrics = &calculator.CalculateMetricsResult{}
+	}
+	return toAPIBacktestResponse(strategy, result, metrics), metrics, nil
+}
+
+func (h ApiHandler) persistPublishedStrategyRun(
+	strategy model.Strategy,
+	start, end time.Time,
+	resp *BacktestResponse,
+	metrics *calculator.CalculateMetricsResult,
+) error {
+	resultJSON, err := marshalBacktestResult(resp)
+	if err != nil {
+		return fmt.Errorf("failed to marshal backtest result: %w", err)
+	}
+	if _, err := h.StrategyRepository.AddRun(newStrategyRun(strategy.StrategyID, start, end, metrics, resultJSON)); err != nil {
+		return fmt.Errorf("failed to add strategy run: %w", err)
+	}
+	return nil
 }
 
 type LatestHoldings struct {
@@ -197,14 +335,7 @@ func (h ApiHandler) runBacktest(c *gin.Context, requestBody BacktestRequest) (*B
 		assetUniverse = requestBody.AssetUniverse
 	}
 
-	samplingInterval := time.Hour * 24
-	if strings.EqualFold(requestBody.SamplingIntervalUnit, "weekly") {
-		samplingInterval *= 7
-	} else if strings.EqualFold(requestBody.SamplingIntervalUnit, "monthly") {
-		samplingInterval *= 30
-	} else if strings.EqualFold(requestBody.SamplingIntervalUnit, "yearly") {
-		samplingInterval *= 365
-	}
+	samplingInterval := samplingIntervalDuration(requestBody.SamplingIntervalUnit)
 
 	var requestId *uuid.UUID
 	requestIDAny, ok := c.Get("requestID")
@@ -266,34 +397,22 @@ func (h ApiHandler) runBacktest(c *gin.Context, requestBody BacktestRequest) (*B
 		metrics = &calculator.CalculateMetricsResult{}
 	}
 
-	newRunModel := model.StrategyRun{
-		StrategyID: insertedStrategy.StrategyID,
-		StartDate:  backtestStartDate,
-		EndDate:    backtestEndDate,
+	namedStrategy := *insertedStrategy
+	if requestBody.FactorOptions.Name != "" {
+		namedStrategy.StrategyName = requestBody.FactorOptions.Name
 	}
-	if metrics != nil {
-		newRunModel.SharpeRatio = &metrics.SharpeRatio
-		newRunModel.AnnualizedReturn = &metrics.AnnualizedReturn
-		newRunModel.AnnualuzedStdev = &metrics.AnnualizedStdev
-	}
+	responseJson := toAPIBacktestResponse(namedStrategy, result, metrics)
 
-	if _, err := h.StrategyRepository.AddRun(newRunModel); err != nil {
+	if _, err := h.StrategyRepository.AddRun(newStrategyRun(
+		insertedStrategy.StrategyID,
+		backtestStartDate,
+		backtestEndDate,
+		metrics,
+		nil,
+	)); err != nil {
 		log.Errorf("failed to add strategy run: %w", err)
 	}
 	endMetricsStep()
-
-	responseJson := &BacktestResponse{
-		StrategyID: insertedStrategy.StrategyID,
-		FactorName: requestBody.FactorOptions.Name,
-		Snapshots:  result.Snapshots,
-		LatestHoldings: LatestHoldings{
-			Date:   result.LatestHoldings.Date,
-			Assets: result.LatestHoldings.Assets,
-		},
-		AnnualizedReturn: &metrics.AnnualizedReturn,
-		SharpeRatio:      &metrics.SharpeRatio,
-		AnnualizedStdev:  &metrics.AnnualizedStdev,
-	}
 
 	endProfile()
 
