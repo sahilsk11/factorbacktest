@@ -1,0 +1,17 @@
+{
+  "name": "factor-cf-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Non-prod spike: Cloudflare Worker + Container + Cron Trigger (scale-to-zero). Not wired to api.factor.trade.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:scheduled": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20250927.0",
+    "typescript": "5.8.3",
+    "wrangler": "4.36.0"
+  }
+}

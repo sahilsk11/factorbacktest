@@ -14,6 +14,7 @@ import (
 	"factorbacktest/internal/service"
 	"factorbacktest/internal/util"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -177,6 +178,11 @@ func (h ApiHandler) runBacktest(c *gin.Context, requestBody BacktestRequest) (*B
 	log := logger.FromContext(c)
 	profile, endProfile := domain.NewProfile()
 	ctx := context.WithValue(context.Background(), domain.ContextProfileKey, profile)
+
+	if os.Getenv("FB_BENCH_ALLOW_SCORE_CACHE_BYPASS") == "1" &&
+		c.GetHeader("X-FB-Disable-Factor-Score-DB") == "1" {
+		ctx = domain.WithFactorScoreDBDisabled(ctx)
+	}
 
 	// Promote the Reporter (set by the SSE endpoint, absent for the
 	// synchronous endpoint) onto the Go context so service-layer code can
